@@ -5,7 +5,7 @@ they keep backups correct and restorable, and only then on everything else.
 
 ## Reporting a bug
 
-Open an issue and include:
+[Open an issue](https://github.com/theweakestharrison/DumpCat/issues) and include:
 
 - the DumpCat version (`dumpcat version`) and the operating system;
 - the database server and its version (`SELECT VERSION();`);

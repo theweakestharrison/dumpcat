@@ -16,7 +16,11 @@
   <img alt="MySQL 5.7 đến 8.4, MariaDB 10 và 11" src="https://img.shields.io/badge/MySQL%205.7--8.4%20%C2%B7%20MariaDB%2010--11-4479A1">
 </p>
 
-<p align="center"><a href="README.md">English</a> · <b>Tiếng Việt</b></p>
+<p align="center">
+  <a href="https://dumpcat.cc"><b>dumpcat.cc</b></a> · <a href="https://dumpcat.cc/#download">Tải về</a> ·
+  <a href="https://github.com/theweakestharrison/DumpCat">GitHub</a> ·
+  <a href="README.md">English</a> · <b>Tiếng Việt</b>
+</p>
 
 ---
 
@@ -79,9 +83,13 @@ mydumper và XtraBackup chỉ có cho Linux. Với database hàng trăm GB và b
 
 ### 1. Cài đặt
 
+Phiên bản mới nhất, ghi chú phát hành và mã kiểm tra có trên **[dumpcat.cc](https://dumpcat.cc/#download)**. Các gói cài
+đặt nằm ở `https://downloads.dumpcat.cc/<phiên bản>/`.
+
 **Linux**, với quyền root:
 
 ```bash
+curl -fLO https://downloads.dumpcat.cc/1.0.0/dumpcat-1.0.0-linux.tar.gz
 tar xzf dumpcat-1.0.0-linux.tar.gz
 cd dumpcat-1.0.0-linux
 sudo ./install.sh
@@ -94,17 +102,21 @@ Tùy chọn: `--port 9090`, `--listen 127.0.0.1`, `--tls-auto`, `--no-deps`, `--
 **Windows**, trong PowerShell chạy bằng quyền Administrator:
 
 ```powershell
+Invoke-WebRequest https://downloads.dumpcat.cc/1.0.0/dumpcat-1.0.0-windows-amd64.zip -OutFile dumpcat-1.0.0-windows-amd64.zip
 Expand-Archive dumpcat-1.0.0-windows-amd64.zip -DestinationPath .
 cd dumpcat-1.0.0-windows-amd64
 powershell -ExecutionPolicy Bypass -File .\install.ps1
 ```
 
-Gói cài đặt được tạo bằng `./build.sh`; xem [Build từ mã nguồn](#build-từ-mã-nguồn).
+Kiểm tra file tải về bằng [SHA256SUMS](https://downloads.dumpcat.cc/1.0.0/SHA256SUMS) (`sha256sum -c --ignore-missing SHA256SUMS`,
+hoặc `Get-FileHash` trên Windows). Muốn tự build gói cài đặt, xem [Build từ mã nguồn](#build-từ-mã-nguồn).
 
 ### 2. Chạy bản backup đầu tiên
 
-1. Mở `http://<ip-server>:6369` và tạo tài khoản admin. Làm ngay sau khi cài: khi chưa có admin, ai mở trang đầu tiên sẽ
-   thành quản trị viên. (Cổng mặc định bấm trên bàn phím điện thoại sẽ ra chữ *MEOW*.)
+1. Mở `http://<ip-server>:6369` và tạo tài khoản admin. Trang thiết lập sẽ hỏi **mã thiết lập** (setup token) dùng một lần
+   mà bộ cài đặt đã in ra, để người khác truy cập được cổng này không thể giành tài khoản admin trước bạn. Muốn xem lại mã,
+   chạy `sudo dumpcat setup-token` (Windows, quyền Administrator: `& "C:\Program Files\DumpCat\dumpcat.exe" setup-token`)
+   hoặc xem log của service. (Cổng mặc định bấm trên bàn phím điện thoại sẽ ra chữ *MEOW*.)
 2. Tạo một user MySQL có quyền backup chỉ đọc ([các lệnh GRANT](docs/manual.vi.md#4-bắt-đầu-sử-dụng)).
 3. **Database servers → Add server → Test connection.** DumpCat hiển thị version, dung lượng từng database, các quyền còn
    thiếu và phương thức backup nào dùng được trên máy này.
@@ -175,9 +187,10 @@ hành lấy từ `CHANGELOG.md`. Cách phát hành bản cập nhật và ký b�
 cmd/dumpcat    dòng lệnh: serve, user, decode, update, release
 internal/      API, bộ chạy backup, các engine, lưu trữ, đường ống nén và mã hóa, SQLite, bộ cập nhật…
 web/           giao diện bằng HTML, CSS và JavaScript thuần, nhúng vào binary
-scripts/       bộ cài cho Linux và Windows
+scripts/       bộ cài cho Linux và Windows, script upload bản phát hành (publish-release.sh)
 deploy/        systemd unit, file env mẫu, cấu hình nginx
-docs/          hướng dẫn tiếng Anh và tiếng Việt
+site/          landing page dumpcat.cc, chạy bằng Cloudflare Worker khai báo trong wrangler.jsonc
+docs/          hướng dẫn tiếng Anh và tiếng Việt, cách deploy website (website.vi.md)
 ```
 
 ## Đóng góp

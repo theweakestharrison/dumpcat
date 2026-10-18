@@ -43,6 +43,11 @@ type Server struct {
 	Updater  *update.Manager
 	// ControlToken authenticates "dumpcat update" on the same machine (read from DATA_DIR/control.token).
 	ControlToken string
+
+	// one-time token required to create the first admin (set by PrepareSetup, guarded by setupMu)
+	setupToken     string // normalized; "" = no setup possible
+	setupTokenPath string
+	setupLimit     *auth.Limiter // per-IP wrong setup tokens
 }
 
 const sessionCookie = "dumpcat_session"

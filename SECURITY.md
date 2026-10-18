@@ -13,7 +13,7 @@ installing the newest package.
 Please **do not open a public issue** for a security problem.
 
 Report it privately through GitHub's private vulnerability reporting: **Security → Report a vulnerability** on the
-DumpCat repository. If that is not available, contact the maintainer,
+[DumpCat repository](https://github.com/theweakestharrison/DumpCat/security). If that is not available, contact the maintainer,
 [@theweakestharrison](https://github.com/theweakestharrison), and ask for a private channel before sending details.
 
 Please include:

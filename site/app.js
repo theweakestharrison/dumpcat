@@ -72,13 +72,13 @@
     "i-linux-note": "Installs to <code>/opt/dumpcat</code>, creates a systemd service, and installs <code>rclone</code>, the MySQL/MariaDB client, the matching mariabackup or XtraBackup, and mydumper when the repositories have it. Options: <code>--port 9090</code>, <code>--listen 127.0.0.1</code>, <code>--tls-auto</code>.",
     "i-win-note": "Run PowerShell as Administrator. Windows Server 2016+ / Windows 10+ 64-bit, runs as a Windows service. mydumper and XtraBackup for MySQL are not available; run DumpCat on Linux for databases of hundreds of GB.",
     "i-steps-title": "After installing",
-    "i-steps": "<li><div><b>Open <code>http://&lt;server-ip&gt;:6369</code></b><span>The first visit creates the admin account.</span></div></li>" +
+    "i-steps": "<li><div><b>Open <code>http://&lt;server-ip&gt;:6369</code></b><span>Create the admin account with the one-time setup token the installer prints (show it again: <code>dumpcat setup-token</code>).</span></div></li>" +
       "<li><div><b>Add a database server</b><span>Test connection lists missing privileges and the methods you can use.</span></div></li>" +
       "<li><div><b>Add a storage</b><span>Test writes, reads and deletes a file.</span></div></li>" +
       "<li><div><b>Create a backup job</b><span>Pick a schedule, encryption, storage and retention, then Save &amp; run now.</span></div></li>",
     "meow-title": "Port 6369 spells <em>MEOW</em>",
     "meow": "Type 6-3-6-9 on a phone keypad and you get MEOW. It is the default port of the web UI.",
-    "foot": "Open source under the Apache-2.0 license. The full manual, in English and Vietnamese, ships inside every package."
+    "foot": "Open source under the Apache-2.0 license, with the source on <a href=\"https://github.com/theweakestharrison/DumpCat\">GitHub</a>. The full manual, in English and Vietnamese, ships inside every package."
   };
 
   var STR = {

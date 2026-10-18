@@ -38,6 +38,7 @@
         <a href="#ops" data-i18n="nav-ops">Vận hành</a>
         <a href="#download" data-i18n="nav-download">Tải về</a>
         <a href="#install" data-i18n="nav-install">Cài đặt</a>
+        <a href="https://github.com/theweakestharrison/DumpCat">GitHub</a>
       </nav>
       <div class="lang" role="group" aria-label="Language">
         <button type="button" id="lang-en" data-lang="en" aria-pressed="true">EN</button>
@@ -270,7 +271,7 @@ powershell -ExecutionPolicy Bypass -File .\install.ps1</code></pre>
         <div class="install-steps">
           <h3 class="steps-title" data-i18n="i-steps-title">Sau khi cài</h3>
           <ol class="steps" data-i18n="i-steps">
-            <li><div><b>Mở <code>http://&lt;ip-server&gt;:6369</code></b><span>Lần đầu vào sẽ tạo tài khoản admin.</span></div></li>
+            <li><div><b>Mở <code>http://&lt;ip-server&gt;:6369</code></b><span>Tạo tài khoản admin bằng mã thiết lập dùng một lần mà bộ cài in ra (xem lại: <code>dumpcat setup-token</code>).</span></div></li>
             <li><div><b>Thêm database server</b><span>Test connection để xem quyền còn thiếu và phương thức dùng được.</span></div></li>
             <li><div><b>Thêm nơi lưu trữ</b><span>Nút Test thử ghi, đọc và xóa.</span></div></li>
             <li><div><b>Tạo backup job</b><span>Chọn lịch, mã hóa, nơi lưu, retention rồi bấm Save &amp; run now.</span></div></li>
@@ -296,7 +297,7 @@ powershell -ExecutionPolicy Bypass -File .\install.ps1</code></pre>
 <footer class="foot">
   <div class="wrap">
     <a class="brand" href="#top"><svg aria-hidden="true"><use href="#dc-logo"/></svg>DumpCat <span data-version>1.0.0</span></a>
-    <p data-i18n="foot">Mã nguồn mở theo giấy phép Apache-2.0. Hướng dẫn đầy đủ bằng tiếng Anh và tiếng Việt có sẵn trong mọi gói cài đặt.</p>
+    <p data-i18n="foot">Mã nguồn mở theo giấy phép Apache-2.0, mã nguồn trên <a href="https://github.com/theweakestharrison/DumpCat">GitHub</a>. Hướng dẫn đầy đủ bằng tiếng Anh và tiếng Việt có sẵn trong mọi gói cài đặt.</p>
   </div>
 </footer>
 </body>

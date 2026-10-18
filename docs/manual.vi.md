@@ -66,7 +66,11 @@ Hướng dẫn đầy đủ để cài đặt, cấu hình và vận hành DumpC
 
 ### 3.1 Cài nhanh (khuyến nghị)
 
+Phiên bản mới nhất, ghi chú phát hành và mã kiểm tra có trên [dumpcat.cc](https://dumpcat.cc/#download); các gói cài đặt nằm ở
+`https://downloads.dumpcat.cc/<phiên bản>/`.
+
 ```bash
+curl -fLO https://downloads.dumpcat.cc/1.0.0/dumpcat-1.0.0-linux.tar.gz
 tar xzf dumpcat-1.0.0-linux.tar.gz
 cd dumpcat-1.0.0-linux
 sudo ./install.sh
@@ -75,6 +79,7 @@ sudo ./install.sh
 Script sẽ: cài binary vào `/opt/dumpcat/dumpcat` (có link `/usr/local/bin/dumpcat`), tạo `/etc/dumpcat/dumpcat.env`, thư mục dữ liệu
 `/var/lib/dumpcat`, service systemd `dumpcat`, và tự cài công cụ phù hợp với server DB trên máy:
 `rclone`, client MySQL/MariaDB, `mariadb-backup` (MariaDB) hoặc Percona XtraBackup đúng phiên bản (MySQL 5.7/8.0/8.4), `mydumper` (nếu có trong repo).
+Cuối cùng script in ra địa chỉ web và mã thiết lập dùng một lần để tạo tài khoản admin ([4. Bắt đầu sử dụng](#4-bắt-đầu-sử-dụng)).
 
 Tùy chọn: `--port 9090`, `--listen 127.0.0.1`, `--tls-auto` (HTTPS tự ký), `--no-deps`, `--uninstall [--purge]`.
 
@@ -117,6 +122,7 @@ DumpCat cũng chạy trên Windows Server 2016+ / Windows 10+ (64-bit), dưới 
 Mở PowerShell bằng **Run as administrator**:
 
 ```powershell
+Invoke-WebRequest https://downloads.dumpcat.cc/1.0.0/dumpcat-1.0.0-windows-amd64.zip -OutFile dumpcat-1.0.0-windows-amd64.zip
 Expand-Archive dumpcat-1.0.0-windows-amd64.zip -DestinationPath .
 cd dumpcat-1.0.0-windows-amd64
 powershell -ExecutionPolicy Bypass -File .\install.ps1
@@ -127,7 +133,8 @@ Script sẽ:
 - chép `dumpcat.exe` vào `C:\Program Files\DumpCat` và tải `rclone.exe` vào `C:\Program Files\DumpCat\tools`;
 - tạo file cấu hình `C:\ProgramData\DumpCat\dumpcat.env` và thư mục dữ liệu `C:\ProgramData\DumpCat\data`
   (chỉ SYSTEM và Administrators đọc được, vì chứa database và master key);
-- đăng ký service **DumpCat** (tự khởi động trễ cùng Windows, tự chạy lại khi lỗi), khởi động nó và in ra địa chỉ web.
+- đăng ký service **DumpCat** (tự khởi động trễ cùng Windows, tự chạy lại khi lỗi), khởi động nó, in ra địa chỉ web
+  và mã thiết lập dùng một lần để tạo tài khoản admin ([4. Bắt đầu sử dụng](#4-bắt-đầu-sử-dụng)).
 
 Tùy chọn: `-Port 9090`, `-Listen 127.0.0.1`, `-TlsAuto` (HTTPS tự ký), `-OpenFirewall` (mở cổng cho mạng Domain/Private),
 `-NoRclone`, `-NoService` (chỉ chép file và tạo cấu hình, không cần quyền admin; tự chạy `dumpcat.exe serve`),
@@ -158,7 +165,8 @@ Với DB lớn (hàng trăm GB) hoặc cần backup vật lý MySQL, nên chạy
 
 ### 3.6 Cập nhật
 
-DumpCat tự cập nhật từ máy chủ phát hành do bạn quản lý — web server nào phục vụ file tĩnh cũng được.
+DumpCat tự cập nhật từ một máy chủ phát hành. Các gói cài đặt chính thức dùng máy chủ của dự án, `https://downloads.dumpcat.cc`.
+Nếu tự build DumpCat, bạn có thể dùng máy chủ của riêng mình: web server nào phục vụ file tĩnh cũng được.
 
 **Phát hành một phiên bản.** Ghi số phiên bản vào `VERSION`, mô tả thay đổi trong mục `## <phiên bản>` của `CHANGELOG.md`
 (mục này hiện thành ghi chú phát hành trên giao diện), rồi build:
@@ -268,9 +276,14 @@ chấp nhận bản phát hành ký bằng khóa cũ. Máy nào nghi ngờ thì 
 ## 4. Bắt đầu sử dụng
 
 1. Mở `http://<ip-server>:6369` (cổng mặc định **6369**, bấm trên bàn phím điện thoại ra chữ *MEOW*). Khi chưa có tài khoản nào, lần đầu sẽ hiện màn hình **Initial setup**:
-   đặt tên đăng nhập và mật khẩu admin, xong là vào luôn.
-   Nên làm ngay sau khi cài — trong lúc chưa có admin, ai mở trang đầu tiên sẽ thành quản trị viên
-   (hoặc tạo admin bằng dòng lệnh: `sudo dumpcat user add -u admin -r admin`).
+   nhập **mã thiết lập** (setup token), đặt tên đăng nhập và mật khẩu admin, xong là vào luôn.
+   Mã thiết lập là mã dùng một lần mà DumpCat tạo ra khi khởi động lúc chưa có tài khoản nào, để người khác truy cập được cổng này
+   không thể tạo admin trước bạn. Bộ cài đặt in sẵn mã này; muốn xem lại:
+   - Linux: `sudo dumpcat setup-token`, hoặc log của service `journalctl -u dumpcat`;
+   - Windows (PowerShell quyền Administrator): `& "C:\Program Files\DumpCat\dumpcat.exe" setup-token`, hoặc file log `C:\ProgramData\DumpCat\data\dumpcat.log`.
+
+   Mỗi lần DumpCat khởi động sẽ tạo mã mới, và mã hết hiệu lực ngay khi đã có tài khoản admin. Nhập sai 5 lần thì IP đó phải chờ
+   15 phút. Cũng có thể bỏ qua bước thiết lập trên web và tạo admin bằng dòng lệnh: `sudo dumpcat user add -u admin -r admin`.
 2. **Tạo user MySQL cho backup** (quyền tối thiểu, chỉ đọc):
    ```sql
    -- MySQL 8 / Percona
@@ -500,6 +513,7 @@ Nên sao lưu thêm `/var/lib/dumpcat/master.key` và `dumpcat.db` (cấu hình,
 ## 11. Bảo mật
 
 - Đặt sau HTTPS (nginx/caddy hoặc TLS tích hợp), giới hạn IP truy cập/VPN.
+- Khi chưa có admin, muốn tạo admin đầu tiên phải nhập **mã thiết lập** dùng một lần (trong log của service hoặc `dumpcat setup-token`, xem [mục 4](#4-bắt-đầu-sử-dụng)), kể cả khi truy cập từ localhost. Mỗi lần khởi động tạo mã mới; mã được so sánh constant-time, sai 5 lần → khóa IP đó 15 phút, và bị xóa ngay khi đã có tài khoản.
 - Bật **2FA** cho admin (Hồ sơ & bảo mật). Có thể bật nhắc 2FA bắt buộc trong Cài đặt.
 - Vai trò: **admin** (tất cả), **operator** (server, storage cloud/FTP/SFTP, job, chạy backup/restore), **viewer** (chỉ xem). Các thao tác chạm tới hệ thống file của máy chủ (storage thư mục cục bộ / rclone tùy chỉnh, pre/post command, chọn thư mục giải nén, thay datadir) chỉ dành cho admin.
 - Đăng nhập sai 5 lần trong 15 phút → khóa tài khoản đó 15 phút; một IP sai 20 lần → khóa IP 15 phút.
@@ -556,16 +570,19 @@ dumpcat user add -u bob -r operator
 dumpcat user passwd -u admin      # quên mật khẩu admin
 dumpcat user reset-2fa -u admin   # mất thiết bị 2FA
 dumpcat user list
+dumpcat setup-token               # mã dùng một lần để tạo admin đầu tiên trên web
 dumpcat decode -in file.sql.zst.age -out file.sql
 dumpcat version
 ```
 
-Dữ liệu nội bộ: `/var/lib/dumpcat/dumpcat.db` (SQLite), `master.key`, `logs/`, `staging/` (tạm), `restore/` (restore vật lý mặc định).
+Dữ liệu nội bộ: `/var/lib/dumpcat/dumpcat.db` (SQLite), `master.key`, `logs/`, `staging/` (tạm), `restore/` (restore vật lý mặc định),
+`setup-token` (chỉ có cho tới khi tạo admin đầu tiên).
 
 ## 14. Xử lý sự cố
 
 | Hiện tượng | Cách xử lý |
 |---|---|
+| Thiết lập ban đầu: *incorrect setup token* | Mỗi lần khởi động DumpCat tạo mã mới: xem mã hiện tại bằng `sudo dumpcat setup-token` (Windows: `dumpcat.exe setup-token` với quyền Administrator). Sai 5 lần thì chờ 15 phút |
 | *Thiếu công cụ ...* | Xem trang **Hệ thống**, cài theo hướng dẫn, bấm *Dò lại công cụ* |
 | Backup vật lý báo datadir không truy cập được | DumpCat phải chạy trên chính server DB, bằng root (hoặc user thuộc nhóm `mysql` có quyền đọc datadir) |
 | `xtrabackup ... unsupported server version` | Cài XtraBackup cùng series với MySQL (8.0/8.4) và bản vá ≥ server |

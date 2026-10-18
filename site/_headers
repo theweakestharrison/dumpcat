@@ -1,8 +1,9 @@
-# Cloudflare Pages response headers for dumpcat.cc.
+# Response headers for dumpcat.cc (Cloudflare Workers static assets, see wrangler.jsonc).
+# static.cloudflareinsights.com / cloudflareinsights.com: Cloudflare Web Analytics, injected by Cloudflare.
 # connect-src must name the release server set in index.html (meta dumpcat-release-base).
 # style-src needs 'unsafe-inline' for the style="" positions of the PITR timeline.
 /*
-  Content-Security-Policy: default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; connect-src https://downloads.dumpcat.cc; base-uri 'none'; form-action 'none'; frame-ancestors 'none'
+  Content-Security-Policy: default-src 'none'; script-src 'self' https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; connect-src https://downloads.dumpcat.cc https://cloudflareinsights.com; base-uri 'none'; form-action 'none'; frame-ancestors 'none'
   X-Content-Type-Options: nosniff
   Referrer-Policy: strict-origin-when-cross-origin
   X-Frame-Options: DENY

@@ -1,0 +1,14 @@
+// Cloudflare Worker that serves the landing page in site/ at https://dumpcat.cc (static assets only, no code).
+// Deploy with `npx wrangler deploy`; see docs/website.vi.md. site/_headers sets the security headers.
+{
+  "name": "dumpcat-site",
+  "compatibility_date": "2026-10-12",
+  "assets": {
+    "directory": "./site"
+  },
+  "routes": [
+    { "pattern": "dumpcat.cc", "custom_domain": true }
+  ],
+  "workers_dev": false,
+  "preview_urls": false
+}

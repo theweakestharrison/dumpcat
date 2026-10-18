@@ -341,10 +341,15 @@ function renderLogin(msg) {
 
 function renderSetup() {
   const root = document.getElementById('root');
+  const tokenCmd = app.platform === 'windows'
+    ? html`<code>&amp; "C:\\Program Files\\DumpCat\\dumpcat.exe" setup-token</code> in PowerShell as Administrator, or open <code>C:\\ProgramData\\DumpCat\\data\\dumpcat.log</code>`
+    : html`<code>sudo dumpcat setup-token</code>, or see <code>journalctl -u dumpcat</code>`;
   setHTML(root, authShell(html`
     <h1 style="margin-bottom:4px">Initial setup</h1>
     <p class="muted" style="margin:0 0 16px">No account exists yet. Create the administrator account to start using DumpCat.</p>
     <form id="setup-form">
+      <div class="field"><label class="req" for="st-token">Setup token</label><input type="text" id="st-token" name="setup_token" required autocomplete="off" spellcheck="false" placeholder="XXXX-XXXX-XXXX-XXXX-XXXX-XXXX">
+        <div class="help">DumpCat printed a one-time token in its log when it started. To show it, run on the server: ${tokenCmd}.</div></div>
       <div class="field"><label class="req">Admin username</label><input type="text" name="username" value="admin" required autocomplete="username"></div>
       <div class="field"><label>Email</label><input type="email" name="email" autocomplete="email"></div>
       <div class="field"><label class="req">Password (min. 8 characters)</label><input type="password" name="password" required minlength="8" autocomplete="new-password"></div>
@@ -361,7 +366,7 @@ function renderSetup() {
     if (d.password !== d.password2) return showErr('Passwords do not match');
     await busy(form.querySelector('button[type=submit]'), async () => {
       try {
-        const res = await post('/auth/setup', { username: d.username.trim(), email: d.email, password: d.password });
+        const res = await post('/auth/setup', { setup_token: d.setup_token.trim(), username: d.username.trim(), email: d.email, password: d.password });
         await afterLogin(res);
         toast('Admin account created. Start by adding a database server and a storage.', 'good', 8000);
         navigate('/servers');

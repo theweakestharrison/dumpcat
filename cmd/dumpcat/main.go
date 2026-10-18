@@ -14,6 +14,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"syscall"
 	"time"
@@ -51,6 +52,7 @@ Usage:
   dumpcat user passwd -u NAME              reset a password
   dumpcat user reset-2fa -u NAME           disable a user's 2FA
   dumpcat user list
+  dumpcat setup-token                      print the one-time token that creating the first admin requires
   dumpcat decode -in FILE [-out FILE|-]    decrypt + decompress a backup file (.zst/.gz/.age)
   dumpcat update [-check] [-yes] [-rollback] check for / install a new version, or roll back
   dumpcat release keygen|sign|verify|pubkey  sign releases for the updater ("dumpcat release help")
@@ -96,6 +98,11 @@ func main() {
 		}
 	case "user":
 		userCmd(args)
+	case "setup-token":
+		if err := setupTokenCmd(args); err != nil {
+			fmt.Fprintln(os.Stderr, "error:", err)
+			os.Exit(1)
+		}
 	case "update":
 		updateCmd(args)
 	case "update-restart": // internal: restarts the Windows service after an update
@@ -335,11 +342,23 @@ func serve(cfg *config.Config, stop <-chan struct{}, boot *update.Boot, exe stri
 	defer bgCancel()
 	go upd.AutoCheck(bgCtx, func() bool { return st.GetSettings().UpdateAutoCheck })
 
-	os.Remove(cfg.Path("setup-token")) // left over from versions that required a setup token
-	if n, _ := st.CountUsers(); n == 0 {
+	// while no account exists, creating the first admin requires a one-time token
+	setupTok, err := srv.PrepareSetup(cfg.Path(api.SetupTokenFile))
+	if err != nil {
+		log.Printf("setup token: %v", err)
+	}
+	if setupTok != "" {
+		again := "sudo dumpcat setup-token"
+		if runtime.GOOS == "windows" {
+			again = `& "` + exe + `" setup-token   (PowerShell as Administrator)`
+		}
 		log.Printf("============================================================")
 		log.Printf(" No account yet. Open the web UI and create the first admin")
-		log.Printf(" account now: the first visitor becomes the administrator.")
+		log.Printf(" account with this one-time setup token:")
+		log.Printf("")
+		log.Printf("     %s", setupTok)
+		log.Printf("")
+		log.Printf(" Show it again with: %s", again)
 		log.Printf("============================================================")
 	}
 
@@ -517,6 +536,7 @@ func userCmd(args []string) {
 		if err := st.CreateUser(u); err != nil {
 			log.Fatal(err)
 		}
+		os.Remove(cfg.Path(api.SetupTokenFile)) // an account exists: the web setup is over
 		st.Audit(nil, "cli", "user_create", "user:"+u.Username, "role="+u.Role, "cli")
 		fmt.Println("Created user", u.Username, "("+u.Role+")")
 	case "passwd", "reset-2fa", "enable", "disable":
@@ -557,6 +577,42 @@ func userCmd(args []string) {
 		usage()
 		os.Exit(2)
 	}
+}
+
+// setupTokenCmd prints the one-time token that the web UI asks for before it
+// creates the first admin. The server writes it to the data directory when it
+// starts while no account exists.
+func setupTokenCmd(args []string) error {
+	fs := flag.NewFlagSet("setup-token", flag.ExitOnError)
+	cfgFile := fs.String("config", config.DefaultEnvFile(), "env file")
+	dataDir := fs.String("data-dir", "", "data directory")
+	_ = fs.Parse(args)
+	cfgArgs := []string{"-config", *cfgFile}
+	if *dataDir != "" {
+		cfgArgs = append(cfgArgs, "-data-dir", *dataDir)
+	}
+	cfg := loadConfig("setup-token", cfgArgs)
+	st, err := openStoreErr(cfg)
+	if err != nil {
+		return err
+	}
+	defer st.Close()
+	n, err := st.CountUsers()
+	if err != nil {
+		return err
+	}
+	if n > 0 {
+		return errors.New("an account already exists, so setup is complete and needs no token (forgotten password: dumpcat user passwd -u NAME)")
+	}
+	b, err := os.ReadFile(cfg.Path(api.SetupTokenFile))
+	if errors.Is(err, os.ErrNotExist) {
+		return errors.New("no setup token yet: start DumpCat, it creates one when it starts while no account exists")
+	}
+	if err != nil {
+		return err
+	}
+	fmt.Println(strings.TrimSpace(string(b)))
+	return nil
 }
 
 // ---- decode CLI (disaster recovery without the database) ----

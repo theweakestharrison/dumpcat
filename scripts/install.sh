@@ -275,9 +275,18 @@ IP="$(hostname -I 2>/dev/null | awk '{print $1}')"
 echo
 echo "${c_bold}DumpCat is running:${c_off} ${SCHEME}://${IP:-<server-ip>}:${PORT}/"
 if [[ -z "$("$BIN_PATH" user list 2>/dev/null)" ]]; then
-  echo "${c_bold}No account yet:${c_off} open the address above now and create the admin account"
-  echo "  (until then, the first visitor becomes the administrator)."
-  echo "  or create one from the command line:  sudo dumpcat user add -u admin -r admin"
+  # the service writes the one-time setup token while it starts
+  TOKEN=""
+  for _ in 1 2 3 4 5 6 7 8 9 10; do
+    TOKEN="$("$BIN_PATH" setup-token 2>/dev/null)" && break
+    sleep 1
+  done
+  echo "${c_bold}No account yet:${c_off} open the address above and create the admin account."
+  if [[ -n "$TOKEN" ]]; then
+    echo "  The setup page asks for this one-time setup token:  ${c_bold}${TOKEN}${c_off}"
+  fi
+  echo "  Show the token again: sudo dumpcat setup-token  (it is also in: journalctl -u dumpcat)"
+  echo "  or create an admin from the command line:  sudo dumpcat user add -u admin -r admin"
 fi
 echo
 echo "Check the installed tools on the System page of the web UI"

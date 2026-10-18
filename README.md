@@ -16,7 +16,11 @@
   <img alt="MySQL 5.7 to 8.4, MariaDB 10 and 11" src="https://img.shields.io/badge/MySQL%205.7--8.4%20%C2%B7%20MariaDB%2010--11-4479A1">
 </p>
 
-<p align="center"><b>English</b> · <a href="README.vi.md">Tiếng Việt</a></p>
+<p align="center">
+  <a href="https://dumpcat.cc"><b>dumpcat.cc</b></a> · <a href="https://dumpcat.cc/#download">Download</a> ·
+  <a href="https://github.com/theweakestharrison/DumpCat">GitHub</a> ·
+  <b>English</b> · <a href="README.vi.md">Tiếng Việt</a>
+</p>
 
 ---
 
@@ -80,9 +84,13 @@ DumpCat on Linux ([what works on Windows](docs/manual.md#35-windows)).
 
 ### 1. Install
 
+The latest version, its release notes and checksums are on **[dumpcat.cc](https://dumpcat.cc/#download)**. The packages
+are served from `https://downloads.dumpcat.cc/<version>/`.
+
 **Linux**, as root:
 
 ```bash
+curl -fLO https://downloads.dumpcat.cc/1.0.0/dumpcat-1.0.0-linux.tar.gz
 tar xzf dumpcat-1.0.0-linux.tar.gz
 cd dumpcat-1.0.0-linux
 sudo ./install.sh
@@ -95,17 +103,22 @@ Options: `--port 9090`, `--listen 127.0.0.1`, `--tls-auto`, `--no-deps`, `--unin
 **Windows**, in PowerShell run as Administrator:
 
 ```powershell
+Invoke-WebRequest https://downloads.dumpcat.cc/1.0.0/dumpcat-1.0.0-windows-amd64.zip -OutFile dumpcat-1.0.0-windows-amd64.zip
 Expand-Archive dumpcat-1.0.0-windows-amd64.zip -DestinationPath .
 cd dumpcat-1.0.0-windows-amd64
 powershell -ExecutionPolicy Bypass -File .\install.ps1
 ```
 
-Release packages are produced by `./build.sh`; see [Building from source](#building-from-source).
+To check a download, compare it with
+[SHA256SUMS](https://downloads.dumpcat.cc/1.0.0/SHA256SUMS) (`sha256sum -c --ignore-missing SHA256SUMS`, or `Get-FileHash` on
+Windows). To build the packages yourself, see [Building from source](#building-from-source).
 
 ### 2. Run your first backup
 
-1. Open `http://<server-ip>:6369` and create the admin account. Do it right after installing: until an admin exists,
-   whoever opens the page first becomes the administrator. (The default port spells *MEOW* on a phone keypad.)
+1. Open `http://<server-ip>:6369` and create the admin account. The setup page asks for the one-time **setup token**
+   that the installer prints, so nobody else who reaches the port can claim the admin account first. To show it again,
+   run `sudo dumpcat setup-token` (Windows, as Administrator: `& "C:\Program Files\DumpCat\dumpcat.exe" setup-token`)
+   or look in the service log. (The default port spells *MEOW* on a phone keypad.)
 2. Create a MySQL user with read-only backup privileges ([the grants](docs/manual.md#4-getting-started)).
 3. **Database servers → Add server → Test connection.** DumpCat shows the version, the size of each database, missing
    privileges and which backup methods work on this machine.
@@ -177,9 +190,10 @@ release notes from `CHANGELOG.md`. Publishing updates and signing releases are c
 cmd/dumpcat    command line: serve, user, decode, update, release
 internal/      API, backup runner, engines, storage, compression and encryption pipeline, SQLite store, updater…
 web/           UI in plain HTML, CSS and JavaScript, embedded into the binary
-scripts/       Linux and Windows installers
+scripts/       Linux and Windows installers, release upload (publish-release.sh)
 deploy/        systemd unit, sample env file, nginx config
-docs/          manual in English and Vietnamese
+site/          dumpcat.cc landing page, served by the Cloudflare Worker in wrangler.jsonc
+docs/          manual in English and Vietnamese, website runbook (website.vi.md)
 ```
 
 ## Contributing

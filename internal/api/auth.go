@@ -18,7 +18,8 @@ import (
 var usernameRe = regexp.MustCompile(`^[A-Za-z0-9_.@\-]{3,64}$`)
 
 // setupMu makes "no user yet -> create the first admin" atomic, so two
-// concurrent first visitors cannot both become admin.
+// concurrent first visitors cannot both become admin. It also guards the
+// setup token (setup.go).
 var setupMu sync.Mutex
 
 func (s *Server) userView(u *store.User) map[string]any {
@@ -72,9 +73,10 @@ func (s *Server) startSession(w http.ResponseWriter, r *http.Request, u *store.U
 
 func (s *Server) authSetup(w http.ResponseWriter, r *http.Request) error {
 	var in struct {
-		Username string `json:"username"`
-		Password string `json:"password"`
-		Email    string `json:"email"`
+		Username   string `json:"username"`
+		Password   string `json:"password"`
+		Email      string `json:"email"`
+		SetupToken string `json:"setup_token"`
 	}
 	if err := readJSON(r, &in); err != nil {
 		return err
@@ -89,6 +91,9 @@ func (s *Server) authSetup(w http.ResponseWriter, r *http.Request) error {
 	if n > 0 {
 		return errf(409, "setup has already been completed")
 	}
+	if err := s.checkSetupToken(in.SetupToken, s.clientIP(r)); err != nil {
+		return err
+	}
 	if !usernameRe.MatchString(in.Username) {
 		return badRequest("username must be 3-64 characters: letters, digits, _ . @ -")
 	}
@@ -100,6 +105,7 @@ func (s *Server) authSetup(w http.ResponseWriter, r *http.Request) error {
 	if err := s.Store.CreateUser(u); err != nil {
 		return err
 	}
+	s.endSetup()
 	se, err := s.startSession(w, r, u, false)
 	if err != nil {
 		return err

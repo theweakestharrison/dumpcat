@@ -66,7 +66,11 @@ The complete guide to installing, configuring and operating DumpCat. For an over
 
 ### 3.1 Quick install (recommended)
 
+The latest version, its release notes and checksums are listed on [dumpcat.cc](https://dumpcat.cc/#download); the packages are
+served from `https://downloads.dumpcat.cc/<version>/`.
+
 ```bash
+curl -fLO https://downloads.dumpcat.cc/1.0.0/dumpcat-1.0.0-linux.tar.gz
 tar xzf dumpcat-1.0.0-linux.tar.gz
 cd dumpcat-1.0.0-linux
 sudo ./install.sh
@@ -75,6 +79,7 @@ sudo ./install.sh
 The script installs the binary to `/opt/dumpcat/dumpcat` (linked from `/usr/local/bin/dumpcat`), creates `/etc/dumpcat/dumpcat.env`, the data directory
 `/var/lib/dumpcat` and the `dumpcat` systemd service, and installs the tools that match the database server on the machine:
 `rclone`, the MySQL/MariaDB client, `mariadb-backup` (MariaDB) or the matching Percona XtraBackup version (MySQL 5.7/8.0/8.4), and `mydumper` (if the repositories have it).
+At the end it prints the address of the web UI and the one-time setup token for creating the admin account ([4. Getting started](#4-getting-started)).
 
 Options: `--port 9090`, `--listen 127.0.0.1`, `--tls-auto` (self-signed HTTPS), `--no-deps`, `--uninstall [--purge]`.
 
@@ -117,6 +122,7 @@ DumpCat also runs on Windows Server 2016+ / Windows 10+ (64-bit), as a Windows s
 In PowerShell **Run as administrator**:
 
 ```powershell
+Invoke-WebRequest https://downloads.dumpcat.cc/1.0.0/dumpcat-1.0.0-windows-amd64.zip -OutFile dumpcat-1.0.0-windows-amd64.zip
 Expand-Archive dumpcat-1.0.0-windows-amd64.zip -DestinationPath .
 cd dumpcat-1.0.0-windows-amd64
 powershell -ExecutionPolicy Bypass -File .\install.ps1
@@ -127,7 +133,8 @@ The script:
 - copies `dumpcat.exe` to `C:\Program Files\DumpCat` and downloads `rclone.exe` into `C:\Program Files\DumpCat\tools`;
 - creates the configuration `C:\ProgramData\DumpCat\dumpcat.env` and the data folder `C:\ProgramData\DumpCat\data`
   (only SYSTEM and Administrators can read it: it holds the database and the master key);
-- registers the **DumpCat** service (automatic delayed start, restarted on failure), starts it and prints the address of the web UI.
+- registers the **DumpCat** service (automatic delayed start, restarted on failure), starts it and prints the address of the web UI
+  and the one-time setup token for creating the admin account ([4. Getting started](#4-getting-started)).
 
 Options: `-Port 9090`, `-Listen 127.0.0.1`, `-TlsAuto` (self-signed HTTPS), `-OpenFirewall` (opens the port for Domain/Private networks),
 `-NoRclone`, `-NoService` (copy the files and write the configuration only — no admin rights needed; run `dumpcat.exe serve` yourself),
@@ -158,7 +165,8 @@ For large databases (hundreds of GB) and physical MySQL backups, run DumpCat on 
 
 ### 3.6 Updating
 
-DumpCat updates itself from a release server that you host — any web server that serves static files.
+DumpCat updates itself from a release server. The official packages use the project's server, `https://downloads.dumpcat.cc`.
+If you build DumpCat yourself, you can host your own: any web server that serves static files will do.
 
 **Publishing a release.** Set the version in `VERSION`, describe it under `## <version>` in `CHANGELOG.md`
 (that section becomes the release notes shown in the UI), then build:
@@ -268,9 +276,15 @@ they would accept a release signed with it. Reinstall the package by hand where 
 ## 4. Getting started
 
 1. Open `http://<server-ip>:6369` — the default port is **6369**, which spells *MEOW* on a phone keypad. While no account exists, the first visit shows the **Initial setup** screen:
-   choose the admin username and password and you are signed in right away.
-   Do this right after installing — until the admin account exists, whoever opens the page first becomes the administrator
-   (or create an admin from the command line: `sudo dumpcat user add -u admin -r admin`).
+   enter the **setup token**, choose the admin username and password, and you are signed in right away.
+   The setup token is a one-time code that DumpCat creates when it starts without any account, so that nobody else who reaches the port
+   can create the admin first. The installer prints it; to show it again:
+   - Linux: `sudo dumpcat setup-token`, or the service log `journalctl -u dumpcat`;
+   - Windows (PowerShell as Administrator): `& "C:\Program Files\DumpCat\dumpcat.exe" setup-token`, or the log `C:\ProgramData\DumpCat\data\dumpcat.log`.
+
+   Every start of DumpCat creates a new token, and the token stops working once the admin account exists. After 5 wrong tokens, that
+   IP address has to wait 15 minutes. You can also skip the web setup and create the admin from the command line:
+   `sudo dumpcat user add -u admin -r admin`.
 2. **Create a MySQL user for backups** (minimal, read-only privileges):
    ```sql
    -- MySQL 8 / Percona
@@ -508,6 +522,7 @@ It is also worth backing up `/var/lib/dumpcat/master.key` and `dumpcat.db` (conf
 ## 11. Security
 
 - Put DumpCat behind HTTPS (nginx/caddy or the built-in TLS) and restrict access by IP or VPN.
+- Until the first admin exists, creating it requires the one-time **setup token** (service log or `dumpcat setup-token`, see [4](#4-getting-started)), also for requests from localhost. A new token is created at every start; it is compared in constant time, 5 wrong tokens lock that IP for 15 minutes, and it is deleted once an account exists.
 - Enable **2FA** for admins (**Profile & security**). **Settings** can also remind admins to enable 2FA when they sign in.
 - Roles: **admin** (everything), **operator** (servers, cloud/FTP/SFTP storage, jobs, running backups/restores), **viewer** (read-only). Actions that touch the host's file system (local directory / custom rclone storage, pre/post commands, choosing the extraction directory, replacing the datadir) are admin-only.
 - 5 failed logins within 15 minutes lock that account for 15 minutes; 20 failures from one IP lock that IP for 15 minutes.
@@ -564,16 +579,19 @@ dumpcat user add -u bob -r operator
 dumpcat user passwd -u admin      # forgotten admin password
 dumpcat user reset-2fa -u admin   # lost 2FA device
 dumpcat user list
+dumpcat setup-token               # one-time token for creating the first admin in the web UI
 dumpcat decode -in file.sql.zst.age -out file.sql
 dumpcat version
 ```
 
-Internal data: `/var/lib/dumpcat/dumpcat.db` (SQLite), `master.key`, `logs/`, `staging/` (temporary), `restore/` (default for physical restores).
+Internal data: `/var/lib/dumpcat/dumpcat.db` (SQLite), `master.key`, `logs/`, `staging/` (temporary), `restore/` (default for physical restores),
+`setup-token` (only until the first admin exists).
 
 ## 14. Troubleshooting
 
 | Symptom | Fix |
 |---|---|
+| Initial setup: *incorrect setup token* | DumpCat creates a new token at every start: show the current one with `sudo dumpcat setup-token` (Windows: `dumpcat.exe setup-token` as Administrator). After 5 wrong tokens, wait 15 minutes |
 | *missing tool ...* | Check the **System** page, install as instructed, click *Re-detect tools* |
 | Physical backup says the datadir is not accessible | DumpCat must run on the database server itself, as root (or as a user in the `mysql` group with read access to the datadir) |
 | `xtrabackup ... unsupported server version` | Install the XtraBackup series matching MySQL (8.0/8.4), at a patch level ≥ the server's |

@@ -218,9 +218,25 @@ if ($NoService) {
 }
 $users = & $Exe user list -config $EnvFile 2>$null
 if (-not $users) {
-  Write-Host 'No account yet: open the address above now and create the admin account' -ForegroundColor Cyan
-  Write-Host '  (until then, the first visitor becomes the administrator).'
-  Write-Host "  or from the command line:  & `"$Exe`" user add -u admin -r admin -config `"$EnvFile`""
+  # the service writes the one-time setup token while it starts
+  $token = $null
+  if (-not $NoService) {
+    for ($i = 0; $i -lt 10 -and -not $token; $i++) {
+      try { $token = & $Exe setup-token -config $EnvFile 2>$null } catch { $token = $null }
+      if (-not $token) { Start-Sleep -Seconds 1 }
+    }
+  }
+  Write-Host 'No account yet: open the address above and create the admin account.' -ForegroundColor Cyan
+  $where = 'it is also in the log below'
+  if ($token) {
+    Write-Host '  The setup page asks for this one-time setup token: ' -NoNewline
+    Write-Host $token -ForegroundColor Cyan
+  } elseif ($NoService) {
+    Write-Host '  The setup page asks for a one-time setup token.'
+    $where = 'DumpCat also prints it when it starts'
+  }
+  Write-Host "  Show the token: & `"$Exe`" setup-token -config `"$EnvFile`"  ($where)"
+  Write-Host "  or create an admin from the command line:  & `"$Exe`" user add -u admin -r admin -config `"$EnvFile`""
 }
 if (-not $OpenFirewall -and -not $NoService) {
   Write-Host "To reach the web UI from other machines, open TCP $Port in Windows Firewall (or re-run with -OpenFirewall)."
