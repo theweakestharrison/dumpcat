@@ -1,0 +1,308 @@
+(function () {
+  "use strict";
+
+  var EN = {
+    "nav-methods": "Methods",
+    "nav-storage": "Storage",
+    "nav-ops": "Operations",
+    "nav-download": "Download",
+    "nav-install": "Install",
+    "eyebrow": "Backup &amp; restore for MySQL and MariaDB",
+    "h1": "Backups that never lock the database. <span class=\"soft\">Recovery to the exact second.</span>",
+    "lead": "DumpCat is a single binary with a web UI. It schedules backups, compresses and encrypts them, ships copies to S3, Google Drive, OneDrive or SFTP, verifies them and brings your data back when you need it. Runs on Linux and Windows, fully offline.",
+    "cta-install": "Install <span data-version>1.0.0</span>",
+    "cta-features": "See features",
+    "pitr-title": "Point-in-time recovery",
+    "pitr-tag": "Simulation",
+    "pitr-sub": "Someone dropped the <code>orders</code> table at 14:37:12. Drag the marker to pick a recovery point: DumpCat picks the newest base backup and the binlog files to replay.",
+    "tl-now": "now",
+    "lg-backup": "Full backup (mysqldump)",
+    "lg-binlog": "Archived binlog, at most 15 minutes per file",
+    "lg-replay": "Replayed on restore",
+    "lg-incident": "Incident",
+    "ro-to": "Recover to",
+    "ro-base": "Base backup",
+    "ro-replay": "Replay binlogs",
+    "tl-snap": "Jump to just before the incident",
+    "m-label": "Backup methods",
+    "m-title": "Three tools, picked by database size",
+    "m-intro": "DumpCat drives <code>mysqldump</code>, <code>mydumper</code> and XtraBackup / MariaBackup. When you add a server, <em>Test connection</em> shows the version, datadir, the size of each database and which methods work on that machine.",
+    "m-table": "<thead><tr><th scope=\"col\"></th><th scope=\"col\">mysqldump<small>logical</small></th><th scope=\"col\">mydumper<small>logical, parallel</small></th><th scope=\"col\">XtraBackup / MariaBackup<small>physical, hot</small></th></tr></thead><tbody>" +
+      "<tr><th scope=\"row\">Locks the database?</th><td data-m=\"mysqldump\">Not for InnoDB, thanks to <code>--single-transaction</code></td><td data-m=\"mydumper\">A global lock for a few milliseconds to sync threads, then none</td><td data-m=\"physical\">No InnoDB locking; a very brief backup lock at the end</td></tr>" +
+      "<tr><th scope=\"row\">Backup speed</th><td data-m=\"mysqldump\">1 thread per database, several databases in parallel</td><td data-m=\"mydumper\">Multi-threaded, tables chunked by rows</td><td data-m=\"physical\">Fastest: multi-threaded file copy</td></tr>" +
+      "<tr><th scope=\"row\">Restore speed</th><td data-m=\"mysqldump\">Slowest</td><td data-m=\"mydumper\">Fast: parallel, indexes built after load</td><td data-m=\"physical\">Very fast: file copy + prepare</td></tr>" +
+      "<tr><th scope=\"row\">Incremental</th><td class=\"no\" data-m=\"mysqldump\">No</td><td class=\"no\" data-m=\"mydumper\">No</td><td class=\"yes\" data-m=\"physical\">Yes</td></tr>" +
+      "<tr><th scope=\"row\">Restore one database, rename</th><td class=\"yes\" data-m=\"mysqldump\">Yes</td><td class=\"yes\" data-m=\"mydumper\">Yes</td><td class=\"no\" data-m=\"physical\">No, whole instance</td></tr>" +
+      "<tr class=\"fit\"><th scope=\"row\">Best for</th><td data-m=\"mysqldump\">Databases under 20–50 GB</td><td data-m=\"mydumper\">Large databases restored one at a time</td><td data-m=\"physical\">100 GB to several TB, low RTO</td></tr></tbody>",
+    "s-label": "Storage",
+    "s-title": "One job, copies in several places",
+    "s-intro": "Write to local disk and then upload, or stream straight to the cloud with no temporary disk. Each storage keeps its own number of copies, for example 3 backups locally and 30 days on S3.",
+    "s-targets": "<li><b>Local / NFS</b><span>Fastest to restore from; keep it off the datadir disk</span></li>" +
+      "<li><b>S3</b><span>AWS, Cloudflare R2, MinIO, Wasabi, DigitalOcean</span></li>" +
+      "<li><b>Google Drive</b><span>OAuth or a Service Account</span></li>" +
+      "<li><b>OneDrive</b><span>SharePoint included</span></li>" +
+      "<li><b>FTP / FTPS</b><span>Explicit or Implicit TLS</span></li>" +
+      "<li><b>SFTP</b><span>Password or private key</span></li>" +
+      "<li><b>WebDAV</b><span>Nextcloud and friends</span></li>" +
+      "<li><b>Backblaze B2</b><span>Plus Azure Blob and Dropbox</span></li>" +
+      "<li><b>rclone</b><span>70+ more backends</span></li>",
+    "s-aside-title": "Standard formats, no lock-in",
+    "s-aside-text": "Lost the machine running DumpCat? Install a fresh copy, add the storage again and click <em>Import backup catalog</em>: every backup is listed again. Without DumpCat you can still restore with <code>age</code>, <code>zstd</code> and <code>mysql</code>.",
+    "o-label": "Operations",
+    "o-title": "The parts you would otherwise script yourself",
+    "o-intro": "All of it ships with DumpCat and is switched on and tuned from the web UI.",
+    "o-list": "<div><dt>Encrypted before upload</dt><dd>age (ChaCha20-Poly1305 + scrypt) runs on your server, so the cloud provider cannot read your data.</dd></div>" +
+      "<div><dt>Integrity checks</dt><dd><span class=\"nw\">SHA-256</span> for every file. Verify re-reads, decrypts, decompresses and looks for the <code>Dump completed</code> line.</dd></div>" +
+      "<div><dt>GFS retention</dt><dd>Keep N backups, N days, the last one of each day, week and month. Incremental chains go only with their full.</dd></div>" +
+      "<div><dt>Careful restores</dt><dd>Every file is test-decrypted before any database is dropped. Restore under new names to compare, or use fast load mode.</dd></div>" +
+      "<div><dt>Accounts and roles</dt><dd>admin, operator, viewer. TOTP two-factor, API tokens, an audit log and lockout after repeated failed logins.</dd></div>" +
+      "<div><dt>Notifications</dt><dd>Email, Telegram, Slack, Discord and HMAC-signed webhooks, on failure or on success.</dd></div>" +
+      "<div><dt>Live progress</dt><dd>Bytes, speed, percentage and logs in real time. Cancel a task at any moment.</dd></div>" +
+      "<div><dt>Self-update</dt><dd><code>dumpcat update</code> checks <span class=\"nw\">SHA-256</span>, backs up the configuration, waits for running backups and rolls back on failure.</dd></div>",
+    "d-label": "Download",
+    "d-title": "Latest release",
+    "d-linux": "amd64 and arm64, installer, systemd service and manual",
+    "d-windows": "64-bit, installer for the Windows service and manual",
+    "d-bins": "Single binaries",
+    "d-old": "Older versions stay available at <code>downloads.dumpcat.cc/&lt;version&gt;/</code>.",
+    "d-notes": "What's new",
+    "i-label": "Install",
+    "i-title": "Running in a minute",
+    "i-intro": "A single Go binary with the web UI built in and no runtime to install. The installer sets up the service and the tools that match the database version on the machine.",
+    "i-linux-note": "Installs to <code>/opt/dumpcat</code>, creates a systemd service, and installs <code>rclone</code>, the MySQL/MariaDB client, the matching mariabackup or XtraBackup, and mydumper when the repositories have it. Options: <code>--port 9090</code>, <code>--listen 127.0.0.1</code>, <code>--tls-auto</code>.",
+    "i-win-note": "Run PowerShell as Administrator. Windows Server 2016+ / Windows 10+ 64-bit, runs as a Windows service. mydumper and XtraBackup for MySQL are not available; run DumpCat on Linux for databases of hundreds of GB.",
+    "i-steps-title": "After installing",
+    "i-steps": "<li><div><b>Open <code>http://&lt;server-ip&gt;:6369</code></b><span>The first visit creates the admin account.</span></div></li>" +
+      "<li><div><b>Add a database server</b><span>Test connection lists missing privileges and the methods you can use.</span></div></li>" +
+      "<li><div><b>Add a storage</b><span>Test writes, reads and deletes a file.</span></div></li>" +
+      "<li><div><b>Create a backup job</b><span>Pick a schedule, encryption, storage and retention, then Save &amp; run now.</span></div></li>",
+    "meow-title": "Port 6369 spells <em>MEOW</em>",
+    "meow": "Type 6-3-6-9 on a phone keypad and you get MEOW. It is the default port of the web UI.",
+    "foot": "Open source under the Apache-2.0 license. The full manual, in English and Vietnamese, ships inside every package."
+  };
+
+  var STR = {
+    vi: { aria: "Thời điểm khôi phục", consistent: "mysqldump · nhất quán lúc", files: function (n) { return n + " file, kiểm tra từng file trước khi đụng vào dữ liệu"; }, ok: "Trước sự cố: bảng orders còn nguyên", bad: "Sau sự cố: bảng orders đã bị xóa", copy: "Sao chép", copied: "Đã chép", selected: "Đã chọn, nhấn Ctrl+C",
+      relLoading: "Đang tải thông tin bản phát hành…",
+      relIntro: "Phiên bản {v}, phát hành ngày {d}. Mỗi gói có file chạy, script cài đặt và hướng dẫn đầy đủ; SHA-256 của mọi file nằm trong {sums}.",
+      relFailed: "Chưa tải được thông tin bản phát hành. Phiên bản mới nhất và các file được liệt kê trong {feed}.", dateLocale: "vi-VN" },
+    en: { aria: "Recovery point", consistent: "mysqldump · consistent at", files: function (n) { return n + (n === 1 ? " file" : " files") + ", each checked before any data is touched"; }, ok: "Before the incident: orders is intact", bad: "After the incident: orders is already gone", copy: "Copy", copied: "Copied", selected: "Selected, press Ctrl+C",
+      relLoading: "Loading the latest release…",
+      relIntro: "Version {v}, released {d}. Each package holds the binaries, the installer and the full manual; SHA-256 checksums of every file are in {sums}.",
+      relFailed: "The release details could not be loaded. The latest version and its files are listed in {feed}.", dateLocale: "en" }
+  };
+
+  // ---- PITR timeline model (seconds since 00:00 on 18/10/2026) ----
+  var AXIS_END = 18 * 3600, NOW = 16 * 3600 + 20 * 60;
+  var BACKUP_AT = 2 * 3600, CONSISTENT = BACKUP_AT + 3, INCIDENT = 14 * 3600 + 37 * 60 + 12;
+  var FILE_SECONDS = 900, FILE_TODAY = 123, FILE_YESTERDAY = FILE_TODAY - 86400 / FILE_SECONDS;
+  var lang = "vi";
+  var t = INCIDENT - 1;
+
+  var range = document.getElementById("tl-range");
+  var replay = document.getElementById("tl-replay");
+  var roTo = document.getElementById("ro-to");
+  var roBase = document.getElementById("ro-base");
+  var roReplay = document.getElementById("ro-replay");
+  var roStatus = document.getElementById("ro-status");
+
+  function pad(n, w) { n = String(n); while (n.length < w) n = "0" + n; return n; }
+  function hms(s) { return pad(Math.floor(s / 3600), 2) + ":" + pad(Math.floor(s / 60) % 60, 2) + ":" + pad(s % 60, 2); }
+  function pct(s) { return (s / AXIS_END * 100).toFixed(4) + "%"; }
+  function binlog(i) { return "mysql-bin." + pad(i, 6); }
+
+  function render() {
+    var s = STR[lang];
+    var today = t >= CONSISTENT;
+    var baseAt = today ? CONSISTENT : CONSISTENT - 86400;
+    var first = today ? FILE_TODAY : FILE_YESTERDAY;
+    var last = first + Math.floor((t - baseAt) / FILE_SECONDS);
+    var start = today ? BACKUP_AT : 0;
+
+    replay.style.left = pct(start);
+    replay.style.width = pct(Math.max(0, t - start));
+    roTo.textContent = "18/10/2026 " + hms(t);
+    roBase.innerHTML = (today ? "20261018-020000-full" : "20261017-020000-full") + "<small>" + s.consistent + " " + (today ? "" : "17/10 ") + hms(CONSISTENT) + "</small>";
+    roReplay.innerHTML = binlog(first) + " → " + binlog(last) + "<small>" + s.files(last - first + 1) + "</small>";
+    var ok = t < INCIDENT;
+    roStatus.className = "status " + (ok ? "ok" : "bad");
+    roStatus.textContent = ok ? s.ok : s.bad;
+    range.setAttribute("aria-label", s.aria);
+    range.setAttribute("aria-valuetext", hms(t));
+  }
+
+  function setT(v) {
+    t = Math.max(0, Math.min(NOW, Math.round(v)));
+    range.value = String(t);
+    render();
+  }
+
+  range.addEventListener("input", function () { setT(Number(range.value)); });
+  range.addEventListener("keydown", function (e) {
+    var step = { ArrowLeft: -60, ArrowDown: -60, ArrowRight: 60, ArrowUp: 60, PageDown: -900, PageUp: 900 }[e.key];
+    if (step) { e.preventDefault(); setT(t + (e.shiftKey ? step * 15 : step)); }
+  });
+  document.getElementById("tl-snap").addEventListener("click", function () { setT(INCIDENT - 1); range.focus(); });
+
+  // ---- language ----
+  var viCache = new Map();
+  function applyLang(l) {
+    lang = l === "en" ? "en" : "vi";
+    document.querySelectorAll("[data-i18n]").forEach(function (el) {
+      if (!viCache.has(el)) viCache.set(el, el.innerHTML);
+      var en = EN[el.getAttribute("data-i18n")];
+      el.innerHTML = lang === "en" && en != null ? en : viCache.get(el);
+    });
+    document.documentElement.lang = lang;
+    document.querySelectorAll(".lang button").forEach(function (b) { b.setAttribute("aria-pressed", String(b.getAttribute("data-lang") === lang)); });
+    document.querySelectorAll(".copy").forEach(function (b) { b.textContent = STR[lang].copy; });
+    render();
+    renderRelease();
+  }
+  document.querySelectorAll(".lang button").forEach(function (b) {
+    b.addEventListener("click", function () {
+      applyLang(b.getAttribute("data-lang"));
+      try { localStorage.setItem("dumpcat-landing-lang", lang); } catch (e) {}
+    });
+  });
+
+  // ---- latest release: read from the update feed, so a new upload shows here without redeploying the site ----
+  var relMeta = document.querySelector('meta[name="dumpcat-release-base"]');
+  var relBase = new URL(relMeta ? relMeta.content : "https://downloads.dumpcat.cc/", location.href);
+  if (!/\/$/.test(relBase.pathname)) relBase.pathname += "/";
+  var relFeed = new URL("latest.json", relBase);
+  var release = null, releaseFailed = false;
+  var PLATFORMS = { "linux/amd64": "Linux x86-64", "linux/arm64": "Linux ARM64", "windows/amd64": "Windows x64" };
+
+  // Links only to the release server itself: a tampered feed must not turn this page into a link to elsewhere.
+  function relURL(ref) {
+    var u = new URL(ref, relFeed);
+    if (u.origin !== relBase.origin || u.pathname.indexOf(relBase.pathname) !== 0) throw new Error("file outside the release server: " + ref);
+    return u.href;
+  }
+  function node(tag, cls, text) {
+    var e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (text != null) e.textContent = text;
+    return e;
+  }
+  function link(href, text) { var a = node("a", "", text); a.href = href; return a; }
+  // "{name}" placeholders in a sentence become the given nodes or strings.
+  function fill(el, tpl, parts) {
+    el.textContent = "";
+    tpl.split(/\{(\w+)\}/).forEach(function (piece, i) {
+      if (i % 2 === 0) { if (piece) el.appendChild(document.createTextNode(piece)); return; }
+      var p = parts[piece];
+      el.appendChild(typeof p === "string" ? document.createTextNode(p) : p);
+    });
+  }
+  // Release notes are plain text from CHANGELOG.md: "- " lines become list items, `code` stays code.
+  function noteItem(line) {
+    var li = node("li");
+    line.split("`").forEach(function (part, i) {
+      if (part) li.appendChild(i % 2 ? node("code", "", part) : document.createTextNode(part));
+    });
+    return li;
+  }
+
+  function renderRelease() {
+    var s = STR[lang];
+    var intro = document.getElementById("rel-intro");
+    if (releaseFailed) { fill(intro, s.relFailed, { feed: link(relFeed.href, "latest.json") }); return; }
+    if (!release) { intro.textContent = s.relLoading; return; }
+    var v = release.version;
+    document.querySelectorAll("[data-version]").forEach(function (e) { e.textContent = v; });
+    document.querySelectorAll("[data-base]").forEach(function (e) { e.textContent = relBase.href; });
+    var when = new Date(release.released_at);
+    var date = isNaN(when) ? "" : new Intl.DateTimeFormat(s.dateLocale, { dateStyle: "long" }).format(when);
+    fill(intro, date ? s.relIntro : s.relIntro.replace(/, [^{]*\{d\}/, ""), {
+      v: node("b", "", v), d: date, sums: link(relURL(v + "/SHA256SUMS"), "SHA256SUMS")
+    });
+  }
+
+  function showRelease(rel) {
+    var v = String(rel && rel.version || "");
+    if (!/^[0-9A-Za-z][0-9A-Za-z.+-]{0,63}$/.test(v)) throw new Error("bad version in latest.json");
+
+    var linux = "dumpcat-" + v + "-linux.tar.gz", windows = "dumpcat-" + v + "-windows-amd64.zip";
+    document.getElementById("pkg-linux").href = relURL(v + "/" + linux);
+    document.getElementById("pkg-linux-file").textContent = linux;
+    document.getElementById("pkg-windows").href = relURL(v + "/" + windows);
+    document.getElementById("pkg-windows-file").textContent = windows;
+
+    var notes = document.getElementById("rel-notes");
+    notes.textContent = "";
+    String(rel.notes || "").split("\n").forEach(function (line) {
+      line = line.trim().replace(/^[-*]\s+/, "");
+      if (line) notes.appendChild(noteItem(line));
+    });
+    notes.parentNode.hidden = !notes.children.length;
+
+    var bins = document.getElementById("rel-bins");
+    bins.textContent = "";
+    Object.keys(rel.files || {}).sort().forEach(function (key) {
+      var f = rel.files[key];
+      if (!f || typeof f.url !== "string") return;
+      var href = relURL(f.url);
+      var li = node("li");
+      li.appendChild(node("b", "", PLATFORMS[key] || key));
+      li.appendChild(link(href, href.slice(href.lastIndexOf("/") + 1)));
+      li.appendChild(node("span", "size", typeof f.size === "number" && f.size > 0 ? (f.size / 1e6).toFixed(1) + " MB" : ""));
+      if (/^[0-9a-f]{64}$/i.test(f.sha256 || "")) li.appendChild(node("span", "sha", "SHA-256 " + f.sha256.toLowerCase()));
+      bins.appendChild(li);
+    });
+
+    release = { version: v, released_at: rel.released_at };
+    document.getElementById("release").hidden = false;
+    renderRelease();
+  }
+
+  fetch(relFeed.href, { credentials: "omit" })
+    .then(function (r) { if (!r.ok) throw new Error("HTTP " + r.status + " for " + relFeed.href); return r.json(); })
+    .then(showRelease)
+    .catch(function (err) {
+      releaseFailed = true;
+      renderRelease();
+      if (window.console) console.warn("dumpcat.cc: " + err);
+    });
+
+  // ---- install tabs ----
+  var tabs = Array.prototype.slice.call(document.querySelectorAll('[role="tab"]'));
+  function selectTab(tab) {
+    tabs.forEach(function (x) {
+      var on = x === tab;
+      x.setAttribute("aria-selected", String(on));
+      x.tabIndex = on ? 0 : -1;
+      document.getElementById(x.getAttribute("aria-controls")).hidden = !on;
+    });
+  }
+  tabs.forEach(function (tab, i) {
+    tab.addEventListener("click", function () { selectTab(tab); });
+    tab.addEventListener("keydown", function (e) {
+      if (e.key !== "ArrowRight" && e.key !== "ArrowLeft") return;
+      var next = tabs[(i + (e.key === "ArrowRight" ? 1 : tabs.length - 1)) % tabs.length];
+      selectTab(next); next.focus();
+    });
+  });
+
+  // ---- copy buttons ----
+  document.querySelectorAll(".copy").forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      var code = document.getElementById(btn.getAttribute("data-target"));
+      var text = code.textContent;
+      function flash(msg) { btn.textContent = msg; setTimeout(function () { btn.textContent = STR[lang].copy; }, 1600); }
+      function selectIt() {
+        var r = document.createRange(); r.selectNodeContents(code);
+        var sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(r);
+        flash(STR[lang].selected);
+      }
+      try {
+        navigator.clipboard.writeText(text).then(function () { flash(STR[lang].copied); }, selectIt);
+      } catch (e) { selectIt(); }
+    });
+  });
+
+  var saved = null;
+  try { saved = localStorage.getItem("dumpcat-landing-lang"); } catch (e) {}
+  applyLang(saved === "vi" ? "vi" : "en");
+})();

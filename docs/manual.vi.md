@@ -1,0 +1,609 @@
+[English](manual.md) · Tiếng Việt · [Về README](../README.vi.md)
+
+# Hướng dẫn sử dụng DumpCat
+
+Hướng dẫn đầy đủ để cài đặt, cấu hình và vận hành DumpCat. Phần giới thiệu tổng quan nằm ở [README](../README.vi.md).
+
+## Mục lục
+
+1. [Tính năng](#1-tính-năng)
+2. [Chọn phương thức backup](#2-chọn-phương-thức-backup)
+3. [Cài đặt](#3-cài-đặt)
+4. [Bắt đầu sử dụng](#4-bắt-đầu-sử-dụng)
+5. [Cấu hình nơi lưu trữ](#5-cấu-hình-nơi-lưu-trữ)
+6. [Job, lịch chạy, retention](#6-job-lịch-chạy-retention)
+7. [Restore](#7-restore)
+8. [Lưu trữ binlog & khôi phục theo thời điểm (PITR)](#8-lưu-trữ-binlog--khôi-phục-theo-thời-điểm-pitr)
+9. [Khôi phục thủ công khi không có DumpCat](#9-khôi-phục-thủ-công-khi-không-có-dumpcat)
+10. [Khôi phục thảm họa (cài lại DumpCat)](#10-khôi-phục-thảm-họa)
+11. [Bảo mật](#11-bảo-mật)
+12. [API & tự động hóa](#12-api--tự-động-hóa)
+13. [Cấu hình hệ thống](#13-cấu-hình-hệ-thống)
+14. [Xử lý sự cố](#14-xử-lý-sự-cố)
+15. [Phát triển](#15-phát-triển)
+
+---
+
+## 1. Tính năng
+
+| Nhóm | Chi tiết |
+|---|---|
+| Phương thức | `mysqldump`/`mariadb-dump` (logic), `mydumper`/`myloader` (logic song song), Percona XtraBackup / MariaBackup (vật lý, hot, **full + incremental**) |
+| Phạm vi | Tất cả DB, chỉ một số DB, tất cả trừ một số DB, loại trừ từng bảng; routines, triggers, events; **users & GRANT** (file `_users.sql` riêng) |
+| Nén / mã hóa | zstd (mặc định), gzip đa luồng, không nén · mã hóa **age** (ChaCha20-Poly1305 + scrypt) bằng passphrase |
+| Toàn vẹn | SHA-256 cho mọi file, kiểm tra kích thước sau upload, **verify** (đọc lại → giải mã → giải nén → kiểm tra dòng `Dump completed`/cấu trúc tar) thủ công hoặc tự động sau mỗi backup |
+| Lưu trữ | Nhiều đích cho một job (vd: local + S3 + Google Drive); ghi thẳng storage local rồi upload; hoặc **stream trực tiếp** lên cloud không dùng đĩa tạm; giới hạn băng thông; **sao chép** một bản backup có sẵn sang storage khác; duyệt file trên storage |
+| Lịch | Cron (`0 2 * * *`, `@daily`, `@every 6h`), lịch riêng cho incremental, múi giờ cấu hình được, xem trước 5 lần chạy kế tiếp |
+| Retention | Giữ N bản gần nhất / N ngày / bản cuối mỗi ngày-tuần-tháng (GFS), **riêng cho từng storage** (vd: local giữ 3 bản, S3 giữ 30 ngày), tôn trọng chuỗi incremental |
+| Restore | Restore vào server bất kỳ, **đổi tên database**, restore một phần, xóa DB đích trước, không ghi binlog, chế độ nhanh, restore users; vật lý: tải chuỗi full+incremental → prepare → (tùy chọn) **tự thay datadir** với rollback |
+| Khôi phục theo thời điểm (PITR) | **Lưu trữ binlog liên tục** (`mysqlbinlog --raw --stop-never`, nén/mã hóa như backup, upload lên mọi storage của job), khôi phục đến **một thời điểm / vị trí binlog / ngay trước một GTID** — tự chọn bản backup nền mới nhất, tải & kiểm tra mọi binlog trước khi thay đổi dữ liệu; retention binlog theo bản backup cũ nhất còn giữ |
+| Vận hành | Tiến độ realtime (bytes, tốc độ, %), log trực tiếp, hủy tác vụ, giới hạn số job chạy đồng thời, ưu tiên thấp (nice/ionice), pre/post command, timeout |
+| Thông báo | Email (SMTP), Telegram, Slack, Discord, Webhook (ký HMAC) — khi lỗi và/hoặc thành công |
+| Bảo mật | Mật khẩu bcrypt, phiên HttpOnly + CSRF, khóa đăng nhập sai nhiều lần, 2FA TOTP, API token, vai trò, audit log, mọi mật khẩu/khóa cloud mã hóa AES-256-GCM khi lưu, mật khẩu DB không bao giờ nằm trên dòng lệnh |
+| Phục hồi thảm họa | Mỗi bản backup có `manifest.json` → cài DumpCat mới, thêm storage, bấm **Nhập danh mục** là thấy lại toàn bộ backup. File backup là định dạng chuẩn (zstd/gzip/age/xbstream) — restore được cả khi không có DumpCat |
+
+## 2. Chọn phương thức backup
+
+| | mysqldump | mydumper | Vật lý (XtraBackup/MariaBackup) |
+|---|---|---|---|
+| Khóa DB? | Không với InnoDB (`--single-transaction`) | Khóa toàn cục vài mili-giây để đồng bộ các luồng, sau đó không khóa (`--trx-tables`); hoặc `SAFE_NO_LOCK` | Không khóa InnoDB; bước cuối dùng backup lock (`LOCK INSTANCE FOR BACKUP` / `BACKUP STAGE`) rất ngắn |
+| Tốc độ backup | 1 luồng / DB (nhiều DB song song) | Đa luồng, chia chunk theo số dòng | Nhanh nhất (copy file, đa luồng) |
+| Tốc độ restore | Chậm nhất (1 luồng / DB) | Nhanh (song song, tạo index sau) | **Rất nhanh** (copy file + prepare) |
+| Incremental | — | — | ✅ |
+| Restore 1 DB / đổi tên | ✅ | ✅ | — (toàn instance) |
+| Khác phiên bản / chuyển server | ✅ | ✅ | Cùng phiên bản lớn |
+| Yêu cầu | client MySQL | mydumper/myloader | Chạy **trên chính server DB**, công cụ cùng phiên bản server |
+
+**Khuyến nghị**
+
+- DB < 20–50 GB: `mysqldump` hằng đêm, giữ 7–14 bản, 1 bản local + 1 bản cloud.
+- DB lớn, cần restore từng DB: `mydumper` (8–16 luồng, `chunk_rows` 500k).
+- DB rất lớn (100 GB – nhiều TB) hoặc cần RTO thấp: **vật lý** full hằng tuần + incremental mỗi giờ/ngày, cộng thêm 1 job `mysqldump`/`mydumper` hằng tuần để có bản logic linh hoạt.
+- Backup từ **replica** để không ảnh hưởng primary (bật `--slave-info` với backup vật lý).
+- Bảng MyISAM/Aria không được đảm bảo nhất quán khi backup logic không khóa — DumpCat cảnh báo khi phát hiện.
+
+## 3. Cài đặt
+
+### 3.1 Cài nhanh (khuyến nghị)
+
+```bash
+tar xzf dumpcat-1.0.0-linux.tar.gz
+cd dumpcat-1.0.0-linux
+sudo ./install.sh
+```
+
+Script sẽ: cài binary vào `/opt/dumpcat/dumpcat` (có link `/usr/local/bin/dumpcat`), tạo `/etc/dumpcat/dumpcat.env`, thư mục dữ liệu
+`/var/lib/dumpcat`, service systemd `dumpcat`, và tự cài công cụ phù hợp với server DB trên máy:
+`rclone`, client MySQL/MariaDB, `mariadb-backup` (MariaDB) hoặc Percona XtraBackup đúng phiên bản (MySQL 5.7/8.0/8.4), `mydumper` (nếu có trong repo).
+
+Tùy chọn: `--port 9090`, `--listen 127.0.0.1`, `--tls-auto` (HTTPS tự ký), `--no-deps`, `--uninstall [--purge]`.
+
+### 3.2 Cài thủ công
+
+```bash
+sudo install -D -m 0755 dumpcat-linux-amd64 /opt/dumpcat/dumpcat && sudo ln -sfn /opt/dumpcat/dumpcat /usr/local/bin/dumpcat
+sudo mkdir -p /etc/dumpcat /var/lib/dumpcat && sudo chmod 700 /var/lib/dumpcat
+sudo cp dumpcat.env.example /etc/dumpcat/dumpcat.env
+sudo cp dumpcat.service /etc/systemd/system/
+sudo systemctl daemon-reload && sudo systemctl enable --now dumpcat
+```
+
+### 3.3 Công cụ backup (nếu cài thủ công)
+
+```bash
+# Ubuntu/Debian
+sudo apt install mariadb-client mariadb-backup     # MariaDB
+sudo apt install mysql-client                      # MySQL
+sudo apt install mydumper                          # tùy chọn, DB lớn
+curl https://rclone.org/install.sh | sudo bash     # cho S3/Drive/OneDrive/FTP...
+# Percona XtraBackup cho MySQL 8.0 (8.4: pxb-84-lts / percona-xtrabackup-84)
+curl -O https://repo.percona.com/apt/percona-release_latest.generic_all.deb
+sudo apt install ./percona-release_latest.generic_all.deb
+sudo percona-release enable pxb-80 && sudo apt update && sudo apt install percona-xtrabackup-80
+```
+
+Trang **Hệ thống** trong giao diện liệt kê công cụ nào đã có/thiếu, phiên bản và lệnh cài.
+
+> **Phiên bản công cụ vật lý phải khớp server**: MariaBackup cùng phiên bản MariaDB; XtraBackup 8.0 ↔ MySQL 8.0, 8.4 ↔ 8.4, 2.4 ↔ 5.7. Trang chi tiết server báo rõ nếu không khớp.
+
+### 3.4 Đặt sau nginx + HTTPS (khuyến nghị cho môi trường thật)
+
+Đặt `DUMPCAT_LISTEN=127.0.0.1:6369` và `DUMPCAT_TRUST_PROXY=1`, dùng file mẫu `/etc/dumpcat/nginx-dumpcat.conf`
+(đã tắt buffering để tải file backup lớn). Hoặc dùng HTTPS tích hợp: `DUMPCAT_TLS_CERT`/`DUMPCAT_TLS_KEY`, hay `DUMPCAT_TLS_AUTO=1`.
+
+### 3.5 Windows
+
+DumpCat cũng chạy trên Windows Server 2016+ / Windows 10+ (64-bit), dưới dạng Windows Service.
+Mở PowerShell bằng **Run as administrator**:
+
+```powershell
+Expand-Archive dumpcat-1.0.0-windows-amd64.zip -DestinationPath .
+cd dumpcat-1.0.0-windows-amd64
+powershell -ExecutionPolicy Bypass -File .\install.ps1
+```
+
+Script sẽ:
+
+- chép `dumpcat.exe` vào `C:\Program Files\DumpCat` và tải `rclone.exe` vào `C:\Program Files\DumpCat\tools`;
+- tạo file cấu hình `C:\ProgramData\DumpCat\dumpcat.env` và thư mục dữ liệu `C:\ProgramData\DumpCat\data`
+  (chỉ SYSTEM và Administrators đọc được, vì chứa database và master key);
+- đăng ký service **DumpCat** (tự khởi động trễ cùng Windows, tự chạy lại khi lỗi), khởi động nó và in ra địa chỉ web.
+
+Tùy chọn: `-Port 9090`, `-Listen 127.0.0.1`, `-TlsAuto` (HTTPS tự ký), `-OpenFirewall` (mở cổng cho mạng Domain/Private),
+`-NoRclone`, `-NoService` (chỉ chép file và tạo cấu hình, không cần quyền admin; tự chạy `dumpcat.exe serve`),
+`-Uninstall [-Purge]`. Chạy lại script là nâng cấp tại chỗ, giữ nguyên cấu hình và dữ liệu.
+
+- Service: `Restart-Service DumpCat` (sau khi sửa `dumpcat.env`), `Get-Service DumpCat`.
+- Log: `C:\ProgramData\DumpCat\data\dumpcat.log` (xoay vòng mỗi 20 MB); log từng lần backup/restore vẫn xem trên web như bình thường.
+- Dòng lệnh (PowerShell quyền admin): `& "C:\Program Files\DumpCat\dumpcat.exe" user passwd -u admin`.
+- Công cụ backup được tìm tự động trong `C:\Program Files\MySQL\MySQL Server *\bin`, `C:\Program Files\MariaDB *\bin`,
+  XAMPP, Laragon và WAMP. Nếu không có, chép `mysqldump.exe`/`mariadb-dump.exe`, `mysql.exe`, `mysqlbinlog.exe`… vào
+  thư mục `tools`, khai báo thêm thư mục trong `DUMPCAT_TOOLS_DIR` (ngăn cách bằng `;`), hoặc đặt đường dẫn ở trang **Settings**.
+  Trang **System** cho biết đã tìm thấy những gì.
+
+Những gì dùng được trên Windows:
+
+| Tính năng | Windows |
+|---|---|
+| Backup & restore logic (mysqldump / mariadb-dump), lịch chạy, retention, kiểm tra toàn vẹn, mã hóa | ✅ |
+| Mọi nơi lưu trữ (thư mục local, ổ mạng, S3, Google Drive, OneDrive, FTP, SFTP… qua rclone) | ✅ |
+| Lưu trữ binlog & khôi phục theo thời điểm từ bản backup logic | ✅ |
+| Backup vật lý MariaDB (mariabackup), kể cả incremental | ✅ backup + prepare; chép vào datadir phải làm tay (log restore ghi rõ các bước) |
+| mydumper / myloader | ❌ không có bản Windows |
+| Backup vật lý MySQL / Percona (XtraBackup) | ❌ XtraBackup chỉ có cho Linux |
+| Tự thay datadir, PITR từ bản backup vật lý | ❌ chỉ trên Linux |
+| Hạ ưu tiên CPU/IO cho công cụ backup (nice/ionice) | ❌ |
+
+Với DB lớn (hàng trăm GB) hoặc cần backup vật lý MySQL, nên chạy DumpCat trên Linux.
+
+### 3.6 Cập nhật
+
+DumpCat tự cập nhật từ máy chủ phát hành do bạn quản lý — web server nào phục vụ file tĩnh cũng được.
+
+**Phát hành một phiên bản.** Ghi số phiên bản vào `VERSION`, mô tả thay đổi trong mục `## <phiên bản>` của `CHANGELOG.md`
+(mục này hiện thành ghi chú phát hành trên giao diện), rồi build:
+
+```bash
+UPDATE_URL=https://downloads.dumpcat.cc ./build.sh
+```
+
+`UPDATE_URL` là tùy chọn: nó thành máy chủ phát hành mặc định của các bản bạn build (Windows: `.\build.ps1 -UpdateUrl https://…`).
+Upload **nội dung** thư mục `dist/update/` lên địa chỉ đó, để có:
+
+```
+https://downloads.dumpcat.cc/latest.json
+https://downloads.dumpcat.cc/1.1.0/dumpcat-linux-amd64    (… -linux-arm64, -windows-amd64.exe, SHA256SUMS, các gói cài)
+```
+
+Upload thư mục phiên bản trước, `latest.json` sau cùng, để máy cài không bao giờ thấy một bản phát hành mà file chưa lên đủ.
+Máy chủ phát hành phải dùng HTTPS.
+
+**Khai báo trên máy cài:** **Settings → Updates** (hoặc `DUMPCAT_UPDATE_URL`, hoặc địa chỉ gắn sẵn lúc build). DumpCat kiểm tra mỗi ngày
+một lần và báo "x.y.z available" cho admin; không tự cài gì cả.
+
+**Cài bản cập nhật:** **System → Updates → Install**, hoặc trên server:
+
+```bash
+sudo dumpcat update          # -check: chỉ kiểm tra · -yes: không hỏi lại · -force: cài lại
+```
+
+(Windows, PowerShell quyền admin: `& "C:\Program Files\DumpCat\dumpcat.exe" update`.) Quá trình:
+
+1. Đọc `latest.json` (và kiểm tra **chữ ký** nếu đã cấu hình khóa phát hành — xem bên dưới), tải file cho đúng nền tảng, kiểm tra
+   **SHA-256** và kích thước, rồi chạy thử bản mới.
+2. **Chờ các backup, restore, kiểm tra toàn vẹn, copy đang chạy xong** (tối đa 12 giờ; trong lúc chờ có thể hủy).
+   Lưu trữ binlog vẫn chạy và tự nối lại sau khi khởi động lại.
+3. Tác vụ mới bị giữ lại trong vài giây khởi động lại; job theo lịch đến hạn đúng lúc đó sẽ chạy ngay sau khi xong.
+4. **Sao lưu database của DumpCat** (`<data>/update/dumpcat-<phiên bản>-<thời gian>.db`, giữ 3 bản gần nhất) cùng file chạy hiện tại.
+5. Thay file chạy và khởi động lại (Linux: thay tại chỗ, systemd vẫn theo dõi; Windows: khởi động lại service).
+6. **Tự quay lại:** nếu bản mới không chạy được — nâng cấp database lỗi, bị crash, không mở được cổng — DumpCat đặt lại file chạy cũ và
+   bản sao database rồi chạy lại bản cũ (ngay lập tức nếu lỗi lúc khởi động, hoặc ở lần khởi động thứ 4 nếu crash liên tục).
+   Trang System cho biết chuyện gì đã xảy ra.
+
+**Quay lại thủ công:** **System → Updates → Roll back** (hoặc `dumpcat update -rollback`) chuyển về bản trước và khôi phục database từ trước
+khi cập nhật. Những thay đổi sau khi cập nhật (lịch sử backup, job, cài đặt) sẽ mất; file backup trên các nơi lưu trữ không bị đụng tới — dùng
+**Import catalog** để liệt kê lại các bản backup mới hơn.
+
+Khi service đang dừng, `dumpcat update` thay file trực tiếp; việc cập nhật hoàn tất (hoặc tự quay lại) khi service khởi động.
+Cách cũ — cài gói mới bằng `install.sh` / `install.ps1` — vẫn dùng được.
+
+**Ký bản phát hành (khuyến nghị).** HTTPS và mã SHA-256 phát hiện được file tải về bị hỏng hay bị tráo, nhưng cả hai đều đến từ máy chủ
+phát hành: ai chiếm được máy chủ đó là có thể phát hành một file chạy độc hại. Khi có khóa phát hành, máy cài chỉ cài bản phát hành có
+`latest.json` được ký bằng **khóa bí mật** của bạn — khóa này không bao giờ nằm trên máy chủ (`latest.json` chứa SHA-256 của mọi file chạy,
+nên chữ ký bảo vệ luôn cả các file chạy).
+
+1. Tạo cặp khóa một lần, trên máy build (tốt hơn: một máy offline hoặc ổ đĩa mã hóa):
+
+   ```bash
+   dumpcat release keygen -out ~/dumpcat-keys
+   ```
+
+   Lệnh tạo `dumpcat-release.key` (khóa bí mật, quyền 0600) và `dumpcat-release.pub` (khóa công khai, base64) và in ra khóa công khai.
+
+2. Build kèm khóa:
+
+   ```bash
+   UPDATE_SIGNING_KEY=~/dumpcat-keys/dumpcat-release.key UPDATE_URL=https://downloads.dumpcat.cc ./build.sh
+   ```
+
+   (Windows: `.\build.ps1 -SigningKey D:\keys\dumpcat-release.key`, hoặc `$env:UPDATE_SIGNING_KEY`.) Khóa công khai được gắn vào các file
+   chạy và `dist/update/latest.json.sig` được tạo cạnh `latest.json`. Upload thư mục phiên bản trước, rồi `latest.json.sig`, rồi `latest.json`;
+   lần kiểm tra nào rơi đúng giữa hai lần upload cuối sẽ báo lỗi chữ ký một lần và thành công ở lần sau.
+   Đừng sửa `latest.json` sau khi ký — chữ ký áp lên đúng từng byte của file. Ký thủ công: `dumpcat release sign -key dumpcat-release.key
+   dist/update/latest.json`; kiểm tra trước khi upload: `dumpcat release verify -pub dumpcat-release.pub dist/update/latest.json`.
+
+3. Từ đó, máy cài chạy bản build có khóa sẽ từ chối bản phát hành không ký hoặc đã bị sửa. Máy cài còn chạy bản build không có khóa vẫn
+   nhận bản không ký cho tới khi cài một bản đã ký; muốn bắt buộc chữ ký trên các máy đó ngay, đặt `DUMPCAT_UPDATE_PUBLIC_KEY=<khóa công khai>`
+   trong file env của chúng (nhiều khóa: cách nhau bằng dấu phẩy). Khóa từ biến môi trường được cộng thêm vào khóa gắn sẵn, không bao giờ
+   thay thế chúng; khóa sai định dạng khiến DumpCat không khởi động, thay vì lặng lẽ tắt việc kiểm tra.
+   **System → Updates** hiện "Release signature: required" cùng các khóa tin cậy, hoặc "not checked" khi chỉ dựa vào HTTPS + SHA-256.
+
+**Giữ an toàn khóa bí mật.** Ai có `dumpcat-release.key` là có thể đẩy code xuống mọi máy cài.
+
+- Không bao giờ để nó trên máy chủ phát hành, trong kho mã nguồn hay trong log CI. Giữ trên máy build với quyền 0600 (Windows: trong thư
+  mục chỉ tài khoản của bạn đọc được), tốt nhất trên ổ đĩa mã hóa hoặc ổ offline chỉ cắm vào khi build bản phát hành.
+- Giữ một bản sao lưu offline (USB mã hóa, trình quản lý mật khẩu). Mất khóa thì các máy cài tin khóa đó không cập nhật qua trình cập nhật
+  được nữa — chỉ còn cách cài gói mới bằng `install.sh` / `install.ps1`.
+- Khóa công khai và file `.pub` không cần giữ bí mật.
+
+**Đổi khóa** (khóa mới, hoặc nghi khóa cũ bị lộ). Máy cài chấp nhận bản phát hành được ký bởi **bất kỳ** khóa nào nó tin, và
+`latest.json.sig` có thể chứa nhiều chữ ký:
+
+1. Tạo cặp khóa mới: `dumpcat release keygen -out ~/dumpcat-keys-new`.
+2. Phát hành một bản chuyển tiếp, vẫn ký bằng khóa cũ, nhưng file chạy tin cả hai khóa:
+
+   ```bash
+   UPDATE_SIGNING_KEY=~/dumpcat-keys/dumpcat-release.key UPDATE_PUBLIC_KEYS="$(cat ~/dumpcat-keys-new/dumpcat-release.pub)" ./build.sh
+   ```
+
+   (Windows: `.\build.ps1 -SigningKey <file khóa cũ> -PublicKeys <khóa công khai mới>`.) Máy cài đã cập nhật sẽ hiện 2 khóa tin cậy.
+3. Từ bản phát hành sau, chỉ ký bằng khóa mới: `UPDATE_SIGNING_KEY=~/dumpcat-keys-new/dumpcat-release.key ./build.sh` — các file chạy này
+   chỉ tin khóa mới. Với máy cài bỏ lỡ bản chuyển tiếp, thêm cả chữ ký của khóa cũ:
+   `dumpcat release sign -key old.key -key new.key dist/update/latest.json`.
+4. Hủy khóa bí mật cũ khi không còn máy cài nào tin nó.
+
+Nếu khóa cũ bị lộ, bỏ bước ký kép ở bước 3 và đưa các máy cài lên bản build không còn khóa cũ càng sớm càng tốt: trước lúc đó chúng vẫn
+chấp nhận bản phát hành ký bằng khóa cũ. Máy nào nghi ngờ thì cài lại gói thủ công.
+
+## 4. Bắt đầu sử dụng
+
+1. Mở `http://<ip-server>:6369` (cổng mặc định **6369**, bấm trên bàn phím điện thoại ra chữ *MEOW*). Khi chưa có tài khoản nào, lần đầu sẽ hiện màn hình **Initial setup**:
+   đặt tên đăng nhập và mật khẩu admin, xong là vào luôn.
+   Nên làm ngay sau khi cài — trong lúc chưa có admin, ai mở trang đầu tiên sẽ thành quản trị viên
+   (hoặc tạo admin bằng dòng lệnh: `sudo dumpcat user add -u admin -r admin`).
+2. **Tạo user MySQL cho backup** (quyền tối thiểu, chỉ đọc):
+   ```sql
+   -- MySQL 8 / Percona
+   CREATE USER 'dumpcat'@'localhost' IDENTIFIED BY 'mat_khau_manh';
+   GRANT SELECT, SHOW VIEW, TRIGGER, EVENT, LOCK TABLES, PROCESS, RELOAD,
+         REPLICATION CLIENT, SHOW DATABASES ON *.* TO 'dumpcat'@'localhost';
+   GRANT BACKUP_ADMIN ON *.* TO 'dumpcat'@'localhost';                -- backup vật lý
+   GRANT SELECT ON performance_schema.log_status TO 'dumpcat'@'localhost';
+   -- MariaDB
+   GRANT SELECT, SHOW VIEW, TRIGGER, EVENT, LOCK TABLES, PROCESS, RELOAD,
+         BINLOG MONITOR, CONNECTION ADMIN, SLAVE MONITOR, SHOW DATABASES ON *.* TO 'dumpcat'@'localhost';
+   ```
+   Nếu bật **lưu trữ binlog / PITR** (mục 8): thêm `GRANT REPLICATION SLAVE ON *.* TO 'dumpcat'@'localhost';`.
+   Restore cần quyền ghi → khai báo **tài khoản restore riêng** trong form server (mục *Tài khoản riêng khi restore*).
+3. **Database server** → *Thêm server* → *Kiểm tra kết nối*: hiển thị phiên bản, datadir, binlog, dung lượng từng DB, cảnh báo quyền, bảng không phải InnoDB và **phương thức backup nào dùng được** trên máy này.
+4. **Nơi lưu trữ** → thêm ít nhất một nơi → bấm **Test** (ghi/đọc/xóa thử).
+5. **Job backup** → *Tạo job*: chọn server, phương thức, DB, lịch, nén/mã hóa, storage, retention → *Lưu & chạy ngay*.
+6. Theo dõi tiến độ & log trực tiếp ở trang chi tiết; bấm **Kiểm tra toàn vẹn** để verify; **Restore** khi cần.
+
+## 5. Cấu hình nơi lưu trữ
+
+| Loại | Ghi chú |
+|---|---|
+| **Thư mục local / NFS** | Nhanh nhất để restore. Đặt trên ổ khác ổ chứa datadir; NFS/SMB đã mount cũng dùng được. |
+| **S3** | Nhập Access Key/Secret, region, bucket, prefix. Với R2/MinIO/Wasabi... nhập *Endpoint*. Để trống key để dùng IAM role của EC2. File lớn upload multipart song song (chunk 64 MiB). Bật *Không kiểm tra/tạo bucket* nếu key không có quyền tạo bucket. Có thể dùng Object Lock / lifecycle của bucket để chống ransomware. |
+| **Google Drive** | **Cách 1 (OAuth)**: tạo OAuth Client ID loại *Desktop app* trong Google Cloud Console (bật Google Drive API) → nhập Client ID/Secret → *Xác thực với Google* → đăng nhập → trình duyệt chuyển tới `http://127.0.0.1:53682/...` (báo lỗi không mở được — bình thường) → copy toàn bộ URL dán vào DumpCat. **Cách 2**: trên máy có trình duyệt chạy `rclone authorize "drive"` và dán JSON vào ô Token. **Cách 3**: Service Account JSON (bắt buộc dùng Shared Drive hoặc thư mục được chia sẻ, vì service account không có dung lượng riêng). |
+| **OneDrive / SharePoint** | Tạo App registration trong Microsoft Entra ID, nền tảng *Mobile and desktop applications* với redirect `http://localhost:53682/` (hoặc dùng `rclone authorize "onedrive"`). Drive ID và loại drive được phát hiện tự động. |
+| **FTP / FTPS** | Host, port, user, pass, chọn Explicit TLS (FTPES) hoặc Implicit TLS (990). |
+| **SFTP** | Mật khẩu hoặc private key (PEM). Phù hợp đẩy backup sang server khác/NAS. |
+| **WebDAV / Nextcloud / B2 / Azure / Dropbox** | Theo form tương ứng. |
+| **rclone (tùy chỉnh)** | Dán nguyên section cấu hình rclone (`type = ...`) để dùng 70+ backend còn lại (Mega, pCloud, Box, SMB, Swift...). |
+
+Nếu đặt **Base URL** (HTTPS) trong *Cài đặt*, có thể dùng chế độ OAuth *callback tự động* với redirect `https://<base-url>/api/oauth/callback`.
+
+Token OAuth được rclone tự làm mới và DumpCat lưu lại token mới (đã mã hóa).
+
+## 6. Job, lịch chạy, retention
+
+- **Lịch**: cron 5 trường `phút giờ ngày tháng thứ`. Ví dụ `0 2 * * *` (2h sáng hằng ngày), `30 1 * * 0` (1h30 Chủ nhật), `0 */6 * * *` (mỗi 6 giờ), `@every 30m`. Để trống = chỉ chạy thủ công.
+- **Incremental (vật lý)**: lịch full (vd hằng tuần) + lịch incremental (vd mỗi giờ). Incremental cần bản full/incremental trước đó còn nguyên; nếu không, tự động chạy full.
+- **Retention** (giữ nếu thỏa *bất kỳ* điều kiện): `N bản gần nhất`, `N ngày`, `bản cuối mỗi ngày/tuần/tháng`. Bản mới nhất luôn được giữ. Mỗi storage có thể ghi đè số bản/số ngày riêng. Chuỗi incremental chỉ bị xóa cùng bản full gốc.
+- **Chạy đồng thời**: mặc định tối đa 2 job (Cài đặt). Một job không chạy chồng lên chính nó (lần lịch trùng sẽ bị bỏ qua).
+- **Giảm tải server**: *Ưu tiên thấp* (nice + ionice), giới hạn băng thông upload, chọn số luồng, backup từ replica.
+- **pre/post command** (chỉ admin): ví dụ tạm dừng cron ứng dụng; post-command nhận biến `DUMPCAT_STATUS`, `DUMPCAT_RUN_ID`, `DUMPCAT_JOB`, `DUMPCAT_DIR`, `DUMPCAT_METHOD`, `DUMPCAT_TYPE`.
+
+### Cấu trúc thư mục trên storage
+
+```
+<thư mục gốc storage>/
+  <tên-job>/
+    20261018-020000-full/
+      manifest.json              # metadata: DB, file, sha256, binlog/GTID, LSN, phiên bản...
+      shop.sql.zst.age           # mysqldump: 1 file / database
+      crm.sql.zst.age
+      _users.sql.zst.age         # users & GRANT
+    20261018-030000-full/
+      mydumper.tar.age           # mydumper: thư mục dump đóng gói tar (file bên trong nén bởi mydumper)
+    20261019-010000-incr/
+      backup.xbstream.zst        # vật lý: xbstream
+    binlog/                      # lưu trữ binlog liên tục (PITR), nén + mã hóa như backup
+      20261019/
+        mysql-bin.000123.zst.age
+```
+
+## 7. Restore
+
+Mở **Bản backup** → chọn bản → **Restore**.
+
+**Logic (mysqldump / mydumper)**
+- Restore vào server gốc hoặc server khác; chọn DB; **đổi tên đích** (vd `shop` → `shop_restore` để đối chiếu không ảnh hưởng DB đang chạy).
+- *Xóa database đích trước* (phải gõ `RESTORE` để xác nhận). Trước khi xóa bất cứ thứ gì, DumpCat mở và giải mã thử **mọi file** sẽ restore — sai passphrase hay storage không truy cập được thì dừng lại, DB hiện tại còn nguyên.
+- *Chế độ nhanh*: tạm đặt `innodb_flush_log_at_trx_commit=2`, `sync_binlog=0` trong lúc nạp rồi tự khôi phục (giá trị gốc được lưu lại, kể cả khi DumpCat khởi động lại giữa chừng) → nhanh hơn nhiều với DB lớn.
+- *Không ghi binlog* (`sql_log_bin=0`, áp dụng cho cả DROP/CREATE DATABASE) để restore không lan sang replica.
+- Dữ liệu được stream: tải → giải mã → giải nén → `mysql` (không cần file tạm). mydumper được giải nén ra thư mục tạm rồi `myloader` song song (tạo index sau khi nạp dữ liệu).
+
+**Vật lý (XtraBackup / MariaBackup)** — thực hiện trên máy chạy DumpCat:
+1. Tải và giải nén bản full + toàn bộ chuỗi incremental → `--prepare` (áp dụng incremental theo đúng thứ tự).
+2. Mặc định dừng ở đây; log in hướng dẫn copy-back thủ công.
+3. (Admin) *Áp dụng ngay*: dừng service → đổi tên datadir cũ thành `datadir.before-restore-<thời gian>` → `--copy-back`/`--move-back` → `chown` → khởi động. Lỗi bất kỳ bước nào sẽ **tự rollback** về datadir cũ.
+
+Muốn quay về **một thời điểm bất kỳ** (không chỉ thời điểm backup), dùng *Point-in-time recovery* — xem mục 8.
+
+Thời gian restore vật lý ≈ thời gian giải nén + prepare + copy (không phải nạp lại từng câu SQL) → thường nhanh hơn restore logic hàng chục lần với DB lớn.
+
+## 8. Lưu trữ binlog & khôi phục theo thời điểm (PITR)
+
+Bản backup chỉ cho quay về đúng lúc backup chạy. Bật **lưu trữ binlog liên tục** cho job để khôi phục đến *bất kỳ thời điểm nào*
+sau bản backup — ví dụ ngay trước một câu `DROP TABLE` lỡ tay. Bật trong form job, mục **8. Binlog & point-in-time recovery**
+→ *Continuous binlog archiving*.
+
+### Cách hoạt động
+
+- Mỗi job bật tính năng có một tiến trình `mysqlbinlog --read-from-remote-server --raw --stop-never` (MariaDB: `mariadb-binlog`)
+  chạy nền, kết nối như một replica (server id riêng: 3900000000 + id job) và chép **nguyên vẹn từng byte** binary log vào thư mục
+  tạm `<staging>/binlog-<id job>/`. Mật khẩu truyền qua option file tạm (0600), không nằm trên dòng lệnh.
+- Mỗi binlog mà server đã đóng được nén/mã hóa như file backup (zstd/gzip + age, passphrase của job), upload lên **mọi storage của
+  job** tại `<job>/binlog/<YYYYMMDD>/<file>`, kiểm tra kích thước sau upload, ghi vào danh mục (tên file, thời gian sự kiện sớm
+  nhất/muộn nhất, dung lượng, SHA-256 trước và sau mã hóa, vị trí lưu) rồi mới xóa bản tạm. Storage lỗi được thử lại (giãn dần
+  tới 30 phút); file chỉ rời thư mục tạm khi mọi storage đã có.
+- File đang ghi dở chỉ được upload khi server xoay vòng nó. Để giới hạn lượng dữ liệu có thể mất, đặt
+  **Close & upload the current binlog after (minutes)** (mặc định 15): khi file hiện tại chứa giao dịch quá N phút, DumpCat chạy
+  `FLUSH BINARY LOGS` (cần quyền `RELOAD`). Phần chưa upload vẫn nằm trong thư mục tạm của DumpCat và **được dùng khi restore**.
+- Tiến trình tự khởi động lại khi mất kết nối (chờ 5 giây, tăng dần tới 2 phút) và tiếp tục từ file đang dở hoặc từ file ngay sau
+  file đã lưu trữ cuối cùng; tự kết nối lại khi "treo" (server ghi tiếp nhưng 3 phút không nhận thêm byte nào); một file nhận được
+  có kích thước khác server sẽ được tải lại. Binlog bị server xóa trước khi kịp lưu (giữ binlog quá ngắn, DumpCat dừng lâu) được ghi
+  cảnh báo "missing" trong log — PITR không đi qua được khoảng trống đó.
+- Lần đầu bật: bắt đầu từ binlog cũ nhất mà một bản backup còn giữ của job cần đến (nếu server vẫn còn), nếu không thì từ binlog
+  hiện tại.
+- Job mysqldump bật tính năng sẽ luôn *Record binlog position*. Mỗi bản backup ghi vị trí binlog (`binlog_file`, `binlog_pos`,
+  GTID) và thời điểm dữ liệu nhất quán (`consistent_at`). Với mysqldump một file / database, **mỗi database có vị trí snapshot
+  riêng** và được phát lại từ đúng vị trí đó.
+
+### Yêu cầu
+
+- Server bật `log_bin` và có `server_id`. Khuyến nghị `binlog_format=ROW` (cần cho restore *đổi tên* chính xác, xem lưu ý). Giữ
+  binlog trên server đủ lâu để DumpCat kịp tải (`binlog_expire_logs_seconds` / `expire_logs_days`, tối thiểu vài giờ).
+- User backup cần thêm `REPLICATION SLAVE` và `REPLICATION CLIENT` (MariaDB: `REPLICATION SLAVE`, `BINLOG MONITOR`), cùng `RELOAD`
+  để đóng binlog định kỳ.
+- Máy DumpCat có `mysqlbinlog` (MySQL/Percona) hoặc `mariadb-binlog` (MariaDB), **cùng loại với server** — công cụ của MySQL không
+  đọc được binlog MariaDB và ngược lại. Kiểm tra ở trang **System**.
+- User restore cần quyền phát lại binlog: MySQL `SYSTEM_VARIABLES_ADMIN` + `REPLICATION_APPLIER` (hoặc ALL PRIVILEGES), MariaDB
+  `SUPER` hoặc `BINLOG REPLAY`.
+
+### Theo dõi
+
+Trang **Binlog & PITR** hiển thị cho từng job: file đang nhận, vị trí hiện tại của server, độ trễ (byte / giây), số file chờ upload,
+file lưu trữ gần nhất, tổng số file & dung lượng, danh sách file (kèm storage), log của tiến trình; nút *Close binlog now* (đóng &
+upload ngay) và *Restart*. Dashboard cảnh báo khi lưu trữ hoặc upload lỗi, hay có hơn 5 file tồn đọng; lỗi liên tiếp gửi thông báo
+(nếu job bật thông báo khi lỗi).
+
+### Khôi phục theo thời điểm
+
+1. **Binlog & PITR** → *Restore to a point in time* (hoặc mục *Point-in-time recovery* trong form Restore của một bản backup).
+2. Chọn mốc dừng:
+   - **Point in time** — giao dịch *commit* trước thời điểm đó được áp dụng, các giao dịch sau thì không; không bao giờ dừng giữa
+     một giao dịch. Giờ nhập theo múi giờ của trình duyệt.
+   - **Before a GTID** — dừng ngay trước giao dịch đó (vd. GTID của câu `DROP TABLE`, tìm bằng `mysqlbinlog` hoặc
+     `SHOW BINLOG EVENTS`). MariaDB: `0-1-1234`, MySQL: `uuid:23`.
+   - **Binlog position** — `file` + `vị trí`: các sự kiện từ vị trí đó trở đi không được áp dụng.
+   - **Latest available** — mọi binlog đã lưu trữ cộng phần đang nhận dở: trạng thái mới nhất có thể khôi phục.
+3. DumpCat chọn **bản backup mới nhất có dữ liệu trước mốc** (full logic, hoặc chuỗi full + incremental vật lý), kiểm tra chuỗi binlog
+   liền mạch từ vị trí của bản đó đến mốc và hiển thị kế hoạch: bản nền, số file / dung lượng binlog, binlog đầy đủ đến lúc nào.
+4. Điền form restore như bình thường (đổi tên, xóa DB đích trước, chế độ nhanh, không ghi binlog...). Trình tự:
+   - **Trước khi đụng vào server đích**: tải mọi binlog cần dùng về thư mục tạm, kiểm tra SHA-256 (bản lưu trữ và sau giải mã),
+     kiểm tra vị trí bắt đầu là ranh giới sự kiện hợp lệ, tính chính xác điểm dừng (thời điểm / GTID → vị trí). Lỗi bất kỳ → dừng,
+     dữ liệu đích còn nguyên.
+   - Restore bản backup nền (như restore thường, cũng kiểm tra trước khi DROP).
+   - Phát lại: `mysqlbinlog --start-position … --stop-position … file | mysql`, tất cả các file trong **một phiên client duy nhất**
+     (bảng tạm và biến phiên được giữ giữa các file).
+5. Restore logic (mysqldump / mydumper): chỉ phát lại thay đổi của **các database được restore**, mỗi database từ vị trí snapshot của
+   nó, sang tên mới khi đổi tên (`--database` + `--rewrite-db`; câu lệnh `CREATE/DROP/ALTER DATABASE` cũng được đổi sang tên mới).
+   Giao dịch nhận GTID mới (`--skip-gtids`; MariaDB: bỏ `gtid_seq_no`) nên phát lại được trên chính server nguồn.
+   Restore vật lý: cần *Apply right away* và chọn server; sau khi MySQL khởi động với datadir mới, DumpCat chờ server nhận kết nối
+   rồi phát lại **toàn bộ** binlog của instance (giữ nguyên GTID gốc).
+
+### Lưu ý
+
+- `binlog_format=MIXED/STATEMENT`: việc lọc theo database dựa vào *database mặc định* (`USE`) của câu lệnh — câu lệnh ghi tên
+  database tường minh (`UPDATE khac.t …`) không được đổi tên và được tính cho database mặc định của phiên. Khi restore **đổi tên**
+  trên cùng server, hãy dùng `binlog_format=ROW` để kết quả chính xác tuyệt đối.
+- Users / grants (`mysql.*`) và database tạo sau bản backup không được phát lại trong restore logic (restore vật lý thì có).
+- `RESET MASTER` hoặc restore vật lý lên chính server làm binlog được đánh số lại: DumpCat nhận ra và bắt đầu chuỗi mới; PITR không
+  đi qua điểm đánh số lại — hãy chạy một bản backup mới ngay sau đó.
+- Binlog chứa thay đổi của **mọi database** trên server (kể cả database mà job không backup) và được mã hóa bằng passphrase của job
+  nếu job bật mã hóa.
+- **Retention**: sau mỗi lần backup, trên từng storage, binlog được lưu trữ *trước khi bản backup cũ nhất còn giữ bắt đầu* bị xóa
+  (không còn bản backup nào phát lại được từ đó). Binlog đang được một tác vụ restore sử dụng không bị xóa.
+- MySQL/Percona: phát lại cần client cùng phiên bản lớn với server; binlog nén (`binlog_transaction_compression`) cần `mysqlbinlog` ≥ 8.0.20.
+
+### Phát lại thủ công (không có DumpCat)
+
+```bash
+# giải mã + giải nén các binlog cần dùng
+for f in mysql-bin.000038 mysql-bin.000039; do
+  dumpcat decode -in $f.zst.age -out $f          # hoặc: age -d $f.zst.age | zstd -d > $f
+done
+# vị trí bắt đầu: binlog_file / binlog_pos trong manifest.json của bản backup (mỗi database: databases[].binlog_pos)
+mysqlbinlog --start-position=331316 --stop-datetime="2026-10-18 03:36:42" \
+  --database=shop mysql-bin.000038 mysql-bin.000039 | mysql -u root -p
+```
+
+`--stop-datetime` của `mysqlbinlog` tính theo múi giờ của máy chạy lệnh và dừng ở *sự kiện* đầu tiên có thời gian ≥ mốc (có thể
+giữa giao dịch); DumpCat tự tính vị trí dừng ở ranh giới giao dịch.
+
+## 9. Khôi phục thủ công khi không có DumpCat
+
+File backup là định dạng mở. Chỉ cần binary `dumpcat` (hoặc `age` + `zstd`):
+
+```bash
+# giải mã + giải nén một file (passphrase hỏi tương tác, hoặc biến DUMPCAT_PASSPHRASE)
+dumpcat decode -in shop.sql.zst.age -out shop.sql
+mysql -e "CREATE DATABASE shop" && mysql shop < shop.sql
+
+# stream thẳng vào mysql
+DUMPCAT_PASSPHRASE='...' dumpcat decode -in shop.sql.zst.age -out - | mysql shop
+
+# không có dumpcat: dùng age + zstd
+age -d shop.sql.zst.age | zstd -d | mysql shop
+
+# mydumper
+dumpcat decode -in mydumper.tar.age -out mydumper.tar && mkdir dump && tar xf mydumper.tar -C dump
+myloader --directory dump --threads 8 --drop-table
+
+# vật lý (full + incremental)
+dumpcat decode -in full/backup.xbstream.zst -out - | mbstream -x -C /restore/full      # MySQL: xbstream -x
+mariabackup --prepare --target-dir=/restore/full
+dumpcat decode -in incr/backup.xbstream.zst -out - | mbstream -x -C /restore/inc1
+mariabackup --prepare --target-dir=/restore/full --incremental-dir=/restore/inc1
+# (XtraBackup: thêm --apply-log-only cho các bước trừ bước cuối)
+systemctl stop mariadb && mv /var/lib/mysql /var/lib/mysql.old
+mariabackup --copy-back --target-dir=/restore/full && chown -R mysql:mysql /var/lib/mysql && systemctl start mariadb
+```
+
+## 10. Khôi phục thảm họa
+
+Khi mất cả server chạy DumpCat:
+1. Cài DumpCat mới, tạo admin.
+2. Thêm lại storage (cùng bucket/thư mục).
+3. **Nơi lưu trữ** → menu → **Nhập danh mục backup**: DumpCat quét các `manifest.json` và hiện lại toàn bộ bản backup (kể cả chuỗi incremental).
+4. Restore như bình thường — với bản có mã hóa, nhập passphrase ở form restore.
+
+Danh mục binlog đã lưu trữ (PITR) không được nhập lại: các file vẫn nằm ở `<job>/binlog/` trên storage và phát lại thủ công được
+(mục 8); bật lại lưu trữ binlog cho job mới rồi chạy một bản backup mới để có PITR trở lại.
+
+Nên sao lưu thêm `/var/lib/dumpcat/master.key` và `dumpcat.db` (cấu hình, lịch sử) — hoặc chỉ cần ghi nhớ passphrase mã hóa.
+
+## 11. Bảo mật
+
+- Đặt sau HTTPS (nginx/caddy hoặc TLS tích hợp), giới hạn IP truy cập/VPN.
+- Bật **2FA** cho admin (Hồ sơ & bảo mật). Có thể bật nhắc 2FA bắt buộc trong Cài đặt.
+- Vai trò: **admin** (tất cả), **operator** (server, storage cloud/FTP/SFTP, job, chạy backup/restore), **viewer** (chỉ xem). Các thao tác chạm tới hệ thống file của máy chủ (storage thư mục cục bộ / rclone tùy chỉnh, pre/post command, chọn thư mục giải nén, thay datadir) chỉ dành cho admin.
+- Đăng nhập sai 5 lần trong 15 phút → khóa tài khoản đó 15 phút; một IP sai 20 lần → khóa IP 15 phút.
+- Mật khẩu DB, khóa cloud, token OAuth, passphrase được mã hóa AES-256-GCM bằng `master.key` (chmod 600). Có thể đặt khóa qua biến `DUMPCAT_MASTER_KEY` thay vì file.
+- Mật khẩu DB truyền qua option file tạm (0600) và xóa sau khi dùng — không xuất hiện trong `ps`. Log tự che các bí mật.
+- API không bao giờ trả về giá trị bí mật (chỉ cờ "đã lưu").
+- Mã hóa backup (age) diễn ra trên server trước khi upload: nhà cung cấp cloud không đọc được dữ liệu. Passphrase nên dài (≥ 16 ký tự).
+- Service chạy root để backup/restore vật lý. Nếu chỉ dùng backup logic, có thể tạo user riêng: `useradd -r dumpcat`, `chown -R dumpcat /var/lib/dumpcat`, sửa `User=dumpcat` trong unit.
+
+## 12. API & tự động hóa
+
+Tạo token ở *Hồ sơ & bảo mật → API token*, rồi:
+
+```bash
+TOKEN=mv_xxxxxxxx
+# chạy job
+curl -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+     -d '{"type":"full"}' https://backup.example.com/api/jobs/1/run
+# trạng thái bản backup
+curl -H "Authorization: Bearer $TOKEN" https://backup.example.com/api/runs/42
+# danh sách backup thành công của job 1
+curl -H "Authorization: Bearer $TOKEN" "https://backup.example.com/api/runs?job_id=1&status=success"
+```
+
+Webhook thông báo gửi JSON `{kind, status, title, fields, error, url, time}` kèm header
+`X-DumpCat-Signature: sha256=<HMAC>` nếu đặt secret.
+
+## 13. Cấu hình hệ thống
+
+`/etc/dumpcat/dumpcat.env` (sửa xong `systemctl restart dumpcat`):
+
+| Biến | Mặc định | Ý nghĩa |
+|---|---|---|
+| `DUMPCAT_LISTEN` | `:6369` | Địa chỉ lắng nghe |
+| `DUMPCAT_DATA_DIR` | `/var/lib/dumpcat` | DB nội bộ, master key, log, thư mục tạm |
+| `DUMPCAT_BASE_URL` | | URL công khai (link trong thông báo, OAuth callback) |
+| `DUMPCAT_TLS_CERT` / `DUMPCAT_TLS_KEY` | | HTTPS với chứng chỉ của bạn |
+| `DUMPCAT_TLS_AUTO` | `0` | HTTPS với chứng chỉ tự ký |
+| `DUMPCAT_TRUST_PROXY` | `0` | Tin header `X-Forwarded-*` khi đứng sau proxy |
+| `DUMPCAT_MASTER_KEY` | | Khóa mã hóa (base64 32 byte) thay cho file |
+| `DUMPCAT_TOOLS_DIR` | | Thư mục bổ sung để tìm công cụ (phân cách `:`, trên Windows là `;`) |
+| `DUMPCAT_UPDATE_URL` | | Máy chủ phát hành cho việc cập nhật ([3.6](#36-cập-nhật); **Settings → Updates** được ưu tiên hơn) |
+| `DUMPCAT_UPDATE_ALLOW_HTTP` | `0` | Cho phép máy chủ phát hành dùng HTTP thường (không khuyến nghị) |
+| `DUMPCAT_UPDATE_PUBLIC_KEY` | | Khóa công khai để kiểm tra chữ ký bản phát hành (base64, cách nhau bằng dấu phẩy), cộng thêm vào khóa gắn sẵn. Có khóa thì chỉ cài bản đã ký ([3.6](#36-cập-nhật)) |
+| `DUMPCAT_LOG_FILE` | | Ghi thêm log ra file này, xoay vòng mỗi 20 MB (Windows Service ghi vào `<data>\dumpcat.log`) |
+
+Trong giao diện (**Cài đặt**): múi giờ, số job đồng thời, thư mục tạm (staging), số luồng mặc định, thời hạn phiên, lưu lịch sử, cờ rclone bổ sung, đường dẫn từng công cụ (vd. nhiều phiên bản xtrabackup).
+
+Dòng lệnh:
+
+```bash
+dumpcat serve                     # chạy server (systemd dùng lệnh này)
+dumpcat user add -u bob -r operator
+dumpcat user passwd -u admin      # quên mật khẩu admin
+dumpcat user reset-2fa -u admin   # mất thiết bị 2FA
+dumpcat user list
+dumpcat decode -in file.sql.zst.age -out file.sql
+dumpcat version
+```
+
+Dữ liệu nội bộ: `/var/lib/dumpcat/dumpcat.db` (SQLite), `master.key`, `logs/`, `staging/` (tạm), `restore/` (restore vật lý mặc định).
+
+## 14. Xử lý sự cố
+
+| Hiện tượng | Cách xử lý |
+|---|---|
+| *Thiếu công cụ ...* | Xem trang **Hệ thống**, cài theo hướng dẫn, bấm *Dò lại công cụ* |
+| Backup vật lý báo datadir không truy cập được | DumpCat phải chạy trên chính server DB, bằng root (hoặc user thuộc nhóm `mysql` có quyền đọc datadir) |
+| `xtrabackup ... unsupported server version` | Cài XtraBackup cùng series với MySQL (8.0/8.4) và bản vá ≥ server |
+| `Access denied` khi restore | Dùng *tài khoản restore riêng* có quyền ghi. *Không ghi binlog* cần `SUPER`/`SYSTEM_VARIABLES_ADMIN`/`BINLOG ADMIN` — thiếu quyền thì restore dừng ngay từ đầu, chưa thay đổi gì. *Chế độ nhanh* thiếu quyền thì được bỏ qua kèm cảnh báo |
+| Upload chậm | Tăng `--transfers`, `--s3-upload-concurrency` ở *Cờ rclone bổ sung*; kiểm tra giới hạn băng thông của job |
+| `FLUSH TABLES WITH READ LOCK` chờ lâu | Có truy vấn chạy rất lâu: dùng *long query guard* (mydumper) / *ftwrl-wait-timeout* (vật lý), hoặc backup từ replica |
+| Mất passphrase mã hóa | Không thể giải mã — luôn lưu passphrase ở password manager |
+| Binlog & PITR: *binary logging is disabled (log_bin=OFF)* | Bật `log_bin` và `server_id` trong my.cnf rồi khởi động lại MySQL/MariaDB |
+| Binlog & PITR: *SHOW BINARY LOGS … REPLICATION CLIENT* / `Access denied` khi nhận binlog | Cấp `REPLICATION SLAVE` + `REPLICATION CLIENT` (MariaDB: `BINLOG MONITOR`) cho user backup |
+| PITR: *binlogs are only archived up to …* | Bấm *Close binlog now* ở trang **Binlog & PITR**, chờ vài giây cho file được upload, hoặc chọn *Latest available* |
+| PITR: *… has not been archived* / *sequence is broken* | Binlog đã bị server xóa trước khi lưu trữ, hoặc numbering bị đặt lại: tăng thời gian giữ binlog trên server, chạy một bản backup mới làm điểm bắt đầu |
+| Xem log dịch vụ | `journalctl -u dumpcat -f`; log từng tác vụ ở trang chi tiết hoặc `/var/lib/dumpcat/logs/` |
+
+## 15. Phát triển
+
+Yêu cầu Go ≥ 1.26. Cách đóng góp thay đổi: xem [CONTRIBUTING.md](../CONTRIBUTING.md) (tiếng Anh).
+
+```bash
+go test ./...
+go build -o dumpcat ./cmd/dumpcat
+DUMPCAT_DATA_DIR=./data DUMPCAT_LISTEN=127.0.0.1:6369 DUMPCAT_WEB_DIR=./web ./dumpcat serve   # sửa UI không cần build lại
+./build.sh        # binary Linux amd64/arm64 + Windows amd64, gói .tar.gz và .zip trong dist/
+```
+
+Cấu trúc mã nguồn:
+
+```
+cmd/dumpcat        CLI (serve, user, decode, update, release)
+internal/api       REST API, xác thực, phân quyền, phục vụ UI
+internal/runner    điều phối backup/upload/retention/verify/restore/nhập danh mục, lưu trữ binlog, PITR
+internal/engine    mysqldump, mydumper, xtrabackup/mariabackup, mysql/myloader, mysqlbinlog (stream & phát lại)
+internal/binlog    đọc binlog: ranh giới sự kiện, thời gian, GTID, điểm dừng PITR
+internal/storage   local + rclone (S3, Drive, OneDrive, FTP, SFTP...), OAuth
+internal/pipeline  nén zstd/gzip + mã hóa age + sha256 dạng stream
+internal/store     SQLite: người dùng, server, storage, job, bản backup, audit
+internal/scheduler cron
+internal/notify    Email, Telegram, Slack, Discord, Webhook
+internal/update    tự cập nhật: manifest bản phát hành, chữ ký, cài đặt & rollback
+web/               giao diện (HTML/CSS/JS thuần, không phụ thuộc bên ngoài)
+scripts/install.sh bộ cài Linux · deploy/ systemd, env mẫu, nginx
+```

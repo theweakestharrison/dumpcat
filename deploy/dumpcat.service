@@ -1,0 +1,33 @@
+[Unit]
+Description=DumpCat - MySQL/MariaDB backup & restore manager
+Documentation=file:///usr/local/share/doc/dumpcat/README.md file:///usr/local/share/doc/dumpcat/docs/manual.md
+After=network-online.target mysql.service mysqld.service mariadb.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+EnvironmentFile=-/etc/dumpcat/dumpcat.env
+# /opt/dumpcat stays writable for the service, so built-in updates can replace the binary
+ExecStart=/opt/dumpcat/dumpcat serve
+Restart=on-failure
+RestartSec=5
+# Root is needed for physical (XtraBackup/MariaBackup) backups that read the
+# MySQL datadir and for physical restores that stop/start the DB service.
+# For logical-only setups you may run as a dedicated user (see docs/manual.md, section 11 Security).
+User=root
+Group=root
+UMask=0027
+LimitNOFILE=65535
+KillMode=mixed
+TimeoutStopSec=60
+# hardening that does not interfere with backups/restores
+PrivateTmp=true
+ProtectSystem=full
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+LockPersonality=true
+
+[Install]
+WantedBy=multi-user.target

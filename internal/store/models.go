@@ -1,0 +1,431 @@
+package store
+
+import (
+	"encoding/json"
+	"time"
+)
+
+const (
+	RoleAdmin    = "admin"
+	RoleOperator = "operator"
+	RoleViewer   = "viewer"
+)
+
+func RoleLevel(role string) int {
+	switch role {
+	case RoleAdmin:
+		return 3
+	case RoleOperator:
+		return 2
+	case RoleViewer:
+		return 1
+	}
+	return 0
+}
+
+func ValidRole(role string) bool { return RoleLevel(role) > 0 }
+
+type User struct {
+	ID           int64      `json:"id"`
+	Username     string     `json:"username"`
+	Email        string     `json:"email"`
+	Role         string     `json:"role"`
+	TOTPEnabled  bool       `json:"totp_enabled"`
+	Disabled     bool       `json:"disabled"`
+	CreatedAt    time.Time  `json:"created_at"`
+	UpdatedAt    time.Time  `json:"updated_at"`
+	LastLoginAt  *time.Time `json:"last_login_at"`
+	PasswordHash string     `json:"-"`
+	TOTPSecret   string     `json:"-"` // plaintext base32 (encrypted at rest)
+}
+
+type Session struct {
+	ID         string // sha256 hex of the cookie token
+	UserID     int64
+	CSRF       string
+	IP         string
+	UserAgent  string
+	CreatedAt  time.Time
+	LastSeenAt time.Time
+	ExpiresAt  time.Time
+}
+
+type APIToken struct {
+	ID         int64      `json:"id"`
+	UserID     int64      `json:"user_id"`
+	Name       string     `json:"name"`
+	Prefix     string     `json:"prefix"`
+	CreatedAt  time.Time  `json:"created_at"`
+	LastUsedAt *time.Time `json:"last_used_at"`
+	ExpiresAt  *time.Time `json:"expires_at"`
+	Hash       string     `json:"-"`
+}
+
+type Server struct {
+	ID          int64     `json:"id"`
+	Name        string    `json:"name"`
+	Host        string    `json:"host"`
+	Port        int       `json:"port"`
+	Socket      string    `json:"socket"`
+	Username    string    `json:"username"`
+	Password    string    `json:"-"`
+	TLSMode     string    `json:"tls_mode"` // "", disabled, required, verify
+	CACert      string    `json:"ca_cert"`
+	Flavor      string    `json:"flavor"` // auto, mysql, mariadb, percona
+	Version     string    `json:"version"`
+	Datadir     string    `json:"datadir"`
+	ServiceName string    `json:"service_name"`
+	OSUser      string    `json:"os_user"`
+	Notes       string    `json:"notes"`
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
+	HasPassword bool      `json:"has_password"`
+	// Optional credentials for restores (backup user can stay read-only).
+	RestoreUsername    string `json:"restore_username"`
+	RestorePassword    string `json:"-"`
+	HasRestorePassword bool   `json:"has_restore_password"`
+}
+
+// ForRestore returns a copy using the restore credentials when configured.
+func (s *Server) ForRestore() *Server {
+	c := *s
+	if s.RestoreUsername != "" {
+		c.Username, c.Password = s.RestoreUsername, s.RestorePassword
+	}
+	return &c
+}
+
+type Storage struct {
+	ID          int64             `json:"id"`
+	Name        string            `json:"name"`
+	Type        string            `json:"type"`
+	Config      map[string]string `json:"-"` // plaintext in memory, encrypted at rest
+	CreatedAt   time.Time         `json:"created_at"`
+	UpdatedAt   time.Time         `json:"updated_at"`
+	LastTestAt  *time.Time        `json:"last_test_at"`
+	LastTestOK  *bool             `json:"last_test_ok"`
+	LastTestMsg string            `json:"last_test_msg"`
+}
+
+type Retention struct {
+	KeepLast    int `json:"keep_last"`
+	KeepDays    int `json:"keep_days"`
+	KeepDaily   int `json:"keep_daily"`
+	KeepWeekly  int `json:"keep_weekly"`
+	KeepMonthly int `json:"keep_monthly"`
+}
+
+func (r Retention) IsZero() bool {
+	return r.KeepLast == 0 && r.KeepDays == 0 && r.KeepDaily == 0 && r.KeepWeekly == 0 && r.KeepMonthly == 0
+}
+
+type JobOptions struct {
+	// logical
+	SingleFile     bool   `json:"single_file"`
+	Routines       bool   `json:"routines"`
+	Triggers       bool   `json:"triggers"`
+	Events         bool   `json:"events"`
+	IncludeUsers   bool   `json:"include_users"`
+	RecordBinlog   bool   `json:"record_binlog"`
+	GTIDPurged     string `json:"gtid_purged"`
+	ChunkRows      int    `json:"chunk_rows"`
+	LongQueryGuard int    `json:"long_query_guard"`
+	LockMode       string `json:"lock_mode"` // mydumper --sync-thread-lock-mode (empty = AUTO)
+	// physical
+	FTWRLWaitTimeout int  `json:"ftwrl_wait_timeout"`
+	SlaveInfo        bool `json:"slave_info"`
+	SafeSlaveBackup  bool `json:"safe_slave_backup"`
+	// general
+	LowPriority  bool   `json:"low_priority"`
+	StreamUpload bool   `json:"stream_upload"`
+	VerifyAfter  bool   `json:"verify_after"`
+	BwLimit      string `json:"bwlimit"`
+	ExtraArgs    string `json:"extra_args"`
+	PreCommand   string `json:"pre_command"`
+	PostCommand  string `json:"post_command"`
+	// continuous binlog archiving (point-in-time recovery)
+	BinlogArchive       bool `json:"binlog_archive"`
+	BinlogRotateMinutes int  `json:"binlog_rotate_minutes"` // FLUSH BINARY LOGS after N minutes (0 = never)
+}
+
+type JobTarget struct {
+	StorageID   int64      `json:"storage_id"`
+	StorageName string     `json:"storage_name"`
+	StorageType string     `json:"storage_type"`
+	Retention   *Retention `json:"retention"` // nil = use job retention
+}
+
+type Job struct {
+	ID               int64       `json:"id"`
+	UUID             string      `json:"uuid"`
+	Name             string      `json:"name"`
+	ServerID         int64       `json:"server_id"`
+	ServerName       string      `json:"server_name"`
+	Method           string      `json:"method"`  // mysqldump, mydumper, physical
+	DBMode           string      `json:"db_mode"` // all, include, exclude
+	Databases        []string    `json:"databases"`
+	ExcludeTables    []string    `json:"exclude_tables"`
+	Schedule         string      `json:"schedule"`
+	IncrSchedule     string      `json:"incr_schedule"`
+	Compression      string      `json:"compression"` // zstd, gzip, none
+	CompressionLevel int         `json:"compression_level"`
+	Encrypt          bool        `json:"encrypt"`
+	Passphrase       string      `json:"-"`
+	Threads          int         `json:"threads"`
+	Options          JobOptions  `json:"options"`
+	Retention        Retention   `json:"retention"`
+	Targets          []JobTarget `json:"targets"`
+	Enabled          bool        `json:"enabled"`
+	NotifySuccess    bool        `json:"notify_success"`
+	NotifyFailure    bool        `json:"notify_failure"`
+	TimeoutMinutes   int         `json:"timeout_minutes"`
+	CreatedAt        time.Time   `json:"created_at"`
+	UpdatedAt        time.Time   `json:"updated_at"`
+	HasPassphrase    bool        `json:"has_passphrase"`
+}
+
+const (
+	MethodMysqldump = "mysqldump"
+	MethodMydumper  = "mydumper"
+	MethodPhysical  = "physical"
+
+	TypeFull        = "full"
+	TypeIncremental = "incremental"
+
+	StatusQueued   = "queued"
+	StatusRunning  = "running"
+	StatusSuccess  = "success"
+	StatusPartial  = "partial"
+	StatusFailed   = "failed"
+	StatusCanceled = "canceled"
+	StatusDeleted  = "deleted"
+
+	LocUploading = "uploading"
+	LocOK        = "ok"
+	LocFailed    = "failed"
+)
+
+type BackupFile struct {
+	Name     string `json:"name"`
+	Size     int64  `json:"size"`
+	SHA256   string `json:"sha256"`
+	Kind     string `json:"kind"` // sql, users, tar, xbstream
+	Database string `json:"database,omitempty"`
+	RawSize  int64  `json:"raw_size,omitempty"`
+}
+
+type DBEntry struct {
+	Name      string `json:"name"`
+	Charset   string `json:"charset"`
+	Collation string `json:"collation"`
+	SizeBytes int64  `json:"size_bytes"`
+	File      string `json:"file,omitempty"`
+	Tables    int    `json:"tables"`
+	// binlog position of this database's own snapshot (per-database dumps)
+	BinlogFile string `json:"binlog_file,omitempty"`
+	BinlogPos  int64  `json:"binlog_pos,omitempty"`
+}
+
+type Run struct {
+	ID            int64          `json:"id"`
+	UUID          string         `json:"uuid"`
+	JobID         *int64         `json:"job_id"`
+	JobName       string         `json:"job_name"`
+	JobUUID       string         `json:"job_uuid"`
+	JobSlug       string         `json:"job_slug"`
+	ServerID      *int64         `json:"server_id"`
+	ServerName    string         `json:"server_name"`
+	Method        string         `json:"method"`
+	Type          string         `json:"type"`
+	ParentID      *int64         `json:"parent_id"`
+	BaseID        *int64         `json:"base_id"`
+	ParentUUID    string         `json:"parent_uuid"`
+	BaseUUID      string         `json:"base_uuid"`
+	Status        string         `json:"status"`
+	Trigger       string         `json:"trigger"`
+	TriggeredBy   string         `json:"triggered_by"`
+	StartedAt     time.Time      `json:"started_at"`
+	FinishedAt    *time.Time     `json:"finished_at"`
+	SizeBytes     int64          `json:"size_bytes"`
+	RawBytes      int64          `json:"raw_bytes"`
+	Files         []BackupFile   `json:"files"`
+	Databases     []DBEntry      `json:"databases"`
+	Meta          map[string]any `json:"meta"`
+	Error         string         `json:"error"`
+	Compression   string         `json:"compression"`
+	Encrypted     bool           `json:"encrypted"`
+	Passphrase    string         `json:"-"`
+	DirName       string         `json:"dir_name"`
+	VerifyStatus  string         `json:"verify_status"`
+	VerifiedAt    *time.Time     `json:"verified_at"`
+	VerifyMsg     string         `json:"verify_msg"`
+	Locations     []RunLocation  `json:"locations"`
+	HasPassphrase bool           `json:"has_passphrase"`
+}
+
+func (r *Run) RelDir() string { return r.JobSlug + "/" + r.DirName }
+
+type RunLocation struct {
+	ID          int64     `json:"id"`
+	RunID       int64     `json:"run_id"`
+	StorageID   *int64    `json:"storage_id"`
+	StorageName string    `json:"storage_name"`
+	StorageType string    `json:"storage_type"`
+	Path        string    `json:"path"`
+	Status      string    `json:"status"`
+	Error       string    `json:"error"`
+	SizeBytes   int64     `json:"size_bytes"`
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
+}
+
+// BinlogFile is one archived binary log file of a job's server.
+type BinlogFile struct {
+	ID          int64            `json:"id"`
+	JobID       *int64           `json:"job_id"`
+	JobUUID     string           `json:"job_uuid"`
+	JobName     string           `json:"job_name"`
+	ServerID    *int64           `json:"server_id"`
+	ServerName  string           `json:"server_name"`
+	FileName    string           `json:"file_name"` // name on the server, e.g. mysql-bin.000012
+	Seq         int64            `json:"seq"`
+	FirstTS     time.Time        `json:"first_ts"` // first event (file creation)
+	LastTS      time.Time        `json:"last_ts"`  // last event (rotate)
+	SizeBytes   int64            `json:"size_bytes"`
+	StoredBytes int64            `json:"stored_bytes"`
+	SHA256      string           `json:"sha256"` // of the stored (compressed/encrypted) file
+	RawSHA256   string           `json:"raw_sha256"`
+	Compression string           `json:"compression"`
+	Encrypted   bool             `json:"encrypted"`
+	Passphrase  string           `json:"-"`
+	Path        string           `json:"path"` // relative path on every storage
+	CreatedAt   time.Time        `json:"created_at"`
+	Locations   []BinlogLocation `json:"locations"`
+}
+
+type BinlogLocation struct {
+	ID          int64     `json:"id"`
+	BinlogID    int64     `json:"binlog_id"`
+	StorageID   *int64    `json:"storage_id"`
+	StorageName string    `json:"storage_name"`
+	StorageType string    `json:"storage_type"`
+	Status      string    `json:"status"`
+	Error       string    `json:"error"`
+	UpdatedAt   time.Time `json:"updated_at"`
+}
+
+// OKOn returns the location on storageID when the file is stored there.
+func (b *BinlogFile) OKOn(storageID int64) *BinlogLocation {
+	for i := range b.Locations {
+		l := &b.Locations[i]
+		if l.StorageID != nil && *l.StorageID == storageID && l.Status == LocOK {
+			return l
+		}
+	}
+	return nil
+}
+
+type Restore struct {
+	ID               int64           `json:"id"`
+	RunID            *int64          `json:"run_id"`
+	RunUUID          string          `json:"run_uuid"`
+	JobName          string          `json:"job_name"`
+	Kind             string          `json:"kind"`
+	TargetServerID   *int64          `json:"target_server_id"`
+	TargetServerName string          `json:"target_server_name"`
+	Options          json.RawMessage `json:"options"`
+	Status           string          `json:"status"`
+	StartedAt        time.Time       `json:"started_at"`
+	FinishedAt       *time.Time      `json:"finished_at"`
+	Error            string          `json:"error"`
+	UserID           *int64          `json:"user_id"`
+	Username         string          `json:"username"`
+}
+
+type NotifyChannel struct {
+	ID        int64             `json:"id"`
+	Name      string            `json:"name"`
+	Type      string            `json:"type"`
+	Config    map[string]string `json:"-"`
+	Enabled   bool              `json:"enabled"`
+	OnSuccess bool              `json:"on_success"`
+	OnFailure bool              `json:"on_failure"`
+	CreatedAt time.Time         `json:"created_at"`
+	UpdatedAt time.Time         `json:"updated_at"`
+}
+
+type AuditEntry struct {
+	ID       int64     `json:"id"`
+	TS       time.Time `json:"ts"`
+	UserID   *int64    `json:"user_id"`
+	Username string    `json:"username"`
+	Action   string    `json:"action"`
+	Target   string    `json:"target"`
+	Details  string    `json:"details"`
+	IP       string    `json:"ip"`
+}
+
+type Settings struct {
+	Timezone         string            `json:"timezone"`
+	MaxConcurrent    int               `json:"max_concurrent"`
+	StagingDir       string            `json:"staging_dir"`
+	HistoryDays      int               `json:"history_days"`
+	BaseURL          string            `json:"base_url"`
+	ToolPaths        map[string]string `json:"tool_paths"`
+	SessionHours     int               `json:"session_hours"`
+	RcloneFlags      string            `json:"rclone_flags"`
+	DefaultThreads   int               `json:"default_threads"`
+	Require2FAAdmins bool              `json:"require_2fa_admins"`
+	UpdateURL        string            `json:"update_url"`        // release server (overrides DUMPCAT_UPDATE_URL)
+	UpdateAutoCheck  bool              `json:"update_auto_check"` // look for a new version once a day
+}
+
+func DefaultSettings() Settings {
+	return Settings{
+		MaxConcurrent:   2,
+		HistoryDays:     90,
+		SessionHours:    12,
+		DefaultThreads:  4,
+		ToolPaths:       map[string]string{},
+		UpdateAutoCheck: true,
+	}
+}
+
+// Manifest is written next to every backup (manifest.json) so that the
+// catalog can be rebuilt from storage alone (disaster recovery / import).
+type Manifest struct {
+	Format      string         `json:"format"`
+	AppVersion  string         `json:"app_version"`
+	UUID        string         `json:"uuid"`
+	JobUUID     string         `json:"job_uuid"`
+	JobName     string         `json:"job_name"`
+	JobSlug     string         `json:"job_slug"`
+	DirName     string         `json:"dir_name"`
+	Method      string         `json:"method"`
+	Type        string         `json:"type"`
+	ParentUUID  string         `json:"parent_uuid,omitempty"`
+	BaseUUID    string         `json:"base_uuid,omitempty"`
+	StartedAt   time.Time      `json:"started_at"`
+	FinishedAt  time.Time      `json:"finished_at"`
+	Server      ManifestServer `json:"server"`
+	Compression string         `json:"compression"`
+	Encryption  string         `json:"encryption"`
+	Databases   []DBEntry      `json:"databases"`
+	Files       []BackupFile   `json:"files"`
+	RawBytes    int64          `json:"raw_bytes"`
+	SizeBytes   int64          `json:"size_bytes"`
+	Meta        map[string]any `json:"meta"`
+}
+
+type ManifestServer struct {
+	Name    string `json:"name"`
+	Host    string `json:"host"`
+	Port    int    `json:"port"`
+	Version string `json:"version"`
+	Flavor  string `json:"flavor"`
+}
+
+const ManifestFormat = "dumpcat-backup/1"
+
+// LegacyManifestFormat is carried by backups made before the project was renamed to DumpCat.
+const LegacyManifestFormat = "myvault-backup/1"
