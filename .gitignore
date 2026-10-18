@@ -2,12 +2,16 @@
 /data/
 *.exe
 dumpcat.env
+/data/
+*.exe
+dumpcat.env
 /dumpcat
 *.key
 *.log
 r2-cors.json
 # local tool state (Cloudflare wrangler, Claude Code)
 .wrangler/
+.wrangler/cache/wrangler-account.json
 .claude/
 # editors and OS
 .vscode/
