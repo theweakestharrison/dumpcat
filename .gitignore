@@ -2,3 +2,4 @@
 /data/
 *.exe
 dumpcat.env
+.wrangler/cache/wrangler-account.json
