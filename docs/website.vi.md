@@ -149,6 +149,8 @@ Hai nguyên tắc:
 | `site/style.css` | Giao diện, tự đổi sáng/tối theo hệ điều hành |
 | `site/_headers` | Content-Security-Policy và các header bảo mật |
 | `site/favicon.svg` | Bản sao của `web/assets/favicon.svg` |
+| `site/og.png` | Ảnh xem trước khi chia sẻ link (Open Graph, 1200×630), được render từ `site/og-image.html` |
+| `site/og-image.html` | Nguồn của `og.png`. Không được deploy vì có tên trong `site/.assetsignore` |
 | `wrangler.jsonc` | Worker `dumpcat-site`: thư mục `site/` và domain `dumpcat.cc` |
 
 Trang hiện tiếng Anh mặc định. Lựa chọn EN/VI của người xem được lưu trong trình duyệt của họ. Font tải từ Google Fonts (Be Vietnam Pro,
@@ -172,3 +174,12 @@ Lưu ý: khi chạy thử trên máy, `_headers` không được áp dụng.
   bản thật.
 - Muốn đổi địa chỉ máy chủ phát hành thì sửa cả hai chỗ: `<meta name="dumpcat-release-base">` trong `index.html` và `connect-src`
   trong `_headers`.
+- **Sửa ảnh chia sẻ:** sửa `site/og-image.html`, render lại bằng Chrome, rồi deploy:
+
+  ```bash
+  "/c/Program Files/Google/Chrome/Application/chrome.exe" --headless=new --hide-scrollbars --force-device-scale-factor=1 \
+    --window-size=1200,630 --virtual-time-budget=8000 --screenshot="$PWD/site/og.png" "file:///$PWD/site/og-image.html"
+  ```
+
+  Facebook, Zalo, X và Slack lưu cache ảnh xem trước. Để chúng lấy ảnh mới, dán link vào
+  [Facebook Sharing Debugger](https://developers.facebook.com/tools/debug/) và bấm **Scrape Again**.
