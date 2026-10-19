@@ -130,6 +130,12 @@ hành". Sau lần phát hành đầu tiên (Phần 2), trang sẽ tự hiện đ
    - `curl.exe -s https://downloads.dumpcat.cc/latest.json` trả về phiên bản mới.
    - Mục **Tải về** trên `https://dumpcat.cc` hiện phiên bản mới, và link tải về được file.
    - Trên một máy đã cài: `dumpcat update -check`.
+6. Sinh lại bản demo để nó dùng giao diện của phiên bản mới, rồi deploy landing page:
+
+   ```bash
+   python scripts/build-demo.py
+   npx wrangler deploy
+   ```
 
 Hai nguyên tắc:
 
@@ -205,3 +211,22 @@ Sửa hoặc thêm một công cụ:
 
 Nên kiểm tra lại giá và tính năng của các công cụ khoảng 6 tháng một lần. Sau lần deploy đầu, thêm `https://dumpcat.cc/sitemap.xml` vào
 Google Search Console và Bing Webmaster Tools.
+
+---
+
+## Phần 5 — Bản demo (dumpcat.cc/demo/)
+
+`https://dumpcat.cc/demo/` là **giao diện thật của DumpCat** chạy trong trình duyệt với dữ liệu mẫu: không có server, không lưu gì, tải lại
+trang là về như cũ. Bản demo được sinh từ `web/`, nên luôn khớp với ứng dụng:
+
+| File | Nội dung |
+|---|---|
+| `site-src/demo/api.js` | Thay cho `web/assets/js/api.js`: API giả trong bộ nhớ, mô phỏng backup, verify, restore có tiến độ và log |
+| `site-src/demo/data.js` | Dữ liệu mẫu: server, storage, job, lịch sử 14 ngày, binlog, restore, agent, WireGuard… (ngày tính theo lúc mở trang) |
+| `site-src/demo/demo.js`, `demo.css` | Thanh "Demo" nổi (Làm lại, Cài DumpCat) và chặn các link tải file |
+| `site-src/demo/types.json` | Loại storage và loại thông báo, xuất từ code Go bằng `go run ./scripts/demotypes` |
+| `scripts/build-demo.py` | Chép `web/` sang `site/demo/`, thay API, đổi đường dẫn `/assets/` thành `/demo/assets/` |
+
+Sau khi sửa `web/` hoặc `site-src/demo/`: chạy `python scripts/build-demo.py`, xem thử bằng
+`python -m http.server 8642 --directory site` rồi mở `http://127.0.0.1:8642/demo/`, sau đó `npx wrangler deploy`.
+Trang nào gọi một API mới mà `api.js` chưa có sẽ báo "… is not part of the demo": thêm route tương ứng vào `site-src/demo/api.js`.
