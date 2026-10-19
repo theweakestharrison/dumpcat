@@ -70,7 +70,7 @@ def main() -> None:
     (OUT / "assets" / "demo.css").write_text((SRC / "demo.css").read_text(encoding="utf-8"), encoding="utf-8", newline="\n")
 
     page = rewrite((WEB / "index.html").read_text(encoding="utf-8"))
-    page = page.replace("<title>DumpCat — MySQL/MariaDB Backup</title>", "<title>DumpCat demo — try the web UI</title>\n"
+    page = page.replace("<title>DumpCat: MySQL/MariaDB Backup</title>", "<title>DumpCat demo: try the web UI</title>\n"
                         '  <meta name="description" content="Try the DumpCat web UI with sample data: backups, restores, point-in-time recovery, agents and WireGuard. Runs in your browser.">')
     page = page.replace("</head>", '  <link rel="stylesheet" href="/demo/assets/demo.css">\n</head>')
     page = page.replace("</body>", '  <script type="module" src="/demo/assets/js/demo.js"></script>\n</body>')

@@ -127,7 +127,7 @@ export function setTitle(t) {
       return html`${sep}<a class="crumb" href="${p.href}">${p.label}</a>`;
     }));
   }
-  document.title = lastLabel + ' — DumpCat';
+  document.title = lastLabel + ' · DumpCat';
 }
 
 let setNav = () => {};
