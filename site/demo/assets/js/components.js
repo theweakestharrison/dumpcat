@@ -142,31 +142,60 @@ export const PITR_TYPES = [
   ['time', 'Point in time'], ['gtid', 'Before a GTID'], ['position', 'Binlog position'], ['latest', 'Latest available'],
 ];
 
-/** Inputs choosing where a point-in-time recovery stops. */
+const PITR_QUICK = [[5 * 60, '5 min ago'], [3600, '1 hour ago'], [86400, '1 day ago']];
+
+/** Inputs choosing where a point-in-time recovery stops: a segmented choice of the kind of target, then its fields. */
 export function pitrTargetFields(t = {}) {
   const type = t.type || 'time';
   const when = t.time ? toDate(t.time) : new Date(Date.now() - 60000);
-  return html`<div class="btn-group" style="margin-bottom:12px">${PITR_TYPES.map(([v, l]) => html`<label class="check" style="margin-right:16px"><input type="radio" name="pitr_type" value="${v}" ${type === v ? 'checked' : ''}><span>${l}</span></label>`)}</div>
-    <div class="form-grid">
-      <div class="field" data-pt="time"><label>Recover up to (your local time)</label><input type="datetime-local" step="1" name="pitr_time" value="${localInput(when)}">
-        <div class="help">Transactions committed before this moment are replayed, later ones are not — never half a transaction.</div></div>
-      <div class="field" data-pt="gtid"><label>Stop just before GTID</label><input type="text" name="pitr_gtid" value="${t.gtid || ''}" placeholder="0-1-1234 (MariaDB) or 3E11FA47-…:23 (MySQL)" spellcheck="false">
-        <div class="help">That transaction (e.g. the accidental DROP TABLE) and everything after it are not replayed.</div></div>
-      <div class="field" data-pt="position"><label>Binlog file</label><input type="text" name="pitr_file" value="${t.file || ''}" placeholder="mysql-bin.000123" spellcheck="false"></div>
-      <div class="field" data-pt="position"><label>Stop position</label><input type="number" name="pitr_pos" min="4" value="${t.pos || ''}">
-        <div class="help">Events starting at or after this position are not replayed.</div></div>
-      <div class="field full" data-pt="latest"><div class="help">Replays every archived binlog, plus the binlog DumpCat is still receiving — the most recent state that can be recovered.</div></div>
+  return html`<div class="seg pitr-seg" role="radiogroup" aria-label="Stop the recovery">${PITR_TYPES.map(([v, l]) => html`<label><input type="radio" name="pitr_type" value="${v}" ${type === v ? 'checked' : ''}><span>${l}</span></label>`)}</div>
+    <div class="pitr-fields">
+      <div class="pitr-row" data-pt="time">
+        <div class="field"><label>Recover up to <span class="muted">(your local time)</span></label><input type="datetime-local" step="1" name="pitr_time" value="${localInput(when)}"></div>
+        <div class="pitr-quick">${PITR_QUICK.map(([s, l]) => html`<button type="button" class="chip" data-ago="${s}">${l}</button>`)}</div>
+        <div class="help full">Transactions committed before this moment are replayed, later ones are not, never half a transaction.</div>
+      </div>
+      <div class="pitr-row" data-pt="gtid">
+        <div class="field grow"><label>Stop just before GTID</label><input type="text" name="pitr_gtid" value="${t.gtid || ''}" placeholder="0-1-1234 (MariaDB) or 3E11FA47-…:23 (MySQL)" spellcheck="false"></div>
+        <div class="help full">That transaction (e.g. the accidental <code>DROP TABLE</code>) and everything after it are not replayed.</div>
+      </div>
+      <div class="pitr-row" data-pt="position">
+        <div class="field grow"><label>Binlog file</label><input type="text" name="pitr_file" value="${t.file || ''}" placeholder="mysql-bin.000123" spellcheck="false"></div>
+        <div class="field"><label>Stop position</label><input type="number" name="pitr_pos" min="4" value="${t.pos || ''}"></div>
+        <div class="help full">Events starting at or after this position are not replayed.</div>
+      </div>
+      <div class="pitr-row" data-pt="latest">
+        <div class="help full">Replays every archived binlog, plus the binlog DumpCat is still receiving: the most recent state that can be recovered.</div>
+      </div>
     </div>`;
 }
 
-/** Shows the inputs of the selected target type. */
+/** Shows the inputs of the selected target type; the quick buttons set the time. */
 export function bindPITRFields(root) {
   const apply = () => {
     const type = (root.querySelector('input[name=pitr_type]:checked') || {}).value || 'time';
     root.querySelectorAll('[data-pt]').forEach((x) => x.classList.toggle('hidden', x.dataset.pt !== type));
   };
   root.addEventListener('change', (e) => { if (e.target.name === 'pitr_type') apply(); });
+  root.addEventListener('click', (e) => {
+    const b = e.target.closest && e.target.closest('[data-ago]');
+    if (!b) return;
+    const input = root.querySelector('[name=pitr_time]');
+    input.value = localInput(new Date(Date.now() - +b.dataset.ago * 1000));
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+  });
   apply();
+}
+
+/** How a target reads in the plan: [headline, detail]. */
+function pitrStopText(t, p) {
+  if (!t) return [p.target, ''];
+  switch (t.type) {
+    case 'time': return [fmtDate(t.time, true), 'your local time'];
+    case 'gtid': return ['Just before a GTID', html`<code>${t.gtid}</code>`];
+    case 'position': return ['At a binlog position', html`<code>${t.file}:${t.pos}</code>`];
+    default: return ['Latest available', p.partial ? 'including the binlog still being received' : (p.coverage ? `binlogs up to ${fmtDate(p.coverage, true)}` : '')];
+  }
 }
 
 /** Reads the target from the inputs (null when incomplete). */
@@ -184,22 +213,35 @@ export function readPITRTarget(root) {
   }
 }
 
-/** Renders the answer of POST /api/pitr/plan. */
-export function pitrPlanView(p, runId) {
+/**
+ * Renders the answer of POST /api/pitr/plan as three steps: the backup that is restored, the binlogs
+ * replayed after it and where the replay stops. target is the target that was asked for (optional).
+ */
+export function pitrPlanView(p, runId, target) {
   if (!p) return '';
-  const warn = (p.warnings || []).map((w) => html`<div class="alert warn" style="margin-top:8px">${icon('alert')}<div>${w}</div></div>`);
+  const warn = (p.warnings || []).map((w) => html`<div class="alert warn" style="margin-top:10px">${icon('alert')}<div>${w}</div></div>`);
   if (!p.ok) {
-    return html`<div class="alert bad">${icon('alert')}<div><b>Cannot recover to ${p.target}:</b> ${p.error}</div></div>${warn}`;
+    return html`<div class="alert bad">${icon('alert')}<div><b>This point cannot be recovered.</b> ${p.error}</div></div>${warn}`;
   }
   const b = p.base;
   const other = runId && b.id !== runId;
-  return html`<div class="alert good">${icon('check')}<div>
-      Recover to <b>${p.target}</b>: restore backup <a href="#/runs/${b.id}">#${b.id} ${b.dir_name}</a> (data up to ${fmtDate(b.consistent_at, true)}),
-      then replay <b>${p.files}</b> archived binlog file(s)${p.partial ? html` + the file still being received (<code>${p.partial}</code>)` : ''} — ${fmtBytes(p.bytes)}
-      from <code>${b.binlog_file}:${b.binlog_pos}</code>.${p.coverage ? html` Binlogs are complete up to ${fmtDate(p.coverage, true)}.` : ''}
-    </div></div>
-    ${other ? html`<div class="alert ${p.run_ok ? 'info' : 'warn'}" style="margin-top:8px">${icon('info')}<div>
-      The newest backup before this point is <b>#${b.id} ${b.dir_name}</b>${p.run_ok ? ' — starting from it replays fewer binlogs.' : html`; this backup cannot be used: ${p.run_error}`}
+  const [stop, stopNote] = pitrStopText(target, p);
+  const files = p.files + (p.partial ? 1 : 0);
+  const range = p.first_file ? html`<code>${p.first_file}</code>${p.last_file && p.last_file !== p.first_file ? html` → <code>${p.last_file}</code>` : ''}${p.partial ? ' + the file still being received' : ''}`
+    : html`from <code>${b.binlog_file}:${b.binlog_pos}</code>`;
+  return html`<div class="pitr-plan">
+      <div class="pp-step"><span class="pp-ico">${icon('archive')}</span><div><small>1 · Restore the backup</small>
+        <b><a href="#/runs/${b.id}">#${b.id}</a> ${b.dir_name}</b><span>data up to ${fmtDate(b.consistent_at, true)}</span></div></div>
+      <span class="pp-arrow" aria-hidden="true">${icon('chevron')}</span>
+      <div class="pp-step"><span class="pp-ico">${icon('layers')}</span><div><small>2 · Replay the binlogs</small>
+        <b>${files} file${files === 1 ? '' : 's'} · ${fmtBytes(p.bytes)}</b><span>${range}</span></div></div>
+      <span class="pp-arrow" aria-hidden="true">${icon('chevron')}</span>
+      <div class="pp-step stop"><span class="pp-ico">${icon('check')}</span><div><small>3 · Stop</small>
+        <b>${stop}</b>${stopNote ? html`<span>${stopNote}</span>` : ''}</div></div>
+    </div>
+    ${p.coverage && (!target || target.type !== 'latest') ? html`<div class="muted small" style="margin-top:8px">Binlogs are complete up to ${fmtDate(p.coverage, true)}.</div>` : ''}
+    ${other ? html`<div class="alert ${p.run_ok ? 'info' : 'warn'}" style="margin-top:10px">${icon('info')}<div>
+      The newest backup before this point is <b>#${b.id} ${b.dir_name}</b>${p.run_ok ? ': starting from it replays fewer binlogs.' : html`; this backup cannot be used: ${p.run_error}`}
       <button type="button" class="btn btn-sm" data-use-base="${b.id}" style="margin-left:8px">Use #${b.id}</button></div></div>` : ''}
     ${warn}`;
 }

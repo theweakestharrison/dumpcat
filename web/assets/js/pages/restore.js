@@ -217,7 +217,7 @@ export async function render(ctx) {
     if (!target) { plan = null; setHTML(box, html`<div class="muted small">Enter where to stop.</div>`); return; }
     setHTML(box, html`<div class="muted small">${icon('loader', 'spin')} Checking the archived binlogs…</div>`);
     try { plan = await post('/pitr/plan', { run_id: r.id, target }); } catch (er) { plan = { ok: false, target: target.type, error: er.message }; }
-    if (ctx.alive()) setHTML(box, pitrPlanView(plan, r.id));
+    if (ctx.alive()) setHTML(box, pitrPlanView(plan, r.id, target));
   };
   const recheck = debounce(checkPlan, 400);
   if (form.pitr) {
