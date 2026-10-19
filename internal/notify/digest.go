@@ -15,9 +15,10 @@ type Digest struct {
 	Jobs        []DigestJob
 	Overdue     []DigestOverdue
 	Storages    []DigestStorage
-	Written     int64  // bytes written by the backups of the period
-	PrevWritten int64  // and of the period before
-	URL         string // the dashboard ("" without a base URL)
+	Drills      []DigestDrill // restore drills that ran in the period
+	Written     int64         // bytes written by the backups of the period
+	PrevWritten int64         // and of the period before
+	URL         string        // the dashboard ("" without a base URL)
 	Time        time.Time
 }
 
@@ -38,6 +39,23 @@ type DigestOverdue struct {
 	Job         string
 	LastSuccess *time.Time
 	Due         time.Time // when a new one was expected at the latest
+}
+
+// DigestDrill is one restore drill's week.
+type DigestDrill struct {
+	Name, Job      string
+	Passed, Failed int
+	LastStatus     string        // of the newest run: passed, failed
+	RTO            time.Duration // restore time of the newest run
+	LastError      string        // of the newest run, when it failed
+}
+
+func (r DigestDrill) results() string {
+	s := fmt.Sprintf("%d passed", r.Passed)
+	if r.Failed > 0 {
+		s += fmt.Sprintf(", %d failed", r.Failed)
+	}
+	return s
 }
 
 // DigestStorage is what one storage holds.
@@ -69,7 +87,7 @@ func (d *Digest) stored() (n int64) {
 func (d *Digest) event() *Event {
 	ok, failed, _, vfail := d.totals()
 	ev := &Event{Kind: "digest", Status: "success", URL: d.URL, Time: d.Time}
-	if failed > 0 || vfail > 0 || len(d.Overdue) > 0 {
+	if failed > 0 || vfail > 0 || len(d.Overdue) > 0 || d.drillsFailed() {
 		ev.Status = "partial"
 	}
 	switch {
@@ -139,6 +157,23 @@ func ago(t *time.Time, now time.Time) string {
 	return fmt.Sprintf("%dd ago", int(d.Hours()/24))
 }
 
+func firstLine(s string) string {
+	s, _, _ = strings.Cut(strings.TrimSpace(s), "\n")
+	return s
+}
+
+// roundDur: 45s, 3m12s, 1h05m.
+func roundDur(d time.Duration) string {
+	d = d.Round(time.Second)
+	switch {
+	case d < time.Minute:
+		return fmt.Sprintf("%ds", int(d.Seconds()))
+	case d < time.Hour:
+		return fmt.Sprintf("%dm%02ds", int(d.Minutes()), int(d.Seconds())%60)
+	}
+	return fmt.Sprintf("%dh%02dm", int(d.Hours()), int(d.Minutes())%60)
+}
+
 func plural(n int, one, many string) string {
 	if n == 1 {
 		return fmt.Sprintf("%d %s", n, one)
@@ -173,6 +208,15 @@ func (j DigestJob) checks() string {
 		return fmt.Sprintf("%d ok", j.VerifyOK)
 	}
 	return fmt.Sprintf("%d ok, %d failed", j.VerifyOK, j.VerifyFailed)
+}
+
+func (d *Digest) drillsFailed() bool {
+	for _, r := range d.Drills {
+		if r.LastStatus == "failed" {
+			return true
+		}
+	}
+	return false
 }
 
 func (s DigestStorage) free() string {
@@ -217,6 +261,20 @@ func (d *Digest) text(host string) string {
 				}
 			}
 			fmt.Fprintf(&b, "  %-*s  backups %s · size %s · checks %s · last success %s\n", w, j.Name, j.backups(), size, j.checks(), ago(j.LastSuccess, d.Time))
+		}
+	}
+	if len(d.Drills) > 0 {
+		b.WriteString("\nRestore drills\n")
+		w := 0
+		for _, r := range d.Drills {
+			w = max(w, len([]rune(r.Name)))
+		}
+		for _, r := range d.Drills {
+			fmt.Fprintf(&b, "  %-*s  %s · %s · restore %s", w, r.Name, r.Job, r.results(), roundDur(r.RTO))
+			if r.LastStatus == "failed" {
+				fmt.Fprintf(&b, " · last run FAILED: %s", trunc(firstLine(r.LastError), 200))
+			}
+			b.WriteString("\n")
 		}
 	}
 	if len(d.Storages) > 0 {
@@ -270,6 +328,16 @@ var digestTpl = emailContent(`<tr><td class="px" style="padding:20px 28px 2px">
           </tr>{{end}}
         </table>
       </td></tr>{{end}}
+      {{if .Drills}}<tr><td class="px" style="padding:20px 28px 0">
+        <div class="muted" style="font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#6b6963">Restore drills</div>
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:6px">
+          {{range $i, $r := .Drills}}<tr>
+            <td class="cell" style="padding:9px 8px 9px 0;{{if $i}}border-top:1px solid #eeede8;{{end}}vertical-align:top"><div class="ink" style="font-size:14px;font-weight:600;color:#0e1116;word-break:break-word">{{$r.Name}}</div>
+              <div class="muted" style="font-size:12px;color:#6b6963">{{$r.Job}} · restore {{$r.RTO}}</div>{{if $r.Error}}<div style="margin-top:3px;font-size:12px;color:#cf222e;word-break:break-word">{{$r.Error}}</div>{{end}}</td>
+            <td class="cell" style="padding:9px 0 9px 8px;{{if $i}}border-top:1px solid #eeede8;{{end}}vertical-align:top;text-align:right;white-space:nowrap;font-size:13.5px"><span class="ink" style="color:#0e1116">{{$r.Passed}} passed</span>{{if $r.Failed}}<br><span style="color:#cf222e;font-weight:600">{{$r.Failed}} failed</span>{{end}}</td>
+          </tr>{{end}}
+        </table>
+      </td></tr>{{end}}
       {{if .Storages}}<tr><td class="px" style="padding:20px 28px 0">
         <div class="muted" style="font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#6b6963">Storage · {{.Stored}} in total</div>
         <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:6px">
@@ -320,6 +388,18 @@ func (d *Digest) emailHTML(host string) (string, error) {
 		}
 		jobs = append(jobs, r)
 	}
+	type drillRow struct {
+		Name, Job, RTO, Error string
+		Passed, Failed        int
+	}
+	var drills []drillRow
+	for _, r := range d.Drills {
+		row := drillRow{Name: r.Name, Job: r.Job, RTO: roundDur(r.RTO), Passed: r.Passed, Failed: r.Failed}
+		if r.LastStatus == "failed" {
+			row.Error = "Last run failed: " + trunc(firstLine(r.LastError), 200)
+		}
+		drills = append(drills, row)
+	}
 	type storageRow struct{ Name, Type, Count, Used, Free string }
 	var sts []storageRow
 	for _, s := range d.Storages {
@@ -331,7 +411,7 @@ func (d *Digest) emailHTML(host string) (string, error) {
 	}
 	data := map[string]any{
 		"Title": ev.Title, "L": l, "Label": "Weekly digest · " + d.period(), "Mark": ev.mark(), "Tiles": tiles, "Overdue": ods,
-		"Jobs": jobs, "Storages": sts, "Stored": fmtBytes(d.stored()), "Host": host, "When": ev.when(),
+		"Jobs": jobs, "Drills": drills, "Storages": sts, "Stored": fmtBytes(d.stored()), "Host": host, "When": ev.when(),
 		"Preheader": fmt.Sprintf("%s · %s written · %d overdue", ev.Title, fmtBytes(d.Written), len(d.Overdue)), "Manage": template.URL(ev.manageURL()),
 	}
 	if strings.HasPrefix(d.URL, "http") {

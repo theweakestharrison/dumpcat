@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -222,10 +223,27 @@ func physicalResult(env *Env, spec *BackupSpec, toolVersion string, files map[st
 				res.Meta["gtid"] = strings.Join(f[2:], " ")
 			}
 		}
+	} else if m := infoBinlogPos.FindStringSubmatch(first("xtrabackup_info", "mariadb_backup_info")); m != nil {
+		// --extra-lsndir gets the checkpoints and the info file, not *_binlog_info:
+		// the info file's binlog_pos line carries the same coordinates
+		res.Meta["binlog_file"] = m[1]
+		if p, err := strconv.ParseInt(m[2], 10, 64); err == nil {
+			res.Meta["binlog_pos"] = p
+		}
+		if g := strings.Join(strings.Fields(m[3]), ""); g != "" {
+			res.Meta["gtid"] = g
+		}
 	}
 	env.Log.Printf("LSN: from=%s to=%s", kv["from_lsn"], kv["to_lsn"])
 	return res, nil
 }
+
+// infoBinlogPos reads the binlog_pos line of xtrabackup_info / mariadb_backup_info:
+//
+//	binlog_pos = filename 'mysql-bin.000007', position '1234', GTID of the last change '0-1-55'
+//
+// A MySQL GTID set may span lines.
+var infoBinlogPos = regexp.MustCompile(`binlog_pos = filename '([^']+)', position '(\d+)'(?:, GTID of the last change '([^']*)')?`)
 
 func parseKV(s string) map[string]string {
 	out := map[string]string{}

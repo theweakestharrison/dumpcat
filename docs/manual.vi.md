@@ -69,13 +69,24 @@ Hướng dẫn đầy đủ để cài đặt, cấu hình và vận hành DumpC
 
 ### 3.1 Cài nhanh (khuyến nghị)
 
-Phiên bản mới nhất, ghi chú phát hành và mã kiểm tra có trên [dumpcat.cc](https://dumpcat.cc/#download); các gói cài đặt nằm ở
-`https://downloads.dumpcat.cc/<phiên bản>/`.
+Trên server, bằng user có `sudo`:
 
 ```bash
-curl -fLO https://downloads.dumpcat.cc/1.3.1/dumpcat-1.3.1-linux.tar.gz
-tar xzf dumpcat-1.3.1-linux.tar.gz
-cd dumpcat-1.3.1-linux
+curl -fsSL https://dumpcat.cc/install.sh | sudo sh
+```
+
+Lệnh này tải gói mới nhất từ `https://downloads.dumpcat.cc`, kiểm tra SHA-256 theo `SHA256SUMS` của bản phát hành, giải
+nén vào một thư mục tạm rồi chạy `install.sh` trong gói. Tùy chọn của `install.sh` đặt sau `sh -s --`, ví dụ
+`curl -fsSL https://dumpcat.cc/install.sh | sudo sh -s -- --port 9090`. Hướng dẫn cho người mới có tại
+[dumpcat.cc/vi/install](https://dumpcat.cc/vi/install/).
+
+Hoặc tự tải gói về: phiên bản mới nhất, ghi chú phát hành và mã kiểm tra có trên [dumpcat.cc](https://dumpcat.cc/#download);
+các gói cài đặt nằm ở `https://downloads.dumpcat.cc/<phiên bản>/`.
+
+```bash
+curl -fLO https://downloads.dumpcat.cc/1.4.0/dumpcat-1.4.0-linux.tar.gz
+tar xzf dumpcat-1.4.0-linux.tar.gz
+cd dumpcat-1.4.0-linux
 sudo ./install.sh
 ```
 
@@ -122,12 +133,20 @@ Trang **Hệ thống** trong giao diện liệt kê công cụ nào đã có/thi
 ### 3.5 Windows
 
 DumpCat cũng chạy trên Windows Server 2016+ / Windows 10+ (64-bit), dưới dạng Windows Service.
-Mở PowerShell bằng **Run as administrator**:
+Cách đơn giản nhất: tải file `.zip` trên [dumpcat.cc](https://dumpcat.cc/#download), giải nén rồi bấm đúp **Install
+DumpCat** (`Install DumpCat.cmd`); file này xin quyền quản trị của Windows, chạy `install.ps1` rồi mở giao diện web. Hoặc
+mở PowerShell bằng **Run as administrator** rồi dùng lệnh cài một dòng:
 
 ```powershell
-Invoke-WebRequest https://downloads.dumpcat.cc/1.3.1/dumpcat-1.3.1-windows-amd64.zip -OutFile dumpcat-1.3.1-windows-amd64.zip
-Expand-Archive dumpcat-1.3.1-windows-amd64.zip -DestinationPath .
-cd dumpcat-1.3.1-windows-amd64
+irm https://dumpcat.cc/install.ps1 | iex
+```
+
+hoặc làm từng bước bằng tay:
+
+```powershell
+Invoke-WebRequest https://downloads.dumpcat.cc/1.4.0/dumpcat-1.4.0-windows-amd64.zip -OutFile dumpcat-1.4.0-windows-amd64.zip
+Expand-Archive dumpcat-1.4.0-windows-amd64.zip -DestinationPath .
+cd dumpcat-1.4.0-windows-amd64
 powershell -ExecutionPolicy Bypass -File .\install.ps1
 ```
 
@@ -183,7 +202,7 @@ Upload **nội dung** thư mục `dist/update/` lên địa chỉ đó, để c�
 
 ```
 https://downloads.dumpcat.cc/latest.json
-https://downloads.dumpcat.cc/1.3.1/dumpcat-linux-amd64    (… -linux-arm64, -windows-amd64.exe, SHA256SUMS, các gói cài)
+https://downloads.dumpcat.cc/1.4.0/dumpcat-linux-amd64    (… -linux-arm64, -windows-amd64.exe, SHA256SUMS, các gói cài)
 ```
 
 Upload thư mục phiên bản trước, `latest.json` sau cùng, để máy cài không bao giờ thấy một bản phát hành mà file chưa lên đủ.
@@ -300,10 +319,10 @@ bên trong kết nối này. Các công cụ của DumpCat kết nối tới por
 2. Trên server database, bằng root:
 
    ```bash
-   curl -fLO https://downloads.dumpcat.cc/1.3.1/dumpcat-1.3.1-linux.tar.gz
-   tar xzf dumpcat-1.3.1-linux.tar.gz && cd dumpcat-1.3.1-linux
-   sudo ./install.sh --agent --server https://backup.example.com --key dca_...
+   curl -fsSL https://dumpcat.cc/install.sh | sudo sh -s -- --agent --server https://backup.example.com --key dca_...
    ```
+
+   (hoặc, trong gói đã giải nén: `sudo ./install.sh --agent --server … --key …`)
 
    Trên Windows, trong thư mục đã giải nén, mở PowerShell bằng quyền Administrator:
    `powershell -ExecutionPolicy Bypass -File .\install.ps1 -Agent -Server https://backup.example.com -Key dca_...`
@@ -517,9 +536,9 @@ chạy bị treo — thì không gửi gì cả. Vì vậy mỗi phút DumpCat k
   bản backup.
 - **Báo cáo tuần.** Tích **Send the weekly digest** trên một kênh email (**Notifications**) để nhận, vào ngày và giờ đặt ở
   **Settings → Monitoring** (mặc định thứ Hai 08:00), bản tóm tắt 7 ngày qua: số bản backup của từng job (thành công /
-  lỗi), dung lượng bản mới nhất và mức tăng trong tuần, các lần kiểm tra toàn vẹn, job quá hạn, dung lượng trên từng
-  storage và chỗ trống của storage local. **Preview** trong Settings hiện báo cáo với dữ liệu thật; **Send digest now**
-  trên kênh gửi ngay.
+  lỗi), dung lượng bản mới nhất và mức tăng trong tuần, các lần kiểm tra toàn vẹn, job quá hạn, kết quả diễn tập restore
+  (đạt / lỗi, thời gian restore, lỗi của lần thất bại), dung lượng trên từng storage và chỗ trống của storage local.
+  **Preview** trong Settings hiện báo cáo với dữ liệu thật; **Send digest now** trên kênh gửi ngay.
 
 ### Cấu trúc thư mục trên storage
 

@@ -75,6 +75,11 @@ func sampleDigest() *Digest {
 			{Name: "gdrive-archive", Type: "gdrive", Backups: 8, Bytes: 312 << 30},
 			{Name: "dr-site", Type: "sftp", Backups: 14, Bytes: 140 << 30},
 		},
+		Drills: []DigestDrill{
+			{Name: "crm daily drill", Job: "crm-every-6h", Passed: 6, Failed: 1, LastStatus: "failed", RTO: 2*time.Minute + 41*time.Second,
+				LastError: "crm.tickets: 41233 rows in the copy, the backup recorded 41260\nmore lines"},
+			{Name: "shop weekly drill", Job: "shop-nightly", Passed: 1, LastStatus: "passed", RTO: 4*time.Minute + 18*time.Second},
+		},
 	}
 }
 
@@ -109,6 +114,8 @@ func TestDigestMessage(t *testing.T) {
 		"shop-nightly      backups 6 ok, 1 failed · size 2.10 GiB (+2.9%) · checks 6 ok · last success 6h ago",
 		"crm-every-6h      backups 27 ok, 1 failed · size 512.00 MiB (+2.8%) · checks 26 ok, 1 failed · last success 2h ago",
 		"warehouse-weekly  backups 1 ok · size 42.00 GiB (+2.4%)", "Storage (2.37 TiB in total)", "nas-backups     61 backups · 1.10 TiB · free 6.90 TiB (86%)",
+		"Restore drills", "  crm daily drill    crm-every-6h · 6 passed, 1 failed · restore 2m41s · last run FAILED: crm.tickets: 41233 rows in the copy, the backup recorded 41260",
+		"  shop weekly drill  shop-nightly · 1 passed · restore 4m18s",
 		"Open in DumpCat: https://backup.example.com/#/dashboard"} {
 		if !strings.Contains(string(text), want) {
 			t.Errorf("text part lacks %q:\n%s", want, text)
@@ -126,7 +133,8 @@ func TestDigestMessage(t *testing.T) {
 	}
 	page, _ := io.ReadAll(quotedprintable.NewReader(hp))
 	for _, want := range []string{`src="cid:logo@dumpcat"`, "Weekly digest · 12 – 19 Oct 2026", "46 of 50 backups succeeded", "#9a6700", "erp-nightly",
-		">2 failed<", ">1 failed<", ">26 ok, 1 failed<", "Storage · 2.37 TiB in total", "free 6.90 TiB (86%)", `href="https://backup.example.com/#/notifications"`} {
+		">2 failed<", ">1 failed<", ">26 ok, 1 failed<", "Restore drills", "crm-every-6h · restore 2m41s", "Last run failed: crm.tickets: 41233 rows",
+		">6 passed<", "shop weekly drill", "Storage · 2.37 TiB in total", "free 6.90 TiB (86%)", `href="https://backup.example.com/#/notifications"`} {
 		if !strings.Contains(string(page), want) {
 			t.Errorf("HTML lacks %q", want)
 		}

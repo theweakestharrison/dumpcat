@@ -153,37 +153,35 @@ browser.
 
 ### 1. Install
 
-The latest version, its release notes and checksums are on **[dumpcat.cc](https://dumpcat.cc/#download)**. The packages
-are served from `https://downloads.dumpcat.cc/<version>/`.
+New to servers? The **[step-by-step install guide](https://dumpcat.cc/install/)** covers everything, from opening a
+terminal to the first backup.
 
-**Linux**, as root:
+**Linux**: one command on the server, as a user with `sudo`:
 
 ```bash
-curl -fLO https://downloads.dumpcat.cc/1.3.1/dumpcat-1.3.1-linux.tar.gz
-tar xzf dumpcat-1.3.1-linux.tar.gz
-cd dumpcat-1.3.1-linux
-sudo ./install.sh
+curl -fsSL https://dumpcat.cc/install.sh | sudo sh
 ```
 
-The installer puts the binary in `/opt/dumpcat`, creates the `dumpcat` systemd service, and installs rclone, the
-MySQL / MariaDB client and the backup tools that match the database server on the machine.
-Options: `--port 9090`, `--listen 127.0.0.1`, `--tls-auto`, `--no-deps`, `--uninstall [--purge]`.
-On a database host that accepts no inbound connections, the same package installs only the [agent](docs/manual.md#37-database-hosts-that-accept-no-inbound-connections-agent):
-`sudo ./install.sh --agent --server https://backup.example.com --key dca_…` (the **Agents** page shows the command with
-the key).
+It downloads the latest package from `https://downloads.dumpcat.cc`, checks its SHA-256 against the release's
+`SHA256SUMS` and runs the `install.sh` inside it. The installer puts the binary in `/opt/dumpcat`, creates the `dumpcat`
+systemd service, and installs rclone, the MySQL / MariaDB client and the backup tools that match the database server on
+the machine. Options go after `sh -s --`, for example `curl -fsSL https://dumpcat.cc/install.sh | sudo sh -s -- --port 9090`:
+`--port 9090`, `--listen 127.0.0.1`, `--tls-auto`, `--no-deps`, `--uninstall [--purge]`.
+On a database host that accepts no inbound connections, the same installer sets up only the [agent](docs/manual.md#37-database-hosts-that-accept-no-inbound-connections-agent):
+`--agent --server https://backup.example.com --key dca_…` (the **Agents** page shows the command with the key).
 
-**Windows**, in PowerShell run as Administrator:
+**Windows**: download the `.zip` from [dumpcat.cc](https://dumpcat.cc/#download), unzip it (right-click, **Extract All**) and
+double-click **Install DumpCat**; Windows asks for administrator rights. Or, in PowerShell run as Administrator:
 
 ```powershell
-Invoke-WebRequest https://downloads.dumpcat.cc/1.3.1/dumpcat-1.3.1-windows-amd64.zip -OutFile dumpcat-1.3.1-windows-amd64.zip
-Expand-Archive dumpcat-1.3.1-windows-amd64.zip -DestinationPath .
-cd dumpcat-1.3.1-windows-amd64
-powershell -ExecutionPolicy Bypass -File .\install.ps1
+irm https://dumpcat.cc/install.ps1 | iex
 ```
 
-To check a download, compare it with
-[SHA256SUMS](https://downloads.dumpcat.cc/1.3.1/SHA256SUMS) (`sha256sum -c --ignore-missing SHA256SUMS`, or `Get-FileHash` on
-Windows). To build the packages yourself, see [Building from source](#building-from-source).
+**Downloading the package yourself**: the latest version, its release notes and checksums are on
+[dumpcat.cc](https://dumpcat.cc/#download), and the packages are served from `https://downloads.dumpcat.cc/<version>/`.
+Every package has a `START-HERE.txt`; on Linux, unpack it and run `sudo ./install.sh`. To check a download, compare it
+with the release's `SHA256SUMS` (`sha256sum -c --ignore-missing SHA256SUMS`, or `Get-FileHash` on Windows). To build the
+packages yourself, see [Building from source](#building-from-source).
 
 ### 2. Run your first backup
 

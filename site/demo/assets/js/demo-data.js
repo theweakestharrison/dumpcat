@@ -2,7 +2,7 @@
 // database servers, four storages and two weeks of backup history. Dates are
 // relative to the moment the page loads, so the demo always looks current.
 
-export const VERSION = '1.3.1'; // set by scripts/build-demo.py
+export const VERSION = '1.4.0'; // set by scripts/build-demo.py
 
 const MIN = 60e3;
 const H = 60 * MIN;
@@ -49,7 +49,10 @@ export function seed(now) {
 
   const agents = [
     { id: 1, name: 'crm-host', key_prefix: 'dca_7Qm2xK9p', created_at: iso(now - 30 * D), updated_at: iso(now - 30 * D), last_seen_at: iso(now - 4 * D), last_ip: '203.0.113.24', version: VERSION, hostname: 'crm-01', os: 'linux/amd64',
-      live: { online: true, since: iso(now - 4 * D), remote_addr: '203.0.113.24', allow: ['127.0.0.1:3306', '[::1]:3306', 'unix:/run/mysqld/mysqld.sock'], streams: 0 } },
+      live: { online: true, since: iso(now - 4 * D), remote_addr: '203.0.113.24', allow: ['127.0.0.1:3306', '[::1]:3306', 'unix:/run/mysqld/mysqld.sock'], streams: 0,
+        caps: { physical: { allowed: true, user: 'mysql', datadir: '/var/lib/mysql', tools: [
+          { name: 'mariabackup', found: true, version: 'mariabackup based on MariaDB server 11.4.4-MariaDB Linux (x86_64)' },
+          { name: 'xtrabackup', found: false, hint: 'apt install percona-xtrabackup-80' }] } } } },
     { id: 2, name: 'legacy-erp', key_prefix: 'dca_Lq0vB3sE', created_at: iso(now - 12 * D), updated_at: iso(now - 12 * D), last_seen_at: iso(now - 2 * D - 5 * H), last_ip: '198.51.100.7', version: '1.2.0', hostname: 'erp-old', os: 'windows/amd64', live: { online: false } },
   ];
 

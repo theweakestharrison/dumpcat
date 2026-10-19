@@ -69,13 +69,24 @@ The complete guide to installing, configuring and operating DumpCat. For an over
 
 ### 3.1 Quick install (recommended)
 
-The latest version, its release notes and checksums are listed on [dumpcat.cc](https://dumpcat.cc/#download); the packages are
-served from `https://downloads.dumpcat.cc/<version>/`.
+On the server, as a user with `sudo`:
 
 ```bash
-curl -fLO https://downloads.dumpcat.cc/1.3.1/dumpcat-1.3.1-linux.tar.gz
-tar xzf dumpcat-1.3.1-linux.tar.gz
-cd dumpcat-1.3.1-linux
+curl -fsSL https://dumpcat.cc/install.sh | sudo sh
+```
+
+This downloads the latest package from `https://downloads.dumpcat.cc`, checks its SHA-256 against the release's
+`SHA256SUMS`, unpacks it in a temporary folder and runs the `install.sh` inside it. Options of `install.sh` go after
+`sh -s --`, e.g. `curl -fsSL https://dumpcat.cc/install.sh | sudo sh -s -- --port 9090`. A beginner's walkthrough is at
+[dumpcat.cc/install](https://dumpcat.cc/install/).
+
+Or download the package yourself: the latest version, its release notes and checksums are listed on
+[dumpcat.cc](https://dumpcat.cc/#download), and the packages are served from `https://downloads.dumpcat.cc/<version>/`.
+
+```bash
+curl -fLO https://downloads.dumpcat.cc/1.4.0/dumpcat-1.4.0-linux.tar.gz
+tar xzf dumpcat-1.4.0-linux.tar.gz
+cd dumpcat-1.4.0-linux
 sudo ./install.sh
 ```
 
@@ -122,12 +133,20 @@ Set `DUMPCAT_LISTEN=127.0.0.1:6369` and `DUMPCAT_TRUST_PROXY=1`, and use the sam
 ### 3.5 Windows
 
 DumpCat also runs on Windows Server 2016+ / Windows 10+ (64-bit), as a Windows service.
-In PowerShell **Run as administrator**:
+The simplest way: download the `.zip` from [dumpcat.cc](https://dumpcat.cc/#download), unzip it and double-click
+**Install DumpCat** (`Install DumpCat.cmd`); it asks Windows for administrator rights, runs `install.ps1` and opens the
+web UI. Or in PowerShell **Run as administrator**, either the one-line installer:
 
 ```powershell
-Invoke-WebRequest https://downloads.dumpcat.cc/1.3.1/dumpcat-1.3.1-windows-amd64.zip -OutFile dumpcat-1.3.1-windows-amd64.zip
-Expand-Archive dumpcat-1.3.1-windows-amd64.zip -DestinationPath .
-cd dumpcat-1.3.1-windows-amd64
+irm https://dumpcat.cc/install.ps1 | iex
+```
+
+or the same steps by hand:
+
+```powershell
+Invoke-WebRequest https://downloads.dumpcat.cc/1.4.0/dumpcat-1.4.0-windows-amd64.zip -OutFile dumpcat-1.4.0-windows-amd64.zip
+Expand-Archive dumpcat-1.4.0-windows-amd64.zip -DestinationPath .
+cd dumpcat-1.4.0-windows-amd64
 powershell -ExecutionPolicy Bypass -File .\install.ps1
 ```
 
@@ -183,7 +202,7 @@ UPDATE_URL=https://downloads.dumpcat.cc ./build.sh
 
 ```
 https://downloads.dumpcat.cc/latest.json
-https://downloads.dumpcat.cc/1.3.1/dumpcat-linux-amd64    (… -linux-arm64, -windows-amd64.exe, SHA256SUMS, packages)
+https://downloads.dumpcat.cc/1.4.0/dumpcat-linux-amd64    (… -linux-arm64, -windows-amd64.exe, SHA256SUMS, packages)
 ```
 
 Upload the version folder first and `latest.json` last, so that installations never see a release whose files are not there yet.
@@ -300,10 +319,10 @@ then flows both ways inside it. DumpCat's tools connect to local ports on the ba
 2. On the database host, as root:
 
    ```bash
-   curl -fLO https://downloads.dumpcat.cc/1.3.1/dumpcat-1.3.1-linux.tar.gz
-   tar xzf dumpcat-1.3.1-linux.tar.gz && cd dumpcat-1.3.1-linux
-   sudo ./install.sh --agent --server https://backup.example.com --key dca_...
+   curl -fsSL https://dumpcat.cc/install.sh | sudo sh -s -- --agent --server https://backup.example.com --key dca_...
    ```
+
+   (or, in the unpacked package: `sudo ./install.sh --agent --server … --key …`)
 
    On Windows, in the unzipped package, in PowerShell run as administrator:
    `powershell -ExecutionPolicy Bypass -File .\install.ps1 -Agent -Server https://backup.example.com -Key dca_...`
@@ -522,9 +541,10 @@ mistake, a run that hangs — sends nothing. So DumpCat checks every minute that
   was due.
 - **Weekly digest.** Tick **Send the weekly digest** on an email channel (**Notifications**) to receive, at the day and
   hour set in **Settings → Monitoring** (Monday 08:00 by default), a summary of the last 7 days: backups per job
-  (succeeded / failed), the size of the newest backup and its growth over the week, integrity checks, overdue jobs, what
-  every storage holds and the free space of local storages. **Preview** in Settings shows it with your data; **Send
-  digest now** on the channel sends it at once.
+  (succeeded / failed), the size of the newest backup and its growth over the week, integrity checks, overdue jobs, the
+  results of the restore drills (passed / failed, restore time, the error of a failed one), what every storage holds and
+  the free space of local storages. **Preview** in Settings shows it with your data; **Send digest now** on the channel
+  sends it at once.
 
 ### Directory layout on the storage
 

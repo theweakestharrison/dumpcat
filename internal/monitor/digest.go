@@ -78,6 +78,7 @@ func (c *Checker) BuildDigest(from, to time.Time) *notify.Digest {
 		d.Jobs = append(d.Jobs, dj)
 	}
 	sort.SliceStable(d.Jobs, func(a, b int) bool { return strings.ToLower(d.Jobs[a].Name) < strings.ToLower(d.Jobs[b].Name) })
+	d.Drills = c.weekDrills(from, to)
 	use, _ := c.Store.StorageUsage()
 	sts, _ := c.Store.ListStorages()
 	paths := map[int64]string{}
@@ -96,6 +97,51 @@ func (c *Checker) BuildDigest(from, to time.Time) *notify.Digest {
 		d.Storages = append(d.Storages, ds)
 	}
 	return d
+}
+
+// weekDrills sums the restore drills that ran in [from, to), per drill.
+func (c *Checker) weekDrills(from, to time.Time) []notify.DigestDrill {
+	byKey := map[string]*notify.DigestDrill{}
+	const page = 500
+	for off := 0; ; off += page {
+		list, _, err := c.Store.ListDrillRuns(store.DrillRunFilter{Limit: page, Offset: off}) // newest first
+		if err != nil || len(list) == 0 {
+			break
+		}
+		older := false
+		for _, x := range list {
+			if x.StartedAt.Before(from) {
+				older = true
+				continue
+			}
+			if !x.StartedAt.Before(to) || (x.Status != store.DrillPassed && x.Status != store.DrillFailed) {
+				continue
+			}
+			key := x.DrillName + "\x00" + x.JobName
+			r := byKey[key]
+			if r == nil { // the newest run of this drill
+				r = &notify.DigestDrill{Name: x.DrillName, Job: x.JobName, LastStatus: x.Status, RTO: time.Duration(x.RestoreMs) * time.Millisecond}
+				if x.Status == store.DrillFailed {
+					r.LastError = x.Error
+				}
+				byKey[key] = r
+			}
+			if x.Status == store.DrillPassed {
+				r.Passed++
+			} else {
+				r.Failed++
+			}
+		}
+		if older || len(list) < page {
+			break
+		}
+	}
+	out := make([]notify.DigestDrill, 0, len(byKey))
+	for _, r := range byKey {
+		out = append(out, *r)
+	}
+	sort.Slice(out, func(a, b int) bool { return strings.ToLower(out[a].Name) < strings.ToLower(out[b].Name) })
+	return out
 }
 
 // counted: the backup was written (retention may have deleted it since).

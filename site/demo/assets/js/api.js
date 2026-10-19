@@ -159,7 +159,7 @@ function storageView(s, withConfig) {
 }
 function agentView(a) {
   const { live, ...agent } = a;
-  const status = live.online ? { online: true, since: live.since, last_seen: iso(now() - 8e3), remote_addr: live.remote_addr, version: agent.version, hostname: agent.hostname, os: agent.os, allow: live.allow, streams: live.streams }
+  const status = live.online ? { online: true, since: live.since, last_seen: iso(now() - 8e3), remote_addr: live.remote_addr, version: agent.version, hostname: agent.hostname, os: agent.os, allow: live.allow, streams: live.streams, caps: live.caps }
     : { online: false, since: '0001-01-01T00:00:00Z', last_seen: '0001-01-01T00:00:00Z', remote_addr: '', version: '', hostname: '', os: '', allow: null, streams: 0 };
   return { agent, status, servers: db.servers.filter((s) => s.agent_id === a.id).map((s) => s.name) };
 }
@@ -189,7 +189,7 @@ function serverInfo(s) {
     support: [
       { method: 'mysqldump', ok: true, message: flavor === 'mariadb' ? 'mariadb-dump from 11.4.4-MariaDB' : 'mysqldump  Ver 8.0.39 for Linux on x86_64' },
       { method: 'mydumper', ok: true, message: 'mydumper v0.16.9-1, built against MySQL 8.0.39' },
-      tunneled ? { method: 'physical', ok: false, message: 'Not through an agent or WireGuard: physical backups copy the datadir, so DumpCat must be installed on the database host itself' }
+      tunneled ? physicalThrough(s, flavor)
         : { method: 'physical', ok: true, message: flavor === 'mariadb' ? 'mariadb-backup based on MariaDB server 11.4.4' : 'xtrabackup version 8.0.35-31 based on MySQL server 8.0.35' },
     ],
   };
@@ -647,13 +647,27 @@ route('GET', '/dashboard', () => {
 });
 route('GET', '/activity', () => taskList());
 
+// physical backups of a tunneled server: WireGuard never, an agent when it allows them (like internal/api/servers.go)
+function physicalThrough(s, flavor) {
+  const m = { method: 'physical', ok: false };
+  if (s.wg_peer_id) return { ...m, message: 'Not through WireGuard: physical backups copy the datadir, so the backup tool must run on the database host — connect through an agent started with --allow-physical, or install DumpCat there' };
+  const a = db.agents.find((x) => x.id === s.agent_id);
+  const tool = flavor === 'mariadb' ? 'mariabackup' : 'xtrabackup';
+  const p = a.live.online && a.live.caps && a.live.caps.physical;
+  if (!a.live.online) return { ...m, message: `Agent ${a.name}: the agent is offline` };
+  if (!p) return { ...m, message: `Agent ${a.name}: the agent runs DumpCat ${a.version}, which cannot run physical backups: update it` };
+  if (!p.allowed) return { ...m, message: `Agent ${a.name}: the agent does not allow physical backups: start it with --allow-physical` };
+  const t = p.tools.find((x) => x.name === tool);
+  if (!t || !t.found) return { ...m, message: `Agent ${a.name}: ${tool} is not installed on ${a.hostname}${t && t.hint ? ` (install: ${t.hint})` : ''}` };
+  return { ...m, ok: true, message: `${t.version} on ${a.hostname} (agent ${a.name})` };
+}
 // jobs
 route('GET', '/jobs', () => db.jobs.map(jobView));
 route('GET', '/jobs/:id', ({ p }) => jobView(find(db.jobs, p.id, 'job')));
 function applyJob(j, b) {
   if (!String(b.name || '').trim()) fail('job name is required');
   const sv = db.servers.find((s) => s.id === +b.server_id) || fail('server does not exist');
-  if (b.method === 'physical' && (sv.agent_id || sv.wg_peer_id)) fail(`server ${sv.name} is reached through an agent or WireGuard: physical backups need DumpCat installed on the database host — use mysqldump or mydumper`);
+  if (b.method === 'physical' && sv.wg_peer_id) fail(`server ${sv.name} is reached through WireGuard: physical backups need the backup tool on the database host — connect through an agent started with --allow-physical, or use mysqldump or mydumper`);
   if (!b.targets || !b.targets.length) fail('select at least one target storage');
   for (const e of [b.schedule, b.incr_schedule]) if (e && e.trim()) cronNext(e, 1);
   const mode = b.options && ['off', 'one', 'all'].includes(b.options.verify_mode) ? b.options.verify_mode : (b.options && b.options.verify_after ? 'all' : (j.id ? 'off' : 'one'));

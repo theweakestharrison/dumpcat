@@ -1,3 +1,5 @@
 * text=auto eol=lf
 *.ps1 text eol=crlf
 *.png binary
+*.cmd text eol=crlf
+deploy/START-HERE-windows.txt text eol=crlf

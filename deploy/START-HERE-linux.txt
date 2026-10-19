@@ -1,0 +1,54 @@
+DumpCat: backup and point-in-time recovery for MySQL and MariaDB
+================================================================
+
+INSTALL
+  On the Linux server that will run DumpCat, in this folder:
+
+      sudo ./install.sh
+
+  The installer sets up a service that starts with the server, installs the backup tools that match your
+  database, and prints the address of the web UI and a one-time setup token.
+
+OPEN THE WEB UI
+  In a browser: http://<server-ip>:6369
+  Create the admin account with the setup token. Show the token again: sudo dumpcat setup-token
+  Page does not open? Allow port 6369 in the firewall (for example: sudo ufw allow 6369/tcp) and, on a cloud
+  server, in the provider's security group.
+
+TRY IT WITHOUT INSTALLING
+      ./dumpcat-linux-amd64 serve -data-dir ./data        (ARM servers: ./dumpcat-linux-arm64)
+  then open http://<server-ip>:6369. The setup token is printed in the output. Stop it with Ctrl+C.
+
+MORE
+  Step-by-step guide: https://dumpcat.cc/install/
+  Full manual:        docs/manual.md
+  Uninstall:          sudo ./install.sh --uninstall
+  Help:               fat@dumpcat.cc
+
+
+TIẾNG VIỆT
+==========
+
+CÀI ĐẶT
+  Trên server Linux sẽ chạy DumpCat, trong thư mục này:
+
+      sudo ./install.sh
+
+  Bộ cài tạo service tự chạy cùng server, cài các công cụ backup khớp với database của bạn, rồi in ra địa chỉ
+  giao diện web và một mã thiết lập dùng một lần.
+
+MỞ GIAO DIỆN WEB
+  Trên trình duyệt: http://<ip-server>:6369
+  Tạo tài khoản admin bằng mã thiết lập. Xem lại mã: sudo dumpcat setup-token
+  Không mở được trang? Mở port 6369 trên firewall (ví dụ: sudo ufw allow 6369/tcp) và, với server cloud, trong
+  security group của nhà cung cấp.
+
+CHẠY THỬ KHÔNG CẦN CÀI
+      ./dumpcat-linux-amd64 serve -data-dir ./data        (server ARM: ./dumpcat-linux-arm64)
+  rồi mở http://<ip-server>:6369. Mã thiết lập in ngay trên màn hình. Dừng bằng Ctrl+C.
+
+THÊM
+  Hướng dẫn từng bước: https://dumpcat.cc/vi/install/
+  Hướng dẫn đầy đủ:    docs/manual.vi.md
+  Gỡ cài đặt:          sudo ./install.sh --uninstall
+  Hỗ trợ:              fat@dumpcat.cc

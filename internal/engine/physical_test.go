@@ -116,3 +116,44 @@ func TestPhysicalRemote(t *testing.T) {
 		t.Fatalf("tool failure: %v", err)
 	}
 }
+
+// --extra-lsndir holds the checkpoints and the info file, not *_binlog_info:
+// the binlog coordinates that point-in-time recovery starts from come from the
+// info file's binlog_pos line.
+func TestPhysicalResultInfoBinlogPos(t *testing.T) {
+	env := &Env{Ctx: context.Background(), Log: tasklog.Discard()}
+	spec := &BackupSpec{}
+	cp := "backup_type = full-backuped\nfrom_lsn = 0\nto_lsn = 999\nlast_lsn = 999\n"
+	cases := []struct {
+		name, info, file, gtid string
+		pos                    int64
+	}{
+		{"mariabackup", "tool_name = mariabackup\nbinlog_pos = filename 'mysql-bin.000007', position '1234', GTID of the last change '0-1-55'\n",
+			"mysql-bin.000007", "0-1-55", 1234},
+		{"xtrabackup, GTID set over two lines", "tool_name = xtrabackup\nbinlog_pos = filename 'binlog.000002', position '157', GTID of the last change '3e11fa47-71ca-11e1-9e33-c80aa9429562:1-5,\n8f2a6c1e-0b8e-11ee-b8a4-0242ac120002:1-3'\ninnodb_version = 8.0.36\n",
+			"binlog.000002", "3e11fa47-71ca-11e1-9e33-c80aa9429562:1-5,8f2a6c1e-0b8e-11ee-b8a4-0242ac120002:1-3", 157},
+		{"no GTID", "binlog_pos = filename 'binlog.000009', position '4'\n", "binlog.000009", "", 4},
+	}
+	for _, c := range cases {
+		name := "mariadb_backup_info"
+		if strings.HasPrefix(c.name, "xtrabackup") {
+			name = "xtrabackup_info"
+		}
+		res, err := physicalResult(env, spec, "test", map[string]string{"xtrabackup_checkpoints": cp, name: c.info})
+		if err != nil {
+			t.Fatal(c.name, err)
+		}
+		if res.Meta["binlog_file"] != c.file || res.Meta["binlog_pos"] != c.pos {
+			t.Errorf("%s: binlog %v %v", c.name, res.Meta["binlog_file"], res.Meta["binlog_pos"])
+		}
+		if g, _ := res.Meta["gtid"].(string); g != c.gtid {
+			t.Errorf("%s: gtid %q, want %q", c.name, g, c.gtid)
+		}
+	}
+
+	// binlogs off: no binlog_pos line, nothing recorded
+	res, err := physicalResult(env, spec, "test", map[string]string{"xtrabackup_checkpoints": cp, "xtrabackup_info": "tool_name = xtrabackup\n"})
+	if err != nil || res.Meta["binlog_file"] != nil {
+		t.Fatalf("no binlog: %v %v", err, res.Meta)
+	}
+}

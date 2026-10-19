@@ -3,7 +3,7 @@
 The section of the version being built becomes the release notes shown in the
 web UI and by `dumpcat update` (see `build.sh`). Newest version first.
 
-## Unreleased
+## 1.4.0
 
 - Physical backups through an agent: an agent started with `--allow-physical` (`install.sh --agent --allow-physical`,
   `install.ps1 -AllowPhysical`, `DUMPCAT_AGENT_ALLOW_PHYSICAL=1`) runs MariaBackup / XtraBackup on the database host
@@ -36,6 +36,8 @@ web UI and by `dumpcat update` (see `build.sh`). Newest version first.
   catalog and in `manifest.json`; the backup page shows the rows per database.
 - Fix: a restore under a new database name no longer creates triggers, routines or events in the original database
   when their definitions name it (`CREATE TRIGGER shop.t ... ON shop.items`); such names now point at the new database.
+- Fix: physical backups now record the binlog file, position and GTID they are consistent with (read from the backup
+  tool's info file), so point-in-time recovery can start from a physical backup.
 - Freshness alerts: every minute DumpCat checks each job against its own schedule. When the newest successful backup
   is older than 1.5 × the time between two scheduled runs plus a grace period (60 minutes, **Settings → Monitoring**),
   or than the job's new **Max age of the newest backup**, an alert goes once to the channels that send failures, and a
@@ -49,13 +51,19 @@ web UI and by `dumpcat update` (see `build.sh`). Newest version first.
 - Prometheus metrics at `GET /metrics`, off by default: last success, status, duration and size per job, integrity
   checks, freshness, binlog lag, storage use, agents and WireGuard peers online, version. Access with a bearer token
   (shown once, stored hashed) or only from the DumpCat host (not through a reverse proxy).
-- Weekly digest by email, opt-in per email channel: backups per job, sizes and growth, integrity checks, overdue jobs
-  and storage use over the last 7 days, in the design of the other emails with a plain-text version. Day and hour in
-  Settings, with **Preview**; **Send digest now** on the channel.
+- Weekly digest by email, opt-in per email channel: backups per job, sizes and growth, integrity checks, overdue jobs,
+  restore drill results and storage use over the last 7 days, in the design of the other emails with a plain-text
+  version. Day and hour in Settings, with **Preview**; **Send digest now** on the channel.
 - Webhooks: new `kind` values `stale` and `binlog_lag`, new `status` `recovered`.
 - API: `POST /api/settings/metrics-token`, `POST /api/notifications/digest`, `GET /api/digest/preview`; settings
   `freshness_alerts`, `stale_grace_minutes`, `binlog_lag_minutes`, `metrics_access`, `digest_weekday`, `digest_hour`;
   job option `max_age_hours`. `PUT /api/settings` keeps the fields a request leaves out.
+- Install with one command: `curl -fsSL https://dumpcat.cc/install.sh | sudo sh` on Linux and, in PowerShell as
+  Administrator, `irm https://dumpcat.cc/install.ps1 | iex` on Windows. Both download the latest release, check its
+  SHA-256 against `SHA256SUMS` and run the package's installer (options after `sh -s --`, e.g. `--agent ...`).
+- The Windows package has **Install DumpCat** to double-click: it asks for administrator rights, installs the service
+  and opens the web UI. Every package has a `START-HERE.txt` (English and Vietnamese) with the steps, and dumpcat.cc has
+  a step-by-step guide for beginners at [dumpcat.cc/install](https://dumpcat.cc/install/).
 
 ## 1.3.1
 

@@ -1,0 +1,56 @@
+﻿DumpCat: backup and point-in-time recovery for MySQL and MariaDB
+================================================================
+
+INSTALL
+  Double-click "Install DumpCat" in this folder and answer Yes when Windows asks for administrator rights.
+  (Unzip the folder first: right-click the .zip > Extract All. It does not work from inside the .zip.)
+
+  DumpCat is installed as a Windows service that starts with Windows. The window shows the address of the
+  web UI and a one-time setup token, and your browser opens on http://localhost:6369.
+
+OPEN THE WEB UI
+  On this machine: http://localhost:6369   From another machine: http://<this-machine-ip>:6369
+  Create the admin account with the setup token. Show the token again, in PowerShell as Administrator:
+      & "C:\Program Files\DumpCat\dumpcat.exe" setup-token -config "C:\ProgramData\DumpCat\dumpcat.env"
+  Other machines cannot connect? In PowerShell as Administrator, in this folder:
+      powershell -ExecutionPolicy Bypass -File .\install.ps1 -OpenFirewall
+
+TRY IT WITHOUT INSTALLING
+  In this folder, in PowerShell:   .\dumpcat.exe serve -data-dir .\data
+  then open http://localhost:6369. The setup token is printed in the window. Stop it with Ctrl+C.
+
+MORE
+  Step-by-step guide: https://dumpcat.cc/install/
+  Full manual:        docs\manual.md
+  Uninstall:          in PowerShell as Administrator, in this folder:
+                      powershell -ExecutionPolicy Bypass -File .\install.ps1 -Uninstall
+  Help:               fat@dumpcat.cc
+
+
+TIẾNG VIỆT
+==========
+
+CÀI ĐẶT
+  Bấm đúp "Install DumpCat" trong thư mục này, chọn Yes khi Windows hỏi quyền quản trị.
+  (Giải nén trước: chuột phải vào file .zip > Extract All. Chạy thẳng trong file .zip sẽ không được.)
+
+  DumpCat được cài thành Windows service, tự chạy khi bật máy. Cửa sổ cài đặt hiện địa chỉ giao diện web và
+  một mã thiết lập dùng một lần, rồi trình duyệt tự mở http://localhost:6369.
+
+MỞ GIAO DIỆN WEB
+  Trên máy này: http://localhost:6369   Từ máy khác: http://<ip-máy-này>:6369
+  Tạo tài khoản admin bằng mã thiết lập. Xem lại mã, trong PowerShell chạy bằng quyền Administrator:
+      & "C:\Program Files\DumpCat\dumpcat.exe" setup-token -config "C:\ProgramData\DumpCat\dumpcat.env"
+  Máy khác không vào được? Trong PowerShell chạy bằng quyền Administrator, tại thư mục này:
+      powershell -ExecutionPolicy Bypass -File .\install.ps1 -OpenFirewall
+
+CHẠY THỬ KHÔNG CẦN CÀI
+  Trong thư mục này, mở PowerShell:   .\dumpcat.exe serve -data-dir .\data
+  rồi mở http://localhost:6369. Mã thiết lập in ngay trong cửa sổ. Dừng bằng Ctrl+C.
+
+THÊM
+  Hướng dẫn từng bước: https://dumpcat.cc/vi/install/
+  Hướng dẫn đầy đủ:    docs\manual.vi.md
+  Gỡ cài đặt:          trong PowerShell chạy bằng quyền Administrator, tại thư mục này:
+                       powershell -ExecutionPolicy Bypass -File .\install.ps1 -Uninstall
+  Hỗ trợ:              fat@dumpcat.cc

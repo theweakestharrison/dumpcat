@@ -344,6 +344,21 @@ func TestDigestSchedule(t *testing.T) {
 	}
 	e.backup(t, shop, at("2026-10-05 02:00"), store.StatusSuccess, 900<<20)
 	e.backup(t, shop, at("2026-10-18 14:00"), store.StatusFailed, 0)
+	drill := func(start time.Time, status, msg string, ms int64) {
+		x := &store.DrillRun{DrillName: "shop drill", JobID: &shop.ID, JobName: shop.Name, Status: store.StatusRunning, StartedAt: start}
+		if err := e.st.CreateDrillRun(x); err != nil {
+			t.Fatal(err)
+		}
+		fin := start.Add(5 * time.Minute)
+		x.Status, x.Error, x.RestoreMs, x.FinishedAt = status, msg, ms, &fin
+		if err := e.st.UpdateDrillRun(x); err != nil {
+			t.Fatal(err)
+		}
+	}
+	drill(at("2026-10-11 05:00"), store.DrillFailed, "the week before", 1000)
+	drill(at("2026-10-14 05:00"), store.DrillPassed, "", 200000)
+	drill(at("2026-10-18 05:00"), store.DrillFailed, "shop.orders: rows differ", 250000)
+	drill(at("2026-10-19 07:00"), store.StatusRunning, "", 0)
 	// the first check only remembers the current slot
 	e.check("2026-10-17 09:00")
 	if len(e.sent) != 0 {
@@ -367,6 +382,11 @@ func TestDigestSchedule(t *testing.T) {
 	}
 	if d.Written != (1013+1014+1015+1016+1017+1018)<<20 || d.PrevWritten != 1012<<20 {
 		t.Fatalf("written: %d, the week before: %d", d.Written, d.PrevWritten)
+	}
+	// restore drills of the week: the newest finished run sets the status, RTO and error
+	want := notify.DigestDrill{Name: "shop drill", Job: "shop-nightly", Passed: 1, Failed: 1, LastStatus: store.DrillFailed, RTO: 250 * time.Second, LastError: "shop.orders: rows differ"}
+	if len(d.Drills) != 1 || d.Drills[0] != want {
+		t.Fatalf("drills: %+v", d.Drills)
 	}
 }
 

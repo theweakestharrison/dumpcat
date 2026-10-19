@@ -152,34 +152,33 @@ Muốn xem trước? **[Bản demo](https://dumpcat.cc/demo/)** chạy giao di�
 
 ### 1. Cài đặt
 
-Phiên bản mới nhất, ghi chú phát hành và mã kiểm tra có trên **[dumpcat.cc](https://dumpcat.cc/#download)**. Các gói cài
-đặt nằm ở `https://downloads.dumpcat.cc/<phiên bản>/`.
+Mới làm quen với server? **[Hướng dẫn cài từng bước](https://dumpcat.cc/vi/install/)** đi qua mọi thứ, từ cách mở cửa
+sổ dòng lệnh tới bản backup đầu tiên.
 
-**Linux**, với quyền root:
+**Linux**: một lệnh trên server, bằng user có `sudo`:
 
 ```bash
-curl -fLO https://downloads.dumpcat.cc/1.3.1/dumpcat-1.3.1-linux.tar.gz
-tar xzf dumpcat-1.3.1-linux.tar.gz
-cd dumpcat-1.3.1-linux
-sudo ./install.sh
+curl -fsSL https://dumpcat.cc/install.sh | sudo sh
 ```
 
-Bộ cài đặt chép binary vào `/opt/dumpcat`, tạo service systemd `dumpcat`, và cài rclone, MySQL / MariaDB client cùng các
-công cụ backup khớp với database server trên máy.
-Tùy chọn: `--port 9090`, `--listen 127.0.0.1`, `--tls-auto`, `--no-deps`, `--uninstall [--purge]`.
-Trên server database không cho kết nối vào, cùng gói này chỉ cài [agent](docs/manual.vi.md#37-server-database-không-cho-kết-nối-vào-agent):
-`sudo ./install.sh --agent --server https://backup.example.com --key dca_…` (trang **Agents** hiện sẵn lệnh kèm khóa).
+Lệnh này tải gói mới nhất từ `https://downloads.dumpcat.cc`, kiểm tra SHA-256 theo `SHA256SUMS` của bản phát hành rồi
+chạy `install.sh` trong gói. Bộ cài đặt chép binary vào `/opt/dumpcat`, tạo service systemd `dumpcat`, và cài rclone,
+MySQL / MariaDB client cùng các công cụ backup khớp với database server trên máy. Tùy chọn đặt sau `sh -s --`, ví dụ
+`curl -fsSL https://dumpcat.cc/install.sh | sudo sh -s -- --port 9090`: `--port 9090`, `--listen 127.0.0.1`, `--tls-auto`,
+`--no-deps`, `--uninstall [--purge]`.
+Trên server database không cho kết nối vào, cùng bộ cài này chỉ cài [agent](docs/manual.vi.md#37-server-database-không-cho-kết-nối-vào-agent):
+`--agent --server https://backup.example.com --key dca_…` (trang **Agents** hiện sẵn lệnh kèm khóa).
 
-**Windows**, trong PowerShell chạy bằng quyền Administrator:
+**Windows**: tải file `.zip` trên [dumpcat.cc](https://dumpcat.cc/#download), giải nén (chuột phải, **Extract All**) rồi bấm
+đúp **Install DumpCat**; Windows sẽ hỏi quyền quản trị. Hoặc, trong PowerShell chạy bằng quyền Administrator:
 
 ```powershell
-Invoke-WebRequest https://downloads.dumpcat.cc/1.3.1/dumpcat-1.3.1-windows-amd64.zip -OutFile dumpcat-1.3.1-windows-amd64.zip
-Expand-Archive dumpcat-1.3.1-windows-amd64.zip -DestinationPath .
-cd dumpcat-1.3.1-windows-amd64
-powershell -ExecutionPolicy Bypass -File .\install.ps1
+irm https://dumpcat.cc/install.ps1 | iex
 ```
 
-Kiểm tra file tải về bằng [SHA256SUMS](https://downloads.dumpcat.cc/1.3.1/SHA256SUMS) (`sha256sum -c --ignore-missing SHA256SUMS`,
+**Tự tải gói về**: phiên bản mới nhất, ghi chú phát hành và mã kiểm tra có trên [dumpcat.cc](https://dumpcat.cc/#download),
+các gói nằm ở `https://downloads.dumpcat.cc/<phiên bản>/`. Gói nào cũng có `START-HERE.txt`; trên Linux, giải nén rồi chạy
+`sudo ./install.sh`. Kiểm tra file tải về bằng `SHA256SUMS` của bản phát hành (`sha256sum -c --ignore-missing SHA256SUMS`,
 hoặc `Get-FileHash` trên Windows). Muốn tự build gói cài đặt, xem [Build từ mã nguồn](#build-từ-mã-nguồn).
 
 ### 2. Chạy bản backup đầu tiên
