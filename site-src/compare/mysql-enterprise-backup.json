@@ -2,7 +2,7 @@
   "slug": "mysql-enterprise-backup",
   "name": "MySQL Enterprise Backup",
   "order": 38,
-  "checked": "2026-10-18",
+  "checked": "2026-10-19",
   "kind": {"en": "Oracle's commercial command-line backup tool", "vi": "Công cụ backup dòng lệnh thương mại của Oracle"},
   "summary": {
     "en": "Oracle's commercial physical backup tool, part of MySQL Enterprise Edition.",
@@ -11,8 +11,31 @@
   "hub": {
     "open_source": false,
     "self_hosted": {"en": "Yes (CLI)", "vi": "Có (dòng lệnh)"},
-    "pitr": {"en": "Yes, manual steps", "vi": "Có, thao tác thủ công"},
+    "pitr": {"en": "Partial: manual binlog replay", "vi": "Một phần: phát lại binlog thủ công"},
     "price": {"en": "MySQL Enterprise Edition subscription", "vi": "Theo gói MySQL Enterprise Edition"}
+  },
+  "grid": {
+    "open_source": ["no", {"en": "Proprietary (Oracle)", "vi": "Mã nguồn đóng (Oracle)"}],
+    "free": ["no", {"en": "Enterprise subscription", "vi": "Cần thuê bao Enterprise"}],
+    "self_hosted": ["yes"],
+    "linux": ["yes"],
+    "windows": ["yes"],
+    "web_ui": ["no", {"en": "Command-line tool", "vi": "Công cụ dòng lệnh"}],
+    "mariadb": ["no", {"en": "Oracle MySQL only", "vi": "Chỉ Oracle MySQL"}],
+    "logical": ["no", {"en": "Physical only", "vi": "Chỉ backup vật lý"}],
+    "parallel": ["no", {"en": "Physical only (multi-threaded)", "vi": "Chỉ vật lý (đa luồng)"}],
+    "physical": ["yes"],
+    "incremental": ["yes"],
+    "pitr": ["partial", {"en": "Manual mysqlbinlog replay", "vi": "Replay mysqlbinlog bằng tay"}],
+    "restore_ui": ["yes", {"en": "copy-back-and-apply-log", "vi": "copy-back-and-apply-log"}],
+    "verify": ["partial", {"en": "Manual validate command", "vi": "Lệnh validate chạy thủ công"}],
+    "cloud": ["yes", {"en": "S3, OCI, GCS, Swift", "vi": "S3, OCI, GCS, Swift"}],
+    "multi_storage": ["no", {"en": "One target per run", "vi": "Một đích mỗi lần chạy"}],
+    "encryption": ["yes", {"en": "AES-256", "vi": "AES-256"}],
+    "direct": ["yes"],
+    "scheduler": ["no", {"en": "Use cron / Task Scheduler", "vi": "Dùng cron / Task Scheduler"}],
+    "retention": ["no", {"en": "None built in", "vi": "Không có sẵn"}],
+    "alerts": ["no", {"en": "None built in", "vi": "Không có sẵn"}]
   },
   "en": {
     "title": "MySQL Enterprise Backup alternative: DumpCat, free and open source",
@@ -24,11 +47,11 @@
       "platforms": "Linux / Unix and Windows.",
       "databases": "Oracle MySQL only, matched to the server version (MEB 8.4.11 supports server 8.4.3 and later). Not MariaDB.",
       "methods": "Physical: hot for InnoDB, warm (read-only) for other tables. Full, differential, incremental and partial backups; table-level restore; redo log archiving.",
-      "pitr": "Yes, using the binlogs in the backup; the restore steps are manual.",
+      "pitr": "Partial: the backups include the binlogs, but replaying them up to the chosen position is a manual `mysqlbinlog` procedure.",
       "storage": "Local disk, Oracle Cloud (OCI), S3-compatible, OpenStack Swift, Google Cloud, or tape through SBT.",
       "encryption": "AES-256 (CBC) in MEB's own format; lz4, zlib or lzma compression for InnoDB.",
-      "schedule": "No built-in scheduler; the docs suggest cron.",
-      "restore": "Command line, with a `validate` command to check backup integrity.",
+      "schedule": "No built-in scheduler; the docs suggest cron on Linux and Task Scheduler on Windows.",
+      "restore": "Command line. A single `copy-back-and-apply-log` command restores a full backup; incrementals are applied in further steps. A separate `validate` command checks page checksums.",
       "datapath": "Wherever you configure it to write.",
       "alerts": "None built in."
     },
@@ -55,11 +78,11 @@
       "platforms": "Linux / Unix và Windows.",
       "databases": "Chỉ Oracle MySQL, khớp theo phiên bản server (MEB 8.4.11 hỗ trợ server từ 8.4.3). Không hỗ trợ MariaDB.",
       "methods": "Vật lý: nóng với InnoDB, ấm (chỉ đọc) với bảng khác. Backup full, differential, incremental và một phần; khôi phục từng bảng; lưu redo log.",
-      "pitr": "Có, dùng binlog trong bản backup; các bước khôi phục làm thủ công.",
+      "pitr": "Một phần: bản backup có kèm binlog, nhưng việc phát lại tới vị trí mong muốn phải làm thủ công bằng `mysqlbinlog`.",
       "storage": "Ổ local, Oracle Cloud (OCI), tương thích S3, OpenStack Swift, Google Cloud, hoặc băng từ qua SBT.",
       "encryption": "AES-256 (CBC) theo định dạng riêng của MEB; nén lz4, zlib hoặc lzma cho InnoDB.",
-      "schedule": "Không có bộ lập lịch; tài liệu khuyên dùng cron.",
-      "restore": "Dòng lệnh, có lệnh `validate` để kiểm tra bản backup.",
+      "schedule": "Không có bộ lập lịch; tài liệu khuyên dùng cron trên Linux và Task Scheduler trên Windows.",
+      "restore": "Dòng lệnh. Một lệnh `copy-back-and-apply-log` khôi phục bản backup full; các bản incremental phải áp dụng thêm ở các bước sau. Lệnh `validate` riêng dùng để kiểm tra checksum của các trang dữ liệu.",
       "datapath": "Ghi tới nơi bạn cấu hình.",
       "alerts": "Không có sẵn."
     },
@@ -81,6 +104,9 @@
     {"label": "MySQL Enterprise Backup: compatibility with server versions", "url": "https://dev.mysql.com/doc/mysql-enterprise-backup/8.4/en/bugs.compatibility.html"},
     {"label": "MySQL Enterprise Backup: point-in-time recovery", "url": "https://dev.mysql.com/doc/mysql-enterprise-backup/8.4/en/advanced.point.html"},
     {"label": "MySQL Enterprise Backup: encryption", "url": "https://dev.mysql.com/doc/mysql-enterprise-backup/8.4/en/meb-encryption.html"},
-    {"label": "Oracle Store: MySQL", "url": "https://shop.oracle.com/apex/product?p1=MySQL"}
+    {"label": "Oracle Store: MySQL", "url": "https://shop.oracle.com/apex/product?p1=MySQL"},
+    {"label": "MySQL Enterprise Backup: restoring a backup", "url": "https://dev.mysql.com/doc/mysql-enterprise-backup/8.4/en/mysqlbackup.restore.html"},
+    {"label": "MySQL Enterprise Backup: validation operations", "url": "https://dev.mysql.com/doc/mysql-enterprise-backup/8.4/en/backup-commands-validate.html"},
+    {"label": "MySQL Enterprise Backup: making scheduled backups", "url": "https://dev.mysql.com/doc/mysql-enterprise-backup/8.4/en/meb-scheduled-backups.html"}
   ]
 }

@@ -26,6 +26,29 @@
       "vi": "Miễn phí (GPL)"
     }
   },
+  "grid": {
+    "open_source": ["yes", {"en": "GPL", "vi": "GPL"}],
+    "free": ["yes"],
+    "self_hosted": ["yes"],
+    "linux": ["yes"],
+    "windows": ["no", {"en": "Linux only", "vi": "Chỉ Linux"}],
+    "web_ui": ["no", {"en": "Command-line tool", "vi": "Công cụ dòng lệnh"}],
+    "mariadb": ["no", {"en": "Use MariaBackup instead", "vi": "Dùng MariaBackup thay thế"}],
+    "logical": ["no", {"en": "Physical only", "vi": "Chỉ backup vật lý"}],
+    "parallel": ["no", {"en": "Physical only (--parallel)", "vi": "Chỉ vật lý (--parallel)"}],
+    "physical": ["yes"],
+    "incremental": ["yes"],
+    "pitr": ["partial", {"en": "Manual; binlogs not archived", "vi": "Thủ công; không lưu trữ binlog"}],
+    "restore_ui": ["partial", {"en": "Manual prepare + copy-back", "vi": "Tự chạy prepare + copy-back"}],
+    "verify": ["unknown"],
+    "cloud": ["yes", {"en": "Via xbcloud", "vi": "Qua xbcloud"}],
+    "multi_storage": ["no", {"en": "One target per run", "vi": "Một đích mỗi lần chạy"}],
+    "encryption": ["yes", {"en": "AES-256 (--encrypt)", "vi": "AES-256 (--encrypt)"}],
+    "direct": ["yes"],
+    "scheduler": ["no", {"en": "None built in", "vi": "Không có sẵn"}],
+    "retention": ["no", {"en": "None built in", "vi": "Không có sẵn"}],
+    "alerts": ["no", {"en": "None built in", "vi": "Không có sẵn"}]
+  },
   "en": {
     "title": "Percona XtraBackup with a web UI: scheduling, retention and PITR with DumpCat",
     "description": "Using Percona XtraBackup from cron scripts? DumpCat runs XtraBackup and MariaBackup for you, with schedules, incrementals, retention, encryption, cloud storage, binlog point-in-time recovery and restores from a web UI.",

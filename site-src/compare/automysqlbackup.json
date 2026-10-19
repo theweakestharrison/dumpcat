@@ -2,7 +2,7 @@
   "slug": "automysqlbackup",
   "name": "AutoMySQLBackup",
   "order": 35,
-  "checked": "2026-10-18",
+  "checked": "2026-10-19",
   "kind": {"en": "Bash script run from cron", "vi": "Script bash chạy bằng cron"},
   "summary": {
     "en": "Classic cron script with daily / weekly / monthly rotation; the original project stopped in 2011.",
@@ -14,6 +14,29 @@
     "pitr": {"en": "No", "vi": "Không"},
     "price": {"en": "Free (GPL-2.0+)", "vi": "Miễn phí (GPL-2.0+)"}
   },
+  "grid": {
+    "open_source": ["yes", {"en": "GPL-2.0+", "vi": "GPL-2.0+"}],
+    "free": ["yes"],
+    "self_hosted": ["yes"],
+    "linux": ["yes"],
+    "windows": ["no", {"en": "Linux / Unix only", "vi": "Chỉ Linux / Unix"}],
+    "web_ui": ["no", {"en": "Bash script, no UI", "vi": "Script bash, không có UI"}],
+    "mariadb": ["yes"],
+    "logical": ["yes"],
+    "parallel": ["no", {"en": "mysqldump only (single-threaded)", "vi": "Chỉ mysqldump (đơn luồng)"}],
+    "physical": ["no", {"en": "Logical dumps only (mysqldump)", "vi": "Chỉ dump logic (mysqldump)"}],
+    "incremental": ["partial", {"en": "Diff-based differentials (v3)", "vi": "Differential dựa trên diff (v3)"}],
+    "pitr": ["no", {"en": "Dumps only, no binlogs", "vi": "Chỉ dump, không có binlog"}],
+    "restore_ui": ["no", {"en": "Manual (zcat | mysql)", "vi": "Thủ công (zcat | mysql)"}],
+    "verify": ["no", {"en": "Not in the script", "vi": "Script không có"}],
+    "cloud": ["no", {"en": "Local directory only", "vi": "Chỉ thư mục local"}],
+    "multi_storage": ["no", {"en": "Local directory only", "vi": "Chỉ thư mục local"}],
+    "encryption": ["yes", {"en": "OpenSSL (not in Debian pkg)", "vi": "OpenSSL (gói Debian không có)"}],
+    "direct": ["yes", {"en": "Stays on the server", "vi": "Nằm lại trên server"}],
+    "scheduler": ["partial", {"en": "Via cron (packaged)", "vi": "Qua cron (có sẵn trong gói)"}],
+    "retention": ["yes", {"en": "Daily / weekly / monthly", "vi": "Ngày / tuần / tháng"}],
+    "alerts": ["no", {"en": "Email only", "vi": "Chỉ email"}]
+  },
   "en": {
     "title": "AutoMySQLBackup alternative: DumpCat, a maintained MySQL backup tool with a web UI",
     "description": "Moving on from AutoMySQLBackup? Compare the classic cron script with DumpCat, an open-source MySQL and MariaDB backup manager with remote storage, point-in-time recovery and restores from a web UI. October 2026.",
@@ -23,11 +46,11 @@
       "runs": "A bash script started by cron.",
       "platforms": "Linux and Unix.",
       "databases": "MySQL and MariaDB through the `mysqldump` client installed on the machine.",
-      "methods": "`mysqldump`, with `--single-transaction` optional. The sixhop fork adds diff-based differential backups.",
+      "methods": "`mysqldump`, with `--single-transaction` optional. Version 3.0 added diff-based differential backups against a weekly master backup; the sixhop fork keeps them.",
       "pitr": "No.",
       "storage": "A local directory only.",
-      "encryption": "gzip, bzip2, xz or zstd compression; OpenSSL or GPG encryption in the fork.",
-      "schedule": "Whatever cron runs; daily, weekly and monthly rotation.",
+      "encryption": "gzip, bzip2, xz or zstd compression. OpenSSL encryption since version 2.6.0; the sixhop fork adds GPG. The script in Debian's package (2.6+debian.4) has no encryption.",
+      "schedule": "No scheduler of its own: it runs from cron, and Debian's package installs a daily cron job. Daily, weekly and monthly rotation.",
       "restore": "Manual, for example `zcat backup.sql.gz | mysql`.",
       "datapath": "Stays on the machine; copying it elsewhere is up to you.",
       "alerts": "Email with the log or the backup attached."
@@ -58,11 +81,11 @@
       "runs": "Script bash do cron gọi.",
       "platforms": "Linux và Unix.",
       "databases": "MySQL và MariaDB, qua client `mysqldump` cài trên máy.",
-      "methods": "`mysqldump`, `--single-transaction` là tùy chọn. Bản fork của sixhop thêm backup differential dựa trên diff.",
+      "methods": "`mysqldump`, `--single-transaction` là tùy chọn. Bản 3.0 thêm backup differential dựa trên diff so với bản backup gốc hằng tuần; bản fork của sixhop vẫn giữ tính năng này.",
       "pitr": "Không.",
       "storage": "Chỉ một thư mục local.",
-      "encryption": "Nén gzip, bzip2, xz hoặc zstd; mã hóa OpenSSL hoặc GPG trong bản fork.",
-      "schedule": "Theo lịch cron; xoay vòng theo ngày, tuần và tháng.",
+      "encryption": "Nén gzip, bzip2, xz hoặc zstd. Mã hóa OpenSSL có từ bản 2.6.0; bản fork của sixhop thêm GPG. Script trong gói Debian (2.6+debian.4) không có mã hóa.",
+      "schedule": "Không có bộ lập lịch riêng: script chạy từ cron, và gói Debian cài sẵn một cron job hằng ngày. Xoay vòng theo ngày, tuần và tháng.",
       "restore": "Thủ công, ví dụ `zcat backup.sql.gz | mysql`.",
       "datapath": "Nằm lại trên máy; muốn chép đi đâu thì bạn tự lo.",
       "alerts": "Email kèm log hoặc file backup."
@@ -87,6 +110,9 @@
   "sources": [
     {"label": "AutoMySQLBackup on SourceForge (release feed)", "url": "https://sourceforge.net/projects/automysqlbackup/rss?path=/"},
     {"label": "AutoMySQLBackup in Debian", "url": "https://sources.debian.org/src/automysqlbackup/"},
-    {"label": "AutoMySQLBackup fork by sixhop on GitHub", "url": "https://github.com/sixhop/AutoMySQLBackup"}
+    {"label": "AutoMySQLBackup fork by sixhop on GitHub", "url": "https://github.com/sixhop/AutoMySQLBackup"},
+    {"label": "AutoMySQLBackup changelog (sixhop fork, includes upstream history)", "url": "https://github.com/sixhop/AutoMySQLBackup/blob/master/CHANGELOG"},
+    {"label": "AutoMySQLBackup configuration (sixhop fork)", "url": "https://github.com/sixhop/AutoMySQLBackup/blob/master/automysqlbackup.conf"},
+    {"label": "AutoMySQLBackup in Debian: cron.daily", "url": "https://sources.debian.org/src/automysqlbackup/2.6+debian.4-4/debian/cron.daily/"}
   ]
 }

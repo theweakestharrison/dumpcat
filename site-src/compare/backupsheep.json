@@ -2,7 +2,7 @@
   "slug": "backupsheep",
   "name": "BackupSheep",
   "order": 60,
-  "checked": "2026-10-18",
+  "checked": "2026-10-19",
   "kind": {
     "en": "Self-hosted, open source (GPLv3), Docker",
     "vi": "Tự host, mã nguồn mở (GPLv3), Docker"
@@ -17,14 +17,34 @@
       "en": "Yes (Docker Compose)",
       "vi": "Có (Docker Compose)"
     },
-    "pitr": {
-      "en": "Not documented",
-      "vi": "Chưa có tài liệu"
-    },
+    "pitr": {"en": "Vultr managed DBs only", "vi": "Chỉ DB managed trên Vultr"},
     "price": {
       "en": "Free (GPLv3)",
       "vi": "Miễn phí (GPLv3)"
     }
+  },
+  "grid": {
+    "open_source": ["yes", {"en": "GPLv3", "vi": "GPLv3"}],
+    "free": ["yes"],
+    "self_hosted": ["yes", {"en": "Docker Compose", "vi": "Docker Compose"}],
+    "linux": ["yes", {"en": "Docker Compose", "vi": "Docker Compose"}],
+    "windows": ["partial", {"en": "Docker; Windows undocumented", "vi": "Docker; chưa có tài liệu Windows"}],
+    "web_ui": ["yes"],
+    "mariadb": ["yes"],
+    "logical": ["yes"],
+    "parallel": ["no", {"en": "mysqldump only (single-threaded)", "vi": "Chỉ mysqldump (đơn luồng)"}],
+    "physical": ["no", {"en": "Logical dumps only (mysqldump)", "vi": "Chỉ dump logic (mysqldump)"}],
+    "incremental": ["no", {"en": "Website files only", "vi": "Chỉ cho file website"}],
+    "pitr": ["partial", {"en": "Vultr managed DBs only", "vi": "Chỉ DB managed trên Vultr"}],
+    "restore_ui": ["yes"],
+    "verify": ["partial", {"en": "Exit code, size, upload checks", "vi": "Kiểm tra mã thoát, dung lượng, upload"}],
+    "cloud": ["yes"],
+    "multi_storage": ["yes"],
+    "encryption": ["yes"],
+    "direct": ["yes"],
+    "scheduler": ["yes"],
+    "retention": ["yes", {"en": "Keep last N", "vi": "Giữ N bản gần nhất"}],
+    "alerts": ["yes", {"en": "Slack, Telegram", "vi": "Slack, Telegram"}]
   },
   "en": {
     "title": "BackupSheep vs DumpCat: open-source, self-hosted MySQL backups compared",
@@ -33,11 +53,11 @@
     "values": {
       "price": "Free and open source (GPLv3). Released as a beta.",
       "runs": "Self-hosted with Docker Compose: web app, queue worker, scheduler, PostgreSQL and RabbitMQ. Connects to databases directly or through an SSH tunnel.",
-      "platforms": "Wherever Docker Compose runs.",
+      "platforms": "Wherever Docker Compose runs. The installer is documented for Ubuntu 22.04+ or Debian 12+ with Docker Engine 28 or later; Windows is not mentioned.",
       "databases": "MySQL (bundled 8.4 client), MariaDB, PostgreSQL 14 to 18; also cloud provider snapshots and WordPress sites.",
-      "methods": "Native dumps. Physical backups are not mentioned.",
-      "pitr": "Binlog backups and point-in-time recovery are not mentioned.",
-      "storage": "26 destinations, including local / NFS, S3 with Object Lock, Google Drive, OneDrive, Dropbox and pCloud.",
+      "methods": "Logical dumps: the MySQL engine runs `mysqldump`, checks its exit code and rejects empty dumps. Incremental mode is for website files only. Physical backups are not mentioned.",
+      "pitr": "Binlog backups are not mentioned for self-hosted MySQL or MariaDB. For Vultr Managed Databases it can request Vultr's own point-in-time recovery (MySQL, MariaDB or PostgreSQL) as a new database fork.",
+      "storage": "26 destinations, including local / NFS, S3 with Object Lock, Google Drive, OneDrive, Dropbox and pCloud. Each backup can go to several destinations at once.",
       "encryption": "Backup files are encrypted with installation-bound keys that the installer creates.",
       "schedule": "Daily, weekly, monthly or cron schedules, with keep-last retention.",
       "restore": "One-click restore from the console; every backup is a standalone archive.",
@@ -65,11 +85,11 @@
     "values": {
       "price": "Miễn phí, mã nguồn mở (GPLv3). Đang là bản beta.",
       "runs": "Tự host bằng Docker Compose: ứng dụng web, queue worker, bộ lập lịch, PostgreSQL và RabbitMQ. Kết nối tới database trực tiếp hoặc qua SSH tunnel.",
-      "platforms": "Nơi nào chạy được Docker Compose.",
+      "platforms": "Nơi nào chạy được Docker Compose. Tài liệu hướng dẫn bộ cài cho Ubuntu 22.04+ hoặc Debian 12+ với Docker Engine 28 trở lên; không nhắc tới Windows.",
       "databases": "MySQL (kèm client 8.4), MariaDB, PostgreSQL 14 đến 18; ngoài ra snapshot của nhà cung cấp cloud và website WordPress.",
-      "methods": "Dump gốc của database. Không nhắc tới backup vật lý.",
-      "pitr": "Không nhắc tới backup binlog hay khôi phục theo thời điểm.",
-      "storage": "26 nơi lưu, gồm local / NFS, S3 có Object Lock, Google Drive, OneDrive, Dropbox và pCloud.",
+      "methods": "Dump logic: engine MySQL chạy `mysqldump`, kiểm tra mã thoát và loại bỏ bản dump rỗng. Chế độ incremental chỉ dành cho file website. Không nhắc tới backup vật lý.",
+      "pitr": "Không nhắc tới backup binlog cho MySQL hay MariaDB tự host. Với Vultr Managed Databases, nó có thể yêu cầu tính năng khôi phục theo thời điểm của chính Vultr (MySQL, MariaDB hoặc PostgreSQL) thành một bản fork database mới.",
+      "storage": "26 nơi lưu, gồm local / NFS, S3 có Object Lock, Google Drive, OneDrive, Dropbox và pCloud. Mỗi bản backup có thể gửi tới nhiều nơi lưu cùng lúc.",
       "encryption": "File backup được mã hóa bằng khóa gắn với bản cài, do bộ cài tạo ra.",
       "schedule": "Lịch theo ngày, tuần, tháng hoặc cron, retention giữ N bản gần nhất.",
       "restore": "Khôi phục một cú nhấp trên giao diện; mỗi bản backup là một file độc lập.",
@@ -102,6 +122,8 @@
     {
       "label": "BackupSheep website",
       "url": "https://backupsheep.com/"
-    }
+    },
+    {"label": "BackupSheep docs: backup sources", "url": "https://github.com/bilal414/backupsheep/blob/main/docs/features/backup-sources.md"},
+    {"label": "BackupSheep source: MySQL backup engine", "url": "https://github.com/bilal414/backupsheep/blob/main/apps/_tasks/integration/backup/mysql.py"}
   ]
 }

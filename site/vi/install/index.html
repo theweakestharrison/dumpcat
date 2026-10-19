@@ -1,0 +1,226 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Cài DumpCat từng bước: Linux và Windows</title>
+<meta name="description" content="Cách cài DumpCat, công cụ backup MySQL và MariaDB miễn phí: một lệnh trên server Linux, tải về và bấm đúp trên Windows, rồi tạo bản backup đầu tiên. Viết cho người mới.">
+<link rel="canonical" href="https://dumpcat.cc/vi/install/">
+<link rel="alternate" hreflang="en" href="https://dumpcat.cc/install/">
+<link rel="alternate" hreflang="vi" href="https://dumpcat.cc/vi/install/">
+<link rel="alternate" hreflang="x-default" href="https://dumpcat.cc/install/">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://dumpcat.cc/vi/install/">
+<meta property="og:site_name" content="DumpCat">
+<meta property="og:title" content="Cài DumpCat từng bước: Linux và Windows">
+<meta property="og:description" content="Cách cài DumpCat, công cụ backup MySQL và MariaDB miễn phí: một lệnh trên server Linux, tải về và bấm đúp trên Windows, rồi tạo bản backup đầu tiên. Viết cho người mới.">
+<meta property="og:locale" content="vi_VN">
+<meta property="og:image" content="https://dumpcat.cc/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://dumpcat.cc/og.png">
+<meta name="theme-color" content="#1f5fbf">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=Bricolage+Grotesque:opsz,wdth,wght@12..96,75..100,400..800&family=JetBrains+Mono:wght@400;600&display=swap">
+<link rel="stylesheet" href="/style.css">
+<script type="application/ld+json">{"@context": "https://schema.org", "@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "Trang chủ", "item": "https://dumpcat.cc/"}, {"@type": "ListItem", "position": 2, "name": "Cài đặt", "item": "https://dumpcat.cc/vi/install/"}]}</script>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs><linearGradient id="dc-bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#3a86e8"/><stop offset="1" stop-color="#1c56b0"/></linearGradient><symbol id="dc-logo" viewBox="0 0 64 64"><rect width="64" height="64" rx="15" fill="url(#dc-bg)"/><path d="M47.5 45.5c7.5 0 10.5-5.5 7.8-11.5" fill="none" stroke="#fff" stroke-width="4.2" stroke-linecap="round"/><path d="M15.6 25 18.4 7.6 30.5 17.5z" fill="#fff"/><path d="M48.4 25 45.6 7.6 33.5 17.5z" fill="#fff"/><path d="M19.4 18.6 20.4 12.4 25.6 16.4z" fill="#f9a8c9"/><path d="M44.6 18.6 43.6 12.4 38.4 16.4z" fill="#f9a8c9"/><path d="M15 21v24c0 3.9 7.6 7 17 7s17-3.1 17-7V21z" fill="#fff"/><ellipse cx="32" cy="21" rx="17" ry="7" fill="#d6e6fb"/><path d="M15 38c0 3.9 7.6 7 17 7s17-3.1 17-7" fill="none" stroke="#1c56b0" stroke-opacity=".28" stroke-width="2.4"/><circle cx="25.4" cy="31" r="2.5" fill="#1b2433"/><circle cx="38.6" cy="31" r="2.5" fill="#1b2433"/><path d="M30.1 34.2h3.8L32 36.4z" fill="#f27aa8"/></symbol></defs></svg>
+<header class="hero page-hero">
+  <div class="wrap">
+    <div class="topbar">
+      <a class="brand" href="/"><svg aria-hidden="true"><use href="#dc-logo"/></svg>DumpCat</a>
+      <nav class="nav" aria-label="Site">
+        <a href="/vi/compare/">So sánh</a>
+        <a href="/vi/install/">Cài đặt</a>
+        <a href="/#download">Tải về</a>
+        <a href="https://github.com/theweakestharrison/DumpCat">GitHub</a>
+      </nav>
+      <div class="lang" role="group" aria-label="Language"><a href="/install/" hreflang="en" lang="en">EN</a><a href="/vi/install/" hreflang="vi" lang="vi" aria-current="true">VI</a></div>
+    </div>
+    <div class="page-head">
+      <nav class="crumbs" aria-label="Breadcrumb"><a href="/">Trang chủ</a> <span aria-hidden="true">/</span> <span aria-current="page">Cài đặt</span></nav>
+      <h1>Cài DumpCat từng bước</h1>
+      <p class="lead">Dành cho người mới: không cần rành Linux hay dòng lệnh. Khoảng năm phút từ lúc tải về tới bản backup đầu tiên.</p>
+      <div class="cta"><a class="btn btn-light" href="#linux">Server Linux</a><a class="btn btn-light" href="#windows">Windows</a></div>
+    </div>
+  </div>
+</header>
+
+<main class="guide">
+  <section class="section" aria-labelledby="need-title">
+    <div class="wrap">
+      <h2 id="need-title">Trước khi bắt đầu</h2>
+      <ul class="need">
+        <li><b>Một máy để chạy DumpCat</b><span>Tốt nhất là chính server database, chạy Linux hoặc Windows 64-bit. Máy khác cũng được, miễn là kết nối tới được database.</span></li>
+        <li><b>Quyền quản trị</b><span><code>sudo</code> trên Linux, tài khoản Administrator trên Windows.</span></li>
+        <li><b>Một trình duyệt web</b><span>DumpCat dùng qua trình duyệt: không phải cài gì lên máy tính của bạn.</span></li>
+      </ul>
+      <p class="note">Muốn xem trước? <a href="/demo/">Mở bản demo</a>: giao diện thật với dữ liệu mẫu, chạy ngay trong trình duyệt.</p>
+      <div class="os-pick" role="navigation" aria-label="Chọn hệ điều hành">
+        <a href="#linux"><b>Server Linux</b><span>Ubuntu, Debian, Rocky, Alma, RHEL, Fedora…</span><em>Một lệnh →</em></a>
+        <a href="#windows"><b>Windows</b><span>Windows 10 / 11, Windows Server 2016 trở lên</span><em>Tải về và bấm đúp →</em></a>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="linux" aria-labelledby="linux-title">
+    <div class="wrap narrow">
+      <p class="label">Linux</p>
+      <h2 id="linux-title">Cài trên server Linux</h2>
+      <ol class="gsteps">
+        <li>
+          <h3>Mở cửa sổ dòng lệnh trên server</h3>
+          <p>Trên máy tính của bạn, mở cửa sổ dòng lệnh (Windows: bấm Start, gõ <b>PowerShell</b>; macOS: ứng dụng <b>Terminal</b>) rồi kết nối vào server:</p>
+          <div class="code"><div class="code-bar"><span>Terminal</span><button type="button" class="copy" data-target="g-ssh">Sao chép</button></div><pre><code id="g-ssh">ssh <i>user</i>@<i>ip-server</i></code></pre></div>
+          <p class="hint">Thay <i>user</i> và <i>ip-server</i> bằng tên đăng nhập và địa chỉ mà nhà cung cấp server đưa cho bạn. Lần đầu sẽ có câu hỏi: gõ <b>yes</b>. Nhiều nhà cung cấp còn có nút <b>Console</b> trên trang quản lý, mở cùng cửa sổ dòng lệnh đó ngay trong trình duyệt.</p>
+        </li>
+        <li>
+          <h3>Dán lệnh này rồi bấm Enter</h3>
+          <div class="code"><div class="code-bar"><span>bash</span><button type="button" class="copy" data-target="g-linux">Sao chép</button></div><pre><code id="g-linux">curl -fsSL https://dumpcat.cc/install.sh | sudo sh</code></pre></div>
+          <p class="hint">Nếu được hỏi mật khẩu, gõ mật khẩu của bạn: chữ không hiện ra khi gõ, đó là bình thường. Lệnh này tải DumpCat bản mới nhất, kiểm tra file, cài thành service tự chạy cùng server và cài luôn công cụ backup khớp với database của bạn. Mất khoảng một hai phút.</p>
+        </li>
+        <li>
+          <h3>Ghi lại địa chỉ và mã thiết lập</h3>
+          <p>Cuối cùng, bộ cài in ra dạng như sau:</p>
+          <div class="code term"><pre><span class="c">DumpCat is running:</span> http://203.0.113.10:6369/
+<span class="c">No account yet: open the address above and create the admin account.</span>
+<span class="c">  The setup page asks for this one-time setup token:</span>  K7QF-2MZD-W9TA-H4NB-X3RC-8PLE</pre></div>
+          <p class="hint">Mất mã? Chạy <code>sudo dumpcat setup-token</code> để xem lại.</p>
+        </li>
+        <li>
+          <h3>Mở địa chỉ đó trên trình duyệt</h3>
+          <p>Rồi làm tiếp phần <a href="#first-run">Mở DumpCat lần đầu</a> bên dưới.</p>
+          <p class="hint">Trang không mở được? Port 6369 đang bị chặn. Mở port trên server bằng <code>sudo ufw allow 6369/tcp</code> (hoặc <code>firewall-cmd --permanent --add-port=6369/tcp &amp;&amp; firewall-cmd --reload</code>), với server cloud thì mở thêm trong firewall hoặc security group của nhà cung cấp. Nếu được, chỉ mở cho IP của bạn.</p>
+        </li>
+      </ol>
+    </div>
+  </section>
+
+  <section class="section" id="windows" aria-labelledby="windows-title">
+    <div class="wrap narrow">
+      <p class="label">Windows</p>
+      <h2 id="windows-title">Cài trên Windows</h2>
+      <ol class="gsteps">
+        <li>
+          <h3>Tải DumpCat cho Windows</h3>
+          <p><a class="btn btn-solid dl" data-pkg="windows" href="/#download">Tải file .zip <small data-version-label></small></a></p>
+        </li>
+        <li>
+          <h3>Giải nén</h3>
+          <p>Chuột phải vào file vừa tải, chọn <b>Extract All…</b> rồi <b>Extract</b>. Một thư mục sẽ mở ra.</p>
+        </li>
+        <li>
+          <h3>Bấm đúp vào <b>Install DumpCat</b></h3>
+          <p>Windows hỏi <i>Do you want to allow this app to make changes to your device?</i>: chọn <b>Yes</b>.</p>
+          <p class="hint">Nếu Windows hiện <i>Windows protected your PC</i>, bấm <b>More info</b> rồi <b>Run anyway</b>. DumpCat được cài thành Windows service, nên vẫn chạy sau khi bạn đóng cửa sổ và tự chạy khi bật máy.</p>
+        </li>
+        <li>
+          <h3>Trình duyệt tự mở DumpCat</h3>
+          <p>Cửa sổ cài đặt hiện <b>mã thiết lập</b>: giữ lại, trang đầu tiên sẽ hỏi mã này. Địa chỉ trên máy này là <code>http://localhost:6369</code>. Rồi làm tiếp phần <a href="#first-run">Mở DumpCat lần đầu</a>.</p>
+        </li>
+      </ol>
+      <div class="tip">
+        <b>Quen dùng PowerShell?</b> Mở PowerShell bằng quyền Administrator (chuột phải vào Start, chọn <i>Terminal (Admin)</i>) rồi chạy:
+        <div class="code"><div class="code-bar"><span>PowerShell (Administrator)</span><button type="button" class="copy" data-target="g-win">Sao chép</button></div><pre><code id="g-win">irm https://dumpcat.cc/install.ps1 | iex</code></pre></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="first-run" aria-labelledby="first-title">
+    <div class="wrap narrow">
+      <p class="label">Sau khi cài</p>
+      <h2 id="first-title">Mở DumpCat lần đầu</h2>
+      <ol class="gsteps">
+        <li>
+          <h3>Tạo tài khoản admin</h3>
+          <p>Dán mã thiết lập, chọn tên đăng nhập và mật khẩu. Đăng nhập hai lớp có thể bật sau, trong <b>Profile &amp; security</b>.</p>
+        </li>
+        <li>
+          <h3>Thêm database</h3>
+          <p><b>Database servers → Add server.</b> Khi DumpCat chạy ngay trên server database, host là <code>127.0.0.1</code>, port <code>3306</code>. Nhập user và mật khẩu MySQL rồi bấm <b>Test connection</b>: DumpCat hiện các database nó thấy và quyền nào còn thiếu.</p>
+        </li>
+        <li>
+          <h3>Chọn nơi lưu backup</h3>
+          <p><b>Storage → Add storage.</b> Bắt đầu đơn giản nhất là một thư mục trên máy này; Google Drive, OneDrive, S3, SFTP và nhiều nơi khác thêm theo cùng cách. Bấm <b>Test</b>.</p>
+        </li>
+        <li>
+          <h3>Tạo backup job</h3>
+          <p><b>Backup jobs → New job.</b> Chọn database, lịch chạy và nơi lưu, rồi bấm <b>Save &amp; run now</b>. Bản backup đầu tiên chạy ngay và được đọc lại để kiểm tra.</p>
+        </li>
+      </ol>
+      <p class="note">Chi tiết từng màn hình: xem <a href="https://github.com/theweakestharrison/DumpCat/blob/main/docs/manual.vi.md">hướng dẫn đầy đủ</a>, cũng có trong mọi gói tải về (<code>docs/manual.vi.md</code>).</p>
+    </div>
+  </section>
+
+  <section class="section" id="downloaded" aria-labelledby="dl-title">
+    <div class="wrap narrow">
+      <p class="label">Đã tải file về?</p>
+      <h2 id="dl-title">Cài từ gói đã tải về</h2>
+      <p class="intro">Gói nào cũng có file <b>START-HERE.txt</b> ghi các bước này.</p>
+      <div class="pkg-help">
+        <div>
+          <h3>Windows (.zip)</h3>
+          <p>Giải nén rồi bấm đúp <b>Install DumpCat</b>, như <a href="#windows">các bước cho Windows</a>.</p>
+        </div>
+        <div>
+          <h3>Linux (.tar.gz)</h3>
+          <p>File phải nằm trên server. Cách dễ nhất là chạy <a href="#linux">lệnh một dòng</a> ngay trên server, lệnh đó tải đúng file này. Hoặc chép file lên server (ví dụ bằng <code>scp</code> hay WinSCP) rồi chạy trên server:</p>
+          <div class="code"><div class="code-bar"><span>bash</span><button type="button" class="copy" data-target="g-tar">Sao chép</button></div><pre><code id="g-tar">tar xzf dumpcat-*-linux.tar.gz
+cd dumpcat-*-linux
+sudo ./install.sh</code></pre></div>
+        </div>
+      </div>
+      <h3 class="sub">Chỉ muốn chạy thử, không cài?</h3>
+      <p>Chạy thẳng chương trình trong thư mục đã giải nén, rồi mở <code>http://localhost:6369</code>. Mã thiết lập in ngay trong cửa sổ; bấm <b>Ctrl+C</b> để dừng.</p>
+      <div class="code"><div class="code-bar"><span>Linux</span><button type="button" class="copy" data-target="g-try-l">Sao chép</button></div><pre><code id="g-try-l">./dumpcat-linux-amd64 serve -data-dir ./data</code></pre></div>
+      <div class="code"><div class="code-bar"><span>Windows (PowerShell, trong thư mục)</span><button type="button" class="copy" data-target="g-try-w">Sao chép</button></div><pre><code id="g-try-w">.\dumpcat.exe serve -data-dir .\data</code></pre></div>
+    </div>
+  </section>
+
+  <section class="section" id="help" aria-labelledby="help-title">
+    <div class="wrap narrow">
+      <h2 id="help-title">Câu hỏi và sự cố</h2>
+      <div class="faq">
+        <details>
+          <summary>Trình duyệt không mở được trang</summary>
+          <p>Kiểm tra DumpCat có đang chạy: <code>systemctl status dumpcat</code> trên Linux, service <i>DumpCat</i> trong <i>services.msc</i> trên Windows. Từ máy khác thì port 6369 phải được mở: trên Linux <code>sudo ufw allow 6369/tcp</code>, trên Windows chạy lại bộ cài với <code>-OpenFirewall</code>, và với server cloud thì mở thêm trong firewall của nhà cung cấp.</p>
+        </details>
+        <details>
+          <summary>Tôi làm mất mã thiết lập</summary>
+          <p>Linux: <code>sudo dumpcat setup-token</code>. Windows, trong PowerShell chạy bằng quyền Administrator: <code>&amp; "C:\Program Files\DumpCat\dumpcat.exe" setup-token -config "C:\ProgramData\DumpCat\dumpcat.env"</code>. Mã dùng được cho tới khi có tài khoản đầu tiên.</p>
+        </details>
+        <details>
+          <summary>Dùng port khác 6369</summary>
+          <p>Linux: <code>curl -fsSL https://dumpcat.cc/install.sh | sudo sh -s -- --port 9090</code>. Windows: trong thư mục đã giải nén, mở PowerShell bằng quyền Administrator, chạy <code>powershell -ExecutionPolicy Bypass -File .\install.ps1 -Port 9090</code>.</p>
+        </details>
+        <details>
+          <summary>Cập nhật lên bản mới</summary>
+          <p>Mở trang <b>System</b> trong DumpCat: khi có bản mới, trang này báo và cài bằng một cú bấm, sau khi kiểm tra chữ ký. Chạy lại lệnh cài cũng cho kết quả tương tự.</p>
+        </details>
+        <details>
+          <summary>Gỡ cài đặt</summary>
+          <p>Linux: <code>curl -fsSL https://dumpcat.cc/install.sh | sudo sh -s -- --uninstall</code> (thêm <code>--purge</code> để xóa luôn cấu hình và danh mục backup của DumpCat trong <code>/var/lib/dumpcat</code> và <code>/etc/dumpcat</code>). Windows: trong thư mục đã giải nén, mở PowerShell bằng quyền Administrator, chạy <code>powershell -ExecutionPolicy Bypass -File .\install.ps1 -Uninstall</code>.</p>
+        </details>
+        <details>
+          <summary>Database nằm trên server khác, sau firewall</summary>
+          <p>Cài DumpCat ở đâu cũng được, rồi để server database tự kết nối ra: bằng <b>DumpCat agent</b> nhỏ gọn hoặc <b>WireGuard tích hợp</b>. Xem <a href="/#connect">ba cách kết nối</a>.</p>
+        </details>
+      </div>
+      <p class="note">Vẫn chưa được? Gửi email tới <a href="mailto:fat@dumpcat.cc">fat@dumpcat.cc</a> hoặc mở issue trên <a href="https://github.com/theweakestharrison/DumpCat/issues">GitHub</a>.</p>
+    </div>
+  </section>
+</main>
+<footer class="foot">
+  <div class="wrap">
+    <a class="brand" href="/"><svg aria-hidden="true"><use href="#dc-logo"/></svg>DumpCat</a>
+    <p>Mã nguồn mở theo giấy phép Apache-2.0, mã nguồn trên GitHub. <a href="https://github.com/theweakestharrison/DumpCat">GitHub</a> · <a href="/vi/compare/">So sánh</a> · <a href="/vi/install/">Cài đặt</a> · Hỗ trợ: <a href="mailto:fat@dumpcat.cc">fat@dumpcat.cc</a></p>
+  </div>
+</footer>
+<script src="/guide.js" defer></script>
+</body>
+</html>

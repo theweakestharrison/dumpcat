@@ -155,6 +155,8 @@ Hai nguyên tắc:
 | `site/style.css` | Giao diện, tự đổi sáng/tối theo hệ điều hành |
 | `site/_headers` | Content-Security-Policy và các header bảo mật |
 | `site/favicon.svg` | Bản sao của `web/assets/favicon.svg` |
+| `site/install.sh`, `site/install.ps1` | Lệnh cài một dòng `curl -fsSL https://dumpcat.cc/install.sh \| sudo sh` và `irm https://dumpcat.cc/install.ps1 \| iex`: đọc `latest.json`, tải gói, kiểm tra SHA-256 theo `SHA256SUMS` rồi chạy bộ cài trong gói. `_headers` cho hai file này `Content-Type: text/plain` |
+| `site/guide.js` | Nút sao chép và link tải bản mới nhất của trang hướng dẫn cài đặt |
 | `site/og.png` | Ảnh xem trước khi chia sẻ link (Open Graph, 1200×630), được render từ `site/og-image.html` |
 | `site/og-image.html` | Nguồn của `og.png`. Không được deploy vì có tên trong `site/.assetsignore` |
 | `wrangler.jsonc` | Worker `dumpcat-site`: thư mục `site/` và domain `dumpcat.cc` |
@@ -192,20 +194,22 @@ Lưu ý: khi chạy thử trên máy, `_headers` không được áp dụng.
 
 ---
 
-## Phần 4 — Trang so sánh (SEO)
+## Phần 4 — Trang so sánh và hướng dẫn cài đặt (sinh tự động)
 
-Các trang `https://dumpcat.cc/compare/…` (tiếng Anh) và `https://dumpcat.cc/vi/compare/…` (tiếng Việt) được tạo từ dữ liệu, không
-viết tay:
+Các trang `https://dumpcat.cc/compare/…` (tiếng Anh), `https://dumpcat.cc/vi/compare/…` (tiếng Việt), trang hướng dẫn cài đặt
+`/install/` và `/vi/install/`, cùng mục **So sánh** trên landing page được tạo từ dữ liệu, không viết tay:
 
 | File | Nội dung |
 |---|---|
-| `site-src/compare/<slug>.json` | Một công cụ: tên, giá trị từng dòng của bảng so sánh, "chọn họ nếu" / "chọn DumpCat nếu", các bước chuyển, nguồn, ngày kiểm tra |
-| `scripts/build-site.py` | Template, cột DumpCat (dùng chung cho mọi trang), sinh trang so sánh EN/VI, `sitemap.xml` và `robots.txt` |
+| `site-src/compare/<slug>.json` | Một công cụ: tên, `grid` (bảng song song: mỗi dòng là `yes` / `paid` / `partial` / `no` / `unknown` kèm ghi chú ngắn EN/VI), giá trị chi tiết từng dòng, "chọn họ nếu" / "chọn DumpCat nếu", các bước chuyển, nguồn, ngày kiểm tra |
+| `site-src/install/en.html`, `vi.html` | Nội dung trang hướng dẫn cài đặt cho người mới |
+| `scripts/build-site.py` | Template; các dòng của bảng song song (`GRID`) và cột DumpCat (`US_GRID`); những dòng hiện trên landing page (`LANDING_ROWS`); sinh trang so sánh và trang hướng dẫn EN/VI, khối so sánh trong `site/index.html` (giữa hai dấu `compare:begin` / `compare:end`), `sitemap.xml` và `robots.txt` |
 
 Sửa hoặc thêm một công cụ:
 
 1. Sửa (hoặc chép từ file có sẵn) `site-src/compare/<slug>.json`. Mọi thông tin về sản phẩm khác **phải có nguồn** trong
-   `sources`. Điều gì chưa kiểm chứng được thì ghi "Not documented on the pages we checked" chứ không đoán. Cập nhật `checked`.
+   `sources`. Điều gì chưa kiểm chứng được thì ghi "Not documented on the pages we checked" chứ không đoán, và trong `grid` thì
+   dùng `unknown`. Dòng nào là `paid`, `partial` hay `no` phải có ghi chú ngắn cả hai thứ tiếng. Cập nhật `checked`.
 2. Chạy `python scripts/build-site.py` (chỉ dùng thư viện chuẩn của Python), xem thử bằng `python -m http.server 8642 --directory site`.
 3. Deploy: `npx wrangler deploy`.
 

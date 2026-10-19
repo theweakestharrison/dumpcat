@@ -2,7 +2,7 @@
   "slug": "databasus",
   "name": "Databasus",
   "order": 15,
-  "checked": "2026-10-18",
+  "checked": "2026-10-19",
   "kind": {"en": "Self-hosted, open source (Apache-2.0), Docker", "vi": "Tự host, mã nguồn mở (Apache-2.0), Docker"},
   "summary": {
     "en": "Open-source multi-database backup web app (formerly Postgresus); logical-only for MySQL.",
@@ -14,6 +14,29 @@
     "pitr": {"en": "PostgreSQL only; not for MySQL", "vi": "Chỉ PostgreSQL; không có cho MySQL"},
     "price": {"en": "Free (Apache-2.0)", "vi": "Miễn phí (Apache-2.0)"}
   },
+  "grid": {
+    "open_source": ["yes", {"en": "Apache-2.0", "vi": "Apache-2.0"}],
+    "free": ["yes"],
+    "self_hosted": ["yes", {"en": "Docker or Helm", "vi": "Docker hoặc Helm"}],
+    "linux": ["yes", {"en": "Docker or Helm", "vi": "Docker hoặc Helm"}],
+    "windows": ["yes", {"en": "Via Docker", "vi": "Qua Docker"}],
+    "web_ui": ["yes"],
+    "mariadb": ["yes"],
+    "logical": ["yes"],
+    "parallel": ["no", {"en": "mysqldump / mariadb-dump only", "vi": "Chỉ mysqldump / mariadb-dump"}],
+    "physical": ["no", {"en": "PostgreSQL only", "vi": "Chỉ PostgreSQL"}],
+    "incremental": ["no", {"en": "PostgreSQL only", "vi": "Chỉ PostgreSQL"}],
+    "pitr": ["no", {"en": "PostgreSQL only", "vi": "Chỉ PostgreSQL"}],
+    "restore_ui": ["yes"],
+    "verify": ["yes", {"en": "Real restore; needs agent", "vi": "Khôi phục thật; cần agent"}],
+    "cloud": ["yes"],
+    "multi_storage": ["no", {"en": "One storage per database", "vi": "Một storage cho mỗi database"}],
+    "encryption": ["yes", {"en": "AES-256-GCM", "vi": "AES-256-GCM"}],
+    "direct": ["yes"],
+    "scheduler": ["yes"],
+    "retention": ["yes", {"en": "Incl. GFS", "vi": "Có GFS"}],
+    "alerts": ["yes"]
+  },
   "en": {
     "title": "Databasus vs DumpCat: open-source MySQL backup tools compared",
     "description": "Databasus (formerly Postgresus) and DumpCat are both open-source, self-hosted backup tools. Compare them for MySQL and MariaDB: physical backups, point-in-time recovery, deployment and verification. October 2026.",
@@ -21,14 +44,14 @@
     "values": {
       "price": "Free and open source (Apache-2.0).",
       "runs": "Self-hosted web app, deployed with an install script, Docker, Docker Compose or Helm.",
-      "platforms": "Wherever Docker or Kubernetes runs.",
+      "platforms": "Wherever Docker or Kubernetes runs. The README lists Linux, macOS and Windows; the install script is for Linux only.",
       "databases": "MySQL 5.7, 8.0, 8.4 and later, MariaDB from 5.5; also PostgreSQL and other engines.",
       "methods": "Logical only for MySQL and MariaDB: `mysqldump` / `mariadb-dump` with `--single-transaction`. Physical and incremental backups are for PostgreSQL only.",
       "pitr": "Not for MySQL or MariaDB; point-in-time recovery (WAL) is PostgreSQL only.",
-      "storage": "Local, S3, Cloudflare R2, Google Drive, Azure Blob, NAS, FTP, SFTP and rclone.",
+      "storage": "Local, S3, Cloudflare R2, Google Drive, Azure Blob, NAS, FTP, SFTP and rclone. Each database's backups go to one storage.",
       "encryption": "AES-256-GCM; compression on by default.",
       "schedule": "Retention by time, count, GFS tiers or total size.",
-      "restore": "Restores from the UI, and restore verification in throwaway containers that reports row counts.",
+      "restore": "Restores from the UI. Restore verification restores backups into throwaway containers and reports row counts; it needs a separate verification agent on a host with Docker.",
       "datapath": "Your own infrastructure: from the Databasus instance you run to your storage.",
       "alerts": "Email, Telegram, Slack, Discord, Teams, Mattermost and webhooks; workspaces, roles, audit logs, two-factor login, Google and GitHub sign-in."
     },
@@ -52,14 +75,14 @@
     "values": {
       "price": "Miễn phí, mã nguồn mở (Apache-2.0).",
       "runs": "Ứng dụng web tự host, cài bằng script, Docker, Docker Compose hoặc Helm.",
-      "platforms": "Nơi nào chạy được Docker hoặc Kubernetes.",
+      "platforms": "Nơi nào chạy được Docker hoặc Kubernetes. README ghi hỗ trợ Linux, macOS và Windows; script cài đặt chỉ dành cho Linux.",
       "databases": "MySQL 5.7, 8.0, 8.4 trở lên, MariaDB từ 5.5; ngoài ra PostgreSQL và các database khác.",
       "methods": "Với MySQL và MariaDB chỉ có backup logical: `mysqldump` / `mariadb-dump` với `--single-transaction`. Backup vật lý và incremental chỉ dành cho PostgreSQL.",
       "pitr": "Không có cho MySQL, MariaDB; khôi phục theo thời điểm (WAL) chỉ dành cho PostgreSQL.",
-      "storage": "Local, S3, Cloudflare R2, Google Drive, Azure Blob, NAS, FTP, SFTP và rclone.",
+      "storage": "Local, S3, Cloudflare R2, Google Drive, Azure Blob, NAS, FTP, SFTP và rclone. Backup của mỗi database chỉ gửi tới một storage.",
       "encryption": "AES-256-GCM; mặc định có nén.",
       "schedule": "Retention theo thời gian, số bản, các mức GFS hoặc tổng dung lượng.",
-      "restore": "Khôi phục trên giao diện, và kiểm tra khôi phục trong container tạm, báo số dòng.",
+      "restore": "Khôi phục trên giao diện. Tính năng kiểm tra khôi phục chạy khôi phục vào container tạm và báo số dòng; cần chạy thêm một verification agent trên máy có Docker.",
       "datapath": "Trong hạ tầng của bạn: từ bản Databasus bạn tự chạy tới storage của bạn.",
       "alerts": "Email, Telegram, Slack, Discord, Teams, Mattermost và webhook; workspace, phân quyền, nhật ký thao tác, đăng nhập hai lớp, đăng nhập bằng Google và GitHub."
     },
@@ -79,6 +102,8 @@
   "sources": [
     {"label": "Databasus on GitHub", "url": "https://github.com/databasus/databasus"},
     {"label": "Databasus: MySQL backup", "url": "https://databasus.com/mysql-backup"},
-    {"label": "Databasus: restore verification", "url": "https://databasus.com/restore-verification"}
+    {"label": "Databasus: restore verification", "url": "https://databasus.com/restore-verification"},
+    {"label": "Databasus README", "url": "https://github.com/databasus/databasus/blob/main/README.md"},
+    {"label": "Databasus source: backup config (one storage per database)", "url": "https://github.com/databasus/databasus/blob/main/backend/internal/features/backups/config/logical/model.go"}
   ]
 }

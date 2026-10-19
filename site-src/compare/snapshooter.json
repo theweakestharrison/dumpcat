@@ -2,7 +2,7 @@
   "slug": "snapshooter",
   "name": "SnapShooter",
   "order": 40,
-  "checked": "2026-10-18",
+  "checked": "2026-10-19",
   "kind": {
     "en": "Hosted backup service (SaaS), owned by DigitalOcean",
     "vi": "Dịch vụ backup trực tuyến (SaaS) của DigitalOcean"
@@ -26,6 +26,29 @@
       "vi": "Có gói miễn phí; $14–$199/tháng"
     }
   },
+  "grid": {
+    "open_source": ["no", {"en": "Proprietary SaaS", "vi": "SaaS mã nguồn đóng"}],
+    "free": ["partial", {"en": "Free: 1 job, daily, 500 MB", "vi": "Free: 1 job, hằng ngày, 500 MB"}],
+    "self_hosted": ["no", {"en": "Vendor SaaS (SSH or agent)", "vi": "SaaS của hãng (SSH hoặc agent)"}],
+    "linux": ["yes", {"en": "Over SSH or agent", "vi": "Qua SSH hoặc agent"}],
+    "windows": ["partial", {"en": "Remote backups via vendor only", "vi": "Chỉ backup từ xa qua hãng"}],
+    "web_ui": ["yes", {"en": "Vendor's cloud dashboard", "vi": "Dashboard trên cloud của hãng"}],
+    "mariadb": ["yes", {"en": "Listed for AWS RDS MariaDB", "vi": "Có trang cho AWS RDS MariaDB"}],
+    "logical": ["yes"],
+    "parallel": ["no", {"en": "mysqldump only (single-threaded)", "vi": "Chỉ mysqldump (đơn luồng)"}],
+    "physical": ["no", {"en": "Logical dumps only (mysqldump)", "vi": "Chỉ dump logic (mysqldump)"}],
+    "incremental": ["yes", {"en": "Binlog backups", "vi": "Backup binlog"}],
+    "pitr": ["partial", {"en": "Binlogs; replay not documented", "vi": "Có binlog; chưa có tài liệu phát lại"}],
+    "restore_ui": ["yes", {"en": "Restore wizard", "vi": "Trình hướng dẫn khôi phục"}],
+    "verify": ["unknown"],
+    "cloud": ["yes", {"en": "S3-compatible only", "vi": "Chỉ storage tương thích S3"}],
+    "multi_storage": ["unknown"],
+    "encryption": ["paid", {"en": "Paid plans (tier unclear)", "vi": "Gói trả phí (chưa rõ gói nào)"}],
+    "direct": ["partial", {"en": "Not with serverless backups", "vi": "Không khi backup serverless"}],
+    "scheduler": ["yes", {"en": "Daily on the free plan", "vi": "Hằng ngày ở gói miễn phí"}],
+    "retention": ["yes"],
+    "alerts": ["yes", {"en": "Slack", "vi": "Slack"}]
+  },
   "en": {
     "title": "SnapShooter alternative for MySQL: DumpCat, free and self-hosted",
     "description": "DumpCat vs SnapShooter for MySQL and MariaDB backups: pricing, binlog and point-in-time recovery, storage options and project status after the DigitalOcean acquisition. Sourced, October 2026.",
@@ -33,16 +56,16 @@
     "values": {
       "price": "Free: 1 job, daily, 500 MB. Lite $14/month (3 jobs, 10 GB), Startup $39 (20 jobs, 60 GB), Business $79 (50 jobs, every 5 minutes, 120 GB), Agency $199 (250 jobs, 240 GB).",
       "runs": "Hosted SaaS that connects over SSH or through its agent; managed databases are backed up by its serverless workers.",
-      "platforms": "Servers reachable over SSH or with the agent, and managed databases.",
-      "databases": "MySQL and other engines. Supported versions are not listed on the pages we checked.",
+      "platforms": "Servers reachable over SSH or with the agent (built for Linux, FreeBSD, OpenBSD, NetBSD and macOS; no Windows build is listed), and databases its serverless workers can reach directly, including managed ones.",
+      "databases": "MySQL and MariaDB (a page covers AWS RDS for MariaDB), plus PostgreSQL and MongoDB. Supported versions are not listed on the pages we checked.",
       "methods": "`mysqldump` of all databases or a single one. Table locking behaviour is not documented on the pages we checked.",
       "pitr": "Partial: a MySQL binlog backup option uploads binlogs incrementally.",
       "storage": "S3-compatible storage only (AWS, Backblaze B2, DigitalOcean Spaces, Filebase, UpCloud, Wasabi, MinIO), or SnapShooter's own storage.",
-      "encryption": "OpenSSL with an RSA key; which plans include it differs between parts of the pricing page.",
+      "encryption": "OpenSSL with an RSA key. The plan cards and the plan comparison include it from Business ($79/month) up and not on Free, Lite or Startup, while the per-plan feature lists also tick it for Lite and Startup.",
       "schedule": "From daily (Free) to every 5 minutes (Business); jobs and storage are capped per plan.",
-      "restore": "Automatic restores from the dashboard.",
+      "restore": "Automatic restores of backup jobs from the dashboard, through a restore wizard. Snapshots are restored through the cloud provider.",
       "datapath": "Over SSH or the agent the dump goes from your server to your storage; serverless backups of managed databases run on SnapShooter's workers.",
-      "alerts": "Email alerts; two-factor login for the dashboard."
+      "alerts": "Email to several addresses, and Slack on every plan according to the pricing comparison; two-factor login for the dashboard."
     },
     "choose_them": [
       "You are on DigitalOcean and also want Droplet and volume snapshots in the same place.",
@@ -69,16 +92,16 @@
     "values": {
       "price": "Miễn phí: 1 job, mỗi ngày, 500 MB. Lite $14/tháng (3 job, 10 GB), Startup $39 (20 job, 60 GB), Business $79 (50 job, mỗi 5 phút, 120 GB), Agency $199 (250 job, 240 GB).",
       "runs": "Dịch vụ SaaS kết nối qua SSH hoặc agent; database được quản lý (managed) thì backup bằng máy chủ serverless của họ.",
-      "platforms": "Server truy cập được qua SSH hoặc cài được agent, và các database được quản lý.",
-      "databases": "MySQL và các database khác. Các trang chúng tôi kiểm tra không liệt kê phiên bản hỗ trợ.",
+      "platforms": "Server truy cập được qua SSH hoặc cài được agent (có bản cho Linux, FreeBSD, OpenBSD, NetBSD và macOS; không có bản cho Windows), và các database mà máy chủ serverless của họ kết nối thẳng được, kể cả database được quản lý.",
+      "databases": "MySQL và MariaDB (có trang riêng cho AWS RDS for MariaDB), cùng PostgreSQL và MongoDB. Các trang chúng tôi kiểm tra không liệt kê phiên bản hỗ trợ.",
       "methods": "`mysqldump` toàn bộ hoặc một database. Các trang chúng tôi kiểm tra không nói về việc khóa bảng.",
       "pitr": "Một phần: có tùy chọn backup binlog MySQL, upload binlog theo kiểu incremental.",
       "storage": "Chỉ storage tương thích S3 (AWS, Backblaze B2, DigitalOcean Spaces, Filebase, UpCloud, Wasabi, MinIO), hoặc storage của SnapShooter.",
-      "encryption": "OpenSSL với khóa RSA; gói nào có tính năng này thì mỗi phần của trang giá ghi một khác.",
+      "encryption": "OpenSSL với khóa RSA. Thẻ gói và bảng so sánh gói ghi tính năng này có từ gói Business ($79/tháng) trở lên, không có ở Free, Lite hay Startup, trong khi danh sách tính năng của từng gói lại đánh dấu có cả ở Lite và Startup.",
       "schedule": "Từ mỗi ngày (Free) đến mỗi 5 phút (Business); số job và dung lượng bị giới hạn theo gói.",
-      "restore": "Khôi phục tự động từ bảng điều khiển.",
+      "restore": "Khôi phục tự động các backup job từ bảng điều khiển, qua trình hướng dẫn khôi phục. Snapshot thì khôi phục qua nhà cung cấp cloud.",
       "datapath": "Qua SSH hoặc agent, bản dump đi từ server của bạn tới storage của bạn; backup serverless cho database được quản lý chạy trên máy của SnapShooter.",
-      "alerts": "Cảnh báo qua email; đăng nhập hai lớp cho bảng điều khiển."
+      "alerts": "Email tới nhiều địa chỉ, và Slack ở mọi gói theo bảng so sánh giá; đăng nhập hai lớp cho bảng điều khiển."
     },
     "choose_them": [
       "Bạn dùng DigitalOcean và muốn chụp snapshot Droplet, volume ở cùng một chỗ.",
@@ -122,6 +145,11 @@
     {
       "label": "SnapShooter features",
       "url": "https://snapshooter.com/features"
-    }
+    },
+    {"label": "SnapShooter: AWS RDS MariaDB backups", "url": "https://snapshooter.com/database/aws-rds/mariadb"},
+    {"label": "SnapShooter: database backups", "url": "https://snapshooter.com/database"},
+    {"label": "SnapShooter: MySQL single database backups", "url": "https://snapshooter.com/database/mysql/single"},
+    {"label": "SnapShooter docs: connect servers using the agent", "url": "https://docs.digitalocean.com/products/snapshooter/how-to/connect-using-agent/"},
+    {"label": "SnapShooter docs: restore backups", "url": "https://docs.digitalocean.com/products/snapshooter/how-to/restore-backups/"}
   ]
 }

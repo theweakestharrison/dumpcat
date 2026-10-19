@@ -2,7 +2,7 @@
   "slug": "ottomatik",
   "name": "Ottomatik",
   "order": 50,
-  "checked": "2026-10-18",
+  "checked": "2026-10-19",
   "kind": {
     "en": "Hosted backup service (SaaS) over SSH",
     "vi": "Dịch vụ backup trực tuyến (SaaS) qua SSH"
@@ -26,23 +26,46 @@
       "vi": "$14–$199/tháng, dùng thử 14 ngày"
     }
   },
+  "grid": {
+    "open_source": ["no", {"en": "Proprietary SaaS", "vi": "SaaS mã nguồn đóng"}],
+    "free": ["no", {"en": "From $14/mo; 14-day trial", "vi": "Từ $14/tháng; dùng thử 14 ngày"}],
+    "self_hosted": ["no", {"en": "Vendor SaaS over SSH", "vi": "SaaS của hãng qua SSH"}],
+    "linux": ["yes", {"en": "Over SSH", "vi": "Qua SSH"}],
+    "windows": ["partial", {"en": "Remote backups via vendor only", "vi": "Chỉ backup từ xa qua hãng"}],
+    "web_ui": ["yes", {"en": "Vendor's cloud dashboard", "vi": "Dashboard trên cloud của hãng"}],
+    "mariadb": ["unknown", {"en": "Not stated", "vi": "Không nêu rõ"}],
+    "logical": ["yes"],
+    "parallel": ["no", {"en": "mysqldump only (single-threaded)", "vi": "Chỉ mysqldump (đơn luồng)"}],
+    "physical": ["no", {"en": "Logical dumps only (mysqldump)", "vi": "Chỉ dump logic (mysqldump)"}],
+    "incremental": ["yes", {"en": "Binlog backups", "vi": "Backup binlog"}],
+    "pitr": ["partial", {"en": "Binlogs kept; manual replay", "vi": "Có binlog; phát lại thủ công"}],
+    "restore_ui": ["yes", {"en": "Not on every plan", "vi": "Không có ở mọi gói"}],
+    "verify": ["unknown"],
+    "cloud": ["yes"],
+    "multi_storage": ["unknown"],
+    "encryption": ["unknown", {"en": "File encryption not described", "vi": "Chưa mô tả mã hóa file backup"}],
+    "direct": ["partial", {"en": "Not for remote backups", "vi": "Không với backup từ xa"}],
+    "scheduler": ["yes"],
+    "retention": ["yes", {"en": "Keep last N copies", "vi": "Giữ N bản gần nhất"}],
+    "alerts": ["yes", {"en": "Webhooks", "vi": "Webhook"}]
+  },
   "en": {
     "title": "Ottomatik alternative for MySQL: DumpCat, free and self-hosted",
     "description": "DumpCat vs Ottomatik for MySQL backups: pricing, SSH access, point-in-time recovery, restores and where credentials are stored. Sourced and checked in October 2026.",
     "lead": "Ottomatik is a hosted service that logs in to your server over SSH to run and upload backups. DumpCat is a free, open-source backup manager that runs on the server itself. Here is how they compare for MySQL and MariaDB.",
     "values": {
       "price": "Lite $14/month (3 jobs, daily, 5 GB), Professional $79 (50 jobs, every 5 minutes, 100 GB, API), Agency $199 (250 jobs, every minute, 200 GB). Your own storage on every plan; 14-day trial.",
-      "runs": "Hosted SaaS. Its servers connect to yours over SSH and install Python, pip and the AWS CLI there.",
-      "platforms": "Linux servers.",
+      "runs": "Hosted SaaS. Its servers connect to yours over SSH and install Python, pip and the AWS CLI there. A help article also describes remote MySQL backups that run on Ottomatik's own servers, without SSH access to yours.",
+      "platforms": "Linux servers over SSH (FreeBSD with a manual install). Remote MySQL backups only need the database credentials and an allowlisted IP.",
       "databases": "MySQL, PostgreSQL and MongoDB. MariaDB support is not stated on the pages we checked.",
       "methods": "`mysqldump`, with options for a single transaction or skipping locks, routines and events.",
       "pitr": "Partial: binlogs can be uploaded to S3 or copied by a file backup job; replaying them is manual.",
       "storage": "Ottomatik's storage, Amazon S3 and S3-compatible, Google Drive, Dropbox, Backblaze.",
       "encryption": "Credentials are stored encrypted; encryption of the backup files is not described on the pages we checked.",
-      "schedule": "From daily (Lite) to every minute (Agency); jobs and storage capped per plan.",
+      "schedule": "From daily (Lite) to every minute (Agency); jobs and storage capped per plan. Each job keeps a set number of copies and rotates out older ones.",
       "restore": "One-click restore to the same or another server, on some plans.",
-      "datapath": "The backup goes from your server straight to your storage, but Ottomatik keeps SSH, database and storage credentials (encrypted) on its side.",
-      "alerts": "Webhooks; team roles for the dashboard."
+      "datapath": "With SSH, the backup goes from your server straight to your storage. Remote MySQL backups are processed on Ottomatik's servers, so the data passes through them. Ottomatik keeps SSH, database and storage credentials (encrypted) on its side.",
+      "alerts": "Success and failure notifications, and webhooks that post job status; team roles for the dashboard."
     },
     "choose_them": [
       "You want scheduling and monitoring that run outside your server, with nothing to keep updated yourself.",
@@ -68,17 +91,17 @@
     "lead": "Ottomatik là dịch vụ trực tuyến đăng nhập vào server của bạn qua SSH để chạy và upload backup. DumpCat là công cụ quản lý backup miễn phí, mã nguồn mở, chạy ngay trên server. Dưới đây là khác biệt khi dùng cho MySQL và MariaDB.",
     "values": {
       "price": "Lite $14/tháng (3 job, mỗi ngày, 5 GB), Professional $79 (50 job, mỗi 5 phút, 100 GB, API), Agency $199 (250 job, mỗi phút, 200 GB). Gói nào cũng dùng được storage riêng; dùng thử 14 ngày.",
-      "runs": "Dịch vụ SaaS. Máy chủ của họ kết nối tới server của bạn qua SSH và cài Python, pip, AWS CLI lên đó.",
-      "platforms": "Server Linux.",
+      "runs": "Dịch vụ SaaS. Máy chủ của họ kết nối tới server của bạn qua SSH và cài Python, pip, AWS CLI lên đó. Một bài hướng dẫn cũng mô tả kiểu backup MySQL từ xa chạy trên máy chủ của Ottomatik, không cần quyền SSH vào server của bạn.",
+      "platforms": "Server Linux qua SSH (FreeBSD thì cài thủ công). Backup MySQL từ xa chỉ cần thông tin đăng nhập database và cho phép IP của họ kết nối.",
       "databases": "MySQL, PostgreSQL và MongoDB. Các trang chúng tôi kiểm tra không nói về MariaDB.",
       "methods": "`mysqldump`, có tùy chọn single transaction hoặc bỏ khóa, routines và events.",
       "pitr": "Một phần: binlog được upload lên S3 hoặc chép bằng job backup file; phát lại thì làm thủ công.",
       "storage": "Storage của Ottomatik, Amazon S3 và tương thích, Google Drive, Dropbox, Backblaze.",
       "encryption": "Thông tin đăng nhập được lưu dạng mã hóa; các trang chúng tôi kiểm tra không nói về việc mã hóa file backup.",
-      "schedule": "Từ mỗi ngày (Lite) đến mỗi phút (Agency); số job và dung lượng giới hạn theo gói.",
+      "schedule": "Từ mỗi ngày (Lite) đến mỗi phút (Agency); số job và dung lượng giới hạn theo gói. Mỗi job giữ một số bản nhất định và tự xóa các bản cũ hơn.",
       "restore": "Khôi phục một cú nhấp về cùng server hoặc server khác, ở một số gói.",
-      "datapath": "Bản backup đi thẳng từ server của bạn tới storage, nhưng Ottomatik giữ (dạng mã hóa) thông tin đăng nhập SSH, database và storage.",
-      "alerts": "Webhook; phân quyền nhóm trên bảng điều khiển."
+      "datapath": "Khi dùng SSH, bản backup đi thẳng từ server của bạn tới storage. Backup MySQL từ xa được xử lý trên máy chủ của Ottomatik, nên dữ liệu đi qua họ. Ottomatik giữ (dạng mã hóa) thông tin đăng nhập SSH, database và storage.",
+      "alerts": "Thông báo khi job thành công hoặc thất bại, và webhook gửi trạng thái job; phân quyền nhóm trên bảng điều khiển."
     },
     "choose_them": [
       "Bạn muốn phần lên lịch và theo dõi chạy bên ngoài server, không phải tự cập nhật gì.",
@@ -118,6 +141,11 @@
     {
       "label": "Ottomatik help: automated MySQL dump restore",
       "url": "http://support.ottomatik.io/en/articles/2345892-how-to-run-an-automated-mysql-dump-restore"
-    }
+    },
+    {"label": "Ottomatik", "url": "https://ottomatik.io/"},
+    {"label": "Ottomatik help: remote MySQL backups", "url": "https://support.ottomatik.io/en/articles/2891410-remote-mysql-backups"},
+    {"label": "Ottomatik help: hosted storage and remote servers", "url": "https://support.ottomatik.io/en/articles/4499138-what-is-the-difference-between-ottomatik-hosted-storage-and-the-ottomatik-remote-server"},
+    {"label": "Ottomatik help: manual install for FreeBSD", "url": "https://support.ottomatik.io/en/articles/2345899-manual-install-for-freebsd"},
+    {"label": "Ottomatik help: backup rotation", "url": "https://support.ottomatik.io/en/articles/1816400-what-does-file-is-no-longer-available-due-to-backup-rotation-cycle-mean"}
   ]
 }

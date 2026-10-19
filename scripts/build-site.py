@@ -4,6 +4,7 @@
 Writes (English and Vietnamese, linked with hreflang):
   site/compare/index.html, site/compare/<slug>/index.html
   site/vi/compare/index.html, site/vi/compare/<slug>/index.html
+  site/install/index.html, site/vi/install/index.html   (the step-by-step install guide, from site-src/install/)
   site/sitemap.xml, site/robots.txt
 
 Run from anywhere: python scripts/build-site.py   (standard library only). See docs/website.vi.md.
@@ -12,9 +13,11 @@ import datetime
 import html
 import json
 import pathlib
+import re
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 SRC = ROOT / "site-src" / "compare"
+GUIDE = ROOT / "site-src" / "install"
 OUT = ROOT / "site"
 BASE = "https://dumpcat.cc"
 REPO = "https://github.com/theweakestharrison/DumpCat"
@@ -60,19 +63,192 @@ DIMENSIONS = [
       "vi": "Email, Telegram, Slack, Discord và webhook ký HMAC."}),
 ]
 
+# Side-by-side grid: one verdict per tool and row, in site-src/compare/<slug>.json under "grid":
+#   "<row>": ["yes" | "paid" | "partial" | "no" | "unknown", {"en": "short note", "vi": "..."}]   (note optional)
+# Groups of rows, each row: key, label per language.
+GRID = [
+    ({"en": "Cost and platform", "vi": "Chi phí và nền tảng"}, [
+        ("open_source", {"en": "Open source", "vi": "Mã nguồn mở"}),
+        ("free", {"en": "Every feature free", "vi": "Mọi tính năng miễn phí"}),
+        ("self_hosted", {"en": "Runs on your own servers", "vi": "Chạy trên server của bạn"}),
+        ("linux", {"en": "Linux", "vi": "Linux"}),
+        ("windows", {"en": "Windows", "vi": "Windows"}),
+        ("web_ui", {"en": "Web interface", "vi": "Giao diện web"}),
+    ]),
+    ({"en": "Backup", "vi": "Backup"}, [
+        ("mariadb", {"en": "MariaDB", "vi": "MariaDB"}),
+        ("logical", {"en": "Logical dumps (mysqldump)", "vi": "Dump logical (mysqldump)"}),
+        ("parallel", {"en": "Parallel dumps (mydumper)", "vi": "Dump song song (mydumper)"}),
+        ("physical", {"en": "Hot physical backups", "vi": "Backup vật lý nóng"}),
+        ("incremental", {"en": "Incremental backups", "vi": "Backup incremental"}),
+    ]),
+    ({"en": "Recovery", "vi": "Khôi phục"}, [
+        ("pitr", {"en": "Point-in-time recovery", "vi": "Khôi phục theo thời điểm"}),
+        ("restore_ui", {"en": "Restore from the tool", "vi": "Restore ngay trong công cụ"}),
+        ("verify", {"en": "Automatic backup check", "vi": "Tự kiểm tra bản backup"}),
+    ]),
+    ({"en": "Storage and security", "vi": "Lưu trữ và bảo mật"}, [
+        ("cloud", {"en": "Cloud storage (S3 and more)", "vi": "Lưu lên cloud (S3 và khác)"}),
+        ("multi_storage", {"en": "Several copies per backup", "vi": "Nhiều bản sao cho một backup"}),
+        ("encryption", {"en": "Encryption", "vi": "Mã hóa"}),
+        ("direct", {"en": "Data skips the vendor", "vi": "Dữ liệu không qua hãng"}),
+    ]),
+    ({"en": "Operations", "vi": "Vận hành"}, [
+        ("scheduler", {"en": "Built-in scheduler", "vi": "Lập lịch có sẵn"}),
+        ("retention", {"en": "Automatic retention", "vi": "Tự dọn bản cũ"}),
+        ("alerts", {"en": "Chat and webhook alerts", "vi": "Báo qua chat và webhook"}),
+    ]),
+]
+GRID_KEYS = [k for _, rows in GRID for k, _ in rows]
+# rows of the short comparison on the landing page
+LANDING_ROWS = ["free", "self_hosted", "linux", "physical", "pitr", "encryption", "direct", "verify"]
+
+US_GRID = {
+    "open_source": ["yes", {"en": "Apache-2.0", "vi": "Apache-2.0"}],
+    "free": ["yes", {"en": "No paid tier", "vi": "Không có gói trả phí"}],
+    "self_hosted": ["yes", {"en": "One binary", "vi": "Một file chạy"}],
+    "linux": ["yes", {"en": "amd64, arm64", "vi": "amd64, arm64"}],
+    "windows": ["yes", {"en": "No mydumper there", "vi": "Không có mydumper"}],
+    "web_ui": ["yes"],
+    "mariadb": ["yes", {"en": "10.x and 11.x", "vi": "10.x và 11.x"}],
+    "logical": ["yes", {"en": "mysqldump, mariadb-dump", "vi": "mysqldump, mariadb-dump"}],
+    "parallel": ["yes", {"en": "mydumper, on Linux", "vi": "mydumper, trên Linux"}],
+    "physical": ["yes", {"en": "XtraBackup, MariaBackup", "vi": "XtraBackup, MariaBackup"}],
+    "incremental": ["yes", {"en": "Physical and binlogs", "vi": "Vật lý và binlog"}],
+    "pitr": ["yes", {"en": "To the second or a GTID", "vi": "Tới từng giây hoặc GTID"}],
+    "restore_ui": ["yes", {"en": "Also under a new name", "vi": "Cả sang tên mới"}],
+    "verify": ["yes", {"en": "Every run, plus drills", "vi": "Mỗi lần chạy, kèm diễn tập"}],
+    "cloud": ["yes", {"en": "S3, Drive, OneDrive, 70+", "vi": "S3, Drive, OneDrive, 70+"}],
+    "multi_storage": ["yes"],
+    "encryption": ["yes", {"en": "age, before upload", "vi": "age, trước khi upload"}],
+    "direct": ["yes", {"en": "Server to your storage", "vi": "Từ server tới storage"}],
+    "scheduler": ["yes", {"en": "Cron", "vi": "Cron"}],
+    "retention": ["yes", {"en": "Count, age or GFS", "vi": "Số bản, số ngày, GFS"}],
+    "alerts": ["yes", {"en": "Slack, Telegram, Discord…", "vi": "Slack, Telegram, Discord…"}],
+}
+
+VERDICT = {
+    "yes": {"en": "Yes", "vi": "Có"},
+    "paid": {"en": "Paid plan", "vi": "Gói trả phí"},
+    "partial": {"en": "Partly", "vi": "Một phần"},
+    "no": {"en": "No", "vi": "Không"},
+    "unknown": {"en": "Not documented", "vi": "Không có thông tin"},
+}
+MARK = {
+    "yes": '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5.5 12.5l4 4L18.5 7.5"/></svg>',
+    "no": '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7.5 7.5l9 9M16.5 7.5l-9 9"/></svg>',
+    "partial": '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 12h10"/></svg>',
+    "paid": '<b aria-hidden="true">$</b>',
+    "unknown": '<b aria-hidden="true">?</b>',
+}
+
+
+def mark(cell, lang, note=True):
+    v = cell[0]
+    label = VERDICT[v][lang]
+    n = cell[1][lang] if len(cell) > 1 and cell[1] else ""
+    title = f"{label}: {n}" if n else label
+    out = f'<span class="mk mk-{v}" title="{esc(title)}">{MARK[v]}<span class="sr">{esc(label)}</span></span>'
+    if note and n:
+        out += f'<span class="vs-note">{esc(n)}</span>'
+    elif note and v != "yes":
+        out += f'<span class="vs-note">{esc(label)}</span>'
+    return out
+
+
+def legend(lang):
+    return '<ul class="vs-legend">' + "".join(
+        f'<li><span class="mk mk-{v}">{MARK[v]}</span>{esc(VERDICT[v][lang])}</li>' for v in VERDICT) + "</ul>"
+
+
+def vs_table(tool, lang):
+    """DumpCat and one tool, side by side, row by row."""
+    name = esc(tool["name"])
+    body = ""
+    for group, rows in GRID:
+        body += f'<tr class="vs-group"><th colspan="3" scope="colgroup">{esc(group[lang])}</th></tr>'
+        for key, label in rows:
+            body += (f'<tr><th scope="row">{esc(label[lang])}</th>'
+                     f'<td class="us">{mark(US_GRID[key], lang)}</td><td>{mark(tool["grid"][key], lang)}</td></tr>')
+    return (f'<div class="vs"><table><thead><tr><th scope="col"><span class="sr">{"Feature" if lang == "en" else "Tính năng"}</span></th>'
+            f'<th scope="col" class="us"><span class="vs-name"><svg aria-hidden="true"><use href="#dc-logo"/></svg>DumpCat</span></th>'
+            f'<th scope="col"><span class="vs-name">{wbr(tool["name"])}</span></th></tr></thead><tbody>{body}</tbody></table></div>')
+
+
+def wbr(name):
+    """Let long product names break between words: SQL<wbr>Backup<wbr>And<wbr>FTP."""
+    return re.sub(r"(?<=[a-z])(?=[A-Z])|(?<=[A-Z])(?=[A-Z][a-z])", "<wbr>", esc(name)).replace("My<wbr>SQL", "MySQL")
+
+
+def hub_matrix(tools, lang):
+    """Every tool side by side: rows are features, columns are tools."""
+    head = (f'<th scope="col" class="corner"><span class="sr">{"Feature" if lang == "en" else "Tính năng"}</span></th>'
+            f'<th scope="col" class="us"><span>DumpCat</span></th>'
+            + "".join(f'<th scope="col"><a href="{path(lang, o["slug"])}">{wbr(o["name"])}</a></th>' for o in tools))
+    body = ""
+    for group, rows in GRID:
+        body += f'<tr class="vs-group"><th colspan="{len(tools) + 2}" scope="colgroup"><span>{esc(group[lang])}</span></th></tr>'
+        for key, label in rows:
+            body += (f'<tr><th scope="row">{esc(label[lang])}</th><td class="us">{mark(US_GRID[key], lang, note=False)}</td>'
+                     + "".join(f'<td>{mark(o["grid"][key], lang, note=False)}</td>' for o in tools) + "</tr>")
+    return f'<div class="matrix"><table><thead><tr>{head}</tr></thead><tbody>{body}</tbody></table></div>'
+
+
+def landing_block(tools):
+    """The short side-by-side comparison of the landing page, in both languages (the page shows one by html[lang])."""
+    def both(d, cls=""):
+        c = f' class="{cls}"' if cls else ""
+        return f'<span lang="vi"{c}>{esc(d["vi"])}</span><span lang="en"{c}>{esc(d["en"])}</span>'
+    def cell(c):
+        return (f'<span lang="vi">{mark(c, "vi")}</span><span lang="en">{mark(c, "en")}</span>')
+    labels = {k: l for _, rows in GRID for k, l in rows}
+    first = tools[0]["slug"]
+    chips = "".join(
+        f'<button type="button" class="lc-chip" data-tool="{o["slug"]}" aria-pressed="{"true" if o["slug"] == first else "false"}">{esc(o["name"])}</button>'
+        for o in tools)
+    heads = "".join(f'<span class="vs-name" data-tool="{o["slug"]}"{"" if o["slug"] == first else " hidden"}>{wbr(o["name"])}</span>' for o in tools)
+    rows = ""
+    for key in LANDING_ROWS:
+        cells = "".join(f'<span class="lc-cell" data-tool="{o["slug"]}"{"" if o["slug"] == first else " hidden"}>{cell(o["grid"][key])}</span>'
+                        for o in tools)
+        rows += f'<tr><th scope="row">{both(labels[key])}</th><td class="us">{cell(US_GRID[key])}</td><td>{cells}</td></tr>'
+    links = ""
+    for o in tools:
+        text = {"en": "Full comparison: DumpCat vs " + o["name"], "vi": "So sánh đầy đủ DumpCat với " + o["name"]}
+        shown = "" if o["slug"] == first else " hidden"
+        links += (f'<a class="lc-more" data-tool="{o["slug"]}"{shown} href="/compare/{o["slug"]}/"'
+                  f' data-vi-href="/vi/compare/{o["slug"]}/">{both(text)} →</a>')
+    all_link = both({"en": "All comparisons", "vi": "Tất cả so sánh"})
+    legends = legend("vi").replace("<ul ", '<ul lang="vi" ', 1) + legend("en").replace("<ul ", '<ul lang="en" ', 1)
+    return (f'<div class="lc">'
+            f'<div class="lc-chips" role="group" aria-label="Compare with">{chips}</div>'
+            f'<div class="vs"><table><thead><tr><th scope="col"></th>'
+            f'<th scope="col" class="us"><span class="vs-name"><svg aria-hidden="true"><use href="#dc-logo"/></svg>DumpCat</span></th>'
+            f'<th scope="col">{heads}</th></tr></thead><tbody>{rows}</tbody></table></div>'
+            f'<div class="lc-foot"><div class="lc-links">{links}<a href="/compare/" data-vi-href="/vi/compare/">{all_link} →</a></div>'
+            f'{legends}</div>'
+            f'</div>')
+
 T = {
     "en": {
         "home": "Home", "compare": "Compare", "download": "Download", "github": "GitHub",
-        "glance": "At a glance", "choose_them": "Choose {name} if", "choose_us": "Choose DumpCat if",
+        "glance": "In detail", "vs": "Side by side", "vs_lead": "Each row says whether the feature exists; hover or tap a mark for the details. The table below has the full answers, with sources.", "choose_them": "Choose {name} if", "choose_us": "Choose DumpCat if",
         "switch": "Switching from {name}", "sources": "Sources",
         "checked": "Facts about {name} were checked on {date} against the sources below. Products change: if something here is out of date, please open an issue on GitHub.",
         "trademark": "{name} is a trademark of its owner. DumpCat is an independent open-source project and is not affiliated with it.",
         "others": "Other comparisons", "cta_download": "Download DumpCat", "cta_github": "Source on GitHub",
         "foot": "Open source under the Apache-2.0 license, with the source on GitHub.", "support": "Support",
+        "install": "Install",
+        "guide_title": "Install DumpCat step by step: Linux and Windows",
+        "guide_desc": "How to install DumpCat, the free MySQL and MariaDB backup manager: one command on a Linux server, download and double-click on Windows, then your first backup. Written for beginners.",
+        "guide_h1": "Install DumpCat step by step",
+        "guide_lead": "For beginners: no Linux or command-line experience needed. About five minutes from download to your first backup.",
+        "guide_linux": "Linux server", "guide_windows": "Windows",
         "hub_title": "DumpCat vs other MySQL backup tools: open-source, self-hosted alternative",
         "hub_desc": "How DumpCat, a free open-source MySQL and MariaDB backup manager, compares with SqlBackupAndFTP, SimpleBackups, Ottomatik and other backup tools: price, point-in-time recovery, storage and where your data goes.",
         "hub_h1": "DumpCat compared with other MySQL backup tools",
         "hub_lead": "Fair, sourced comparisons with the tools people use to back up MySQL and MariaDB. Every product here is good at something: each page says when the other tool is the better choice.",
+        "hub_matrix": "Every tool side by side", "hub_matrix_lead": "Click a tool for the full comparison, with the details and the sources behind every mark.", "hub_pages": "One page per tool", "hub_summary": "Type and price",
         "hub_tool": "Tool", "hub_kind": "Type", "hub_oss": "Open source", "hub_self": "Runs on your servers",
         "hub_pitr": "Point-in-time recovery", "hub_price": "Price",
         "yes": "Yes", "no": "No", "read": "Read the comparison",
@@ -80,16 +256,23 @@ T = {
     },
     "vi": {
         "home": "Trang chủ", "compare": "So sánh", "download": "Tải về", "github": "GitHub",
-        "glance": "So sánh nhanh", "choose_them": "Chọn {name} nếu", "choose_us": "Chọn DumpCat nếu",
+        "glance": "Chi tiết từng mục", "vs": "So sánh song song", "vs_lead": "Mỗi dòng cho biết có tính năng đó hay không; rê chuột hoặc chạm vào dấu để xem chi tiết. Bảng bên dưới có câu trả lời đầy đủ, kèm nguồn.", "choose_them": "Chọn {name} nếu", "choose_us": "Chọn DumpCat nếu",
         "switch": "Chuyển từ {name} sang DumpCat", "sources": "Nguồn",
         "checked": "Thông tin về {name} được kiểm tra ngày {date} theo các nguồn bên dưới. Sản phẩm thay đổi theo thời gian: nếu có gì đã cũ, xin mở một issue trên GitHub.",
         "trademark": "{name} là thương hiệu của chủ sở hữu. DumpCat là dự án mã nguồn mở độc lập, không liên kết với họ.",
         "others": "So sánh khác", "cta_download": "Tải DumpCat", "cta_github": "Mã nguồn trên GitHub",
         "foot": "Mã nguồn mở theo giấy phép Apache-2.0, mã nguồn trên GitHub.", "support": "Hỗ trợ",
+        "install": "Cài đặt",
+        "guide_title": "Cài DumpCat từng bước: Linux và Windows",
+        "guide_desc": "Cách cài DumpCat, công cụ backup MySQL và MariaDB miễn phí: một lệnh trên server Linux, tải về và bấm đúp trên Windows, rồi tạo bản backup đầu tiên. Viết cho người mới.",
+        "guide_h1": "Cài DumpCat từng bước",
+        "guide_lead": "Dành cho người mới: không cần rành Linux hay dòng lệnh. Khoảng năm phút từ lúc tải về tới bản backup đầu tiên.",
+        "guide_linux": "Server Linux", "guide_windows": "Windows",
         "hub_title": "So sánh DumpCat với các công cụ backup MySQL khác: thay thế mã nguồn mở, tự host",
         "hub_desc": "DumpCat, công cụ backup MySQL và MariaDB miễn phí, mã nguồn mở, so với SqlBackupAndFTP, SimpleBackups, Ottomatik và các công cụ khác: giá, khôi phục theo thời điểm, nơi lưu và dữ liệu của bạn đi đâu.",
         "hub_h1": "So sánh DumpCat với các công cụ backup MySQL khác",
         "hub_lead": "So sánh công bằng, có dẫn nguồn, với các công cụ mọi người đang dùng để backup MySQL và MariaDB. Công cụ nào cũng có điểm mạnh: mỗi trang đều nói rõ khi nào công cụ kia hợp hơn.",
+        "hub_matrix": "Tất cả công cụ, đặt cạnh nhau", "hub_matrix_lead": "Bấm vào tên một công cụ để xem so sánh đầy đủ, với chi tiết và nguồn của từng dấu.", "hub_pages": "Mỗi công cụ một trang", "hub_summary": "Loại công cụ và giá",
         "hub_tool": "Công cụ", "hub_kind": "Loại", "hub_oss": "Mã nguồn mở", "hub_self": "Chạy trên server của bạn",
         "hub_pitr": "Khôi phục theo thời điểm", "hub_price": "Giá",
         "yes": "Có", "no": "Không", "read": "Xem so sánh",
@@ -131,8 +314,13 @@ def path(lang, slug=None):
     return p + (f"{slug}/" if slug else "")
 
 
-def head(lang, title, desc, slug, crumbs):
-    url = BASE + path(lang, slug)
+def guide_path(lang):
+    return "/install/" if lang == "en" else "/vi/install/"
+
+
+def head(lang, title, desc, slug, crumbs, at=None):
+    at = at or (lambda l: path(l, slug))
+    url = BASE + at(lang)
     ld = {"@context": "https://schema.org", "@type": "BreadcrumbList",
           "itemListElement": [{"@type": "ListItem", "position": i + 1, "name": n, "item": BASE + u}
                               for i, (n, u) in enumerate(crumbs)]}
@@ -144,9 +332,9 @@ def head(lang, title, desc, slug, crumbs):
 <title>{esc(title)}</title>
 <meta name="description" content="{esc(desc)}">
 <link rel="canonical" href="{url}">
-<link rel="alternate" hreflang="en" href="{BASE + path('en', slug)}">
-<link rel="alternate" hreflang="vi" href="{BASE + path('vi', slug)}">
-<link rel="alternate" hreflang="x-default" href="{BASE + path('en', slug)}">
+<link rel="alternate" hreflang="en" href="{BASE + at('en')}">
+<link rel="alternate" hreflang="vi" href="{BASE + at('vi')}">
+<link rel="alternate" hreflang="x-default" href="{BASE + at('en')}">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <meta property="og:type" content="article">
 <meta property="og:url" content="{url}">
@@ -171,11 +359,13 @@ def head(lang, title, desc, slug, crumbs):
 """
 
 
-def header(lang, slug, crumbs, h1, lead):
+def header(lang, slug, crumbs, h1, lead, at=None, cta=None):
     t = T[lang]
-    other = "vi" if lang == "en" else "en"
+    at = at or (lambda l: path(l, slug))
+    cta = cta or (f'<a class="btn btn-light" href="{guide_path(lang)}">{t["cta_download"]}</a>'
+                  f'<a class="btn btn-ghost" href="{REPO}">{t["cta_github"]}</a>')
     lang_links = "".join(
-        f'<a href="{path(l, slug)}" hreflang="{l}" lang="{l}"{" aria-current=\"true\"" if l == lang else ""}>{l.upper()}</a>'
+        f'<a href="{at(l)}" hreflang="{l}" lang="{l}"{" aria-current=\"true\"" if l == lang else ""}>{l.upper()}</a>'
         for l in LANGS)
     crumb_html = " <span aria-hidden=\"true\">/</span> ".join(
         f'<a href="{u}">{esc(n)}</a>' if i < len(crumbs) - 1 else f'<span aria-current="page">{esc(n)}</span>'
@@ -186,6 +376,7 @@ def header(lang, slug, crumbs, h1, lead):
       <a class="brand" href="/"><svg aria-hidden="true"><use href="#dc-logo"/></svg>DumpCat</a>
       <nav class="nav" aria-label="Site">
         <a href="{path(lang)}">{t['compare']}</a>
+        <a href="{guide_path(lang)}">{t['install']}</a>
         <a href="/#download">{t['download']}</a>
         <a href="{REPO}">{t['github']}</a>
       </nav>
@@ -195,24 +386,21 @@ def header(lang, slug, crumbs, h1, lead):
       <nav class="crumbs" aria-label="Breadcrumb">{crumb_html}</nav>
       <h1>{inline(h1)}</h1>
       <p class="lead">{inline(lead)}</p>
-      <div class="cta">
-        <a class="btn btn-light" href="/#download">{t['cta_download']}</a>
-        <a class="btn btn-ghost" href="{REPO}">{t['cta_github']}</a>
-      </div>
+      <div class="cta">{cta}</div>
     </div>
   </div>
 </header>
 """
 
 
-def footer(lang):
+def footer(lang, script=""):
     t = T[lang]
     return f"""<footer class="foot">
   <div class="wrap">
     <a class="brand" href="/"><svg aria-hidden="true"><use href="#dc-logo"/></svg>DumpCat</a>
-    <p>{esc(t['foot'])} <a href="{REPO}">GitHub</a> · <a href="{path(lang)}">{t['compare']}</a> · {t['support']}: <a href="mailto:{SUPPORT}">{SUPPORT}</a></p>
+    <p>{esc(t['foot'])} <a href="{REPO}">GitHub</a> · <a href="{path(lang)}">{t['compare']}</a> · <a href="{guide_path(lang)}">{t['install']}</a> · {t['support']}: <a href="mailto:{SUPPORT}">{SUPPORT}</a></p>
   </div>
-</footer>
+</footer>{script}
 </body>
 </html>
 """
@@ -243,6 +431,16 @@ def tool_page(tool, tools, lang):
         for o in tools if o["slug"] != tool["slug"])
     return head(lang, d["title"], d["description"], tool["slug"], crumbs) + header(lang, tool["slug"], crumbs, f"DumpCat vs {name}", d["lead"]) + f"""
 <main>
+  <section class="section" aria-labelledby="vs-title">
+    <div class="wrap">
+      <div class="head">
+        <h2 id="vs-title">{t['vs']}</h2>
+        <p class="intro">{esc(t['vs_lead'])}</p>
+      </div>
+      <div class="section-body">{vs_table(tool, lang)}{legend(lang)}</div>
+    </div>
+  </section>
+
   <section class="section" aria-labelledby="glance-title">
     <div class="wrap">
       <h2 id="glance-title">{t['glance']}</h2>
@@ -307,19 +505,44 @@ def hub_page(tools, lang):
         f'<em>{t["read"]} →</em></a></li>' for o in tools)
     return head(lang, t["hub_title"], t["hub_desc"], None, crumbs) + header(lang, None, crumbs, t["hub_h1"], t["hub_lead"]) + f"""
 <main>
-  <section class="section">
+  <section class="section" aria-labelledby="matrix-title">
     <div class="wrap">
-      <div class="table-scroll cmp hub">
+      <div class="head">
+        <h2 id="matrix-title">{t['hub_matrix']}</h2>
+        <p class="intro">{esc(t['hub_matrix_lead'])}</p>
+      </div>
+      <div class="section-body">{hub_matrix(tools, lang)}{legend(lang)}</div>
+    </div>
+  </section>
+
+  <section class="section" aria-labelledby="price-title">
+    <div class="wrap">
+      <h2 id="price-title">{t['hub_summary']}</h2>
+      <div class="section-body table-scroll cmp hub">
         <table>
           <thead><tr><th scope="col">{t['hub_tool']}</th><th scope="col">{t['hub_kind']}</th><th scope="col">{t['hub_oss']}</th><th scope="col">{t['hub_self']}</th><th scope="col">{t['hub_pitr']}</th><th scope="col">{t['hub_price']}</th></tr></thead>
           <tbody>{rows}</tbody>
         </table>
       </div>
+      <h2 class="cards-title">{t['hub_pages']}</h2>
       <ul class="cards">{cards}</ul>
     </div>
   </section>
 </main>
 """ + footer(lang)
+
+
+def guide_page(lang):
+    """The step-by-step install guide: site-src/install/<lang>.html inside the common page frame."""
+    t = T[lang]
+    crumbs = [(t["home"], "/"), (t["install"], guide_path(lang))]
+    body = (GUIDE / f"{lang}.html").read_text(encoding="utf-8")
+    cta = (f'<a class="btn btn-light" href="#linux">{t["guide_linux"]}</a>'
+           f'<a class="btn btn-light" href="#windows">{t["guide_windows"]}</a>')
+    return (head(lang, t["guide_title"], t["guide_desc"], None, crumbs, at=guide_path)
+            + header(lang, None, crumbs, t["guide_h1"], t["guide_lead"], at=guide_path, cta=cta)
+            + '\n<main class="guide">\n' + body + "</main>\n"
+            + footer(lang, '\n<script src="/guide.js" defer></script>'))
 
 
 def write(rel, text):
@@ -336,26 +559,41 @@ def main():
             missing = [k for k, _, _ in DIMENSIONS if k not in o[lang]["values"]]
             if missing:
                 raise SystemExit(f"{o['slug']}: {lang} values missing {missing}")
+        grid = o.get("grid", {})
+        bad = [k for k in GRID_KEYS if k not in grid or grid[k][0] not in VERDICT
+               or (grid[k][0] != "yes" and grid[k][0] != "unknown" and not (len(grid[k]) > 1 and grid[k][1].get("en") and grid[k][1].get("vi")))]
+        if bad:
+            raise SystemExit(f"{o['slug']}: grid rows missing, unknown verdict or a note missing: {bad}")
     for lang in LANGS:
         write(path(lang).lstrip("/") + "index.html", hub_page(tools, lang))
         for o in tools:
             write(path(lang, o["slug"]).lstrip("/") + "index.html", tool_page(o, tools, lang))
+        write(guide_path(lang).lstrip("/") + "index.html", guide_page(lang))
+
+    # the landing page's short comparison sits between two markers in site/index.html
+    idx = OUT / "index.html"
+    page = idx.read_text(encoding="utf-8")
+    a, z = "<!-- compare:begin (scripts/build-site.py) -->", "<!-- compare:end -->"
+    i, j = page.index(a) + len(a), page.index(z)
+    idx.write_text(page[:i] + "\n" + landing_block(tools) + "\n          " + page[j:], encoding="utf-8", newline="\n")
 
     newest = max([o["checked"] for o in tools] + [datetime.date.today().isoformat()])
-    urls = [("/", None, newest)] + [(None, None, newest)] + [(None, o["slug"], o["checked"]) for o in tools]
+    guide_mod = datetime.date.fromtimestamp(max(p.stat().st_mtime for p in GUIDE.glob("*.html"))).isoformat()
+    urls = ([("/", None, newest), (None, lambda l: path(l), newest), (None, guide_path, guide_mod)]
+            + [(None, lambda l, s=o["slug"]: path(l, s), o["checked"]) for o in tools])
     items = []
-    for fixed, slug, mod in urls:
+    for fixed, at, mod in urls:
         if fixed:
             items.append(f"  <url><loc>{BASE}{fixed}</loc><lastmod>{mod}</lastmod></url>")
             continue
-        alts = "".join(f'<xhtml:link rel="alternate" hreflang="{l}" href="{BASE + path(l, slug)}"/>' for l in LANGS)
+        alts = "".join(f'<xhtml:link rel="alternate" hreflang="{l}" href="{BASE + at(l)}"/>' for l in LANGS)
         for lang in LANGS:
-            items.append(f"  <url><loc>{BASE + path(lang, slug)}</loc><lastmod>{mod}</lastmod>{alts}</url>")
+            items.append(f"  <url><loc>{BASE + at(lang)}</loc><lastmod>{mod}</lastmod>{alts}</url>")
     write("sitemap.xml", '<?xml version="1.0" encoding="UTF-8"?>\n'
           '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">\n'
           + "\n".join(items) + "\n</urlset>\n")
     write("robots.txt", f"User-agent: *\nAllow: /\n\nSitemap: {BASE}/sitemap.xml\n")
-    print(f"built {len(tools)} comparisons x {len(LANGS)} languages, sitemap with {len(items)} URLs")
+    print(f"built {len(tools)} comparisons and the install guide x {len(LANGS)} languages, sitemap with {len(items)} URLs")
 
 
 if __name__ == "__main__":

@@ -2,7 +2,7 @@
   "slug": "simplebackups",
   "name": "SimpleBackups",
   "order": 10,
-  "checked": "2026-10-18",
+  "checked": "2026-10-19",
   "kind": {"en": "Hosted backup service (SaaS)", "vi": "Dịch vụ backup trực tuyến (SaaS)"},
   "summary": {
     "en": "Hosted service for server, database and storage backups, from a free plan to $299/month.",
@@ -14,6 +14,29 @@
     "pitr": {"en": "Partial: collects binlogs, replay not documented", "vi": "Một phần: thu binlog, chưa có tài liệu phát lại"},
     "price": {"en": "Free plan; $49–$299/month", "vi": "Có gói miễn phí; $49–$299/tháng"}
   },
+  "grid": {
+    "open_source": ["no", {"en": "Proprietary SaaS", "vi": "SaaS mã nguồn đóng"}],
+    "free": ["partial", {"en": "Free: 1 job, daily, 1 GB", "vi": "Free: 1 job, hằng ngày, 1 GB"}],
+    "self_hosted": ["no", {"en": "Vendor SaaS (agent optional)", "vi": "SaaS của hãng (agent tùy chọn)"}],
+    "linux": ["yes", {"en": "Over SSH or agent", "vi": "Qua SSH hoặc agent"}],
+    "windows": ["partial", {"en": "Remote backups via vendor only", "vi": "Chỉ backup từ xa qua hãng"}],
+    "web_ui": ["yes", {"en": "Vendor's cloud dashboard", "vi": "Dashboard trên cloud của hãng"}],
+    "mariadb": ["yes"],
+    "logical": ["yes"],
+    "parallel": ["no", {"en": "mysqldump only (single-threaded)", "vi": "Chỉ mysqldump (đơn luồng)"}],
+    "physical": ["partial", {"en": "Own XtraBackup script, Plus", "vi": "Script XtraBackup tự viết, gói Plus"}],
+    "incremental": ["yes", {"en": "Binlog-based", "vi": "Dựa trên binlog"}],
+    "pitr": ["partial", {"en": "Replay not documented", "vi": "Chưa có tài liệu phát lại"}],
+    "restore_ui": ["partial", {"en": "Manual in docs; some automated", "vi": "Tài liệu: thủ công; một số tự động"}],
+    "verify": ["partial", {"en": "Size and presence checks", "vi": "Kiểm tra dung lượng, sự tồn tại"}],
+    "cloud": ["yes"],
+    "multi_storage": ["paid", {"en": "Plus plan and up", "vi": "Từ gói Plus"}],
+    "encryption": ["yes", {"en": "AES-256 with your RSA key", "vi": "AES-256 với khóa RSA của bạn"}],
+    "direct": ["partial", {"en": "Not with serverless workers", "vi": "Không khi dùng serverless worker"}],
+    "scheduler": ["yes", {"en": "Daily on the free plan", "vi": "Hằng ngày ở gói miễn phí"}],
+    "retention": ["yes"],
+    "alerts": ["paid", {"en": "Lite plan and up", "vi": "Từ gói Lite"}]
+  },
   "en": {
     "title": "SimpleBackups alternative for MySQL: DumpCat, free and self-hosted",
     "description": "DumpCat vs SimpleBackups for MySQL and MariaDB backups: price, point-in-time recovery, physical backups, restores and where your data goes. Sourced and checked in October 2026.",
@@ -21,16 +44,16 @@
     "values": {
       "price": "Free plan: 1 job, 1 GB of SimpleBackups storage, daily runs, databases up to 1 GB. Paid plans from $49/month (Lite, 5 jobs) to $299/month (Max, 100 jobs); 20% off yearly. Storage you bring yourself is unlimited.",
       "runs": "Hosted SaaS. It reaches your server over SSH or through its agent, or runs the backup on its own serverless workers.",
-      "platforms": "Any server it can reach over SSH or with its agent, plus managed databases through serverless workers.",
+      "platforms": "Any server it can reach over SSH or with its agent (installed by a bash script on Linux or macOS, in Docker or on Kubernetes), plus self-hosted or managed databases through its serverless workers. No Windows agent is documented.",
       "databases": "MySQL, MariaDB, PostgreSQL, MongoDB, Redis and PlanetScale / Vitess. No list of supported versions is published.",
-      "methods": "`mysqldump` with default flags; the docs ask you to add `--single-transaction` yourself to avoid read locks. Physical backups only through your own XtraBackup script.",
+      "methods": "`mysqldump` with default flags; the docs ask you to add `--single-transaction` yourself to avoid read locks. Physical backups only through your own XtraBackup script, run as a Custom Script backup, which the pricing table lists on the Plus and Max plans.",
       "pitr": "Partial: it can collect binlogs once you enable them, but replaying them is not documented.",
-      "storage": "About 35 providers, including S3, Backblaze B2, Cloudflare R2, Azure, Google Cloud Storage, Google Drive, OneDrive, Dropbox, SFTP and local volumes, or SimpleBackups' own storage.",
+      "storage": "About 35 providers, including S3, Backblaze B2, Cloudflare R2, Azure, Google Cloud Storage, Google Drive, OneDrive, Dropbox, SFTP and local volumes, or SimpleBackups' own storage. Copying each backup to up to three more destinations needs the Plus plan or higher.",
       "encryption": "AES-256 with OpenSSL, using your RSA public key.",
       "schedule": "Frequency depends on the plan: daily on Free, every 12 hours on Lite, hourly on Plus, every 5 minutes on Max. Jobs, storage and database size are capped per plan.",
-      "restore": "The docs describe database restores as manual: download the backup and run the commands they give you. Automated MariaDB restores were announced in September 2026.",
+      "restore": "The current docs describe database restores as manual: download the backup and run the commands they give you. The changelog also lists a restore wizard for single MySQL database backups (September 2022), and in September 2026 it mentions fixes to automated MariaDB restores.",
       "datapath": "With SSH or the agent, data goes from your server to your storage. With serverless workers it passes through SimpleBackups in transit. Credentials are stored encrypted by SimpleBackups unless you keep them in a `.my.cnf` file on your server.",
-      "alerts": "Email, Slack, Discord, Teams, Telegram, Pushover and webhooks, plus anomaly detection."
+      "alerts": "Email on the free plan; Slack, Discord, Teams, Telegram, Pushover and webhooks from the Lite plan. Anomaly detection checks each run's size and that the file is still in storage, but the docs say its alerts are not yet sent to customers."
     },
     "choose_them": [
       "You want nothing to install or keep running: SimpleBackups schedules and monitors from its own infrastructure, so you still get an alert when your server is down.",
@@ -58,16 +81,16 @@
     "values": {
       "price": "Gói miễn phí: 1 job, 1 GB dung lượng của SimpleBackups, chạy mỗi ngày, database tối đa 1 GB. Gói trả phí từ $49/tháng (Lite, 5 job) đến $299/tháng (Max, 100 job); trả theo năm giảm 20%. Dùng storage riêng thì không giới hạn dung lượng.",
       "runs": "Dịch vụ SaaS. Kết nối tới server qua SSH hoặc qua agent, hoặc chạy backup trên máy chủ serverless của họ.",
-      "platforms": "Server nào truy cập được qua SSH hoặc cài được agent, cùng các database được quản lý (managed) qua máy chủ serverless.",
+      "platforms": "Server nào truy cập được qua SSH hoặc cài được agent (cài bằng script bash trên Linux hoặc macOS, trong Docker hoặc trên Kubernetes), cùng các database tự host hoặc được quản lý (managed) qua máy chủ serverless. Tài liệu không có agent cho Windows.",
       "databases": "MySQL, MariaDB, PostgreSQL, MongoDB, Redis và PlanetScale / Vitess. Không công bố danh sách phiên bản hỗ trợ.",
-      "methods": "`mysqldump` với tham số mặc định; tài liệu hướng dẫn tự thêm `--single-transaction` để tránh khóa đọc. Backup vật lý chỉ làm được bằng script XtraBackup tự viết.",
+      "methods": "`mysqldump` với tham số mặc định; tài liệu hướng dẫn tự thêm `--single-transaction` để tránh khóa đọc. Backup vật lý chỉ làm được bằng script XtraBackup tự viết, chạy dưới dạng backup Custom Script, mà bảng giá chỉ ghi có ở gói Plus và Max.",
       "pitr": "Một phần: thu được binlog khi bạn bật, nhưng chưa có tài liệu về việc phát lại binlog.",
-      "storage": "Khoảng 35 nhà cung cấp, gồm S3, Backblaze B2, Cloudflare R2, Azure, Google Cloud Storage, Google Drive, OneDrive, Dropbox, SFTP và ổ local, hoặc storage của SimpleBackups.",
+      "storage": "Khoảng 35 nhà cung cấp, gồm S3, Backblaze B2, Cloudflare R2, Azure, Google Cloud Storage, Google Drive, OneDrive, Dropbox, SFTP và ổ local, hoặc storage của SimpleBackups. Muốn chép mỗi bản backup sang thêm tối đa ba nơi lưu khác thì cần gói Plus trở lên.",
       "encryption": "AES-256 bằng OpenSSL, dùng khóa công khai RSA của bạn.",
       "schedule": "Tần suất tùy gói: mỗi ngày (Free), mỗi 12 giờ (Lite), mỗi giờ (Plus), mỗi 5 phút (Max). Số job, dung lượng và kích thước database bị giới hạn theo gói.",
-      "restore": "Tài liệu mô tả việc khôi phục database là thủ công: tải file backup về rồi chạy các lệnh được hướng dẫn. Tháng 9/2026 họ có thông báo thêm tính năng tự khôi phục MariaDB.",
+      "restore": "Tài liệu hiện tại mô tả việc khôi phục database là thủ công: tải file backup về rồi chạy các lệnh được hướng dẫn. Changelog cũng có ghi một trình hướng dẫn khôi phục cho backup một database MySQL (tháng 9/2022), và tháng 9/2026 có nhắc tới bản sửa lỗi cho tính năng tự khôi phục MariaDB.",
       "datapath": "Dùng SSH hoặc agent thì dữ liệu đi từ server của bạn tới storage của bạn. Dùng máy chủ serverless thì dữ liệu đi qua SimpleBackups trong lúc truyền. Thông tin đăng nhập được SimpleBackups lưu dạng mã hóa, trừ khi bạn để trong file `.my.cnf` trên server.",
-      "alerts": "Email, Slack, Discord, Teams, Telegram, Pushover và webhook, kèm phát hiện bất thường."
+      "alerts": "Gói miễn phí chỉ có email; Slack, Discord, Teams, Telegram, Pushover và webhook có từ gói Lite. Tính năng phát hiện bất thường kiểm tra dung lượng mỗi lần chạy và file còn nằm trong storage hay không, nhưng tài liệu ghi rằng cảnh báo của nó chưa được gửi tới khách hàng."
     },
     "choose_them": [
       "Bạn không muốn cài hay duy trì gì: SimpleBackups lên lịch và theo dõi từ hạ tầng của họ, nên vẫn báo được khi server của bạn chết.",
@@ -96,6 +119,11 @@
     {"label": "SimpleBackups docs: enable the binary log", "url": "https://simplebackups.com/docs/database-backup/mysql-backup/how-to-enable-binary-log-for-mysql-or-mariadb"},
     {"label": "SimpleBackups docs: notifications", "url": "https://simplebackups.com/docs/getting-started/features/notifications"},
     {"label": "SimpleBackups docs: backup restore", "url": "https://simplebackups.com/docs/getting-started/features/backup-restore"},
-    {"label": "SimpleBackups changelog", "url": "https://simplebackups.com/changelog"}
+    {"label": "SimpleBackups changelog", "url": "https://simplebackups.com/changelog"},
+    {"label": "SimpleBackups docs: MySQL backup", "url": "https://simplebackups.com/docs/database-backup/mysql-backup/overview"},
+    {"label": "SimpleBackups docs: restore a MySQL backup", "url": "https://simplebackups.com/docs/database-backup/mysql-backup/restore-a-mysql-backup"},
+    {"label": "SimpleBackups docs: backup storage and multi-storage", "url": "https://simplebackups.com/docs/getting-started/features/backup-storage"},
+    {"label": "SimpleBackups docs: anomaly detection", "url": "https://simplebackups.com/docs/getting-started/features/backup-anomaly-detection"},
+    {"label": "SimpleBackups docs: agent installation", "url": "https://simplebackups.com/docs/getting-started/architecture/agent-installation-and-usage-guide"}
   ]
 }

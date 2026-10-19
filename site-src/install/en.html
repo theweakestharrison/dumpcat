@@ -1,0 +1,162 @@
+  <section class="section" aria-labelledby="need-title">
+    <div class="wrap">
+      <h2 id="need-title">Before you start</h2>
+      <ul class="need">
+        <li><b>A machine to run DumpCat</b><span>Best: the database server itself, on Linux or 64-bit Windows. Another machine works too, as long as it can reach the database.</span></li>
+        <li><b>Administrator rights</b><span><code>sudo</code> on Linux, an Administrator account on Windows.</span></li>
+        <li><b>A web browser</b><span>DumpCat is used from the browser: there is nothing to install on your own computer.</span></li>
+      </ul>
+      <p class="note">Want to see it first? <a href="/demo/">Open the demo</a>: the real interface with sample data, right in your browser.</p>
+      <div class="os-pick" role="navigation" aria-label="Choose your system">
+        <a href="#linux"><b>Linux server</b><span>Ubuntu, Debian, Rocky, Alma, RHEL, Fedora…</span><em>One command →</em></a>
+        <a href="#windows"><b>Windows</b><span>Windows 10 / 11, Windows Server 2016 and newer</span><em>Download and double-click →</em></a>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="linux" aria-labelledby="linux-title">
+    <div class="wrap narrow">
+      <p class="label">Linux</p>
+      <h2 id="linux-title">Install on a Linux server</h2>
+      <ol class="gsteps">
+        <li>
+          <h3>Open a terminal on the server</h3>
+          <p>From your own computer, open a terminal (Windows: press Start and type <b>PowerShell</b>; macOS: the <b>Terminal</b> app) and connect to the server:</p>
+          <div class="code"><div class="code-bar"><span>Terminal</span><button type="button" class="copy" data-target="g-ssh">Copy</button></div><pre><code id="g-ssh">ssh <i>user</i>@<i>server-ip</i></code></pre></div>
+          <p class="hint">Replace <i>user</i> and <i>server-ip</i> with the login and address your hosting provider gave you. The first time, answer <b>yes</b>. Many providers also have a <b>Console</b> button in their control panel that opens the same terminal in the browser.</p>
+        </li>
+        <li>
+          <h3>Paste this command and press Enter</h3>
+          <div class="code"><div class="code-bar"><span>bash</span><button type="button" class="copy" data-target="g-linux">Copy</button></div><pre><code id="g-linux">curl -fsSL https://dumpcat.cc/install.sh | sudo sh</code></pre></div>
+          <p class="hint">If it asks for a password, type yours: nothing appears on screen while you type, that is normal. The command downloads the latest DumpCat, checks the file, installs it as a service that starts with the server and installs the backup tools that match your database. It takes a minute or two.</p>
+        </li>
+        <li>
+          <h3>Note the address and the setup token</h3>
+          <p>At the end, the installer prints something like this:</p>
+          <div class="code term"><pre><span class="c">DumpCat is running:</span> http://203.0.113.10:6369/
+<span class="c">No account yet: open the address above and create the admin account.</span>
+<span class="c">  The setup page asks for this one-time setup token:</span>  K7QF-2MZD-W9TA-H4NB-X3RC-8PLE</pre></div>
+          <p class="hint">Lost the token? Run <code>sudo dumpcat setup-token</code> to see it again.</p>
+        </li>
+        <li>
+          <h3>Open the address in your browser</h3>
+          <p>Then follow <a href="#first-run">Open DumpCat for the first time</a> below.</p>
+          <p class="hint">The page does not load? Port 6369 is blocked. Allow it on the server with <code>sudo ufw allow 6369/tcp</code> (or <code>firewall-cmd --permanent --add-port=6369/tcp &amp;&amp; firewall-cmd --reload</code>), and on a cloud server also in the provider's firewall or security group. If you can, allow only your own IP address.</p>
+        </li>
+      </ol>
+    </div>
+  </section>
+
+  <section class="section" id="windows" aria-labelledby="windows-title">
+    <div class="wrap narrow">
+      <p class="label">Windows</p>
+      <h2 id="windows-title">Install on Windows</h2>
+      <ol class="gsteps">
+        <li>
+          <h3>Download DumpCat for Windows</h3>
+          <p><a class="btn btn-solid dl" data-pkg="windows" href="/#download">Download the .zip <small data-version-label></small></a></p>
+        </li>
+        <li>
+          <h3>Unzip it</h3>
+          <p>Right-click the downloaded file, choose <b>Extract All…</b>, then <b>Extract</b>. A folder opens.</p>
+        </li>
+        <li>
+          <h3>Double-click <b>Install DumpCat</b></h3>
+          <p>Windows asks <i>Do you want to allow this app to make changes to your device?</i>: choose <b>Yes</b>.</p>
+          <p class="hint">If Windows shows <i>Windows protected your PC</i>, click <b>More info</b>, then <b>Run anyway</b>. DumpCat is installed as a Windows service, so it keeps running after you close the window and starts with Windows.</p>
+        </li>
+        <li>
+          <h3>Your browser opens DumpCat</h3>
+          <p>The install window shows the <b>setup token</b>: keep it, the first page asks for it. The address is <code>http://localhost:6369</code> on this machine. Then follow <a href="#first-run">Open DumpCat for the first time</a>.</p>
+        </li>
+      </ol>
+      <div class="tip">
+        <b>Prefer PowerShell?</b> Open PowerShell as Administrator (right-click Start, <i>Terminal (Admin)</i>) and run:
+        <div class="code"><div class="code-bar"><span>PowerShell (Administrator)</span><button type="button" class="copy" data-target="g-win">Copy</button></div><pre><code id="g-win">irm https://dumpcat.cc/install.ps1 | iex</code></pre></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="first-run" aria-labelledby="first-title">
+    <div class="wrap narrow">
+      <p class="label">After installing</p>
+      <h2 id="first-title">Open DumpCat for the first time</h2>
+      <ol class="gsteps">
+        <li>
+          <h3>Create the admin account</h3>
+          <p>Paste the setup token, choose a user name and a password. You can turn on two-factor sign-in later, under <b>Profile &amp; security</b>.</p>
+        </li>
+        <li>
+          <h3>Add your database</h3>
+          <p><b>Database servers → Add server.</b> When DumpCat runs on the database server, the host is <code>127.0.0.1</code> and the port <code>3306</code>. Enter a MySQL user and password, then click <b>Test connection</b>: DumpCat shows the databases it sees and any missing privilege.</p>
+        </li>
+        <li>
+          <h3>Choose where backups go</h3>
+          <p><b>Storage → Add storage.</b> A folder on this machine is the simplest start; Google Drive, OneDrive, S3, SFTP and many more work the same way. Click <b>Test</b>.</p>
+        </li>
+        <li>
+          <h3>Create a backup job</h3>
+          <p><b>Backup jobs → New job.</b> Pick the database, the schedule and the storage, then <b>Save &amp; run now</b>. The first backup runs at once and is read back to check it.</p>
+        </li>
+      </ol>
+      <p class="note">More detail on every screen: the <a href="https://github.com/theweakestharrison/DumpCat/blob/main/docs/manual.md">manual</a>, also inside every download (<code>docs/manual.md</code>).</p>
+    </div>
+  </section>
+
+  <section class="section" id="downloaded" aria-labelledby="dl-title">
+    <div class="wrap narrow">
+      <p class="label">Downloaded the file already?</p>
+      <h2 id="dl-title">Install from the downloaded package</h2>
+      <p class="intro">Every package has a <b>START-HERE.txt</b> file with these steps.</p>
+      <div class="pkg-help">
+        <div>
+          <h3>Windows (.zip)</h3>
+          <p>Unzip it and double-click <b>Install DumpCat</b>, as in <a href="#windows">the Windows steps</a>.</p>
+        </div>
+        <div>
+          <h3>Linux (.tar.gz)</h3>
+          <p>The file has to be on the server. The easiest way is to run <a href="#linux">the one-line command</a> on the server, which downloads the same file. Or copy it there (for example with <code>scp</code> or WinSCP) and run, on the server:</p>
+          <div class="code"><div class="code-bar"><span>bash</span><button type="button" class="copy" data-target="g-tar">Copy</button></div><pre><code id="g-tar">tar xzf dumpcat-*-linux.tar.gz
+cd dumpcat-*-linux
+sudo ./install.sh</code></pre></div>
+        </div>
+      </div>
+      <h3 class="sub">Just trying it, without installing?</h3>
+      <p>Run the program straight from the unpacked folder, then open <code>http://localhost:6369</code>. The setup token is printed in the window; <b>Ctrl+C</b> stops it.</p>
+      <div class="code"><div class="code-bar"><span>Linux</span><button type="button" class="copy" data-target="g-try-l">Copy</button></div><pre><code id="g-try-l">./dumpcat-linux-amd64 serve -data-dir ./data</code></pre></div>
+      <div class="code"><div class="code-bar"><span>Windows (PowerShell, in the folder)</span><button type="button" class="copy" data-target="g-try-w">Copy</button></div><pre><code id="g-try-w">.\dumpcat.exe serve -data-dir .\data</code></pre></div>
+    </div>
+  </section>
+
+  <section class="section" id="help" aria-labelledby="help-title">
+    <div class="wrap narrow">
+      <h2 id="help-title">Questions and problems</h2>
+      <div class="faq">
+        <details>
+          <summary>The page does not open in the browser</summary>
+          <p>Check that DumpCat runs: <code>systemctl status dumpcat</code> on Linux, the <i>DumpCat</i> service in <i>services.msc</i> on Windows. From another machine, port 6369 must be open: on Linux <code>sudo ufw allow 6369/tcp</code>, on Windows run the installer again with <code>-OpenFirewall</code>, and on a cloud server also open it in the provider's firewall.</p>
+        </details>
+        <details>
+          <summary>I lost the setup token</summary>
+          <p>Linux: <code>sudo dumpcat setup-token</code>. Windows, in PowerShell as Administrator: <code>&amp; "C:\Program Files\DumpCat\dumpcat.exe" setup-token -config "C:\ProgramData\DumpCat\dumpcat.env"</code>. The token works until the first account exists.</p>
+        </details>
+        <details>
+          <summary>Use another port than 6369</summary>
+          <p>Linux: <code>curl -fsSL https://dumpcat.cc/install.sh | sudo sh -s -- --port 9090</code>. Windows: in the unzipped folder, in PowerShell as Administrator, <code>powershell -ExecutionPolicy Bypass -File .\install.ps1 -Port 9090</code>.</p>
+        </details>
+        <details>
+          <summary>Update to a new version</summary>
+          <p>Open <b>System</b> in DumpCat: it shows when a new version is out and installs it with one click, after checking its signature. Running the install command again does the same.</p>
+        </details>
+        <details>
+          <summary>Uninstall</summary>
+          <p>Linux: <code>curl -fsSL https://dumpcat.cc/install.sh | sudo sh -s -- --uninstall</code> (add <code>--purge</code> to also delete DumpCat's settings and backup catalog in <code>/var/lib/dumpcat</code> and <code>/etc/dumpcat</code>). Windows: in the unzipped folder, in PowerShell as Administrator, <code>powershell -ExecutionPolicy Bypass -File .\install.ps1 -Uninstall</code>.</p>
+        </details>
+        <details>
+          <summary>The database is on another server behind a firewall</summary>
+          <p>Install DumpCat anywhere, then let the database server connect out to it: with the small <b>DumpCat agent</b> or the <b>built-in WireGuard</b>. See <a href="/#connect">the three ways to connect</a>.</p>
+        </details>
+      </div>
+      <p class="note">Still stuck? Write to <a href="mailto:fat@dumpcat.cc">fat@dumpcat.cc</a> or open an issue on <a href="https://github.com/theweakestharrison/DumpCat/issues">GitHub</a>.</p>
+    </div>
+  </section>

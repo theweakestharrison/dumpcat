@@ -2,7 +2,7 @@
   "slug": "sqlbackupandftp",
   "name": "SQLBackupAndFTP",
   "order": 5,
-  "checked": "2026-10-18",
+  "checked": "2026-10-19",
   "kind": {"en": "Windows desktop app and service", "vi": "Ứng dụng desktop và service cho Windows"},
   "summary": {
     "en": "Windows backup app for SQL Server, MySQL, MariaDB and PostgreSQL, licensed per computer.",
@@ -14,6 +14,29 @@
     "pitr": {"en": "Partial: binlog incrementals", "vi": "Một phần: incremental bằng binlog"},
     "price": {"en": "Free for 2 databases; $39–$129, $499 lifetime", "vi": "Miễn phí 2 database; $39–$129, trọn đời $499"}
   },
+  "grid": {
+    "open_source": ["no", {"en": "Proprietary", "vi": "Mã nguồn đóng"}],
+    "free": ["partial", {"en": "Free: 2 DBs, basic features", "vi": "Free: 2 DB, tính năng cơ bản"}],
+    "self_hosted": ["yes", {"en": "Windows only", "vi": "Chỉ Windows"}],
+    "linux": ["partial", {"en": "Remote full backups only", "vi": "Chỉ backup full từ xa"}],
+    "windows": ["yes"],
+    "web_ui": ["no", {"en": "Desktop app (web history paid)", "vi": "App desktop (lịch sử web trả phí)"}],
+    "mariadb": ["yes"],
+    "logical": ["yes"],
+    "parallel": ["no", {"en": "mysqldump only (single-threaded)", "vi": "Chỉ mysqldump (đơn luồng)"}],
+    "physical": ["no", {"en": "No physical backups", "vi": "Không có backup vật lý"}],
+    "incremental": ["paid", {"en": "Standard edition and up", "vi": "Từ bản Standard"}],
+    "pitr": ["partial", {"en": "Chosen-time restore undocumented", "vi": "Chưa có tài liệu khôi phục theo giờ"}],
+    "restore_ui": ["yes", {"en": "One-click chain restore", "vi": "Khôi phục cả chuỗi một cú nhấp"}],
+    "verify": ["partial", {"en": "Via scheduled restore jobs", "vi": "Qua job khôi phục theo lịch"}],
+    "cloud": ["yes", {"en": "S3 on Professional", "vi": "S3 ở bản Professional"}],
+    "multi_storage": ["yes"],
+    "encryption": ["paid", {"en": "Professional edition", "vi": "Bản Professional"}],
+    "direct": ["yes"],
+    "scheduler": ["yes"],
+    "retention": ["yes", {"en": "Incl. GFS", "vi": "Có GFS"}],
+    "alerts": ["paid", {"en": "Lite edition and up", "vi": "Từ bản Lite"}]
+  },
   "en": {
     "title": "SQLBackupAndFTP alternative for MySQL: DumpCat, free, open source, Linux and Windows",
     "description": "DumpCat vs SQLBackupAndFTP for MySQL and MariaDB backups: price per computer, Windows vs Linux, binlog incrementals, point-in-time recovery, encryption and cloud storage. Sourced, October 2026.",
@@ -21,14 +44,14 @@
     "values": {
       "price": "One-time licence per computer: Free (2 databases), Lite $39 (5 databases), Standard $89, Professional $129, Professional Lifetime $499. Optional yearly Full-Service plan.",
       "runs": "Windows desktop app plus a Windows service; needs .NET Framework 4.7.2. For Linux the vendor offers a separate product, SqlBak.",
-      "platforms": "Windows only.",
+      "platforms": "Windows only. Full backups can also reach a MySQL server on another machine over TCP/IP or an SSH tunnel; incremental backups need the app on the MySQL server itself.",
       "databases": "MySQL 5.6, 5.7, 8.0 and 8.4, MariaDB 10.6, 10.11 and 11.4; also SQL Server and PostgreSQL.",
       "methods": "Full backups are `mysqldump` SQL scripts. Incrementals (Standard and up) copy binlogs after `FLUSH BINARY LOGS` and need the app on the MySQL server itself. No physical backups.",
       "pitr": "Partial: incrementals are binlogs, but restoring to a chosen point in time is not documented.",
-      "storage": "Local / NAS, FTP, SFTP, FTPS, OneDrive, Box, Backblaze B2, Yandex, Google Drive and Dropbox. Amazon S3, S3-compatible, Azure and OneDrive for Business need Professional.",
+      "storage": "Local / NAS, FTP, SFTP, FTPS, OneDrive, Box, Backblaze B2, Yandex, Google Drive and Dropbox. Amazon S3, S3-compatible, Azure and OneDrive for Business need Professional. A job can send each backup to several destinations, each with its own retention (including GFS).",
       "encryption": "Zip or 7z compression; AES-256 password encryption on Professional only.",
       "schedule": "Built-in scheduler and cleanup of old backups.",
-      "restore": "One-click restore of a full + incremental chain, under a new name or to another server.",
+      "restore": "One-click restore of a full + incremental chain, under a new name or to another server. Restore jobs can also run on a schedule, with notifications on success or failure.",
       "datapath": "From your Windows machine to your storage.",
       "alerts": "Email on every edition; Slack, Teams, Discord and webhooks from Lite."
     },
@@ -57,14 +80,14 @@
     "values": {
       "price": "Mua một lần, theo từng máy: Free (2 database), Lite $39 (5 database), Standard $89, Professional $129, Professional Lifetime $499. Có thêm gói dịch vụ hằng năm tùy chọn.",
       "runs": "Ứng dụng desktop kèm Windows service; cần .NET Framework 4.7.2. Với Linux, hãng có sản phẩm riêng là SqlBak.",
-      "platforms": "Chỉ Windows.",
+      "platforms": "Chỉ Windows. Backup full vẫn kết nối được tới MySQL trên máy khác qua TCP/IP hoặc SSH tunnel; backup incremental thì cần cài ứng dụng trên chính server MySQL.",
       "databases": "MySQL 5.6, 5.7, 8.0 và 8.4, MariaDB 10.6, 10.11 và 11.4; ngoài ra SQL Server và PostgreSQL.",
       "methods": "Bản full là script SQL từ `mysqldump`. Incremental (từ Standard) chép binlog sau `FLUSH BINARY LOGS` và cần cài ứng dụng ngay trên server MySQL. Không có backup vật lý.",
       "pitr": "Một phần: incremental là binlog, nhưng không có tài liệu về khôi phục đến một thời điểm chọn trước.",
-      "storage": "Local / NAS, FTP, SFTP, FTPS, OneDrive, Box, Backblaze B2, Yandex, Google Drive và Dropbox. Amazon S3, tương thích S3, Azure và OneDrive for Business cần gói Professional.",
+      "storage": "Local / NAS, FTP, SFTP, FTPS, OneDrive, Box, Backblaze B2, Yandex, Google Drive và Dropbox. Amazon S3, tương thích S3, Azure và OneDrive for Business cần gói Professional. Một job có thể gửi mỗi bản backup tới nhiều nơi lưu, mỗi nơi có thời hạn lưu giữ riêng (kể cả GFS).",
       "encryption": "Nén zip hoặc 7z; mã hóa AES-256 bằng mật khẩu chỉ có ở Professional.",
       "schedule": "Có bộ lập lịch và tự dọn backup cũ.",
-      "restore": "Khôi phục một cú nhấp cả chuỗi full + incremental, sang tên mới hoặc server khác.",
+      "restore": "Khôi phục một cú nhấp cả chuỗi full + incremental, sang tên mới hoặc server khác. Job khôi phục cũng chạy được theo lịch, có thông báo khi thành công hoặc thất bại.",
       "datapath": "Từ máy Windows của bạn tới storage của bạn.",
       "alerts": "Email ở mọi phiên bản; Slack, Teams, Discord và webhook từ gói Lite."
     },
@@ -91,6 +114,8 @@
     {"label": "SQLBackupAndFTP features and editions", "url": "https://sqlbackupandftp.com/features"},
     {"label": "SQLBackupAndFTP: MySQL backup", "url": "https://sqlbackupandftp.com/mysql-backup"},
     {"label": "SQLBackupAndFTP docs: how MySQL backup and restore works", "url": "https://sqlbackupandftp.com/docs/docs/how-it-works/how-backup-restore-of-databases/mysql/"},
-    {"label": "SQLBackupAndFTP docs: encryption", "url": "https://sqlbackupandftp.com/docs/docs/job-settings/backup-job/encryption/"}
+    {"label": "SQLBackupAndFTP docs: encryption", "url": "https://sqlbackupandftp.com/docs/docs/job-settings/backup-job/encryption/"},
+    {"label": "SQLBackupAndFTP docs: destinations", "url": "https://sqlbackupandftp.com/docs/docs/job-settings/backup-job/destinations/"},
+    {"label": "SQLBackupAndFTP docs: restore job", "url": "https://sqlbackupandftp.com/docs/docs/job-settings/restore-job/"}
   ]
 }

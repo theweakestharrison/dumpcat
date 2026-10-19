@@ -2,7 +2,7 @@
   "slug": "sqlbak",
   "name": "SqlBak",
   "order": 30,
-  "checked": "2026-10-18",
+  "checked": "2026-10-19",
   "kind": {
     "en": "Agent + cloud dashboard (SaaS)",
     "vi": "Agent + bảng điều khiển trên cloud (SaaS)"
@@ -26,6 +26,29 @@
       "vi": "Miễn phí 1 server / 2 database; $6–$9 mỗi server/tháng"
     }
   },
+  "grid": {
+    "open_source": ["no", {"en": "Proprietary", "vi": "Mã nguồn đóng"}],
+    "free": ["partial", {"en": "1 server, 2 DBs; S3/AES paid", "vi": "1 server, 2 DB; S3/AES trả phí"}],
+    "self_hosted": ["partial", {"en": "Agent here, dashboard in cloud", "vi": "Agent tại chỗ, dashboard trên cloud"}],
+    "linux": ["yes", {"en": "Agent", "vi": "Agent"}],
+    "windows": ["yes", {"en": "Agent", "vi": "Agent"}],
+    "web_ui": ["yes", {"en": "Vendor's cloud dashboard", "vi": "Dashboard trên cloud của hãng"}],
+    "mariadb": ["yes", {"en": "10.2 and later", "vi": "Từ 10.2 trở lên"}],
+    "logical": ["yes"],
+    "parallel": ["no", {"en": "mysqldump only (single-threaded)", "vi": "Chỉ mysqldump (đơn luồng)"}],
+    "physical": ["no", {"en": "mysqldump + binlogs only", "vi": "Chỉ mysqldump + binlog"}],
+    "incremental": ["yes", {"en": "Binlog-based", "vi": "Dựa trên binlog"}],
+    "pitr": ["yes"],
+    "restore_ui": ["yes", {"en": "One click", "vi": "Một cú nhấp"}],
+    "verify": ["partial", {"en": "Via automatic restore tasks", "vi": "Qua tác vụ tự khôi phục"}],
+    "cloud": ["yes", {"en": "S3 on Professional plan", "vi": "S3 ở gói Professional"}],
+    "multi_storage": ["yes"],
+    "encryption": ["paid", {"en": "Professional plan", "vi": "Gói Professional"}],
+    "direct": ["yes", {"en": "Bypasses sqlbak.com", "vi": "Không đi qua sqlbak.com"}],
+    "scheduler": ["yes"],
+    "retention": ["yes"],
+    "alerts": ["unknown", {"en": "Only email documented", "vi": "Tài liệu chỉ nói email"}]
+  },
   "en": {
     "title": "SqlBak alternative for MySQL: DumpCat, free and fully self-hosted",
     "description": "DumpCat vs SqlBak for MySQL and MariaDB backups: per-server pricing, backup methods, point-in-time recovery, encryption and the cloud dashboard. Sourced and checked in October 2026.",
@@ -37,12 +60,12 @@
       "databases": "MySQL 5.6, 5.7 and 8.0, MariaDB 10.2 and later; also SQL Server.",
       "methods": "`mysqldump` full backups plus binlog incrementals. No physical (XtraBackup) backups documented.",
       "pitr": "Yes: point-in-time restore from full and binlog backups.",
-      "storage": "Free: local, NAS, FTP, Box, Backblaze B2. Standard adds SFTP, Dropbox, Google Drive and OneDrive. Professional adds Amazon S3, Azure and S3-compatible storage.",
+      "storage": "Free: local, NAS, FTP, Box, Backblaze B2. Standard adds SFTP, Dropbox, Google Drive and OneDrive. Professional adds Amazon S3, Azure and S3-compatible storage. A job can send backups to several destinations, plus an emergency one used only when the main upload fails.",
       "encryption": "AES-256, on the Professional plan only.",
       "schedule": "Scheduled full and binlog backups set up in the dashboard; retention options are described in SqlBak's docs.",
       "restore": "One-click restore, including automatic restore to another server.",
       "datapath": "Backups are uploaded directly from your server to your storage, bypassing sqlbak.com, and database credentials stay on your server. The agent reports to SqlBak's cloud dashboard.",
-      "alerts": "Alerts from the SqlBak dashboard, including when a server stops responding."
+      "alerts": "Email on backup success or failure, and server-down alerts checked every 60 minutes on Free, 10 on Standard and 5 on Professional. Other channels are not documented."
     },
     "choose_them": [
       "You manage many servers and want one cloud dashboard that also warns you when a server stops responding.",
@@ -73,12 +96,12 @@
       "databases": "MySQL 5.6, 5.7 và 8.0, MariaDB 10.2 trở lên; ngoài ra còn SQL Server.",
       "methods": "Backup full bằng `mysqldump` kèm backup binlog incremental. Không có tài liệu về backup vật lý (XtraBackup).",
       "pitr": "Có: khôi phục theo thời điểm từ bản full và binlog.",
-      "storage": "Miễn phí: local, NAS, FTP, Box, Backblaze B2. Standard thêm SFTP, Dropbox, Google Drive, OneDrive. Professional thêm Amazon S3, Azure và storage tương thích S3.",
+      "storage": "Miễn phí: local, NAS, FTP, Box, Backblaze B2. Standard thêm SFTP, Dropbox, Google Drive, OneDrive. Professional thêm Amazon S3, Azure và storage tương thích S3. Một job có thể gửi backup tới nhiều nơi lưu, cộng thêm một nơi dự phòng chỉ dùng khi upload tới nơi chính thất bại.",
       "encryption": "AES-256, chỉ có ở gói Professional.",
       "schedule": "Lịch backup full và binlog đặt trên bảng điều khiển; tùy chọn retention xem trong tài liệu của SqlBak.",
       "restore": "Khôi phục một cú nhấp, kể cả tự động khôi phục sang server khác.",
       "datapath": "Backup được upload thẳng từ server của bạn tới storage, không qua sqlbak.com, và mật khẩu database nằm lại trên server. Agent báo cáo về bảng điều khiển trên cloud của SqlBak.",
-      "alerts": "Cảnh báo từ bảng điều khiển SqlBak, kể cả khi server ngừng phản hồi."
+      "alerts": "Email khi backup thành công hoặc thất bại, và cảnh báo server ngừng hoạt động, kiểm tra mỗi 60 phút ở gói Free, 10 phút ở Standard và 5 phút ở Professional. Tài liệu không nói tới kênh nào khác."
     },
     "choose_them": [
       "Bạn quản lý nhiều server và muốn một bảng điều khiển trên cloud, báo cả khi server ngừng phản hồi.",
@@ -110,6 +133,7 @@
     {
       "label": "SqlBak blog",
       "url": "https://sqlbak.com/blog/"
-    }
+    },
+    {"label": "SqlBak: how to back up MySQL", "url": "https://sqlbak.com/blog/how-to-backup-mysql-with-sqlbak/"}
   ]
 }
