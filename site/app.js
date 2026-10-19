@@ -104,7 +104,8 @@
       "<li><div><b>Create a backup job</b><span>Pick a schedule, encryption, storage and retention, then Save &amp; run now.</span></div></li>",
     "meow-title": "Port 6369 spells <em>MEOW</em>",
     "meow": "Type 6-3-6-9 on a phone keypad and you get MEOW. It is the default port of the web UI.",
-    "foot": "Open source under the Apache-2.0 license, with the source on <a href=\"https://github.com/theweakestharrison/DumpCat\">GitHub</a>. <a class=\"compare-link\" href=\"/compare/\">How it compares with other tools</a>. The full manual, in English and Vietnamese, ships inside every package."
+    "foot": "Open source under the Apache-2.0 license, with the source on <a href=\"https://github.com/theweakestharrison/DumpCat\">GitHub</a>. <a class=\"compare-link\" href=\"/compare/\">How it compares with other tools</a>. The full manual, in English and Vietnamese, ships inside every package.",
+    "foot-mail": "Support: <a href=\"mailto:fat@dumpcat.cc\">fat@dumpcat.cc</a>"
   };
 
   var STR = {

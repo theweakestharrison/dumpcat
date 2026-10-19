@@ -18,6 +18,7 @@ SRC = ROOT / "site-src" / "compare"
 OUT = ROOT / "site"
 BASE = "https://dumpcat.cc"
 REPO = "https://github.com/theweakestharrison/DumpCat"
+SUPPORT = "fat@dumpcat.cc"
 LANGS = ("en", "vi")
 
 # Rows of the comparison table: key, label per language, and DumpCat's own value.
@@ -67,7 +68,7 @@ T = {
         "checked": "Facts about {name} were checked on {date} against the sources below. Products change: if something here is out of date, please open an issue on GitHub.",
         "trademark": "{name} is a trademark of its owner. DumpCat is an independent open-source project and is not affiliated with it.",
         "others": "Other comparisons", "cta_download": "Download DumpCat", "cta_github": "Source on GitHub",
-        "foot": "Open source under the Apache-2.0 license, with the source on GitHub.",
+        "foot": "Open source under the Apache-2.0 license, with the source on GitHub.", "support": "Support",
         "hub_title": "DumpCat vs other MySQL backup tools: open-source, self-hosted alternative",
         "hub_desc": "How DumpCat, a free open-source MySQL and MariaDB backup manager, compares with SqlBackupAndFTP, SimpleBackups, Ottomatik and other backup tools: price, point-in-time recovery, storage and where your data goes.",
         "hub_h1": "DumpCat compared with other MySQL backup tools",
@@ -84,7 +85,7 @@ T = {
         "checked": "Thông tin về {name} được kiểm tra ngày {date} theo các nguồn bên dưới. Sản phẩm thay đổi theo thời gian: nếu có gì đã cũ, xin mở một issue trên GitHub.",
         "trademark": "{name} là thương hiệu của chủ sở hữu. DumpCat là dự án mã nguồn mở độc lập, không liên kết với họ.",
         "others": "So sánh khác", "cta_download": "Tải DumpCat", "cta_github": "Mã nguồn trên GitHub",
-        "foot": "Mã nguồn mở theo giấy phép Apache-2.0, mã nguồn trên GitHub.",
+        "foot": "Mã nguồn mở theo giấy phép Apache-2.0, mã nguồn trên GitHub.", "support": "Hỗ trợ",
         "hub_title": "So sánh DumpCat với các công cụ backup MySQL khác: thay thế mã nguồn mở, tự host",
         "hub_desc": "DumpCat, công cụ backup MySQL và MariaDB miễn phí, mã nguồn mở, so với SqlBackupAndFTP, SimpleBackups, Ottomatik và các công cụ khác: giá, khôi phục theo thời điểm, nơi lưu và dữ liệu của bạn đi đâu.",
         "hub_h1": "So sánh DumpCat với các công cụ backup MySQL khác",
@@ -209,7 +210,7 @@ def footer(lang):
     return f"""<footer class="foot">
   <div class="wrap">
     <a class="brand" href="/"><svg aria-hidden="true"><use href="#dc-logo"/></svg>DumpCat</a>
-    <p>{esc(t['foot'])} <a href="{REPO}">GitHub</a> · <a href="{path(lang)}">{t['compare']}</a></p>
+    <p>{esc(t['foot'])} <a href="{REPO}">GitHub</a> · <a href="{path(lang)}">{t['compare']}</a> · {t['support']}: <a href="mailto:{SUPPORT}">{SUPPORT}</a></p>
   </div>
 </footer>
 </body>
