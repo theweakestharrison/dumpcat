@@ -3,6 +3,14 @@
 The section of the version being built becomes the release notes shown in the
 web UI and by `dumpcat update` (see `build.sh`). Newest version first.
 
+## 1.1.1
+
+- Fix: icons in buttons were misaligned or oversized — the "Go to backup jobs" / "Create a job" buttons of empty
+  pages showed a 34px icon, buttons inside alerts and warnings got the alert's icon size, and icons in small text
+  (job list, help lines) sat above the text. Icons are now the same size in every button and centred on their text.
+- Small buttons inside an alert no longer push its text below the alert icon; the backup method cards keep their
+  icon on the first line when the title wraps.
+
 ## 1.1.0
 
 - Restore onto another instance: the restore form connects to the chosen server first and shows its version, flavor

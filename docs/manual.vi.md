@@ -70,9 +70,9 @@ Phiên bản mới nhất, ghi chú phát hành và mã kiểm tra có trên [du
 `https://downloads.dumpcat.cc/<phiên bản>/`.
 
 ```bash
-curl -fLO https://downloads.dumpcat.cc/1.1.0/dumpcat-1.1.0-linux.tar.gz
-tar xzf dumpcat-1.1.0-linux.tar.gz
-cd dumpcat-1.1.0-linux
+curl -fLO https://downloads.dumpcat.cc/1.1.1/dumpcat-1.1.1-linux.tar.gz
+tar xzf dumpcat-1.1.1-linux.tar.gz
+cd dumpcat-1.1.1-linux
 sudo ./install.sh
 ```
 
@@ -122,9 +122,9 @@ DumpCat cũng chạy trên Windows Server 2016+ / Windows 10+ (64-bit), dưới 
 Mở PowerShell bằng **Run as administrator**:
 
 ```powershell
-Invoke-WebRequest https://downloads.dumpcat.cc/1.1.0/dumpcat-1.1.0-windows-amd64.zip -OutFile dumpcat-1.1.0-windows-amd64.zip
-Expand-Archive dumpcat-1.1.0-windows-amd64.zip -DestinationPath .
-cd dumpcat-1.1.0-windows-amd64
+Invoke-WebRequest https://downloads.dumpcat.cc/1.1.1/dumpcat-1.1.1-windows-amd64.zip -OutFile dumpcat-1.1.1-windows-amd64.zip
+Expand-Archive dumpcat-1.1.1-windows-amd64.zip -DestinationPath .
+cd dumpcat-1.1.1-windows-amd64
 powershell -ExecutionPolicy Bypass -File .\install.ps1
 ```
 
@@ -180,7 +180,7 @@ Upload **nội dung** thư mục `dist/update/` lên địa chỉ đó, để c�
 
 ```
 https://downloads.dumpcat.cc/latest.json
-https://downloads.dumpcat.cc/1.1.0/dumpcat-linux-amd64    (… -linux-arm64, -windows-amd64.exe, SHA256SUMS, các gói cài)
+https://downloads.dumpcat.cc/1.1.1/dumpcat-linux-amd64    (… -linux-arm64, -windows-amd64.exe, SHA256SUMS, các gói cài)
 ```
 
 Upload thư mục phiên bản trước, `latest.json` sau cùng, để máy cài không bao giờ thấy một bản phát hành mà file chưa lên đủ.

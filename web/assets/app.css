@@ -185,7 +185,10 @@ hr { border: 0; border-top: 1px solid var(--border); margin: 16px 0; }
 .stat .label { color: var(--text-2); font-size: 12.5px; display: flex; align-items: center; gap: 6px; }
 .stat .label svg { width: 15px; height: 15px; flex: none; }
 .stat .hint svg { width: 13px; height: 13px; vertical-align: -2px; }
-svg { flex-shrink: 0; }
+/* icons inside running text are centred on the text instead of sitting on its baseline
+   (measured within ±1px for 12–14px text); flex layouts (buttons, badges, alerts) ignore vertical-align */
+svg { flex-shrink: 0; vertical-align: -0.125em; }
+:is(.sub, .help, .small) > svg { width: 13px; height: 13px; }
 .stat .value { font-size: 26px; font-weight: 650; margin-top: 4px; letter-spacing: -0.02em; }
 .stat .hint { color: var(--muted); font-size: 12px; margin-top: 2px; }
 
@@ -242,7 +245,9 @@ input:disabled, select:disabled { background: var(--surface-2); color: var(--mut
 .radio-card:hover { border-color: var(--accent); }
 .radio-card input { position: absolute; opacity: 0; pointer-events: none; }
 .radio-card.selected { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-soft); background: var(--accent-soft); }
-.radio-card .rc-title { font-weight: 650; display: flex; align-items: center; gap: 8px; }
+.radio-card .rc-title { font-weight: 650; display: flex; align-items: flex-start; gap: 8px; }
+/* keep the icon on the first line when the title wraps */
+.radio-card .rc-title svg { margin-top: calc((1lh - 16px) / 2); }
 .radio-card .rc-desc { font-size: 12.5px; color: var(--text-2); margin-top: 4px; }
 .radio-card .rc-meta { font-size: 12px; margin-top: 6px; }
 .section-title { font-weight: 650; margin: 4px 0 10px; font-size: 13.5px; }
@@ -260,7 +265,8 @@ table.table { width: 100%; border-collapse: collapse; }
 .table td.actions { text-align: right; white-space: nowrap; }
 .table .sub { color: var(--muted); font-size: 12px; }
 .empty { padding: 36px 18px; text-align: center; color: var(--muted); }
-.empty svg { width: 34px; height: 34px; opacity: 0.6; display: block; margin: 0 auto 8px; }
+/* only the illustration: a button in the empty state keeps its normal icon */
+.empty > svg { width: 34px; height: 34px; opacity: 0.6; display: block; margin: 0 auto 8px; }
 
 /* ---------- badges ---------- */
 .badge {
@@ -282,12 +288,14 @@ table.table { width: 100%; border-collapse: collapse; }
 
 /* ---------- alerts ---------- */
 .alert { border-radius: var(--radius-sm); padding: 10px 14px; display: flex; gap: 10px; align-items: flex-start; border: 1px solid var(--border); background: var(--surface-2); font-size: 13.5px; }
-.alert svg { width: 18px; height: 18px; flex: none; margin-top: 1px; }
+.alert > svg { width: 18px; height: 18px; flex: none; margin-top: 1px; }
 .alert.warn { background: var(--warning-soft); border-color: color-mix(in srgb, var(--warning) 40%, transparent); }
 .alert.bad { background: var(--critical-soft); border-color: color-mix(in srgb, var(--critical) 35%, transparent); }
 .alert.good { background: var(--good-soft); border-color: color-mix(in srgb, var(--good) 35%, transparent); }
 .alert.info { background: var(--accent-soft); border-color: color-mix(in srgb, var(--accent) 30%, transparent); }
 .alert + .alert { margin-top: 8px; }
+/* a small button inside an alert sentence must not make its line taller (that pushes the text below the alert icon) */
+:is(.alert, .banner-danger) .btn-sm { height: 24px; padding: 0 8px; margin: -2px 0; vertical-align: middle; }
 .alert ul { margin: 4px 0 0; padding-left: 18px; }
 
 /* ---------- progress ---------- */
@@ -330,13 +338,13 @@ body.modal-open { overflow: hidden; }
 /* ---------- toast ---------- */
 .toasts { position: fixed; right: 16px; bottom: 16px; display: flex; flex-direction: column; gap: 8px; z-index: 200; max-width: min(420px, calc(100vw - 32px)); }
 .toast { background: var(--surface); border: 1px solid var(--border); box-shadow: var(--shadow-lg); border-radius: var(--radius-sm); padding: 10px 14px; display: flex; gap: 10px; align-items: flex-start; animation: tin 0.2s ease; }
-.toast svg { width: 18px; height: 18px; flex: none; margin-top: 1px; }
+.toast > svg { width: 18px; height: 18px; flex: none; margin-top: 1px; }
 .toast > div { flex: 1; min-width: 0; overflow-wrap: anywhere; }
 .toast .toast-x { border: 0; background: none; color: var(--muted); cursor: pointer; padding: 0; margin-left: 4px; }
 .toast .toast-x svg { width: 15px; height: 15px; margin: 0; }
-.toast.good svg { color: var(--good); }
-.toast.bad svg { color: var(--critical); }
-.toast.warn svg { color: var(--warning-ink); }
+.toast.good > svg { color: var(--good); }
+.toast.bad > svg { color: var(--critical); }
+.toast.warn > svg { color: var(--warning-ink); }
 @keyframes tin { from { transform: translateY(8px); opacity: 0; } }
 
 /* ---------- dropdown ---------- */
@@ -480,7 +488,7 @@ details.adv[open] { padding-bottom: 14px; }
 .steps .step-text { flex: 1; }
 .empty .btn { margin-top: 12px; }
 .banner-danger { border: 1px solid color-mix(in srgb, var(--critical) 45%, transparent); background: var(--critical-soft); border-radius: var(--radius-sm); padding: 10px 14px; display: flex; gap: 10px; align-items: flex-start; }
-.banner-danger svg { color: var(--critical-ink); width: 18px; height: 18px; flex: none; margin-top: 2px; }
+.banner-danger > svg { color: var(--critical-ink); width: 18px; height: 18px; flex: none; margin-top: 2px; }
 
 /* delay the page spinner so fast loads do not flash */
 .loading-page { animation: mv-appear 0.15s ease 0.15s both; }

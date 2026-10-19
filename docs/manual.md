@@ -70,9 +70,9 @@ The latest version, its release notes and checksums are listed on [dumpcat.cc](h
 served from `https://downloads.dumpcat.cc/<version>/`.
 
 ```bash
-curl -fLO https://downloads.dumpcat.cc/1.1.0/dumpcat-1.1.0-linux.tar.gz
-tar xzf dumpcat-1.1.0-linux.tar.gz
-cd dumpcat-1.1.0-linux
+curl -fLO https://downloads.dumpcat.cc/1.1.1/dumpcat-1.1.1-linux.tar.gz
+tar xzf dumpcat-1.1.1-linux.tar.gz
+cd dumpcat-1.1.1-linux
 sudo ./install.sh
 ```
 
@@ -122,9 +122,9 @@ DumpCat also runs on Windows Server 2016+ / Windows 10+ (64-bit), as a Windows s
 In PowerShell **Run as administrator**:
 
 ```powershell
-Invoke-WebRequest https://downloads.dumpcat.cc/1.1.0/dumpcat-1.1.0-windows-amd64.zip -OutFile dumpcat-1.1.0-windows-amd64.zip
-Expand-Archive dumpcat-1.1.0-windows-amd64.zip -DestinationPath .
-cd dumpcat-1.1.0-windows-amd64
+Invoke-WebRequest https://downloads.dumpcat.cc/1.1.1/dumpcat-1.1.1-windows-amd64.zip -OutFile dumpcat-1.1.1-windows-amd64.zip
+Expand-Archive dumpcat-1.1.1-windows-amd64.zip -DestinationPath .
+cd dumpcat-1.1.1-windows-amd64
 powershell -ExecutionPolicy Bypass -File .\install.ps1
 ```
 
@@ -180,7 +180,7 @@ UPDATE_URL=https://downloads.dumpcat.cc ./build.sh
 
 ```
 https://downloads.dumpcat.cc/latest.json
-https://downloads.dumpcat.cc/1.1.0/dumpcat-linux-amd64    (… -linux-arm64, -windows-amd64.exe, SHA256SUMS, packages)
+https://downloads.dumpcat.cc/1.1.1/dumpcat-linux-amd64    (… -linux-arm64, -windows-amd64.exe, SHA256SUMS, packages)
 ```
 
 Upload the version folder first and `latest.json` last, so that installations never see a release whose files are not there yet.
