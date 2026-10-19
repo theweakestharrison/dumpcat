@@ -139,6 +139,64 @@
 </header>
 
 <main>
+  <section class="section" id="install" aria-labelledby="install-title">
+    <div class="wrap">
+      <div class="head">
+        <div>
+          <p class="label" data-i18n="i-label">Cài đặt</p>
+          <h2 id="install-title" data-i18n="i-title">Chạy được sau một phút</h2>
+        </div>
+        <p class="intro" data-i18n="i-intro">Một lệnh trên Linux, tải về và bấm đúp trên Windows. Bộ cài tạo service tự chạy cùng máy và cài luôn công cụ backup khớp với version database; giao diện web có sẵn trong một file duy nhất.</p>
+      </div>
+      <div class="section-body install-grid">
+        <div class="install-cmd">
+          <div class="tabs" role="tablist" aria-label="OS">
+            <button type="button" role="tab" id="tab-linux" aria-controls="panel-linux" aria-selected="true">Linux</button>
+            <button type="button" role="tab" id="tab-windows" aria-controls="panel-windows" aria-selected="false" tabindex="-1">Windows</button>
+          </div>
+          <div role="tabpanel" id="panel-linux" aria-labelledby="tab-linux">
+            <p class="panel-lead" data-i18n="i-linux-lead">Trên server Linux, dán lệnh này rồi bấm Enter:</p>
+            <div class="code">
+              <div class="code-bar"><span>bash</span><button type="button" class="copy" data-target="cmd-linux">Sao chép</button></div>
+              <pre><code id="cmd-linux">curl -fsSL https://dumpcat.cc/install.sh | sudo sh</code></pre>
+            </div>
+            <p class="panel-note" data-i18n="i-linux-note">Lệnh tải bản mới nhất, kiểm tra checksum rồi cài vào <code>/opt/dumpcat</code> thành service systemd, kèm <code>rclone</code>, MySQL/MariaDB client, mariabackup hoặc XtraBackup đúng version, và mydumper nếu repo có. Tùy chọn đặt sau <code>sh -s --</code>: <code>--port 9090</code>, <code>--listen 127.0.0.1</code>, <code>--tls-auto</code>.</p>
+          </div>
+          <div role="tabpanel" id="panel-windows" aria-labelledby="tab-windows" hidden>
+            <ol class="win-steps">
+              <li><span data-i18n="i-win-1"><b>Tải file .zip</b></span> <a class="btn btn-solid dl" data-pkg="windows" href="https://downloads.dumpcat.cc/1.4.1/dumpcat-1.4.1-windows-amd64.zip"><span data-i18n="i-win-dl">Tải cho Windows</span> <small data-version>1.4.1</small></a></li>
+              <li data-i18n="i-win-2"><b>Giải nén</b>: chuột phải vào file, chọn <i>Extract All</i>.</li>
+              <li data-i18n="i-win-3"><b>Bấm đúp <i>Install DumpCat</i></b> rồi chọn <i>Yes</i>. Trình duyệt tự mở DumpCat, cửa sổ cài đặt hiện mã thiết lập.</li>
+            </ol>
+            <p class="panel-note" data-i18n="i-win-note">Windows 10 / 11 hoặc Windows Server 2016+ 64-bit, chạy như Windows service. Quen PowerShell? Chạy <code>irm https://dumpcat.cc/install.ps1 | iex</code> trong PowerShell (Administrator). Không có mydumper và XtraBackup cho MySQL; database hàng trăm GB nên chạy DumpCat trên Linux.</p>
+          </div>
+          <p class="guide-link" data-i18n="i-guide">Chưa quen dòng lệnh? <a href="/vi/install/">Xem hướng dẫn từng bước</a>, có cả cách xử lý khi gặp lỗi.</p>
+        </div>
+        <div class="install-steps">
+          <h3 class="steps-title" data-i18n="i-steps-title">Sau khi cài</h3>
+          <ol class="steps" data-i18n="i-steps">
+            <li><div><b>Mở <code>http://&lt;ip-server&gt;:6369</code></b><span>Tạo tài khoản admin bằng mã thiết lập dùng một lần mà bộ cài in ra (xem lại: <code>dumpcat setup-token</code>).</span></div></li>
+            <li><div><b>Thêm database server</b><span>Test connection để xem quyền còn thiếu và phương thức dùng được.</span></div></li>
+            <li><div><b>Thêm nơi lưu trữ</b><span>Nút Test thử ghi, đọc và xóa.</span></div></li>
+            <li><div><b>Tạo backup job</b><span>Chọn lịch, mã hóa, nơi lưu, retention rồi bấm Save &amp; run now.</span></div></li>
+          </ol>
+        </div>
+        <div class="meow">
+          <div class="keys" aria-hidden="true">
+            <div class="key"><b>6</b><i><em>M</em>NO</i></div>
+            <div class="key"><b>3</b><i>D<em>E</em>F</i></div>
+            <div class="key"><b>6</b><i>MN<em>O</em></i></div>
+            <div class="key"><b>9</b><i><em>W</em>XYZ</i></div>
+          </div>
+          <div class="meow-text">
+            <p class="meow-title" data-i18n="meow-title">Cổng 6369 đọc là <em>MEOW</em></p>
+            <p data-i18n="meow">Bấm 6-3-6-9 trên bàn phím điện thoại sẽ ra chữ MEOW. Đó là cổng mặc định của giao diện web.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
   <section class="section" id="methods" aria-labelledby="methods-title">
     <div class="wrap">
       <div class="head">
@@ -338,63 +396,6 @@ go build -o dumpcat ./cmd/dumpcat</code></pre>
     </div>
   </section>
 
-  <section class="section" id="install" aria-labelledby="install-title">
-    <div class="wrap">
-      <div class="head">
-        <div>
-          <p class="label" data-i18n="i-label">Cài đặt</p>
-          <h2 id="install-title" data-i18n="i-title">Chạy được sau một phút</h2>
-        </div>
-        <p class="intro" data-i18n="i-intro">Một lệnh trên Linux, tải về và bấm đúp trên Windows. Bộ cài tạo service tự chạy cùng máy và cài luôn công cụ backup khớp với version database; giao diện web có sẵn trong một file duy nhất.</p>
-      </div>
-      <div class="section-body install-grid">
-        <div class="install-cmd">
-          <div class="tabs" role="tablist" aria-label="OS">
-            <button type="button" role="tab" id="tab-linux" aria-controls="panel-linux" aria-selected="true">Linux</button>
-            <button type="button" role="tab" id="tab-windows" aria-controls="panel-windows" aria-selected="false" tabindex="-1">Windows</button>
-          </div>
-          <div role="tabpanel" id="panel-linux" aria-labelledby="tab-linux">
-            <p class="panel-lead" data-i18n="i-linux-lead">Trên server Linux, dán lệnh này rồi bấm Enter:</p>
-            <div class="code">
-              <div class="code-bar"><span>bash</span><button type="button" class="copy" data-target="cmd-linux">Sao chép</button></div>
-              <pre><code id="cmd-linux">curl -fsSL https://dumpcat.cc/install.sh | sudo sh</code></pre>
-            </div>
-            <p class="panel-note" data-i18n="i-linux-note">Lệnh tải bản mới nhất, kiểm tra checksum rồi cài vào <code>/opt/dumpcat</code> thành service systemd, kèm <code>rclone</code>, MySQL/MariaDB client, mariabackup hoặc XtraBackup đúng version, và mydumper nếu repo có. Tùy chọn đặt sau <code>sh -s --</code>: <code>--port 9090</code>, <code>--listen 127.0.0.1</code>, <code>--tls-auto</code>.</p>
-          </div>
-          <div role="tabpanel" id="panel-windows" aria-labelledby="tab-windows" hidden>
-            <ol class="win-steps">
-              <li><span data-i18n="i-win-1"><b>Tải file .zip</b></span> <a class="btn btn-solid dl" data-pkg="windows" href="https://downloads.dumpcat.cc/1.4.1/dumpcat-1.4.1-windows-amd64.zip"><span data-i18n="i-win-dl">Tải cho Windows</span> <small data-version>1.4.1</small></a></li>
-              <li data-i18n="i-win-2"><b>Giải nén</b>: chuột phải vào file, chọn <i>Extract All</i>.</li>
-              <li data-i18n="i-win-3"><b>Bấm đúp <i>Install DumpCat</i></b> rồi chọn <i>Yes</i>. Trình duyệt tự mở DumpCat, cửa sổ cài đặt hiện mã thiết lập.</li>
-            </ol>
-            <p class="panel-note" data-i18n="i-win-note">Windows 10 / 11 hoặc Windows Server 2016+ 64-bit, chạy như Windows service. Quen PowerShell? Chạy <code>irm https://dumpcat.cc/install.ps1 | iex</code> trong PowerShell (Administrator). Không có mydumper và XtraBackup cho MySQL; database hàng trăm GB nên chạy DumpCat trên Linux.</p>
-          </div>
-          <p class="guide-link" data-i18n="i-guide">Chưa quen dòng lệnh? <a href="/vi/install/">Xem hướng dẫn từng bước</a>, có cả cách xử lý khi gặp lỗi.</p>
-        </div>
-        <div class="install-steps">
-          <h3 class="steps-title" data-i18n="i-steps-title">Sau khi cài</h3>
-          <ol class="steps" data-i18n="i-steps">
-            <li><div><b>Mở <code>http://&lt;ip-server&gt;:6369</code></b><span>Tạo tài khoản admin bằng mã thiết lập dùng một lần mà bộ cài in ra (xem lại: <code>dumpcat setup-token</code>).</span></div></li>
-            <li><div><b>Thêm database server</b><span>Test connection để xem quyền còn thiếu và phương thức dùng được.</span></div></li>
-            <li><div><b>Thêm nơi lưu trữ</b><span>Nút Test thử ghi, đọc và xóa.</span></div></li>
-            <li><div><b>Tạo backup job</b><span>Chọn lịch, mã hóa, nơi lưu, retention rồi bấm Save &amp; run now.</span></div></li>
-          </ol>
-        </div>
-        <div class="meow">
-          <div class="keys" aria-hidden="true">
-            <div class="key"><b>6</b><i><em>M</em>NO</i></div>
-            <div class="key"><b>3</b><i>D<em>E</em>F</i></div>
-            <div class="key"><b>6</b><i>MN<em>O</em></i></div>
-            <div class="key"><b>9</b><i><em>W</em>XYZ</i></div>
-          </div>
-          <div class="meow-text">
-            <p class="meow-title" data-i18n="meow-title">Cổng 6369 đọc là <em>MEOW</em></p>
-            <p data-i18n="meow">Bấm 6-3-6-9 trên bàn phím điện thoại sẽ ra chữ MEOW. Đó là cổng mặc định của giao diện web.</p>
-          </div>
-        </div>
-      </div>
-    </div>
-  </section>
 </main>
 
 <footer class="foot">
