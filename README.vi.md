@@ -18,6 +18,7 @@
 
 <p align="center">
   <a href="https://dumpcat.cc"><b>dumpcat.cc</b></a> · <a href="https://dumpcat.cc/#download">Tải về</a> ·
+  <a href="https://dumpcat.cc/demo/">Dùng thử demo</a> ·
   <a href="https://github.com/theweakestharrison/DumpCat">GitHub</a> ·
   <a href="README.md">English</a> · <b>Tiếng Việt</b>
 </p>
@@ -43,12 +44,13 @@ binary Go có sẵn giao diện.
   WireGuard tích hợp của DumpCat (tắt mặc định), nên không cần mở port nào tới database. Backup, restore và khôi phục
   theo thời điểm đều chạy được qua cả hai cách.
 - **Mã hóa và kiểm tra.** Nén zstd, mã hóa bằng [age](https://age-encryption.org) trước khi dữ liệu rời khỏi server,
-  SHA-256 cho từng file, và bước kiểm tra toàn vẹn giải mã, giải nén lại bản backup khi bạn bấm hoặc sau mỗi lần chạy.
+  SHA-256 cho từng file, và mỗi bản backup được đọc lại ngay sau khi ghi: giải mã, giải nén, kiểm tra, nên bản hỏng lộ
+  ra ngay chứ không đợi tới lúc restore.
 - **Restore cẩn thận.** Restore sang tên database mới hoặc sang instance / phiên bản khác (tự gỡ `DEFINER`, đổi
   collation, bỏ `GTID_PURGED`), thử giải mã mọi file trước khi xóa bất cứ thứ gì, chế độ nạp nhanh, và tự rollback khi
   restore vật lý thay datadir.
 - **Dùng được cho cả đội.** Vai trò admin, operator, viewer, đăng nhập hai lớp TOTP, API token, nhật ký thao tác, và thông
-  báo qua email, Telegram, Slack, Discord hoặc webhook có ký HMAC.
+  báo qua email HTML, Telegram, Slack, Discord hoặc webhook có ký HMAC.
 - **Định dạng chuẩn.** Mỗi bản backup có `manifest.json` và dùng zstd / gzip / age / xbstream, nên bạn restore được chỉ
   với `age`, `zstd` và `mysql`, hoặc import catalog vào một DumpCat cài mới.
 - **Tự cập nhật an toàn.** `dumpcat update` chờ các job đang chạy, backup database của chính nó, có thể bắt buộc bản phát
@@ -71,6 +73,10 @@ flowchart LR
 Restore chạy cùng đường ống theo chiều ngược lại. Backup logical được stream thẳng vào `mysql`, không cần file tạm;
 backup mydumper và backup vật lý được giải nén trước, rồi nạp bằng `myloader` hoặc prepare bằng XtraBackup / MariaBackup.
 
+Khi DumpCat không kết nối thẳng được tới database (vì firewall, NAT, hoặc MySQL chỉ nghe trên 127.0.0.1), server database
+sẽ chủ động kết nối ra: qua [agent](docs/manual.vi.md#37-server-database-không-cho-kết-nối-vào-agent) của DumpCat bằng HTTPS, hoặc qua
+[WireGuard tích hợp](docs/manual.vi.md#38-wireguard-tích-hợp). Không cần mở port nào trên server database.
+
 ## Nền tảng hỗ trợ
 
 | | |
@@ -79,11 +85,14 @@ backup mydumper và backup vật lý được giải nén trước, rồi nạp 
 | **Máy chạy DumpCat** | Linux amd64 / arm64 có systemd · Windows Server 2016+ / Windows 10+ 64-bit, chạy như Windows service |
 | **Công cụ backup** | mysqldump / mariadb-dump · mydumper / myloader · Percona XtraBackup · MariaBackup (bộ cài Linux tự chọn phiên bản khớp với server) |
 | **Lưu trữ** | Thư mục local và ổ chia sẻ NFS / SMB, cùng mọi thứ [rclone](https://rclone.org) hỗ trợ |
+| **Database sau firewall** | Agent (`dumpcat agent`) trên Linux có systemd hoặc Windows, chỉ cần HTTPS đi ra · hoặc WireGuard chuẩn (`wg-quick`), UDP đi ra |
 
 mydumper và XtraBackup chỉ có cho Linux. Với database hàng trăm GB và backup vật lý MySQL, hãy chạy DumpCat trên Linux
 ([những gì chạy được trên Windows](docs/manual.vi.md#35-windows)).
 
 ## Bắt đầu nhanh
+
+Muốn xem trước? **[Bản demo](https://dumpcat.cc/demo/)** chạy giao diện thật với dữ liệu mẫu ngay trong trình duyệt.
 
 ### 1. Cài đặt
 
@@ -102,6 +111,8 @@ sudo ./install.sh
 Bộ cài đặt chép binary vào `/opt/dumpcat`, tạo service systemd `dumpcat`, và cài rclone, MySQL / MariaDB client cùng các
 công cụ backup khớp với database server trên máy.
 Tùy chọn: `--port 9090`, `--listen 127.0.0.1`, `--tls-auto`, `--no-deps`, `--uninstall [--purge]`.
+Trên server database không cho kết nối vào, cùng gói này chỉ cài [agent](docs/manual.vi.md#37-server-database-không-cho-kết-nối-vào-agent):
+`sudo ./install.sh --agent --server https://backup.example.com --key dca_…` (trang **Agents** hiện sẵn lệnh kèm khóa).
 
 **Windows**, trong PowerShell chạy bằng quyền Administrator:
 
@@ -122,11 +133,11 @@ hoặc `Get-FileHash` trên Windows). Muốn tự build gói cài đặt, xem [B
    chạy `sudo dumpcat setup-token` (Windows, quyền Administrator: `& "C:\Program Files\DumpCat\dumpcat.exe" setup-token`)
    hoặc xem log của service. (Cổng mặc định bấm trên bàn phím điện thoại sẽ ra chữ *MEOW*.)
 2. Tạo một user MySQL có quyền backup chỉ đọc ([các lệnh GRANT](docs/manual.vi.md#4-bắt-đầu-sử-dụng)).
-3. **Database servers → Add server → Test connection.** DumpCat hiển thị version, dung lượng từng database, các quyền còn
-   thiếu và phương thức backup nào dùng được trên máy này.
+3. **Database servers → Add server → Test connection.** Chọn cách DumpCat kết nối: trực tiếp, qua agent hoặc qua
+   WireGuard. DumpCat hiển thị version, dung lượng từng database, các quyền còn thiếu và phương thức backup nào dùng được.
 4. **Storage → Add storage → Test.**
 5. **Backup jobs → New job.** Chọn server, phương thức, database, lịch chạy, mã hóa, nơi lưu và retention, rồi bấm
-   **Save & run now**.
+   **Save & run now**. Mỗi bản backup được kiểm tra ngay sau khi ghi (mặc định kiểm một bản).
 
 Khi chạy thật, hãy đặt DumpCat sau HTTPS bằng [cấu hình nginx mẫu hoặc TLS có sẵn](docs/manual.vi.md#34-đặt-sau-nginx--https-khuyến-nghị-cho-môi-trường-thật)
 và giới hạn ai được truy cập.
@@ -189,12 +200,16 @@ Lệnh này tạo binary Linux amd64 / arm64 và Windows amd64, `dumpcat-<versio
 hành lấy từ `CHANGELOG.md`. Cách phát hành bản cập nhật và ký bản phát hành nằm ở [Cập nhật](docs/manual.vi.md#36-cập-nhật).
 
 ```
-cmd/dumpcat    dòng lệnh: serve, user, decode, update, release
-internal/      API, bộ chạy backup, các engine, lưu trữ, đường ống nén và mã hóa, SQLite, bộ cập nhật…
+cmd/dumpcat    dòng lệnh: serve, agent, user, decode, update, release
+internal/      API, bộ chạy backup, các engine, lưu trữ, đường ống nén và mã hóa, SQLite, tunnel agent và WireGuard,
+               thông báo, bộ cập nhật…
 web/           giao diện bằng HTML, CSS và JavaScript thuần, nhúng vào binary
-scripts/       bộ cài cho Linux và Windows, script upload bản phát hành (publish-release.sh)
-deploy/        systemd unit, file env mẫu, cấu hình nginx
-site/          landing page dumpcat.cc, chạy bằng Cloudflare Worker khai báo trong wrangler.jsonc
+scripts/       bộ cài cho Linux và Windows (cả cho agent), script upload bản phát hành (publish-release.sh),
+               script sinh website (build-site.py, build-demo.py)
+deploy/        systemd unit cho DumpCat và agent, file env mẫu, cấu hình nginx
+site/          dumpcat.cc: landing page, trang so sánh và bản demo (site/demo, sinh từ web/), chạy bằng Cloudflare Worker
+               khai báo trong wrangler.jsonc
+site-src/      nguồn của các trang được sinh ra: dữ liệu so sánh, API giả và dữ liệu mẫu của bản demo
 docs/          hướng dẫn tiếng Anh và tiếng Việt, cách deploy website (website.vi.md)
 ```
 

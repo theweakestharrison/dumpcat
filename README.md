@@ -18,6 +18,7 @@
 
 <p align="center">
   <a href="https://dumpcat.cc"><b>dumpcat.cc</b></a> · <a href="https://dumpcat.cc/#download">Download</a> ·
+  <a href="https://dumpcat.cc/demo/">Live demo</a> ·
   <a href="https://github.com/theweakestharrison/DumpCat">GitHub</a> ·
   <b>English</b> · <a href="README.vi.md">Tiếng Việt</a>
 </p>
@@ -43,13 +44,13 @@ single Go binary with the UI built in.
   DumpCat's built-in WireGuard (off by default), so no port has to be opened to the database. Backups, restores and
   point-in-time recovery work through either.
 - **Encrypted and verified.** zstd compression, [age](https://age-encryption.org) encryption before anything leaves the
-  server, SHA-256 for every file, and an integrity check that decrypts and decompresses the backup on demand or after
-  every run.
+  server, SHA-256 for every file, and every backup read back right after it is written: decrypted, decompressed and
+  checked, so a broken copy shows up at once instead of at restore time.
 - **Careful restores.** Restore under new database names or onto another instance or version (with `DEFINER`,
   collation and `GTID_PURGED` rewrites), test-decrypt every file before anything is dropped, fast load mode, and
   automatic rollback when a physical restore replaces the datadir.
 - **Built for teams.** Admin, operator and viewer roles, TOTP two-factor login, API tokens, an audit log, and
-  notifications by email, Telegram, Slack, Discord or HMAC-signed webhook.
+  notifications by HTML email, Telegram, Slack, Discord or HMAC-signed webhook.
 - **Standard formats.** Every backup carries a `manifest.json` and uses zstd / gzip / age / xbstream, so you can restore
   it with `age`, `zstd` and `mysql` alone, or import the catalog into a fresh DumpCat.
 - **Safe self-updates.** `dumpcat update` waits for running jobs, backs up its own database, can require signed
@@ -72,6 +73,10 @@ flowchart LR
 Restores run the same pipeline in reverse. Logical backups stream straight into `mysql` with no temporary files;
 mydumper and physical backups are unpacked first, then loaded with `myloader` or prepared with XtraBackup / MariaBackup.
 
+When DumpCat cannot connect to the database (a firewall, NAT, or MySQL listening on 127.0.0.1 only), the database host
+connects out instead: through the DumpCat [agent](docs/manual.md#37-database-hosts-that-accept-no-inbound-connections-agent) over HTTPS, or through DumpCat's
+[built-in WireGuard](docs/manual.md#38-built-in-wireguard). Nothing has to be opened on the database host.
+
 ## Supported platforms
 
 | | |
@@ -80,11 +85,15 @@ mydumper and physical backups are unpacked first, then loaded with `myloader` or
 | **DumpCat host** | Linux amd64 / arm64 with systemd · Windows Server 2016+ / Windows 10+ 64-bit, as a Windows service |
 | **Backup tools** | mysqldump / mariadb-dump · mydumper / myloader · Percona XtraBackup · MariaBackup (the Linux installer picks the versions that match your server) |
 | **Storage** | Local directories and NFS / SMB shares, plus everything [rclone](https://rclone.org) supports |
+| **Databases behind a firewall** | The agent (`dumpcat agent`) on Linux with systemd or on Windows, outbound HTTPS only · or standard WireGuard (`wg-quick`), outbound UDP |
 
 mydumper and XtraBackup exist only for Linux. For databases of hundreds of GB and for physical MySQL backups, run
 DumpCat on Linux ([what works on Windows](docs/manual.md#35-windows)).
 
 ## Quick start
+
+Want to look around first? The **[demo](https://dumpcat.cc/demo/)** runs the real web UI with sample data, right in your
+browser.
 
 ### 1. Install
 
@@ -103,6 +112,9 @@ sudo ./install.sh
 The installer puts the binary in `/opt/dumpcat`, creates the `dumpcat` systemd service, and installs rclone, the
 MySQL / MariaDB client and the backup tools that match the database server on the machine.
 Options: `--port 9090`, `--listen 127.0.0.1`, `--tls-auto`, `--no-deps`, `--uninstall [--purge]`.
+On a database host that accepts no inbound connections, the same package installs only the [agent](docs/manual.md#37-database-hosts-that-accept-no-inbound-connections-agent):
+`sudo ./install.sh --agent --server https://backup.example.com --key dca_…` (the **Agents** page shows the command with
+the key).
 
 **Windows**, in PowerShell run as Administrator:
 
@@ -124,11 +136,12 @@ Windows). To build the packages yourself, see [Building from source](#building-f
    run `sudo dumpcat setup-token` (Windows, as Administrator: `& "C:\Program Files\DumpCat\dumpcat.exe" setup-token`)
    or look in the service log. (The default port spells *MEOW* on a phone keypad.)
 2. Create a MySQL user with read-only backup privileges ([the grants](docs/manual.md#4-getting-started)).
-3. **Database servers → Add server → Test connection.** DumpCat shows the version, the size of each database, missing
-   privileges and which backup methods work on this machine.
+3. **Database servers → Add server → Test connection.** Choose how DumpCat connects: directly, through an agent or
+   through WireGuard. DumpCat shows the version, the size of each database, missing privileges and which backup methods
+   work.
 4. **Storage → Add storage → Test.**
 5. **Backup jobs → New job.** Pick the server, method, databases, schedule, encryption, storage and retention, then
-   **Save & run now**.
+   **Save & run now**. Each backup is verified right after it is written (one copy by default).
 
 For production, put DumpCat behind HTTPS with the [nginx sample or the built-in TLS](docs/manual.md#34-behind-nginx--https-recommended-for-production)
 and restrict who can reach it.
@@ -192,12 +205,16 @@ release notes from `CHANGELOG.md`. Publishing updates and signing releases are c
 [Updating](docs/manual.md#36-updating).
 
 ```
-cmd/dumpcat    command line: serve, user, decode, update, release
-internal/      API, backup runner, engines, storage, compression and encryption pipeline, SQLite store, updater…
+cmd/dumpcat    command line: serve, agent, user, decode, update, release
+internal/      API, backup runner, engines, storage, compression and encryption pipeline, SQLite store, agent and
+               WireGuard tunnels, notifications, updater…
 web/           UI in plain HTML, CSS and JavaScript, embedded into the binary
-scripts/       Linux and Windows installers, release upload (publish-release.sh)
-deploy/        systemd unit, sample env file, nginx config
-site/          dumpcat.cc landing page, served by the Cloudflare Worker in wrangler.jsonc
+scripts/       Linux and Windows installers (also for the agent), release upload (publish-release.sh),
+               site generators (build-site.py, build-demo.py)
+deploy/        systemd units for DumpCat and the agent, sample env files, nginx config
+site/          dumpcat.cc: landing page, comparison pages and the demo (site/demo, generated from web/), served by the
+               Cloudflare Worker in wrangler.jsonc
+site-src/      sources of the generated pages: comparison data, the demo's mock API and sample data
 docs/          manual in English and Vietnamese, website runbook (website.vi.md)
 ```
 
