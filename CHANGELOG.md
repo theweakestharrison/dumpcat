@@ -6,6 +6,25 @@ page at dumpcat.cc/changelog/ (see `scripts/build-site.py`). Newest version
 first. Each section: `## <version> (<date>)`, a one-line summary, then `###`
 groups of bullets.
 
+## 1.4.1 (2026-10-20)
+
+A redesigned point-in-time recovery screen, and release notes one click away from the update notice.
+
+### Point-in-time recovery screen
+
+- A timeline of the job's backups and archived binlogs, with the part that cannot be recovered hatched. Drag it to
+  pick the moment; once checked, the backup that is restored lights up and the binlogs replayed after it are drawn up
+  to the recovery point.
+- The kind of target (point in time, before a GTID, binlog position, latest available) is a segmented choice, with
+  **5 min ago**, **1 hour ago** and **1 day ago** shortcuts for a time. Date and time inputs look like the other inputs.
+- The plan reads as three steps: the backup that is restored, the binlog files replayed (how many, how large, from
+  which file to which) and where the replay stops, in your local time. The restore form shows the same plan when it
+  replays binlogs.
+
+### Release notes
+
+- The update notice on the **System** page links to the release notes of the new version on dumpcat.cc.
+
 ## 1.4.0 (2026-10-19)
 
 Physical backups through the agent, restore drills that prove a backup restores, alerts when backups go stale,
