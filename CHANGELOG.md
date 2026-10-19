@@ -6,6 +6,55 @@ page at dumpcat.cc/changelog/ (see `scripts/build-site.py`). Newest version
 first. Each section: `## <version> (<date>)`, a one-line summary, then `###`
 groups of bullets.
 
+## 1.4.2 (2026-10-20)
+
+Security fixes from an audit of DumpCat: stricter checks on everything that reaches the backup tools, encryption that
+fails closed, and harder sign-in. Updating is recommended.
+
+### Backup tools and restores
+
+- A line break in a server's user, host or socket could add options to the option file the MySQL tools read (DumpCat
+  runs them as root). Servers now refuse control characters in these fields and in the datadir, service and OS user,
+  and the option file writer refuses them too, on DumpCat and on agents.
+- Replacing a datadir (physical restore, admins only) now refuses system directories, DumpCat's own data directory
+  and any non-empty directory that does not look like a MySQL/MariaDB datadir; service and OS user names are checked.
+- Restores run the mysql client with `--local-infile=0`, and the password goes through the option file only
+  (`MYSQL_PWD` just when the file cannot hold it).
+- Backups imported from a storage: the job and backup directory names in `manifest.json` must be plain names (they
+  could point the extraction of a physical restore outside DumpCat's data directory), character sets and collations
+  must be identifiers, a manifest reusing a known backup id is linked only when its files match, and dates in the
+  future are not accepted.
+- A checksum mismatch now fails a logical restore (and a restore drill) instead of only being logged.
+
+### Encryption fails closed
+
+- DumpCat refuses to start with a master key that does not open its database (`dumpcat.db` copied without its
+  `master.key`, or the key lost and recreated). Before, every stored secret read as empty and jobs that encrypt
+  uploaded unencrypted backups and binlogs. A job that encrypts and cannot read its passphrase now fails.
+
+### Sign-in and accounts
+
+- Sign-in attempts are counted before the password is checked, so parallel requests get no extra tries. The lock
+  after 5 failures applies per account and address: failures from one place no longer lock an admin out everywhere.
+  A two-factor code works once. Password confirmations (changing the password, turning 2FA off) are rate limited.
+- Behind a reverse proxy, the client address is `X-Real-IP` or the last `X-Forwarded-For` entry, not the first one,
+  which the client chooses.
+- Creating an API token asks for the account password. An admin resetting a password or disabling an account, and
+  `dumpcat user passwd` / `disable`, revoke that user's API tokens.
+- Re-enter a server's or storage's password when you weaken its TLS mode, change its CA certificate or turn
+  certificate checks off, as when you change its address.
+
+### Other fixes
+
+- S3 storage without an access key, which signs in with the host's own cloud identity, is admin-only.
+- Rotating or deleting an agent's key also cuts off a connection authenticated with the old key just before.
+- Request bodies must arrive within 30 seconds.
+- The WireGuard endpoint must be a host name or address with an optional port: a line break could add lines to the
+  peers' `wg-quick` file.
+- Notification errors no longer show webhook or Telegram bot URLs; Slack titles and Discord fields are escaped; the
+  agent install commands quote values from Settings; the release notes link must be http(s); the agent help no
+  longer suggests `--insecure` on untrusted networks.
+
 ## 1.4.1 (2026-10-20)
 
 A redesigned point-in-time recovery screen, and release notes one click away from the update notice.

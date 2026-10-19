@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>What&#x27;s new in DumpCat 1.4.2</title>
+<meta name="description" content="Security fixes from an audit of DumpCat: stricter checks on everything that reaches the backup tools, encryption that fails closed, and harder sign-in. Updating is recommended.">
+<link rel="canonical" href="https://dumpcat.cc/changelog/1.4.2/">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://dumpcat.cc/changelog/1.4.2/">
+<meta property="og:site_name" content="DumpCat">
+<meta property="og:title" content="What&#x27;s new in DumpCat 1.4.2">
+<meta property="og:description" content="Security fixes from an audit of DumpCat: stricter checks on everything that reaches the backup tools, encryption that fails closed, and harder sign-in. Updating is recommended.">
+<meta property="og:locale" content="en_US">
+<meta property="og:image" content="https://dumpcat.cc/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://dumpcat.cc/og.png">
+<meta name="theme-color" content="#1f5fbf">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=Bricolage+Grotesque:opsz,wdth,wght@12..96,75..100,400..800&family=JetBrains+Mono:wght@400;600&display=swap">
+<link rel="stylesheet" href="/style.css">
+<script type="application/ld+json">{"@context": "https://schema.org", "@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "Home", "item": "https://dumpcat.cc/"}, {"@type": "ListItem", "position": 2, "name": "What's new", "item": "https://dumpcat.cc/changelog/"}, {"@type": "ListItem", "position": 3, "name": "1.4.2", "item": "https://dumpcat.cc/changelog/1.4.2/"}]}</script>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs><linearGradient id="dc-bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#3a86e8"/><stop offset="1" stop-color="#1c56b0"/></linearGradient><symbol id="dc-logo" viewBox="0 0 64 64"><rect width="64" height="64" rx="15" fill="url(#dc-bg)"/><path d="M47.5 45.5c7.5 0 10.5-5.5 7.8-11.5" fill="none" stroke="#fff" stroke-width="4.2" stroke-linecap="round"/><path d="M15.6 25 18.4 7.6 30.5 17.5z" fill="#fff"/><path d="M48.4 25 45.6 7.6 33.5 17.5z" fill="#fff"/><path d="M19.4 18.6 20.4 12.4 25.6 16.4z" fill="#f9a8c9"/><path d="M44.6 18.6 43.6 12.4 38.4 16.4z" fill="#f9a8c9"/><path d="M15 21v24c0 3.9 7.6 7 17 7s17-3.1 17-7V21z" fill="#fff"/><ellipse cx="32" cy="21" rx="17" ry="7" fill="#d6e6fb"/><path d="M15 38c0 3.9 7.6 7 17 7s17-3.1 17-7" fill="none" stroke="#1c56b0" stroke-opacity=".28" stroke-width="2.4"/><circle cx="25.4" cy="31" r="2.5" fill="#1b2433"/><circle cx="38.6" cy="31" r="2.5" fill="#1b2433"/><path d="M30.1 34.2h3.8L32 36.4z" fill="#f27aa8"/></symbol></defs></svg>
+<header class="hero page-hero">
+  <div class="wrap">
+    <div class="topbar">
+      <a class="brand" href="/"><svg aria-hidden="true"><use href="#dc-logo"/></svg>DumpCat</a>
+      <nav class="nav" aria-label="Site">
+        <a href="/#methods">Features</a>
+        <a href="/compare/">Compare</a>
+        <a href="/demo/">Preview</a>
+        <a href="/changelog/">What's new</a>
+        <a class="nav-gh" href="https://github.com/theweakestharrison/DumpCat" aria-label="GitHub" title="GitHub"><svg class="gh" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 0c4.42 0 8 3.58 8 8a8.013 8.013 0 0 1-5.45 7.59c-.4.08-.55-.17-.55-.38 0-.27.01-1.13.01-2.2 0-.75-.25-1.23-.54-1.48 1.78-.2 3.65-.88 3.65-3.95 0-.88-.31-1.59-.82-2.15.08-.2.36-1.02-.08-2.12 0 0-.67-.22-2.2.82-.64-.18-1.32-.27-2-.27-.68 0-1.36.09-2 .27-1.53-1.03-2.2-.82-2.2-.82-.44 1.1-.16 1.92-.08 2.12-.51.56-.82 1.28-.82 2.15 0 3.06 1.86 3.75 3.64 3.95-.23.2-.44.55-.51 1.07-.46.21-1.61.55-2.33-.66-.15-.24-.6-.83-1.23-.82-.67.01-.27.38.01.53.34.19.73.9.82 1.13.16.45.68 1.31 2.69.94 0 .67.01 1.3.01 1.49 0 .21-.15.45-.55.38A7.995 7.995 0 0 1 0 8c0-4.42 3.58-8 8-8Z"/></svg></a>
+      </nav>
+      <a class="nav-cta" href="/install/">Install</a>
+      <div class="lang" role="group" aria-label="Language"><a href="/changelog/1.4.2/" hreflang="en" lang="en" aria-current="true">EN</a></div>
+    </div>
+    <div class="page-head">
+      <nav class="crumbs" aria-label="Breadcrumb"><a href="/">Home</a> <span aria-hidden="true">/</span> <a href="/changelog/">What&#x27;s new</a> <span aria-hidden="true">/</span> <span aria-current="page">1.4.2</span></nav>
+      <p class="eyebrow">Released October 20, 2026 · latest version</p><h1>What&#x27;s new in DumpCat 1.4.2</h1>
+      <p class="lead">Security fixes from an audit of DumpCat: stricter checks on everything that reaches the backup tools, encryption that fails closed, and harder sign-in. Updating is recommended.</p>
+      <div class="cta"><a class="btn btn-light" href="/install/">Install DumpCat 1.4.2</a><a class="btn btn-ghost" href="/changelog/">All versions</a></div>
+    </div>
+  </div>
+</header>
+
+<main class="cl">
+  <section class="section">
+    <div class="wrap narrow">
+      <nav class="cl-toc" aria-label="In this release"><span>In this release</span><a href="#backup-tools-and-restores">Backup tools and restores</a><a href="#encryption-fails-closed">Encryption fails closed</a><a href="#sign-in-and-accounts">Sign-in and accounts</a><a href="#other-fixes">Other fixes</a></nav><section class="cl-group"><h2 id="backup-tools-and-restores">Backup tools and restores</h2><ul class="cl-items"><li>A line break in a server&#x27;s user, host or socket could add options to the option file the MySQL tools read (DumpCat runs them as root). Servers now refuse control characters in these fields and in the datadir, service and OS user, and the option file writer refuses them too, on DumpCat and on agents.</li><li>Replacing a datadir (physical restore, admins only) now refuses system directories, DumpCat&#x27;s own data directory and any non-empty directory that does not look like a MySQL/MariaDB datadir; service and OS user names are checked.</li><li>Restores run the mysql client with <code>--local-infile=0</code>, and the password goes through the option file only (<code>MYSQL_PWD</code> just when the file cannot hold it).</li><li>Backups imported from a storage: the job and backup directory names in <code>manifest.json</code> must be plain names (they could point the extraction of a physical restore outside DumpCat&#x27;s data directory), character sets and collations must be identifiers, a manifest reusing a known backup id is linked only when its files match, and dates in the future are not accepted.</li><li>A checksum mismatch now fails a logical restore (and a restore drill) instead of only being logged.</li></ul></section><section class="cl-group"><h2 id="encryption-fails-closed">Encryption fails closed</h2><ul class="cl-items"><li>DumpCat refuses to start with a master key that does not open its database (<code>dumpcat.db</code> copied without its <code>master.key</code>, or the key lost and recreated). Before, every stored secret read as empty and jobs that encrypt uploaded unencrypted backups and binlogs. A job that encrypts and cannot read its passphrase now fails.</li></ul></section><section class="cl-group"><h2 id="sign-in-and-accounts">Sign-in and accounts</h2><ul class="cl-items"><li>Sign-in attempts are counted before the password is checked, so parallel requests get no extra tries. The lock after 5 failures applies per account and address: failures from one place no longer lock an admin out everywhere. A two-factor code works once. Password confirmations (changing the password, turning 2FA off) are rate limited.</li><li>Behind a reverse proxy, the client address is <code>X-Real-IP</code> or the last <code>X-Forwarded-For</code> entry, not the first one, which the client chooses.</li><li>Creating an API token asks for the account password. An admin resetting a password or disabling an account, and <code>dumpcat user passwd</code> / <code>disable</code>, revoke that user&#x27;s API tokens.</li><li>Re-enter a server&#x27;s or storage&#x27;s password when you weaken its TLS mode, change its CA certificate or turn certificate checks off, as when you change its address.</li></ul></section><section class="cl-group"><h2 id="other-fixes">Other fixes</h2><ul class="cl-items"><li>S3 storage without an access key, which signs in with the host&#x27;s own cloud identity, is admin-only.</li><li>Rotating or deleting an agent&#x27;s key also cuts off a connection authenticated with the old key just before.</li><li>Request bodies must arrive within 30 seconds.</li><li>The WireGuard endpoint must be a host name or address with an optional port: a line break could add lines to the peers&#x27; <code>wg-quick</code> file.</li><li>Notification errors no longer show webhook or Telegram bot URLs; Slack titles and Discord fields are escaped; the agent install commands quote values from Settings; the release notes link must be http(s); the agent help no longer suggests <code>--insecure</code> on untrusted networks.</li></ul></section><nav class="cl-pager" aria-label="Other versions"><a class="older" href="/changelog/1.4.1/"><small>Older</small>DumpCat 1.4.1</a><span></span></nav>
+    </div>
+  </section>
+</main>
+<footer class="foot">
+  <div class="wrap">
+    <a class="brand" href="/"><svg aria-hidden="true"><use href="#dc-logo"/></svg>DumpCat</a>
+    <p>Open source under the Apache-2.0 license, with the source on GitHub. <a href="https://github.com/theweakestharrison/DumpCat">GitHub</a> · <a href="/compare/">Compare</a> · <a href="/install/">Install</a> · <a href="/changelog/">What's new</a> · Support: <a href="mailto:fat@dumpcat.cc">fat@dumpcat.cc</a></p>
+  </div>
+</footer>
+</body>
+</html>
