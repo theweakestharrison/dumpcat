@@ -70,9 +70,9 @@ The latest version, its release notes and checksums are listed on [dumpcat.cc](h
 served from `https://downloads.dumpcat.cc/<version>/`.
 
 ```bash
-curl -fLO https://downloads.dumpcat.cc/1.2.0/dumpcat-1.2.0-linux.tar.gz
-tar xzf dumpcat-1.2.0-linux.tar.gz
-cd dumpcat-1.2.0-linux
+curl -fLO https://downloads.dumpcat.cc/1.3.0/dumpcat-1.3.0-linux.tar.gz
+tar xzf dumpcat-1.3.0-linux.tar.gz
+cd dumpcat-1.3.0-linux
 sudo ./install.sh
 ```
 
@@ -122,9 +122,9 @@ DumpCat also runs on Windows Server 2016+ / Windows 10+ (64-bit), as a Windows s
 In PowerShell **Run as administrator**:
 
 ```powershell
-Invoke-WebRequest https://downloads.dumpcat.cc/1.2.0/dumpcat-1.2.0-windows-amd64.zip -OutFile dumpcat-1.2.0-windows-amd64.zip
-Expand-Archive dumpcat-1.2.0-windows-amd64.zip -DestinationPath .
-cd dumpcat-1.2.0-windows-amd64
+Invoke-WebRequest https://downloads.dumpcat.cc/1.3.0/dumpcat-1.3.0-windows-amd64.zip -OutFile dumpcat-1.3.0-windows-amd64.zip
+Expand-Archive dumpcat-1.3.0-windows-amd64.zip -DestinationPath .
+cd dumpcat-1.3.0-windows-amd64
 powershell -ExecutionPolicy Bypass -File .\install.ps1
 ```
 
@@ -180,7 +180,7 @@ UPDATE_URL=https://downloads.dumpcat.cc ./build.sh
 
 ```
 https://downloads.dumpcat.cc/latest.json
-https://downloads.dumpcat.cc/1.2.0/dumpcat-linux-amd64    (… -linux-arm64, -windows-amd64.exe, SHA256SUMS, packages)
+https://downloads.dumpcat.cc/1.3.0/dumpcat-linux-amd64    (… -linux-arm64, -windows-amd64.exe, SHA256SUMS, packages)
 ```
 
 Upload the version folder first and `latest.json` last, so that installations never see a release whose files are not there yet.
@@ -278,14 +278,15 @@ they would accept a release signed with it. Reinstall the package by hand where 
 When DumpCat cannot connect to the database (no port open to it, a firewall or NAT in between, MySQL listening on
 127.0.0.1 only), install the **agent** on the database host. The agent is the same `dumpcat` binary: it connects **out**
 to DumpCat over HTTPS (a WebSocket on the port of the web UI) and carries the database connections DumpCat asks for.
-Nothing has to be opened on the database host; it only has to reach DumpCat.
+Nothing has to be opened on the database host; it only has to reach DumpCat. If you prefer a VPN, see
+[3.8 Built-in WireGuard](#38-built-in-wireguard).
 
 1. **Agents → Add agent** in the web UI (admins). DumpCat shows the agent key — once — and the install commands.
 2. On the database host, as root:
 
    ```bash
-   curl -fLO https://downloads.dumpcat.cc/1.2.0/dumpcat-1.2.0-linux.tar.gz
-   tar xzf dumpcat-1.2.0-linux.tar.gz && cd dumpcat-1.2.0-linux
+   curl -fLO https://downloads.dumpcat.cc/1.3.0/dumpcat-1.3.0-linux.tar.gz
+   tar xzf dumpcat-1.3.0-linux.tar.gz && cd dumpcat-1.3.0-linux
    sudo ./install.sh --agent --server https://backup.example.com --key dca_...
    ```
 
@@ -325,6 +326,55 @@ DumpCat installed on the database host itself.
   itself (every 2 s, backing off to 1 min) and binlog archiving resumes where it stopped. The Agents page shows the
   version of each agent; upgrade it by running the installer of the new version.
 - **Uninstall**: `sudo ./install.sh --agent --uninstall [--purge]`, Windows: `.\install.ps1 -Agent -Uninstall [-Purge]`.
+
+### 3.8 Built-in WireGuard
+
+An alternative to the agent: DumpCat can run a **WireGuard** endpoint itself, and the database hosts join it with the
+standard WireGuard tools. It is **off by default** and nothing is installed for it: WireGuard runs inside DumpCat in
+userspace, without a network interface, route or firewall rule on the DumpCat host — only DumpCat can reach the peers,
+and only the database addresses of the servers you add.
+
+1. **WireGuard** page (admins): tick **Turn on WireGuard**, keep or change the UDP port (`51820`) and DumpCat's VPN
+   address (`10.66.0.1/24`), and set the **Endpoint for the peers** — the public name or IP the database hosts reach this
+   server at (empty: the host of the Base URL). Open the UDP port in the firewall of the DumpCat host
+   (`ufw allow 51820/udp`, Windows: an inbound UDP rule).
+2. **Add peer** for each database host. DumpCat gives it the next free address (`10.66.0.2`…) and shows its
+   `dumpcat.conf` — once, as it holds the peer's private key — with the commands to install it:
+
+   ```bash
+   apt install wireguard-tools        # RHEL / Rocky / Alma: dnf install wireguard-tools
+   # save the file shown by DumpCat as /etc/wireguard/dumpcat.conf, then
+   chmod 600 /etc/wireguard/dumpcat.conf
+   systemctl enable --now wg-quick@dumpcat
+   ```
+
+   On Windows: install WireGuard, **Import tunnel from file**, **Activate**. The file routes only DumpCat's VPN address
+   through the tunnel (`AllowedIPs = 10.66.0.1/32`) and sends a keepalive every 25 s, so the host can stay behind NAT and
+   accept no inbound connections — it only needs to reach DumpCat on UDP.
+3. On the database host, MySQL must accept the connections that arrive over WireGuard:
+   - listen on the WireGuard address: `bind-address = 0.0.0.0`, or `127.0.0.1,10.66.0.2` (MySQL 8.0.13+, MariaDB 10.11+);
+   - the backup user must be allowed from DumpCat's VPN address: `'dumpcat'@'10.66.0.1'` (DumpCat shows the SQL);
+   - the host firewall must let the WireGuard interface in: `ufw allow in on dumpcat to any port 3306`.
+4. **Database servers → Add server**, **Connect: Through WireGuard: <peer>**, host = the peer's address (`10.66.0.2`),
+   port `3306`.
+
+Notes:
+
+- **Networks behind a peer**: a peer can be a gateway to other database servers on its network — add the network
+  (e.g. `192.168.10.0/24`) to the peer and enter those servers' addresses. The gateway must forward the traffic
+  (`net.ipv4.ip_forward=1` and a masquerade rule, or a route back to `10.66.0.1/32`).
+- Through WireGuard, a server's host must be an IP address routed to its peer; unix sockets are not possible.
+- **Status**: the WireGuard page shows for each peer the last handshake (connected = within 3 minutes), where it connects
+  from and the traffic. DumpCat remembers where every peer was last seen, so after DumpCat restarts or WireGuard is
+  turned off and on, it reconnects at once instead of waiting for the peer's next handshake.
+- **Errors** are specific: *peer … has not connected yet* (WireGuard not running on the host, or UDP blocked), *no answer
+  from …* (the host went away, or its firewall drops the WireGuard interface), *nothing listens on …* (MySQL does not
+  listen on the WireGuard address).
+- **Rotate keys** issues a new configuration for a peer; the old one stops working at once. Changing the port or the
+  address of DumpCat does not change the peers' keys, but every `dumpcat.conf` must then be updated (Endpoint / AllowedIPs).
+- Agent or WireGuard? The [agent](#37-database-hosts-that-accept-no-inbound-connections-agent) needs only outbound HTTPS
+  and reaches MySQL on 127.0.0.1 with no MySQL changes. WireGuard uses standard, widely audited tools and UDP, but MySQL
+  must listen on the WireGuard address. Physical backups need DumpCat on the database host in both cases.
 
 ## 4. Getting started
 
@@ -614,6 +664,7 @@ It is also worth backing up `/var/lib/dumpcat/master.key` and `dumpcat.db` (conf
 - The API never returns secret values (only a "saved" flag).
 - Backup encryption (age) happens on the server before upload: the cloud provider cannot read the data. Use a long passphrase (≥ 16 characters).
 - Agents ([3.7](#37-database-hosts-that-accept-no-inbound-connections-agent)) authenticate with a key stored only as a hash, open only the database addresses on their own allow list, and run without privileges. Database traffic goes inside the agent's connection: use HTTPS.
+- The built-in WireGuard ([3.8](#38-built-in-wireguard)) is off by default and creates no network interface on the DumpCat host: peers reach nothing on it, and DumpCat reaches only the addresses routed to each peer. Its private key is encrypted with the master key; peer configurations are shown once.
 - The service runs as root so it can do physical backups/restores. If you only use logical backups, you can create a dedicated user: `useradd -r dumpcat`, `chown -R dumpcat /var/lib/dumpcat`, and set `User=dumpcat` in the unit.
 
 ## 12. API & automation
@@ -689,6 +740,7 @@ Internal data: `/var/lib/dumpcat/dumpcat.db` (SQLite), `master.key`, `logs/`, `s
 | PITR: *binlogs are only archived up to …* | Click *Close binlog now* on the **Binlog & PITR** page and wait a few seconds for the upload, or choose *Latest available* |
 | PITR: *… has not been archived* / *sequence is broken* | The server purged binlogs before they were archived, or the numbering was reset: keep binlogs longer on the server and take a new backup as a starting point |
 | Agent: *agent … is offline* | Start the agent on the database host (`systemctl status dumpcat-agent`, `journalctl -u dumpcat-agent`). *the server refused the agent* in its log: wrong or rotated key, or the URL is not DumpCat. Behind nginx, use the `/api/agent/` block of the sample configuration |
+| WireGuard: *peer … has not connected yet* / *no answer from …* / *nothing listens on …* | See [3.8](#38-built-in-wireguard): start `wg-quick@dumpcat` on the database host and open the UDP port on the DumpCat host; let the WireGuard interface in on the database host; make MySQL listen on the WireGuard address |
 | Agent: *… is not on this agent's allow list* | Start the agent with `--allow host:port` for that address, or enter the address the agent allows (see [3.7](#37-database-hosts-that-accept-no-inbound-connections-agent)) |
 | Service logs | `journalctl -u dumpcat -f`; per-task logs on the detail page or in `/var/lib/dumpcat/logs/` |
 
@@ -718,6 +770,8 @@ internal/scheduler cron
 internal/notify    Email, Telegram, Slack, Discord, Webhook
 internal/update    self-update: release manifest, signatures, install & rollback
 internal/agent     agents: reverse tunnel from database hosts (WebSocket), allow lists
+internal/wg        built-in WireGuard (wireguard-go + gVisor netstack, no OS interface)
+internal/tunnel   local tunnel ports: piping, MySQL error packets
 web/               UI (plain HTML/CSS/JS, no external dependencies)
 scripts/install.sh Linux installer · deploy/ systemd unit, sample env, nginx
 ```

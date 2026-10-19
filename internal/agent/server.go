@@ -5,7 +5,6 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"io"
 	"net"
 	"net/http"
 	"strings"
@@ -13,6 +12,8 @@ import (
 	"time"
 
 	"golang.org/x/net/websocket"
+
+	"dumpcat/internal/tunnel"
 )
 
 const (
@@ -44,14 +45,14 @@ type Manager struct {
 
 	mu       sync.Mutex
 	sessions map[int64]*session
-	tunnels  map[string]*tunnel
+	tunnels  map[string]*localPort
 	pending  map[string]*pending
 	streams  map[int64]int
 	closed   bool
 }
 
 func NewManager() *Manager {
-	return &Manager{sessions: map[int64]*session{}, tunnels: map[string]*tunnel{}, pending: map[string]*pending{}, streams: map[int64]int{}}
+	return &Manager{sessions: map[int64]*session{}, tunnels: map[string]*localPort{}, pending: map[string]*pending{}, streams: map[int64]int{}}
 }
 
 type session struct {
@@ -84,7 +85,7 @@ type pending struct {
 	gone    chan struct{}
 }
 
-type tunnel struct {
+type localPort struct {
 	agentID int64
 	target  Target
 	ln      net.Listener
@@ -262,13 +263,13 @@ func (m *Manager) Endpoint(agentID int64, t Target) (string, int, error) {
 	if err != nil {
 		return "", 0, err
 	}
-	tn := &tunnel{agentID: agentID, target: nt, ln: ln, port: ln.Addr().(*net.TCPAddr).Port}
+	tn := &localPort{agentID: agentID, target: nt, ln: ln, port: ln.Addr().(*net.TCPAddr).Port}
 	m.tunnels[key] = tn
 	go m.accept(tn)
 	return "127.0.0.1", tn.port, nil
 }
 
-func (m *Manager) accept(tn *tunnel) {
+func (m *Manager) accept(tn *localPort) {
 	for {
 		c, err := tn.ln.Accept()
 		if err != nil {
@@ -278,35 +279,21 @@ func (m *Manager) accept(tn *tunnel) {
 	}
 }
 
-func (m *Manager) forward(tn *tunnel, c net.Conn) {
+func (m *Manager) forward(tn *localPort, c net.Conn) {
 	remote, err := m.open(tn.agentID, tn.target)
 	if err != nil {
 		m.logf("agent #%d: cannot open %s: %v", tn.agentID, tn.target, err)
-		writeMySQLError(c, "DumpCat agent: "+err.Error())
+		tunnel.MySQLError(c, "DumpCat agent: "+err.Error())
 		c.Close()
 		return
 	}
 	m.mu.Lock()
 	m.streams[tn.agentID]++
 	m.mu.Unlock()
-	Pipe(c, remote)
+	tunnel.Pipe(c, remote)
 	m.mu.Lock()
 	m.streams[tn.agentID]--
 	m.mu.Unlock()
-}
-
-// writeMySQLError answers a client waiting for the server greeting with an
-// error packet (tunnels only carry the MySQL protocol), so mysql, mysqldump
-// and the Go driver show why the tunnel failed instead of "lost connection".
-func writeMySQLError(c net.Conn, msg string) {
-	if len(msg) > 500 {
-		msg = msg[:500]
-	}
-	// 1105 ER_UNKNOWN_ERROR; no SQL state: no capabilities are agreed yet
-	payload := append([]byte{0xff, 0x51, 0x04}, msg...)
-	pkt := append([]byte{byte(len(payload)), byte(len(payload) >> 8), byte(len(payload) >> 16), 0}, payload...)
-	_ = c.SetWriteDeadline(time.Now().Add(5 * time.Second))
-	_, _ = c.Write(pkt)
 }
 
 func randomID() string {
@@ -348,21 +335,6 @@ func (m *Manager) open(agentID int64, t Target) (net.Conn, error) {
 	case <-timer.C:
 		return nil, errors.New("the agent did not open the connection in time")
 	}
-}
-
-// Pipe copies both ways until either side ends, then closes both.
-func Pipe(a, b net.Conn) {
-	done := make(chan struct{}, 2)
-	cp := func(dst, src net.Conn) {
-		_, _ = io.Copy(dst, src)
-		done <- struct{}{}
-	}
-	go cp(a, b)
-	go cp(b, a)
-	<-done
-	a.Close()
-	b.Close()
-	<-done
 }
 
 // Status returns the live state of an agent.

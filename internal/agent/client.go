@@ -15,6 +15,8 @@ import (
 	"time"
 
 	"golang.org/x/net/websocket"
+
+	"dumpcat/internal/tunnel"
 )
 
 // Client is `dumpcat agent`: it keeps a control connection to the DumpCat
@@ -174,5 +176,5 @@ func (c *Client) open(m Message, send func(Message) error) {
 		return
 	}
 	ws.PayloadType = websocket.BinaryFrame
-	Pipe(db, ws)
+	tunnel.Pipe(db, ws)
 }

@@ -39,8 +39,9 @@ single Go binary with the UI built in.
 - **Storage anywhere.** Local disk or NFS, S3 and compatibles (Cloudflare R2, MinIO, Wasabi…), Google Drive,
   OneDrive / SharePoint, FTP / FTPS, SFTP, WebDAV, Backblaze B2, Azure Blob, Dropbox and every rclone backend. One job can
   write to several storages, each with its own retention.
-- **Databases behind a firewall.** A small agent on the database host connects out to DumpCat, so no port has to be
-  opened to the database. Backups, restores and point-in-time recovery work through it.
+- **Databases behind a firewall.** A small agent on the database host connects out to DumpCat, or the host joins
+  DumpCat's built-in WireGuard (off by default), so no port has to be opened to the database. Backups, restores and
+  point-in-time recovery work through either.
 - **Encrypted and verified.** zstd compression, [age](https://age-encryption.org) encryption before anything leaves the
   server, SHA-256 for every file, and an integrity check that decrypts and decompresses the backup on demand or after
   every run.
@@ -93,9 +94,9 @@ are served from `https://downloads.dumpcat.cc/<version>/`.
 **Linux**, as root:
 
 ```bash
-curl -fLO https://downloads.dumpcat.cc/1.2.0/dumpcat-1.2.0-linux.tar.gz
-tar xzf dumpcat-1.2.0-linux.tar.gz
-cd dumpcat-1.2.0-linux
+curl -fLO https://downloads.dumpcat.cc/1.3.0/dumpcat-1.3.0-linux.tar.gz
+tar xzf dumpcat-1.3.0-linux.tar.gz
+cd dumpcat-1.3.0-linux
 sudo ./install.sh
 ```
 
@@ -106,14 +107,14 @@ Options: `--port 9090`, `--listen 127.0.0.1`, `--tls-auto`, `--no-deps`, `--unin
 **Windows**, in PowerShell run as Administrator:
 
 ```powershell
-Invoke-WebRequest https://downloads.dumpcat.cc/1.2.0/dumpcat-1.2.0-windows-amd64.zip -OutFile dumpcat-1.2.0-windows-amd64.zip
-Expand-Archive dumpcat-1.2.0-windows-amd64.zip -DestinationPath .
-cd dumpcat-1.2.0-windows-amd64
+Invoke-WebRequest https://downloads.dumpcat.cc/1.3.0/dumpcat-1.3.0-windows-amd64.zip -OutFile dumpcat-1.3.0-windows-amd64.zip
+Expand-Archive dumpcat-1.3.0-windows-amd64.zip -DestinationPath .
+cd dumpcat-1.3.0-windows-amd64
 powershell -ExecutionPolicy Bypass -File .\install.ps1
 ```
 
 To check a download, compare it with
-[SHA256SUMS](https://downloads.dumpcat.cc/1.2.0/SHA256SUMS) (`sha256sum -c --ignore-missing SHA256SUMS`, or `Get-FileHash` on
+[SHA256SUMS](https://downloads.dumpcat.cc/1.3.0/SHA256SUMS) (`sha256sum -c --ignore-missing SHA256SUMS`, or `Get-FileHash` on
 Windows). To build the packages yourself, see [Building from source](#building-from-source).
 
 ### 2. Run your first backup
@@ -151,7 +152,7 @@ The full manual is in [docs/manual.md](docs/manual.md) ([Tiếng Việt](docs/ma
 | Topic | |
 |---|---|
 | Installing on Linux and Windows, HTTPS | [Installation](docs/manual.md#3-installation) |
-| Database hosts that accept no inbound connections | [Agent](docs/manual.md#37-database-hosts-that-accept-no-inbound-connections-agent) |
+| Database hosts that accept no inbound connections | [Agent](docs/manual.md#37-database-hosts-that-accept-no-inbound-connections-agent) · [WireGuard](docs/manual.md#38-built-in-wireguard) |
 | S3, Google Drive, OneDrive, FTP, SFTP… | [Configuring storage](docs/manual.md#5-configuring-storage) |
 | Schedules, incrementals, retention | [Jobs, schedules, retention](docs/manual.md#6-jobs-schedules-retention) |
 | Logical and physical restores | [Restore](docs/manual.md#7-restore) |

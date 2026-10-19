@@ -14,6 +14,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"dumpcat/internal/agent"
@@ -26,6 +27,7 @@ import (
 	"dumpcat/internal/storage"
 	"dumpcat/internal/store"
 	"dumpcat/internal/update"
+	"dumpcat/internal/wg"
 )
 
 type Server struct {
@@ -43,6 +45,8 @@ type Server struct {
 	WebFS    fs.FS
 	Updater  *update.Manager
 	Agents   *agent.Manager // database hosts that connect out (nil = disabled)
+	WG       *wg.Manager    // built-in WireGuard (nil = not available)
+	wgMu     sync.Mutex     // serializes WireGuard configuration changes
 	// ControlToken authenticates "dumpcat update" on the same machine (read from DATA_DIR/control.token).
 	ControlToken string
 
@@ -418,6 +422,13 @@ func (s *Server) routes(mux *http.ServeMux) {
 	s.route(mux, "POST /api/agents/{id}/rotate", adm, s.agentRotate)
 	s.route(mux, "DELETE /api/agents/{id}", adm, s.agentDelete)
 	mux.HandleFunc("GET "+agent.PathConnect, s.agentEndpoint(false))
+	// built-in WireGuard: database hosts join DumpCat's VPN (off by default)
+	s.route(mux, "GET /api/wireguard", vw, s.wgGet)
+	s.route(mux, "PUT /api/wireguard", adm, s.wgUpdate)
+	s.route(mux, "POST /api/wireguard/peers", adm, s.wgPeerCreate)
+	s.route(mux, "PUT /api/wireguard/peers/{id}", adm, s.wgPeerUpdate)
+	s.route(mux, "POST /api/wireguard/peers/{id}/rotate", adm, s.wgPeerRotate)
+	s.route(mux, "DELETE /api/wireguard/peers/{id}", adm, s.wgPeerDelete)
 	mux.HandleFunc("GET "+agent.PathStream, s.agentEndpoint(true))
 	// storages
 	s.route(mux, "GET /api/storage-types", vw, s.storageTypes)

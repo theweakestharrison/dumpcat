@@ -143,9 +143,9 @@ func (r *Runner) execBackup(ctx context.Context, task *Task, run *store.Run, job
 		return
 	}
 	lg.Redact(server.Password, job.Passphrase)
-	if job.Method == store.MethodPhysical && server.AgentID != nil {
+	if job.Method == store.MethodPhysical && server.Tunneled() {
 		// xtrabackup/mariabackup copy the datadir of the machine they run on
-		fail(errors.New("physical backups need DumpCat installed on the database host itself: an agent only forwards the MySQL connection (use mysqldump or mydumper)"))
+		fail(errors.New("physical backups need DumpCat installed on the database host itself: an agent or WireGuard only forwards the MySQL connection (use mysqldump or mydumper)"))
 		return
 	}
 

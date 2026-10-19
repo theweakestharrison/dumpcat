@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"net/netip"
 	"os"
 	"regexp"
 	"strconv"
@@ -32,7 +33,8 @@ type serverInput struct {
 	Notes           string `json:"notes"`
 	RestoreUsername string `json:"restore_username"`
 	RestorePassword string `json:"restore_password"`
-	AgentID         int64  `json:"agent_id"` // 0 = connect directly
+	AgentID         int64  `json:"agent_id"`   // 0 = connect directly
+	WGPeerID        int64  `json:"wg_peer_id"` // 0 = not through WireGuard
 }
 
 func (in *serverInput) apply(sv *store.Server) error {
@@ -44,7 +46,7 @@ func (in *serverInput) apply(sv *store.Server) error {
 			port = 3306
 		}
 		moved := strings.TrimSpace(in.Host) != sv.Host || port != sv.Port || strings.TrimSpace(in.Socket) != sv.Socket ||
-			in.AgentID != agentID(sv)
+			in.AgentID != idOf(sv.AgentID) || in.WGPeerID != idOf(sv.WGPeerID)
 		if (moved || strings.TrimSpace(in.Username) != sv.Username) && in.Password == "" && sv.Password != "" {
 			return badRequest("re-enter the password when changing host/port/socket/user")
 		}
@@ -53,10 +55,17 @@ func (in *serverInput) apply(sv *store.Server) error {
 			return badRequest("re-enter the restore password when changing host/port/socket/restore user")
 		}
 	}
-	sv.AgentID = nil
+	if in.AgentID > 0 && in.WGPeerID > 0 {
+		return badRequest("connect through an agent or through WireGuard, not both")
+	}
+	sv.AgentID, sv.WGPeerID = nil, nil
 	if in.AgentID > 0 {
 		id := in.AgentID
 		sv.AgentID = &id
+	}
+	if in.WGPeerID > 0 {
+		id := in.WGPeerID
+		sv.WGPeerID = &id
 	}
 	sv.Name = strings.TrimSpace(in.Name)
 	sv.Host = strings.TrimSpace(in.Host)
@@ -110,20 +119,35 @@ func (in *serverInput) apply(sv *store.Server) error {
 	return nil
 }
 
-func agentID(sv *store.Server) int64 {
-	if sv.AgentID == nil {
+func idOf(p *int64) int64 {
+	if p == nil {
 		return 0
 	}
-	return *sv.AgentID
+	return *p
 }
 
-// checkAgent validates the agent a server is reached through.
-func (s *Server) checkAgent(sv *store.Server) error {
-	if sv.AgentID == nil {
-		return nil
+// checkRoute validates the agent or WireGuard peer a server is reached through.
+func (s *Server) checkRoute(sv *store.Server) error {
+	if sv.AgentID != nil {
+		if _, err := s.Store.GetAgent(*sv.AgentID); err != nil {
+			return badRequest("agent #%d does not exist", *sv.AgentID)
+		}
 	}
-	if _, err := s.Store.GetAgent(*sv.AgentID); err != nil {
-		return badRequest("agent #%d does not exist", *sv.AgentID)
+	if sv.WGPeerID != nil {
+		p, err := s.Store.GetWGPeer(*sv.WGPeerID)
+		if err != nil {
+			return badRequest("WireGuard peer #%d does not exist", *sv.WGPeerID)
+		}
+		if sv.Socket != "" && (sv.Host == "" || sv.Host == "localhost") {
+			return badRequest("a unix socket cannot be reached through WireGuard: enter the database host's WireGuard address (%s)", p.Address)
+		}
+		ip, err := netip.ParseAddr(sv.Host)
+		if err != nil {
+			return badRequest("through WireGuard the host must be an IP address, e.g. the peer's address %s", p.Address)
+		}
+		if !wgRoutes(p, ip.Unmap()) {
+			return badRequest("%s is not routed to WireGuard peer %s: use its address %s or add the network to the peer", ip, p.Name, p.Address)
+		}
 	}
 	return nil
 }
@@ -160,7 +184,7 @@ func (s *Server) serverCreate(w http.ResponseWriter, r *http.Request) error {
 	if err := in.apply(sv); err != nil {
 		return err
 	}
-	if err := s.checkAgent(sv); err != nil {
+	if err := s.checkRoute(sv); err != nil {
 		return err
 	}
 	if err := s.Store.CreateServer(sv); err != nil {
@@ -202,7 +226,7 @@ func (s *Server) serverUpdate(w http.ResponseWriter, r *http.Request) error {
 	if err := in.apply(sv); err != nil {
 		return err
 	}
-	if err := s.checkAgent(sv); err != nil {
+	if err := s.checkRoute(sv); err != nil {
 		return err
 	}
 	if err := s.Store.UpdateServer(sv); err != nil {
@@ -285,9 +309,9 @@ func (s *Server) supportFor(sv *store.Server, info *dbconn.ServerInfo) []methodS
 	st := s.Tools.Get(sname)
 	ms = methodSupport{Method: store.MethodPhysical, OK: bt.Found && st.Found}
 	switch {
-	case sv.AgentID != nil:
+	case sv.Tunneled():
 		ms.OK = false
-		ms.Message = "Not through an agent: physical backups copy the datadir, so DumpCat must be installed on the database host itself"
+		ms.Message = "Not through an agent or WireGuard: physical backups copy the datadir, so DumpCat must be installed on the database host itself"
 	case !bt.Found:
 		ms.Message = "Missing " + bname + ": " + bt.Hint
 	case !st.Found:
@@ -346,7 +370,7 @@ func (s *Server) serverTestUnsaved(w http.ResponseWriter, r *http.Request) error
 	if err := in.apply(sv); err != nil {
 		return err
 	}
-	if err := s.checkAgent(sv); err != nil {
+	if err := s.checkRoute(sv); err != nil {
 		return err
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), 45*time.Second)

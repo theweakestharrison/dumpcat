@@ -35,10 +35,11 @@ import (
 	"dumpcat/internal/storage"
 	"dumpcat/internal/store"
 	"dumpcat/internal/update"
+	"dumpcat/internal/wg"
 	"dumpcat/web"
 )
 
-var version = "1.2.0"
+var version = "1.3.0"
 
 // defaultUpdateURL is the release server baked in at build time
 // (-ldflags "-X main.defaultUpdateURL=https://..."); Settings and DUMPCAT_UPDATE_URL override it.
@@ -342,9 +343,29 @@ func serve(cfg *config.Config, stop <-chan struct{}, boot *update.Boot, exe stri
 	}
 	defer agents.Close()
 
+	// built-in WireGuard (off until an admin turns it on)
+	wgm := wg.NewManager()
+	wgm.Logf = log.Printf
+	wgm.OnEndpoint = st.SetWGPeerEndpoint
+	store.WGEndpoint = func(id int64, addr string) (string, int, error) {
+		host, port, err := wgm.Endpoint(id, addr)
+		if errors.Is(err, wg.ErrDisabled) {
+			err = errors.New("WireGuard is turned off (WireGuard page)")
+		}
+		return host, port, err
+	}
+	if cfg, err := api.WireGuardConfig(st); err != nil {
+		log.Printf("WireGuard: %v", err)
+	} else if cfg != nil {
+		if err := wgm.Apply(cfg); err != nil {
+			log.Printf("WireGuard did not start: %v", err)
+		}
+	}
+	defer wgm.Close()
+
 	srv := &api.Server{Cfg: cfg, Store: st, Runner: run, Sched: sched, Storage: sm, OAuth: storage.NewOAuthManager(),
 		Tools: tools, Notifier: notifier, Limiter: auth.NewLimiter(), IPLimit: ipLimiter(), Version: version, WebFS: web.FS(),
-		Agents: agents}
+		Agents: agents, WG: wgm}
 	if d := os.Getenv("DUMPCAT_WEB_DIR"); d != "" {
 		srv.WebFS = os.DirFS(d) // development: edit UI without rebuilding
 	}

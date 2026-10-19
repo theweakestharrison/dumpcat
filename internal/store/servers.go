@@ -4,18 +4,19 @@ import (
 	"database/sql"
 )
 
-const serverCols = `id,name,host,port,socket,username,password,tls_mode,ca_cert,flavor,version,datadir,service_name,os_user,notes,created_at,updated_at,restore_username,restore_password,agent_id`
+const serverCols = `id,name,host,port,socket,username,password,tls_mode,ca_cert,flavor,version,datadir,service_name,os_user,notes,created_at,updated_at,restore_username,restore_password,agent_id,wg_peer_id`
 
 func (s *Store) scanServer(row interface{ Scan(...any) error }) (*Server, error) {
 	var sv Server
 	var pw, rpw string
 	var ca, ua int64
-	var aid sql.NullInt64
+	var aid, wid sql.NullInt64
 	if err := row.Scan(&sv.ID, &sv.Name, &sv.Host, &sv.Port, &sv.Socket, &sv.Username, &pw, &sv.TLSMode, &sv.CACert,
-		&sv.Flavor, &sv.Version, &sv.Datadir, &sv.ServiceName, &sv.OSUser, &sv.Notes, &ca, &ua, &sv.RestoreUsername, &rpw, &aid); err != nil {
+		&sv.Flavor, &sv.Version, &sv.Datadir, &sv.ServiceName, &sv.OSUser, &sv.Notes, &ca, &ua, &sv.RestoreUsername, &rpw, &aid, &wid); err != nil {
 		return nil, notFound(err)
 	}
 	sv.AgentID = fromNullID(aid)
+	sv.WGPeerID = fromNullID(wid)
 	sv.Password = s.dec(pw)
 	sv.HasPassword = sv.Password != ""
 	sv.RestorePassword = s.dec(rpw)
@@ -55,9 +56,9 @@ func (s *Store) CreateServer(sv *Server) error {
 		return err
 	}
 	t := now()
-	res, err := s.db.Exec(`INSERT INTO servers(name,host,port,socket,username,password,tls_mode,ca_cert,flavor,version,datadir,service_name,os_user,notes,created_at,updated_at,restore_username,restore_password,agent_id)
-		VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
-		sv.Name, sv.Host, sv.Port, sv.Socket, sv.Username, pw, sv.TLSMode, sv.CACert, sv.Flavor, sv.Version, sv.Datadir, sv.ServiceName, sv.OSUser, sv.Notes, t, t, sv.RestoreUsername, rpw, nullID(sv.AgentID))
+	res, err := s.db.Exec(`INSERT INTO servers(name,host,port,socket,username,password,tls_mode,ca_cert,flavor,version,datadir,service_name,os_user,notes,created_at,updated_at,restore_username,restore_password,agent_id,wg_peer_id)
+		VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+		sv.Name, sv.Host, sv.Port, sv.Socket, sv.Username, pw, sv.TLSMode, sv.CACert, sv.Flavor, sv.Version, sv.Datadir, sv.ServiceName, sv.OSUser, sv.Notes, t, t, sv.RestoreUsername, rpw, nullID(sv.AgentID), nullID(sv.WGPeerID))
 	if err != nil {
 		return err
 	}
@@ -74,8 +75,8 @@ func (s *Store) UpdateServer(sv *Server) error {
 	if err != nil {
 		return err
 	}
-	_, err = s.db.Exec(`UPDATE servers SET name=?,host=?,port=?,socket=?,username=?,password=?,tls_mode=?,ca_cert=?,flavor=?,version=?,datadir=?,service_name=?,os_user=?,notes=?,updated_at=?,restore_username=?,restore_password=?,agent_id=? WHERE id=?`,
-		sv.Name, sv.Host, sv.Port, sv.Socket, sv.Username, pw, sv.TLSMode, sv.CACert, sv.Flavor, sv.Version, sv.Datadir, sv.ServiceName, sv.OSUser, sv.Notes, now(), sv.RestoreUsername, rpw, nullID(sv.AgentID), sv.ID)
+	_, err = s.db.Exec(`UPDATE servers SET name=?,host=?,port=?,socket=?,username=?,password=?,tls_mode=?,ca_cert=?,flavor=?,version=?,datadir=?,service_name=?,os_user=?,notes=?,updated_at=?,restore_username=?,restore_password=?,agent_id=?,wg_peer_id=? WHERE id=?`,
+		sv.Name, sv.Host, sv.Port, sv.Socket, sv.Username, pw, sv.TLSMode, sv.CACert, sv.Flavor, sv.Version, sv.Datadir, sv.ServiceName, sv.OSUser, sv.Notes, now(), sv.RestoreUsername, rpw, nullID(sv.AgentID), nullID(sv.WGPeerID), sv.ID)
 	return err
 }
 

@@ -11,7 +11,7 @@
     "eyebrow": "Open source · Backup &amp; restore for MySQL and MariaDB",
     "h1": "Backups that never lock the database. <span class=\"soft\">Recovery to the exact second.</span>",
     "lead": "DumpCat is a single binary with a web UI. It schedules backups, compresses and encrypts them, ships copies to S3, Google Drive, OneDrive or SFTP, verifies them and brings your data back when you need it. Runs on Linux and Windows, fully offline.",
-    "cta-install": "Install <span data-version>1.2.0</span>",
+    "cta-install": "Install <span data-version>1.3.0</span>",
     "cta-features": "See features",
     "cta-github": "Source on GitHub",
     "pitr-title": "Point-in-time recovery",
@@ -59,7 +59,7 @@
       "<div><dt>Careful restores</dt><dd>Every file is test-decrypted before any database is dropped. Restore under new names, or onto another server and version (MySQL 8 ↔ MariaDB).</dd></div>" +
       "<div><dt>Accounts and roles</dt><dd>admin, operator, viewer. TOTP two-factor, API tokens, an audit log and lockout after repeated failed logins.</dd></div>" +
       "<div><dt>Notifications</dt><dd>Email, Telegram, Slack, Discord and HMAC-signed webhooks, on failure or on success.</dd></div>" +
-      "<div><dt>Databases behind a firewall</dt><dd>An agent on the database host connects out to DumpCat over HTTPS. No port has to be opened to the database.</dd></div>" +
+      "<div><dt>Databases behind a firewall</dt><dd>An agent on the database host connects out to DumpCat over HTTPS, or the host joins the built-in WireGuard. No port has to be opened to the database.</dd></div>" +
       "<div><dt>Self-update</dt><dd><code>dumpcat update</code> checks <span class=\"nw\">SHA-256</span>, backs up the configuration, waits for running backups and rolls back on failure.</dd></div>",
     "oss-label": "Open source",
     "oss-title": "Free, open source, and your data stays yours",

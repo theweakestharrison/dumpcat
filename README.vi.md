@@ -39,8 +39,9 @@ binary Go có sẵn giao diện.
 - **Lưu ở đâu cũng được.** Ổ local hoặc NFS, S3 và các dịch vụ tương thích (Cloudflare R2, MinIO, Wasabi…), Google Drive,
   OneDrive / SharePoint, FTP / FTPS, SFTP, WebDAV, Backblaze B2, Azure Blob, Dropbox và mọi backend của rclone. Một job có
   thể ghi ra nhiều nơi, mỗi nơi có chính sách giữ bản riêng.
-- **Database nằm sau firewall.** Một agent nhỏ trên server database chủ động kết nối ra DumpCat, nên không cần mở port
-  nào tới database. Backup, restore và khôi phục theo thời điểm đều chạy qua agent.
+- **Database nằm sau firewall.** Một agent nhỏ trên server database chủ động kết nối ra DumpCat, hoặc server đó tham gia
+  WireGuard tích hợp của DumpCat (tắt mặc định), nên không cần mở port nào tới database. Backup, restore và khôi phục
+  theo thời điểm đều chạy được qua cả hai cách.
 - **Mã hóa và kiểm tra.** Nén zstd, mã hóa bằng [age](https://age-encryption.org) trước khi dữ liệu rời khỏi server,
   SHA-256 cho từng file, và bước kiểm tra toàn vẹn giải mã, giải nén lại bản backup khi bạn bấm hoặc sau mỗi lần chạy.
 - **Restore cẩn thận.** Restore sang tên database mới hoặc sang instance / phiên bản khác (tự gỡ `DEFINER`, đổi
@@ -92,9 +93,9 @@ Phiên bản mới nhất, ghi chú phát hành và mã kiểm tra có trên **[
 **Linux**, với quyền root:
 
 ```bash
-curl -fLO https://downloads.dumpcat.cc/1.2.0/dumpcat-1.2.0-linux.tar.gz
-tar xzf dumpcat-1.2.0-linux.tar.gz
-cd dumpcat-1.2.0-linux
+curl -fLO https://downloads.dumpcat.cc/1.3.0/dumpcat-1.3.0-linux.tar.gz
+tar xzf dumpcat-1.3.0-linux.tar.gz
+cd dumpcat-1.3.0-linux
 sudo ./install.sh
 ```
 
@@ -105,13 +106,13 @@ Tùy chọn: `--port 9090`, `--listen 127.0.0.1`, `--tls-auto`, `--no-deps`, `--
 **Windows**, trong PowerShell chạy bằng quyền Administrator:
 
 ```powershell
-Invoke-WebRequest https://downloads.dumpcat.cc/1.2.0/dumpcat-1.2.0-windows-amd64.zip -OutFile dumpcat-1.2.0-windows-amd64.zip
-Expand-Archive dumpcat-1.2.0-windows-amd64.zip -DestinationPath .
-cd dumpcat-1.2.0-windows-amd64
+Invoke-WebRequest https://downloads.dumpcat.cc/1.3.0/dumpcat-1.3.0-windows-amd64.zip -OutFile dumpcat-1.3.0-windows-amd64.zip
+Expand-Archive dumpcat-1.3.0-windows-amd64.zip -DestinationPath .
+cd dumpcat-1.3.0-windows-amd64
 powershell -ExecutionPolicy Bypass -File .\install.ps1
 ```
 
-Kiểm tra file tải về bằng [SHA256SUMS](https://downloads.dumpcat.cc/1.2.0/SHA256SUMS) (`sha256sum -c --ignore-missing SHA256SUMS`,
+Kiểm tra file tải về bằng [SHA256SUMS](https://downloads.dumpcat.cc/1.3.0/SHA256SUMS) (`sha256sum -c --ignore-missing SHA256SUMS`,
 hoặc `Get-FileHash` trên Windows). Muốn tự build gói cài đặt, xem [Build từ mã nguồn](#build-từ-mã-nguồn).
 
 ### 2. Chạy bản backup đầu tiên
@@ -149,7 +150,7 @@ Hướng dẫn đầy đủ nằm ở [docs/manual.vi.md](docs/manual.vi.md) ([E
 | Chủ đề | |
 |---|---|
 | Cài trên Linux và Windows, HTTPS | [Cài đặt](docs/manual.vi.md#3-cài-đặt) |
-| Server database không cho kết nối vào | [Agent](docs/manual.vi.md#37-server-database-không-cho-kết-nối-vào-agent) |
+| Server database không cho kết nối vào | [Agent](docs/manual.vi.md#37-server-database-không-cho-kết-nối-vào-agent) · [WireGuard](docs/manual.vi.md#38-wireguard-tích-hợp) |
 | S3, Google Drive, OneDrive, FTP, SFTP… | [Cấu hình nơi lưu trữ](docs/manual.vi.md#5-cấu-hình-nơi-lưu-trữ) |
 | Lịch chạy, incremental, retention | [Job, lịch chạy, retention](docs/manual.vi.md#6-job-lịch-chạy-retention) |
 | Restore logical và vật lý | [Restore](docs/manual.vi.md#7-restore) |

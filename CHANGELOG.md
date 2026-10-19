@@ -3,6 +3,23 @@
 The section of the version being built becomes the release notes shown in the
 web UI and by `dumpcat update` (see `build.sh`). Newest version first.
 
+## 1.3.0
+
+- Built-in WireGuard, off by default: database hosts that accept no inbound connections can join DumpCat's VPN with the
+  standard WireGuard tools instead of running the agent. WireGuard runs inside DumpCat (wireguard-go with a userspace
+  network stack): nothing is installed and no network interface, route or firewall rule is created on the DumpCat host;
+  DumpCat reaches only the database addresses routed to each peer.
+- New **WireGuard** page: turn it on, choose the UDP port, VPN subnet and the endpoint peers connect to; add peers
+  (address assigned automatically, optional networks behind a gateway), get each peer's `dumpcat.conf` with the
+  install commands and the MySQL grant, rotate keys, see handshakes, endpoints and traffic.
+- The server form's **Connect** choice now also offers **Through WireGuard**; backups, restores, binlog archiving and
+  point-in-time recovery work through it (physical backups still need DumpCat on the database host).
+- DumpCat remembers where each peer was last seen, so it reconnects at once after a restart; changing one peer never
+  drops the sessions of the others.
+- Clear errors through WireGuard: peer not connected yet, no answer, or nothing listening on the database address.
+- New API endpoints: `GET/PUT /api/wireguard`, `POST /api/wireguard/peers`, `PUT/DELETE /api/wireguard/peers/{id}`,
+  `POST /api/wireguard/peers/{id}/rotate`; servers have a `wg_peer_id` field.
+
 ## 1.2.0
 
 - Agents for database hosts that accept no inbound connections: `dumpcat agent` runs on the database host, connects

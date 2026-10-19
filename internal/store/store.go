@@ -300,6 +300,21 @@ CREATE TABLE agents (
 );
 ALTER TABLE servers ADD COLUMN agent_id INTEGER REFERENCES agents(id) ON DELETE RESTRICT;
 `,
+	// 5: built-in WireGuard — database hosts that join DumpCat's VPN
+	`
+CREATE TABLE wg_peers (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	name TEXT NOT NULL UNIQUE COLLATE NOCASE,
+	public_key TEXT NOT NULL UNIQUE,
+	preshared_key TEXT NOT NULL DEFAULT '',
+	address TEXT NOT NULL UNIQUE,
+	networks TEXT NOT NULL DEFAULT '[]',
+	endpoint TEXT NOT NULL DEFAULT '',
+	created_at INTEGER NOT NULL,
+	updated_at INTEGER NOT NULL
+);
+ALTER TABLE servers ADD COLUMN wg_peer_id INTEGER REFERENCES wg_peers(id) ON DELETE RESTRICT;
+`,
 }
 
 func (s *Store) migrate() error {

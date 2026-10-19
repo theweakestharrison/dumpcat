@@ -70,9 +70,9 @@ Phiên bản mới nhất, ghi chú phát hành và mã kiểm tra có trên [du
 `https://downloads.dumpcat.cc/<phiên bản>/`.
 
 ```bash
-curl -fLO https://downloads.dumpcat.cc/1.2.0/dumpcat-1.2.0-linux.tar.gz
-tar xzf dumpcat-1.2.0-linux.tar.gz
-cd dumpcat-1.2.0-linux
+curl -fLO https://downloads.dumpcat.cc/1.3.0/dumpcat-1.3.0-linux.tar.gz
+tar xzf dumpcat-1.3.0-linux.tar.gz
+cd dumpcat-1.3.0-linux
 sudo ./install.sh
 ```
 
@@ -122,9 +122,9 @@ DumpCat cũng chạy trên Windows Server 2016+ / Windows 10+ (64-bit), dưới 
 Mở PowerShell bằng **Run as administrator**:
 
 ```powershell
-Invoke-WebRequest https://downloads.dumpcat.cc/1.2.0/dumpcat-1.2.0-windows-amd64.zip -OutFile dumpcat-1.2.0-windows-amd64.zip
-Expand-Archive dumpcat-1.2.0-windows-amd64.zip -DestinationPath .
-cd dumpcat-1.2.0-windows-amd64
+Invoke-WebRequest https://downloads.dumpcat.cc/1.3.0/dumpcat-1.3.0-windows-amd64.zip -OutFile dumpcat-1.3.0-windows-amd64.zip
+Expand-Archive dumpcat-1.3.0-windows-amd64.zip -DestinationPath .
+cd dumpcat-1.3.0-windows-amd64
 powershell -ExecutionPolicy Bypass -File .\install.ps1
 ```
 
@@ -180,7 +180,7 @@ Upload **nội dung** thư mục `dist/update/` lên địa chỉ đó, để c�
 
 ```
 https://downloads.dumpcat.cc/latest.json
-https://downloads.dumpcat.cc/1.2.0/dumpcat-linux-amd64    (… -linux-arm64, -windows-amd64.exe, SHA256SUMS, các gói cài)
+https://downloads.dumpcat.cc/1.3.0/dumpcat-linux-amd64    (… -linux-arm64, -windows-amd64.exe, SHA256SUMS, các gói cài)
 ```
 
 Upload thư mục phiên bản trước, `latest.json` sau cùng, để máy cài không bao giờ thấy một bản phát hành mà file chưa lên đủ.
@@ -278,14 +278,15 @@ chấp nhận bản phát hành ký bằng khóa cũ. Máy nào nghi ngờ thì 
 Khi DumpCat không kết nối được tới database (không mở port cho nó, có firewall hoặc NAT ở giữa, MySQL chỉ nghe trên
 127.0.0.1), hãy cài **agent** lên server database. Agent chính là file `dumpcat`: nó **chủ động kết nối ra** DumpCat qua
 HTTPS (WebSocket trên cùng port của giao diện web) và mang các kết nối database mà DumpCat cần. Không cần mở port nào trên
-server database, chỉ cần server đó đi ra được tới DumpCat.
+server database, chỉ cần server đó đi ra được tới DumpCat. Nếu thích dùng VPN, xem
+[3.8 WireGuard tích hợp](#38-wireguard-tích-hợp).
 
 1. Trên giao diện web: **Agents → Add agent** (admin). DumpCat hiện khóa của agent — chỉ một lần — cùng các lệnh cài.
 2. Trên server database, bằng root:
 
    ```bash
-   curl -fLO https://downloads.dumpcat.cc/1.2.0/dumpcat-1.2.0-linux.tar.gz
-   tar xzf dumpcat-1.2.0-linux.tar.gz && cd dumpcat-1.2.0-linux
+   curl -fLO https://downloads.dumpcat.cc/1.3.0/dumpcat-1.3.0-linux.tar.gz
+   tar xzf dumpcat-1.3.0-linux.tar.gz && cd dumpcat-1.3.0-linux
    sudo ./install.sh --agent --server https://backup.example.com --key dca_...
    ```
 
@@ -324,6 +325,55 @@ database.
   giãn dần tới 1 phút) và việc lưu binlog tiếp tục từ chỗ đã dừng. Trang Agents hiện phiên bản của từng agent; nâng cấp
   bằng cách chạy bộ cài của phiên bản mới.
 - **Gỡ cài đặt**: `sudo ./install.sh --agent --uninstall [--purge]`, Windows: `.\install.ps1 -Agent -Uninstall [-Purge]`.
+
+### 3.8 WireGuard tích hợp
+
+Một cách khác thay cho agent: DumpCat tự chạy một endpoint **WireGuard**, và các server database tham gia bằng công cụ
+WireGuard chuẩn. Tính năng này **tắt mặc định** và không cần cài thêm gì: WireGuard chạy bên trong DumpCat (userspace),
+không tạo network interface, route hay luật firewall nào trên máy chạy DumpCat — chỉ DumpCat vào được các peer, và chỉ
+tới đúng địa chỉ database của các server bạn khai báo.
+
+1. Trang **WireGuard** (admin): tích **Turn on WireGuard**, giữ hoặc đổi port UDP (`51820`) và địa chỉ VPN của DumpCat
+   (`10.66.0.1/24`), điền **Endpoint for the peers** — tên hoặc IP công khai mà server database dùng để tới máy này (để
+   trống: lấy host của Base URL). Mở port UDP trên firewall của máy chạy DumpCat (`ufw allow 51820/udp`, Windows: một
+   luật inbound UDP).
+2. **Add peer** cho từng server database. DumpCat cấp địa chỉ trống tiếp theo (`10.66.0.2`…) và hiện file `dumpcat.conf`
+   của peer — chỉ một lần, vì có khóa riêng — cùng các lệnh cài:
+
+   ```bash
+   apt install wireguard-tools        # RHEL / Rocky / Alma: dnf install wireguard-tools
+   # lưu file DumpCat hiện ra thành /etc/wireguard/dumpcat.conf, rồi
+   chmod 600 /etc/wireguard/dumpcat.conf
+   systemctl enable --now wg-quick@dumpcat
+   ```
+
+   Trên Windows: cài WireGuard, **Import tunnel from file**, **Activate**. File này chỉ đưa địa chỉ VPN của DumpCat qua
+   tunnel (`AllowedIPs = 10.66.0.1/32`) và gửi keepalive mỗi 25 giây, nên server database có thể nằm sau NAT và không nhận
+   kết nối vào — chỉ cần đi ra được tới DumpCat qua UDP.
+3. Trên server database, MySQL phải nhận kết nối đến qua WireGuard:
+   - nghe trên địa chỉ WireGuard: `bind-address = 0.0.0.0`, hoặc `127.0.0.1,10.66.0.2` (MySQL 8.0.13+, MariaDB 10.11+);
+   - user backup phải được phép từ địa chỉ VPN của DumpCat: `'dumpcat'@'10.66.0.1'` (DumpCat hiện sẵn câu SQL);
+   - firewall của máy phải cho interface WireGuard vào: `ufw allow in on dumpcat to any port 3306`.
+4. **Database servers → Add server**, **Connect: Through WireGuard: <peer>**, host = địa chỉ của peer (`10.66.0.2`),
+   port `3306`.
+
+Lưu ý:
+
+- **Mạng phía sau một peer**: một peer có thể làm gateway tới các server database khác trong mạng của nó — thêm mạng đó
+  (ví dụ `192.168.10.0/24`) vào peer rồi nhập địa chỉ các server đó. Gateway phải chuyển tiếp gói tin
+  (`net.ipv4.ip_forward=1` và một luật masquerade, hoặc route ngược về `10.66.0.1/32`).
+- Qua WireGuard, host của server phải là địa chỉ IP được route tới peer của nó; không dùng được unix socket.
+- **Trạng thái**: trang WireGuard hiện với từng peer lần bắt tay gần nhất (connected = trong vòng 3 phút), kết nối từ đâu
+  tới và lưu lượng. DumpCat nhớ vị trí cuối cùng của mỗi peer, nên sau khi DumpCat khởi động lại hoặc tắt/bật WireGuard,
+  nó kết nối lại ngay chứ không phải đợi lần bắt tay tiếp theo của peer.
+- **Lỗi** được báo cụ thể: *peer … has not connected yet* (WireGuard chưa chạy trên máy đó, hoặc UDP bị chặn),
+  *no answer from …* (máy đó mất kết nối, hoặc firewall của nó chặn interface WireGuard), *nothing listens on …* (MySQL
+  không nghe trên địa chỉ WireGuard).
+- **Rotate keys** tạo cấu hình mới cho peer; cấu hình cũ hết hiệu lực ngay. Đổi port hoặc địa chỉ của DumpCat không đổi
+  khóa của peer, nhưng phải cập nhật lại mọi file `dumpcat.conf` (Endpoint / AllowedIPs).
+- Agent hay WireGuard? [Agent](#37-server-database-không-cho-kết-nối-vào-agent) chỉ cần HTTPS đi ra và vào MySQL qua
+  127.0.0.1, không phải sửa cấu hình MySQL. WireGuard dùng công cụ chuẩn, đã được kiểm định rộng rãi, qua UDP, nhưng MySQL
+  phải nghe trên địa chỉ WireGuard. Cả hai cách, backup vật lý đều cần DumpCat chạy ngay trên server database.
 
 ## 4. Bắt đầu sử dụng
 
@@ -602,6 +652,7 @@ Nên sao lưu thêm `/var/lib/dumpcat/master.key` và `dumpcat.db` (cấu hình,
 - API không bao giờ trả về giá trị bí mật (chỉ cờ "đã lưu").
 - Mã hóa backup (age) diễn ra trên server trước khi upload: nhà cung cấp cloud không đọc được dữ liệu. Passphrase nên dài (≥ 16 ký tự).
 - Agent ([3.7](#37-server-database-không-cho-kết-nối-vào-agent)) xác thực bằng khóa chỉ lưu dạng hash, chỉ mở các địa chỉ database trong danh sách cho phép của chính nó, và chạy không cần quyền. Dữ liệu database đi bên trong kết nối của agent: hãy dùng HTTPS.
+- WireGuard tích hợp ([3.8](#38-wireguard-tích-hợp)) tắt mặc định và không tạo network interface nào trên máy chạy DumpCat: peer không vào được gì trên máy đó, còn DumpCat chỉ vào được các địa chỉ route tới từng peer. Khóa riêng được mã hóa bằng master key; cấu hình của peer chỉ hiện một lần.
 - Service chạy root để backup/restore vật lý. Nếu chỉ dùng backup logic, có thể tạo user riêng: `useradd -r dumpcat`, `chown -R dumpcat /var/lib/dumpcat`, sửa `User=dumpcat` trong unit.
 
 ## 12. API & tự động hóa
@@ -677,6 +728,7 @@ Dữ liệu nội bộ: `/var/lib/dumpcat/dumpcat.db` (SQLite), `master.key`, `l
 | PITR: *binlogs are only archived up to …* | Bấm *Close binlog now* ở trang **Binlog & PITR**, chờ vài giây cho file được upload, hoặc chọn *Latest available* |
 | PITR: *… has not been archived* / *sequence is broken* | Binlog đã bị server xóa trước khi lưu trữ, hoặc numbering bị đặt lại: tăng thời gian giữ binlog trên server, chạy một bản backup mới làm điểm bắt đầu |
 | Agent: *agent … is offline* | Khởi động agent trên server database (`systemctl status dumpcat-agent`, `journalctl -u dumpcat-agent`). Log agent báo *the server refused the agent*: sai khóa hoặc khóa đã rotate, hoặc URL không phải DumpCat. Đặt sau nginx thì dùng khối `/api/agent/` của cấu hình mẫu |
+| WireGuard: *peer … has not connected yet* / *no answer from …* / *nothing listens on …* | Xem [3.8](#38-wireguard-tích-hợp): khởi động `wg-quick@dumpcat` trên server database và mở port UDP trên máy chạy DumpCat; cho interface WireGuard vào trên server database; cho MySQL nghe trên địa chỉ WireGuard |
 | Agent: *… is not on this agent's allow list* | Khởi động agent với `--allow host:port` cho địa chỉ đó, hoặc nhập địa chỉ mà agent cho phép (xem [3.7](#37-server-database-không-cho-kết-nối-vào-agent)) |
 | Xem log dịch vụ | `journalctl -u dumpcat -f`; log từng tác vụ ở trang chi tiết hoặc `/var/lib/dumpcat/logs/` |
 
@@ -706,6 +758,8 @@ internal/scheduler cron
 internal/notify    Email, Telegram, Slack, Discord, Webhook
 internal/update    tự cập nhật: manifest bản phát hành, chữ ký, cài đặt & rollback
 internal/agent     agent: tunnel ngược từ server database (WebSocket), danh sách cho phép
+internal/wg        WireGuard tích hợp (wireguard-go + netstack gVisor, không tạo interface)
+internal/tunnel   port tunnel cục bộ: chuyển dữ liệu, gói lỗi MySQL
 web/               giao diện (HTML/CSS/JS thuần, không phụ thuộc bên ngoài)
 scripts/install.sh bộ cài Linux · deploy/ systemd, env mẫu, nginx
 ```

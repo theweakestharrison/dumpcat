@@ -52,25 +52,45 @@ function infoView(res) {
       ${user.map((d) => html`<tr><td><b>${d.name}</b>${d.non_innodb ? html` <span class="badge warn" title="Non-InnoDB tables">${d.non_innodb} non-InnoDB</span>` : ''}</td><td class="right num">${fmtBytes(d.size_bytes)}</td><td class="right num">${d.tables}</td><td class="small">${d.charset}</td></tr>`)}</tbody></table></div>` : ''}`;
 }
 
+// Ways to reach a server: directly, through an agent or a WireGuard peer.
+async function loadRoutes() {
+  const [agents, wgd] = await Promise.all([get('/agents').then((r) => r.items).catch(() => []), get('/wireguard').catch(() => null)]);
+  return { agents, peers: wgd ? wgd.peers : [], wgOn: !!(wgd && wgd.state.running) };
+}
+const routeOf = (s) => (s.agent_id ? `agent:${s.agent_id}` : s.wg_peer_id ? `wg:${s.wg_peer_id}` : '');
+function findRoute(routes, value) {
+  const [kind, id] = (value || '').split(':');
+  if (kind === 'agent') { const a = routes.agents.find((x) => x.agent.id === +id); return a ? { kind, a } : null; }
+  if (kind === 'wg') { const p = routes.peers.find((x) => x.peer.id === +id); return p ? { kind, p } : null; }
+  return null;
+}
+
 // Help under the Connect select: where the address is seen from.
-function connectHelp(ag) {
-  if (!ag) return html`DumpCat connects to the address below. If the database host accepts no inbound connections, add an <a href="#/agents">agent</a> on it.`;
-  const st = ag.status;
+function connectHelp(rt, wgOn) {
+  if (!rt) return html`DumpCat connects to the address below. If the database host accepts no inbound connections, add an <a href="#/agents">agent</a> or a <a href="#/wireguard">WireGuard peer</a> on it.`;
+  if (rt.kind === 'wg') {
+    const { peer: p, status: st } = rt.p;
+    return html`DumpCat connects through its built-in WireGuard: enter the database host's WireGuard address <span class="mono">${p.address}</span>${p.networks.length ? html` or an address in <span class="mono">${p.networks.join(', ')}</span>` : ''}. MySQL there must listen on that address. Physical backups are not available through WireGuard.
+      <div style="margin-top:6px">${!wgOn ? html`<span class="badge warn">${icon('alert')}WireGuard is off</span> turn it on on the <a href="#/wireguard">WireGuard</a> page` : st.online ? html`<span class="badge good">${icon('check')}Connected</span> ${st.endpoint ? `from ${st.endpoint}` : ''}` : html`<span class="badge warn">${icon('alert')}Not connected</span> start WireGuard on the database host`}</div>`;
+  }
+  const st = rt.a.status;
   return html`The agent opens the connection: enter the address <b>as seen from the agent host</b>, usually 127.0.0.1 port 3306 or a socket. Physical backups are not available through an agent.
     <div style="margin-top:6px">${st.online ? html`<span class="badge good">${icon('check')}Online</span>${st.hostname ? ` on ${st.hostname}` : ''} — may connect to <span class="mono">${st.allow.join(', ')}</span>` : html`<span class="badge warn">${icon('alert')}Offline</span> start the agent on the database host`}</div>`;
 }
 
-function serverForm(s = {}, agents = []) {
+function serverForm(s = {}, routes = { agents: [], peers: [], wgOn: false }) {
   const v = (k, d = '') => s[k] ?? d;
-  const ag = agents.find((a) => a.agent.id === s.agent_id);
+  const cur = routeOf(s);
+  const rt = findRoute(routes, cur);
   return html`<form id="srv-form" autocomplete="off">
   ${!s.id ? html`<div class="alert info" style="margin-bottom:14px">${icon('shield')}<div>Use a dedicated, least-privilege MySQL user for backups (not root).
     <button type="button" class="btn btn-sm" id="show-grant" style="margin-left:4px">Show the SQL to create it</button></div></div>` : ''}
   <div class="form-grid">
     <div class="field full"><label class="req">Display name</label><input type="text" name="name" value="${v('name')}" required placeholder="e.g. db-prod-01"></div>
-    <div class="field full"><label>Connect</label><select name="agent_id"><option value="0">Directly from DumpCat</option>
-      ${agents.map(({ agent: a, status: st }) => html`<option value="${a.id}" ${s.agent_id === a.id ? 'selected' : ''}>Through agent: ${a.name}${st.online ? '' : ' (offline)'}</option>`)}</select>
-      <div class="help" id="connect-help">${connectHelp(ag)}</div></div>
+    <div class="field full"><label>Connect</label><select name="connect"><option value="">Directly from DumpCat</option>
+      ${routes.agents.length ? html`<optgroup label="Agents">${routes.agents.map(({ agent: a, status: st }) => html`<option value="agent:${a.id}" ${cur === `agent:${a.id}` ? 'selected' : ''}>Through agent: ${a.name}${st.online ? '' : ' (offline)'}</option>`)}</optgroup>` : ''}
+      ${routes.peers.length ? html`<optgroup label="WireGuard">${routes.peers.map(({ peer: p, status: st }) => html`<option value="wg:${p.id}" ${cur === `wg:${p.id}` ? 'selected' : ''}>Through WireGuard: ${p.name} (${p.address})${!routes.wgOn ? ' — WireGuard off' : st.online ? '' : ' (not connected)'}</option>`)}</optgroup>` : ''}</select>
+      <div class="help" id="connect-help">${connectHelp(rt, routes.wgOn)}</div></div>
     <div class="field"><label>Host</label><input type="text" name="host" value="${v('host', '127.0.0.1')}" placeholder="127.0.0.1 or db.example.com"></div>
     <div class="field"><label>Port</label><input type="number" name="port" value="${v('port', 3306)}" min="1" max="65535"></div>
     <div class="field full"><label>Unix socket <span class="muted">(optional — used when host is localhost)</span></label><input type="text" name="socket" value="${v('socket')}" placeholder="/var/run/mysqld/mysqld.sock"></div>
@@ -87,7 +107,7 @@ function serverForm(s = {}, agents = []) {
       <div class="field"><label>Restore user</label><input type="text" name="restore_username" value="${v('restore_username')}" autocomplete="off"></div>
       <div class="field"><label>Restore password</label><input type="password" name="restore_password" placeholder="${s.has_restore_password ? '•••••• saved — leave blank to keep' : ''}" autocomplete="new-password"></div>
     </div></details>
-  <details class="adv ${ag ? 'hidden' : ''}" id="physical-box" style="margin-top:14px"><summary>For physical backup/restore (only when DumpCat runs on the database server itself)</summary>
+  <details class="adv ${rt ? 'hidden' : ''}" id="physical-box" style="margin-top:14px"><summary>For physical backup/restore (only when DumpCat runs on the database server itself)</summary>
     <div class="form-grid">
       <div class="field"><label>Datadir</label><input type="text" name="datadir" value="${v('datadir')}" placeholder="auto-detected from @@datadir"></div>
       <div class="field"><label>systemd service name</label><input type="text" name="service_name" value="${v('service_name')}" placeholder="mysql / mariadb / mysqld"></div>
@@ -104,22 +124,27 @@ function serverForm(s = {}, agents = []) {
 // Add/edit dialog. The restore form uses it too, to add a target instance
 // without leaving the page; onSaved receives the saved server.
 export async function openServerForm(s, onSaved) {
-  const agents = await get('/agents').then((r) => r.items).catch(() => []);
+  const routes = await loadRoutes();
   const m = modal({
-    title: s ? `Edit server: ${s.name}` : 'Add database server', size: 'lg', body: serverForm(s || {}, agents),
+    title: s ? `Edit server: ${s.name}` : 'Add database server', size: 'lg', body: serverForm(s || {}, routes),
     footer: html`<button class="btn" id="test">${icon('zap')}Test connection</button><span style="flex:1"></span><button class="btn" data-close>Cancel</button><button class="btn btn-primary" id="save">${icon('check')}Save</button>`,
   });
   const form = m.el.querySelector('#srv-form');
   const payload = () => {
     const d = formData(form);
-    d.agent_id = +d.agent_id || 0;
+    const [kind, id] = (d.connect || '').split(':');
+    delete d.connect;
+    d.agent_id = kind === 'agent' ? +id : 0;
+    d.wg_peer_id = kind === 'wg' ? +id : 0;
     if (s) d.id = s.id;
     return d;
   };
-  form.agent_id.addEventListener('change', () => {
-    const ag = agents.find((a) => a.agent.id === +form.agent_id.value);
-    setHTML(m.el.querySelector('#connect-help'), connectHelp(ag));
-    m.el.querySelector('#physical-box').classList.toggle('hidden', !!ag);
+  form.connect.addEventListener('change', () => {
+    const rt = findRoute(routes, form.connect.value);
+    setHTML(m.el.querySelector('#connect-help'), connectHelp(rt, routes.wgOn));
+    m.el.querySelector('#physical-box').classList.toggle('hidden', !!rt);
+    // through WireGuard the host is the peer's VPN address, not localhost
+    if (rt && rt.kind === 'wg' && ['', '127.0.0.1', 'localhost', '::1'].includes(form.host.value.trim())) form.host.value = rt.p.peer.address;
   });
   form.tls_mode.addEventListener('change', () => m.el.querySelector('#ca-field').classList.toggle('hidden', form.tls_mode.value !== 'verify'));
   on(m.el, 'click', '[data-grant]', (e, b) => {
@@ -146,18 +171,22 @@ export async function openServerForm(s, onSaved) {
 
 export async function render(ctx) {
   const { el } = ctx;
-  let [list, agents] = await Promise.all([get('/servers'), get('/agents').then((r) => r.items).catch(() => [])]);
-  const agentBadge = (id) => {
-    const a = agents.find((x) => x.agent.id === id);
-    if (!a) return '';
-    return html` <a class="badge ${a.status.online ? 'outline' : 'warn'}" href="#/agents" title="${a.status.online ? 'Through agent' : 'Through agent (offline)'}">${icon('link')}${a.agent.name}</a>`;
+  let [list, routes] = await Promise.all([get('/servers'), loadRoutes()]);
+  const routeBadge = (s) => {
+    const rt = findRoute(routes, routeOf(s));
+    if (!rt) return '';
+    if (rt.kind === 'wg') {
+      const up = routes.wgOn && rt.p.status.online;
+      return html` <a class="badge ${up ? 'outline' : 'warn'}" href="#/wireguard" title="${up ? 'Through WireGuard' : 'Through WireGuard (not connected)'}">${icon('shield')}${rt.p.peer.name}</a>`;
+    }
+    return html` <a class="badge ${rt.a.status.online ? 'outline' : 'warn'}" href="#/agents" title="${rt.a.status.online ? 'Through agent' : 'Through agent (offline)'}">${icon('link')}${rt.a.agent.name}</a>`;
   };
   const draw = () => {
     setHTML(el, html`
       <div class="page-head"><div><h1>Database servers</h1><div class="sub">The MySQL / MariaDB / Percona servers to back up</div></div>
         ${canOperate() ? html`<button class="btn btn-primary" id="add">${icon('plus')}Add server</button>` : ''}</div>
       <div class="card"><div class="table-wrap">${list.length ? html`<table class="table"><thead><tr><th>Name</th><th>Connection</th><th>Version</th><th class="hide-sm">User</th><th class="hide-sm">Notes</th><th></th></tr></thead><tbody>
-        ${list.map((s) => html`<tr><td><b>${s.name}</b></td><td class="mono small">${s.socket && (!s.host || s.host === 'localhost') ? s.socket : `${s.host}:${s.port}`}${s.tls_mode ? html` <span class="badge outline">${icon('lock')}TLS</span>` : ''}${s.agent_id ? agentBadge(s.agent_id) : ''}</td>
+        ${list.map((s) => html`<tr><td><b>${s.name}</b></td><td class="mono small">${s.socket && (!s.host || s.host === 'localhost') ? s.socket : `${s.host}:${s.port}`}${s.tls_mode ? html` <span class="badge outline">${icon('lock')}TLS</span>` : ''}${routeBadge(s)}</td>
           <td>${s.version || html`<span class="muted">unknown</span>`}</td><td class="hide-sm">${s.username}</td><td class="hide-sm muted">${s.notes}</td>
           <td class="actions"><button class="btn btn-sm" data-info="${s.id}">${icon('eye')}Check</button>
             ${canOperate() ? html`<button class="btn btn-sm btn-ghost btn-icon" data-edit="${s.id}" title="Edit">${icon('edit')}</button><button class="btn btn-sm btn-ghost btn-icon" data-del="${s.id}" title="Delete">${icon('trash')}</button>` : ''}</td></tr>`)}
@@ -165,7 +194,7 @@ export async function render(ctx) {
   };
   draw();
   const reload = async () => {
-    [list, agents] = await Promise.all([get('/servers'), get('/agents').then((r) => r.items).catch(() => [])]);
+    [list, routes] = await Promise.all([get('/servers'), loadRoutes()]);
     draw();
   };
 

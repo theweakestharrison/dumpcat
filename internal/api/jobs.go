@@ -65,8 +65,8 @@ func (s *Server) applyJob(in *jobInput, j *store.Job, isAdmin bool) error {
 	default:
 		return badRequest("invalid backup method")
 	}
-	if in.Method == store.MethodPhysical && sv.AgentID != nil {
-		return badRequest("server %s is reached through an agent: physical backups need DumpCat installed on the database host — use mysqldump or mydumper", sv.Name)
+	if in.Method == store.MethodPhysical && sv.Tunneled() {
+		return badRequest("server %s is reached through an agent or WireGuard: physical backups need DumpCat installed on the database host — use mysqldump or mydumper", sv.Name)
 	}
 	j.Method = in.Method
 	j.DBMode = in.DBMode
