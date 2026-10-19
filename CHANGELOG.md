@@ -3,6 +3,24 @@
 The section of the version being built becomes the release notes shown in the
 web UI and by `dumpcat update` (see `build.sh`). Newest version first.
 
+## 1.2.0
+
+- Agents for database hosts that accept no inbound connections: `dumpcat agent` runs on the database host, connects
+  out to DumpCat over HTTPS (WebSocket on the web UI's port) and carries the database connections DumpCat asks for —
+  no port has to be opened to the database. mysqldump and mydumper backups, restores, binlog archiving and
+  point-in-time recovery work through it; physical backups still need DumpCat on the database host.
+- New **Agents** page (admins add agents, see install commands, rotate keys; everyone sees which agents are online,
+  their host, version and allow list). The server form has a **Connect** choice: directly, or through an agent.
+- Each agent connects only to the database addresses on its own allow list (by default the local MySQL/MariaDB port
+  and sockets; `--allow` adds more). Keys are shown once and stored hashed; rotating a key disconnects the agent.
+- One-command install on the database host: `sudo ./install.sh --agent --server URL --key KEY` (systemd unit
+  `dumpcat-agent`, runs as an unprivileged dynamic user) and `.\install.ps1 -Agent -Server URL -Key KEY` on Windows
+  (service `DumpCatAgent`). The nginx sample forwards WebSocket upgrades on `/api/agent/`.
+- When a tunnel cannot be opened (agent offline, address not allowed, database refused), mysql, mysqldump and the
+  connection test show the reason instead of "lost connection".
+- New API endpoints: `GET/POST /api/agents`, `PUT/DELETE /api/agents/{id}`, `POST /api/agents/{id}/rotate`; servers
+  have an `agent_id` field.
+
 ## 1.1.1
 
 - Fix: icons in buttons were misaligned or oversized — the "Go to backup jobs" / "Create a job" buttons of empty

@@ -70,9 +70,9 @@ Phiên bản mới nhất, ghi chú phát hành và mã kiểm tra có trên [du
 `https://downloads.dumpcat.cc/<phiên bản>/`.
 
 ```bash
-curl -fLO https://downloads.dumpcat.cc/1.1.1/dumpcat-1.1.1-linux.tar.gz
-tar xzf dumpcat-1.1.1-linux.tar.gz
-cd dumpcat-1.1.1-linux
+curl -fLO https://downloads.dumpcat.cc/1.2.0/dumpcat-1.2.0-linux.tar.gz
+tar xzf dumpcat-1.2.0-linux.tar.gz
+cd dumpcat-1.2.0-linux
 sudo ./install.sh
 ```
 
@@ -122,9 +122,9 @@ DumpCat cũng chạy trên Windows Server 2016+ / Windows 10+ (64-bit), dưới 
 Mở PowerShell bằng **Run as administrator**:
 
 ```powershell
-Invoke-WebRequest https://downloads.dumpcat.cc/1.1.1/dumpcat-1.1.1-windows-amd64.zip -OutFile dumpcat-1.1.1-windows-amd64.zip
-Expand-Archive dumpcat-1.1.1-windows-amd64.zip -DestinationPath .
-cd dumpcat-1.1.1-windows-amd64
+Invoke-WebRequest https://downloads.dumpcat.cc/1.2.0/dumpcat-1.2.0-windows-amd64.zip -OutFile dumpcat-1.2.0-windows-amd64.zip
+Expand-Archive dumpcat-1.2.0-windows-amd64.zip -DestinationPath .
+cd dumpcat-1.2.0-windows-amd64
 powershell -ExecutionPolicy Bypass -File .\install.ps1
 ```
 
@@ -180,7 +180,7 @@ Upload **nội dung** thư mục `dist/update/` lên địa chỉ đó, để c�
 
 ```
 https://downloads.dumpcat.cc/latest.json
-https://downloads.dumpcat.cc/1.1.1/dumpcat-linux-amd64    (… -linux-arm64, -windows-amd64.exe, SHA256SUMS, các gói cài)
+https://downloads.dumpcat.cc/1.2.0/dumpcat-linux-amd64    (… -linux-arm64, -windows-amd64.exe, SHA256SUMS, các gói cài)
 ```
 
 Upload thư mục phiên bản trước, `latest.json` sau cùng, để máy cài không bao giờ thấy một bản phát hành mà file chưa lên đủ.
@@ -272,6 +272,58 @@ nên chữ ký bảo vệ luôn cả các file chạy).
 
 Nếu khóa cũ bị lộ, bỏ bước ký kép ở bước 3 và đưa các máy cài lên bản build không còn khóa cũ càng sớm càng tốt: trước lúc đó chúng vẫn
 chấp nhận bản phát hành ký bằng khóa cũ. Máy nào nghi ngờ thì cài lại gói thủ công.
+
+### 3.7 Server database không cho kết nối vào (agent)
+
+Khi DumpCat không kết nối được tới database (không mở port cho nó, có firewall hoặc NAT ở giữa, MySQL chỉ nghe trên
+127.0.0.1), hãy cài **agent** lên server database. Agent chính là file `dumpcat`: nó **chủ động kết nối ra** DumpCat qua
+HTTPS (WebSocket trên cùng port của giao diện web) và mang các kết nối database mà DumpCat cần. Không cần mở port nào trên
+server database, chỉ cần server đó đi ra được tới DumpCat.
+
+1. Trên giao diện web: **Agents → Add agent** (admin). DumpCat hiện khóa của agent — chỉ một lần — cùng các lệnh cài.
+2. Trên server database, bằng root:
+
+   ```bash
+   curl -fLO https://downloads.dumpcat.cc/1.2.0/dumpcat-1.2.0-linux.tar.gz
+   tar xzf dumpcat-1.2.0-linux.tar.gz && cd dumpcat-1.2.0-linux
+   sudo ./install.sh --agent --server https://backup.example.com --key dca_...
+   ```
+
+   Trên Windows, trong thư mục đã giải nén, mở PowerShell bằng quyền Administrator:
+   `powershell -ExecutionPolicy Bypass -File .\install.ps1 -Agent -Server https://backup.example.com -Key dca_...`
+3. Agent hiện **Online** ở trang Agents. Sau đó **Database servers → Add server**, chọn **Connect: Through agent …** và
+   nhập địa chỉ database **nhìn từ máy chạy agent** — thường là `127.0.0.1` port `3306`, hoặc socket. MySQL thấy kết nối
+   đến từ chính máy đó, nên user backup tạo cho `'dumpcat'@'localhost'` / `'dumpcat'@'127.0.0.1'` dùng được.
+
+Mọi thứ chỉ cần kết nối database đều chạy qua agent: backup mysqldump và mydumper, restore (kể cả sang server nằm sau một
+agent khác), lưu binlog và khôi phục theo thời điểm. DumpCat mở cho các công cụ của nó một port local cho mỗi database,
+còn agent quay số tới database. Backup vật lý (XtraBackup / MariaBackup) chép datadir nên cần cài DumpCat ngay trên server
+database.
+
+- **Agent được phép kết nối tới đâu.** Mặc định chỉ MySQL/MariaDB trên máy đó: `127.0.0.1:3306`, `[::1]:3306` và các
+  đường dẫn socket thường gặp. Địa chỉ khác thì thêm bằng `--allow` (Windows: `-Allow`), phân cách bằng dấu phẩy, ví dụ
+  `--allow 127.0.0.1:3307,10.0.0.5:3306,unix:/var/lib/mysql/mysql.sock`; `*` cho phép mọi địa chỉ. Nhờ vậy, lộ khóa cũng
+  không dùng được để vào các máy khác trong mạng của server database. Server có địa chỉ không được phép sẽ báo
+  *… is not on this agent's allow list* khi kiểm tra kết nối và trong log backup.
+- **Cấu hình**: `/etc/dumpcat/agent.env` (Windows: `C:\ProgramData\DumpCat\agent.env`), chỉ root / Administrators đọc
+  được: `DUMPCAT_AGENT_SERVER`, `DUMPCAT_AGENT_KEY`, `DUMPCAT_AGENT_ALLOW`, `DUMPCAT_AGENT_INSECURE` (xem
+  `agent.env.example`). Sửa xong: `systemctl restart dumpcat-agent` (Windows: `Restart-Service DumpCatAgent`). Chạy lại bộ
+  cài với `--server`, `--key` hoặc `--allow` mới cũng cập nhật file này.
+- **Dịch vụ**: `dumpcat-agent` trên Linux — chạy bằng một user tạm không có quyền (systemd `DynamicUser`), không truy cập
+  được hệ thống file; `DumpCatAgent` trên Windows. Log: `journalctl -u dumpcat-agent -f`
+  (Windows: `C:\ProgramData\DumpCat\agent.log`). Chạy tay, ở foreground:
+  `dumpcat agent -server https://backup.example.com -key dca_... [-allow ...] [-insecure]`.
+- **Mã hóa**: dữ liệu database đi bên trong kết nối của agent. Hãy chạy DumpCat qua HTTPS khi đường truyền đi qua mạng
+  không tin cậy; nếu dùng chứng chỉ tự ký (`DUMPCAT_TLS_AUTO=1`) thì thêm `--insecure` cho agent. Đặt sau nginx thì file
+  mẫu `nginx-dumpcat.conf` đã chuyển tiếp WebSocket cho `/api/agent/` với timeout dài.
+- **Địa chỉ trong các lệnh cài**: lấy **Base URL** trong **Cài đặt** nếu có, nếu không thì dùng địa chỉ trình duyệt đang
+  mở — hãy đặt Base URL khi server database truy cập DumpCat bằng một tên khác.
+- **Khóa** chỉ hiện một lần và được lưu dạng hash. **Rotate key** tạo khóa mới và ngắt agent ngay (đặt khóa mới vào
+  `agent.env`, hoặc chạy lại bộ cài với `--key`). Không xóa được agent khi còn server dùng nó.
+- **Agent offline**: job báo lỗi *agent … is offline — start it on the database host*. Agent tự kết nối lại (mỗi 2 giây,
+  giãn dần tới 1 phút) và việc lưu binlog tiếp tục từ chỗ đã dừng. Trang Agents hiện phiên bản của từng agent; nâng cấp
+  bằng cách chạy bộ cài của phiên bản mới.
+- **Gỡ cài đặt**: `sudo ./install.sh --agent --uninstall [--purge]`, Windows: `.\install.ps1 -Agent -Uninstall [-Purge]`.
 
 ## 4. Bắt đầu sử dụng
 
@@ -549,6 +601,7 @@ Nên sao lưu thêm `/var/lib/dumpcat/master.key` và `dumpcat.db` (cấu hình,
 - Mật khẩu DB truyền qua option file tạm (0600) và xóa sau khi dùng — không xuất hiện trong `ps`. Log tự che các bí mật.
 - API không bao giờ trả về giá trị bí mật (chỉ cờ "đã lưu").
 - Mã hóa backup (age) diễn ra trên server trước khi upload: nhà cung cấp cloud không đọc được dữ liệu. Passphrase nên dài (≥ 16 ký tự).
+- Agent ([3.7](#37-server-database-không-cho-kết-nối-vào-agent)) xác thực bằng khóa chỉ lưu dạng hash, chỉ mở các địa chỉ database trong danh sách cho phép của chính nó, và chạy không cần quyền. Dữ liệu database đi bên trong kết nối của agent: hãy dùng HTTPS.
 - Service chạy root để backup/restore vật lý. Nếu chỉ dùng backup logic, có thể tạo user riêng: `useradd -r dumpcat`, `chown -R dumpcat /var/lib/dumpcat`, sửa `User=dumpcat` trong unit.
 
 ## 12. API & tự động hóa
@@ -599,6 +652,7 @@ dumpcat user passwd -u admin      # quên mật khẩu admin
 dumpcat user reset-2fa -u admin   # mất thiết bị 2FA
 dumpcat user list
 dumpcat setup-token               # mã dùng một lần để tạo admin đầu tiên trên web
+dumpcat agent -server URL -key K  # trên server database không cho kết nối vào (3.7)
 dumpcat decode -in file.sql.zst.age -out file.sql
 dumpcat version
 ```
@@ -622,6 +676,8 @@ Dữ liệu nội bộ: `/var/lib/dumpcat/dumpcat.db` (SQLite), `master.key`, `l
 | Binlog & PITR: *SHOW BINARY LOGS … REPLICATION CLIENT* / `Access denied` khi nhận binlog | Cấp `REPLICATION SLAVE` + `REPLICATION CLIENT` (MariaDB: `BINLOG MONITOR`) cho user backup |
 | PITR: *binlogs are only archived up to …* | Bấm *Close binlog now* ở trang **Binlog & PITR**, chờ vài giây cho file được upload, hoặc chọn *Latest available* |
 | PITR: *… has not been archived* / *sequence is broken* | Binlog đã bị server xóa trước khi lưu trữ, hoặc numbering bị đặt lại: tăng thời gian giữ binlog trên server, chạy một bản backup mới làm điểm bắt đầu |
+| Agent: *agent … is offline* | Khởi động agent trên server database (`systemctl status dumpcat-agent`, `journalctl -u dumpcat-agent`). Log agent báo *the server refused the agent*: sai khóa hoặc khóa đã rotate, hoặc URL không phải DumpCat. Đặt sau nginx thì dùng khối `/api/agent/` của cấu hình mẫu |
+| Agent: *… is not on this agent's allow list* | Khởi động agent với `--allow host:port` cho địa chỉ đó, hoặc nhập địa chỉ mà agent cho phép (xem [3.7](#37-server-database-không-cho-kết-nối-vào-agent)) |
 | Xem log dịch vụ | `journalctl -u dumpcat -f`; log từng tác vụ ở trang chi tiết hoặc `/var/lib/dumpcat/logs/` |
 
 ## 15. Phát triển
@@ -638,7 +694,7 @@ DUMPCAT_DATA_DIR=./data DUMPCAT_LISTEN=127.0.0.1:6369 DUMPCAT_WEB_DIR=./web ./du
 Cấu trúc mã nguồn:
 
 ```
-cmd/dumpcat        CLI (serve, user, decode, update, release)
+cmd/dumpcat        CLI (serve, agent, user, decode, update, release)
 internal/api       REST API, xác thực, phân quyền, phục vụ UI
 internal/runner    điều phối backup/upload/retention/verify/restore/nhập danh mục, lưu trữ binlog, PITR
 internal/engine    mysqldump, mydumper, xtrabackup/mariabackup, mysql/myloader, mysqlbinlog (stream & phát lại)
@@ -649,6 +705,7 @@ internal/store     SQLite: người dùng, server, storage, job, bản backup, a
 internal/scheduler cron
 internal/notify    Email, Telegram, Slack, Discord, Webhook
 internal/update    tự cập nhật: manifest bản phát hành, chữ ký, cài đặt & rollback
+internal/agent     agent: tunnel ngược từ server database (WebSocket), danh sách cho phép
 web/               giao diện (HTML/CSS/JS thuần, không phụ thuộc bên ngoài)
 scripts/install.sh bộ cài Linux · deploy/ systemd, env mẫu, nginx
 ```

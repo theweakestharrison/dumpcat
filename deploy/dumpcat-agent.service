@@ -1,0 +1,32 @@
+[Unit]
+Description=DumpCat agent - connects this database host out to a DumpCat server
+Documentation=file:///usr/local/share/doc/dumpcat/docs/manual.md
+After=network-online.target mysql.service mysqld.service mariadb.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+# DUMPCAT_AGENT_SERVER, DUMPCAT_AGENT_KEY, DUMPCAT_AGENT_ALLOW... (written by install.sh --agent)
+EnvironmentFile=/etc/dumpcat/agent.env
+ExecStart=/opt/dumpcat/dumpcat agent
+Restart=always
+RestartSec=5
+# The agent only opens network connections: it runs as a throwaway user
+# with no access to the file system.
+DynamicUser=yes
+NoNewPrivileges=true
+CapabilityBoundingSet=
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+RestrictSUIDSGID=true
+LockPersonality=true
+MemoryDenyWriteExecute=true
+
+[Install]
+WantedBy=multi-user.target

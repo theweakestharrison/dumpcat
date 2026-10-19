@@ -93,10 +93,14 @@ func Myloader(env *Env, target *store.Server, o MyloaderOpts) error {
 		args = append(args, "--defaults-file="+cnf)
 	} else {
 		args = append(args, "--user="+target.Username)
-		if target.Socket != "" && (target.Host == "" || target.Host == "localhost") {
-			args = append(args, "--socket="+target.Socket)
+		host, port, socket, err := target.Addr()
+		if err != nil {
+			return err
+		}
+		if socket != "" {
+			args = append(args, "--socket="+socket)
 		} else {
-			args = append(args, "--host="+target.Host, "--port="+strconv.Itoa(target.Port))
+			args = append(args, "--host="+host, "--port="+strconv.Itoa(port))
 		}
 	}
 	threads := o.Threads

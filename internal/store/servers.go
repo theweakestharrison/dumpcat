@@ -4,16 +4,18 @@ import (
 	"database/sql"
 )
 
-const serverCols = `id,name,host,port,socket,username,password,tls_mode,ca_cert,flavor,version,datadir,service_name,os_user,notes,created_at,updated_at,restore_username,restore_password`
+const serverCols = `id,name,host,port,socket,username,password,tls_mode,ca_cert,flavor,version,datadir,service_name,os_user,notes,created_at,updated_at,restore_username,restore_password,agent_id`
 
 func (s *Store) scanServer(row interface{ Scan(...any) error }) (*Server, error) {
 	var sv Server
 	var pw, rpw string
 	var ca, ua int64
+	var aid sql.NullInt64
 	if err := row.Scan(&sv.ID, &sv.Name, &sv.Host, &sv.Port, &sv.Socket, &sv.Username, &pw, &sv.TLSMode, &sv.CACert,
-		&sv.Flavor, &sv.Version, &sv.Datadir, &sv.ServiceName, &sv.OSUser, &sv.Notes, &ca, &ua, &sv.RestoreUsername, &rpw); err != nil {
+		&sv.Flavor, &sv.Version, &sv.Datadir, &sv.ServiceName, &sv.OSUser, &sv.Notes, &ca, &ua, &sv.RestoreUsername, &rpw, &aid); err != nil {
 		return nil, notFound(err)
 	}
+	sv.AgentID = fromNullID(aid)
 	sv.Password = s.dec(pw)
 	sv.HasPassword = sv.Password != ""
 	sv.RestorePassword = s.dec(rpw)
@@ -53,9 +55,9 @@ func (s *Store) CreateServer(sv *Server) error {
 		return err
 	}
 	t := now()
-	res, err := s.db.Exec(`INSERT INTO servers(name,host,port,socket,username,password,tls_mode,ca_cert,flavor,version,datadir,service_name,os_user,notes,created_at,updated_at,restore_username,restore_password)
-		VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
-		sv.Name, sv.Host, sv.Port, sv.Socket, sv.Username, pw, sv.TLSMode, sv.CACert, sv.Flavor, sv.Version, sv.Datadir, sv.ServiceName, sv.OSUser, sv.Notes, t, t, sv.RestoreUsername, rpw)
+	res, err := s.db.Exec(`INSERT INTO servers(name,host,port,socket,username,password,tls_mode,ca_cert,flavor,version,datadir,service_name,os_user,notes,created_at,updated_at,restore_username,restore_password,agent_id)
+		VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+		sv.Name, sv.Host, sv.Port, sv.Socket, sv.Username, pw, sv.TLSMode, sv.CACert, sv.Flavor, sv.Version, sv.Datadir, sv.ServiceName, sv.OSUser, sv.Notes, t, t, sv.RestoreUsername, rpw, nullID(sv.AgentID))
 	if err != nil {
 		return err
 	}
@@ -72,8 +74,8 @@ func (s *Store) UpdateServer(sv *Server) error {
 	if err != nil {
 		return err
 	}
-	_, err = s.db.Exec(`UPDATE servers SET name=?,host=?,port=?,socket=?,username=?,password=?,tls_mode=?,ca_cert=?,flavor=?,version=?,datadir=?,service_name=?,os_user=?,notes=?,updated_at=?,restore_username=?,restore_password=? WHERE id=?`,
-		sv.Name, sv.Host, sv.Port, sv.Socket, sv.Username, pw, sv.TLSMode, sv.CACert, sv.Flavor, sv.Version, sv.Datadir, sv.ServiceName, sv.OSUser, sv.Notes, now(), sv.RestoreUsername, rpw, sv.ID)
+	_, err = s.db.Exec(`UPDATE servers SET name=?,host=?,port=?,socket=?,username=?,password=?,tls_mode=?,ca_cert=?,flavor=?,version=?,datadir=?,service_name=?,os_user=?,notes=?,updated_at=?,restore_username=?,restore_password=?,agent_id=? WHERE id=?`,
+		sv.Name, sv.Host, sv.Port, sv.Socket, sv.Username, pw, sv.TLSMode, sv.CACert, sv.Flavor, sv.Version, sv.Datadir, sv.ServiceName, sv.OSUser, sv.Notes, now(), sv.RestoreUsername, rpw, nullID(sv.AgentID), sv.ID)
 	return err
 }
 

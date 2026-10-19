@@ -283,6 +283,23 @@ CREATE TABLE binlog_locations (
 );
 CREATE INDEX binlog_locations_file ON binlog_locations(binlog_id);
 `,
+	// 4: agents — database hosts that connect out to DumpCat (no inbound port needed)
+	`
+CREATE TABLE agents (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	name TEXT NOT NULL UNIQUE COLLATE NOCASE,
+	key_hash TEXT NOT NULL UNIQUE,
+	key_prefix TEXT NOT NULL DEFAULT '',
+	created_at INTEGER NOT NULL,
+	updated_at INTEGER NOT NULL,
+	last_seen_at INTEGER,
+	last_ip TEXT NOT NULL DEFAULT '',
+	version TEXT NOT NULL DEFAULT '',
+	hostname TEXT NOT NULL DEFAULT '',
+	os TEXT NOT NULL DEFAULT ''
+);
+ALTER TABLE servers ADD COLUMN agent_id INTEGER REFERENCES agents(id) ON DELETE RESTRICT;
+`,
 }
 
 func (s *Store) migrate() error {

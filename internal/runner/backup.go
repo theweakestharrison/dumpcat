@@ -143,6 +143,11 @@ func (r *Runner) execBackup(ctx context.Context, task *Task, run *store.Run, job
 		return
 	}
 	lg.Redact(server.Password, job.Passphrase)
+	if job.Method == store.MethodPhysical && server.AgentID != nil {
+		// xtrabackup/mariabackup copy the datadir of the machine they run on
+		fail(errors.New("physical backups need DumpCat installed on the database host itself: an agent only forwards the MySQL connection (use mysqldump or mydumper)"))
+		return
+	}
 
 	if job.Options.PreCommand != "" {
 		lg.Printf("Running pre-command")

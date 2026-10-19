@@ -56,6 +56,10 @@ func WriteCnf(dir string, s *store.Server, o CnfOptions) (string, []string, erro
 	if err := os.MkdirAll(dir, 0o700); err != nil {
 		return "", nil, err
 	}
+	host, port, socket, err := s.Addr() // direct, or the local end of an agent tunnel
+	if err != nil {
+		return "", nil, err
+	}
 	conn := func(glib bool) []string {
 		var lines []string
 		if s.Username != "" {
@@ -73,21 +77,13 @@ func WriteCnf(dir string, s *store.Server, o CnfOptions) (string, []string, erro
 				}
 			}
 		}
-		if s.Socket != "" && (s.Host == "" || s.Host == "localhost") {
-			lines = append(lines, "socket="+cnfQuoted(s.Socket))
-			if s.Host == "localhost" {
+		if socket != "" {
+			lines = append(lines, "socket="+cnfQuoted(socket))
+			if host == "localhost" {
 				lines = append(lines, "host=localhost")
 			}
 		} else {
-			host := s.Host
-			if host == "" || host == "localhost" {
-				host = "127.0.0.1"
-			}
 			lines = append(lines, "host="+cnfQuoted(host))
-			port := s.Port
-			if port == 0 {
-				port = 3306
-			}
 			lines = append(lines, "port="+strconv.Itoa(port))
 		}
 		return lines

@@ -70,9 +70,9 @@ The latest version, its release notes and checksums are listed on [dumpcat.cc](h
 served from `https://downloads.dumpcat.cc/<version>/`.
 
 ```bash
-curl -fLO https://downloads.dumpcat.cc/1.1.1/dumpcat-1.1.1-linux.tar.gz
-tar xzf dumpcat-1.1.1-linux.tar.gz
-cd dumpcat-1.1.1-linux
+curl -fLO https://downloads.dumpcat.cc/1.2.0/dumpcat-1.2.0-linux.tar.gz
+tar xzf dumpcat-1.2.0-linux.tar.gz
+cd dumpcat-1.2.0-linux
 sudo ./install.sh
 ```
 
@@ -122,9 +122,9 @@ DumpCat also runs on Windows Server 2016+ / Windows 10+ (64-bit), as a Windows s
 In PowerShell **Run as administrator**:
 
 ```powershell
-Invoke-WebRequest https://downloads.dumpcat.cc/1.1.1/dumpcat-1.1.1-windows-amd64.zip -OutFile dumpcat-1.1.1-windows-amd64.zip
-Expand-Archive dumpcat-1.1.1-windows-amd64.zip -DestinationPath .
-cd dumpcat-1.1.1-windows-amd64
+Invoke-WebRequest https://downloads.dumpcat.cc/1.2.0/dumpcat-1.2.0-windows-amd64.zip -OutFile dumpcat-1.2.0-windows-amd64.zip
+Expand-Archive dumpcat-1.2.0-windows-amd64.zip -DestinationPath .
+cd dumpcat-1.2.0-windows-amd64
 powershell -ExecutionPolicy Bypass -File .\install.ps1
 ```
 
@@ -180,7 +180,7 @@ UPDATE_URL=https://downloads.dumpcat.cc ./build.sh
 
 ```
 https://downloads.dumpcat.cc/latest.json
-https://downloads.dumpcat.cc/1.1.1/dumpcat-linux-amd64    (… -linux-arm64, -windows-amd64.exe, SHA256SUMS, packages)
+https://downloads.dumpcat.cc/1.2.0/dumpcat-linux-amd64    (… -linux-arm64, -windows-amd64.exe, SHA256SUMS, packages)
 ```
 
 Upload the version folder first and `latest.json` last, so that installations never see a release whose files are not there yet.
@@ -272,6 +272,59 @@ and `latest.json.sig` can hold several signatures:
 
 If the old key leaked, skip the double signature in step 3 and get installations onto a build without the old key quickly: until then
 they would accept a release signed with it. Reinstall the package by hand where in doubt.
+
+### 3.7 Database hosts that accept no inbound connections (agent)
+
+When DumpCat cannot connect to the database (no port open to it, a firewall or NAT in between, MySQL listening on
+127.0.0.1 only), install the **agent** on the database host. The agent is the same `dumpcat` binary: it connects **out**
+to DumpCat over HTTPS (a WebSocket on the port of the web UI) and carries the database connections DumpCat asks for.
+Nothing has to be opened on the database host; it only has to reach DumpCat.
+
+1. **Agents → Add agent** in the web UI (admins). DumpCat shows the agent key — once — and the install commands.
+2. On the database host, as root:
+
+   ```bash
+   curl -fLO https://downloads.dumpcat.cc/1.2.0/dumpcat-1.2.0-linux.tar.gz
+   tar xzf dumpcat-1.2.0-linux.tar.gz && cd dumpcat-1.2.0-linux
+   sudo ./install.sh --agent --server https://backup.example.com --key dca_...
+   ```
+
+   On Windows, in the unzipped package, in PowerShell run as administrator:
+   `powershell -ExecutionPolicy Bypass -File .\install.ps1 -Agent -Server https://backup.example.com -Key dca_...`
+3. The agent shows as **Online** on the Agents page. Then **Database servers → Add server**, choose
+   **Connect: Through agent …** and enter the database address **as seen from the agent host** — usually `127.0.0.1`
+   port `3306`, or a socket. MySQL sees the connections coming from the agent host itself, so a backup user created for
+   `'dumpcat'@'localhost'` / `'dumpcat'@'127.0.0.1'` works.
+
+Everything that only needs a database connection works through an agent: mysqldump and mydumper backups, restores (also
+to a server behind another agent), binlog archiving and point-in-time recovery. DumpCat gives its tools a local port per
+database and the agent dials the database. Physical backups (XtraBackup / MariaBackup) copy the datadir: they need
+DumpCat installed on the database host itself.
+
+- **What the agent may reach.** Only the local MySQL/MariaDB by default: `127.0.0.1:3306`, `[::1]:3306` and the usual
+  socket paths. Allow other addresses with `--allow` (Windows: `-Allow`), comma separated, e.g.
+  `--allow 127.0.0.1:3307,10.0.0.5:3306,unix:/var/lib/mysql/mysql.sock`; `*` allows any address. A leaked key therefore
+  cannot be used to reach other machines on the database host's network. A server whose address is not allowed fails
+  with *… is not on this agent's allow list* in the connection test and in the backup log.
+- **Configuration**: `/etc/dumpcat/agent.env` (Windows: `C:\ProgramData\DumpCat\agent.env`), readable by root /
+  Administrators only: `DUMPCAT_AGENT_SERVER`, `DUMPCAT_AGENT_KEY`, `DUMPCAT_AGENT_ALLOW`, `DUMPCAT_AGENT_INSECURE`
+  (see `agent.env.example`). After editing: `systemctl restart dumpcat-agent` (Windows: `Restart-Service DumpCatAgent`).
+  Running the installer again with new `--server`, `--key` or `--allow` values updates the file.
+- **Service**: `dumpcat-agent` on Linux — it runs as a throwaway unprivileged user (systemd `DynamicUser`) without
+  access to the file system; `DumpCatAgent` on Windows. Log: `journalctl -u dumpcat-agent -f`
+  (Windows: `C:\ProgramData\DumpCat\agent.log`). By hand, in the foreground:
+  `dumpcat agent -server https://backup.example.com -key dca_... [-allow ...] [-insecure]`.
+- **Encryption**: the database traffic travels inside the agent's connection. Serve DumpCat over HTTPS when it crosses
+  an untrusted network; with a self-signed certificate (`DUMPCAT_TLS_AUTO=1`) add `--insecure` to the agent. Behind
+  nginx, the sample `nginx-dumpcat.conf` already passes WebSocket upgrades on `/api/agent/` with a long timeout.
+- **Address in the commands**: the **Base URL** from **Settings** when set, otherwise the address your browser uses —
+  set the Base URL when the database host reaches DumpCat under another name.
+- **Keys** are shown once and stored hashed. **Rotate key** issues a new one and disconnects the agent at once (put it in
+  `agent.env`, or run the installer again with `--key`). An agent still used by a server cannot be deleted.
+- **Offline agent**: jobs fail with *agent … is offline — start it on the database host*. The agent reconnects by
+  itself (every 2 s, backing off to 1 min) and binlog archiving resumes where it stopped. The Agents page shows the
+  version of each agent; upgrade it by running the installer of the new version.
+- **Uninstall**: `sudo ./install.sh --agent --uninstall [--purge]`, Windows: `.\install.ps1 -Agent -Uninstall [-Purge]`.
 
 ## 4. Getting started
 
@@ -560,6 +613,7 @@ It is also worth backing up `/var/lib/dumpcat/master.key` and `dumpcat.db` (conf
 - Database passwords are passed through a temporary option file (0600) that is deleted after use — they never show up in `ps`. Logs mask secrets automatically.
 - The API never returns secret values (only a "saved" flag).
 - Backup encryption (age) happens on the server before upload: the cloud provider cannot read the data. Use a long passphrase (≥ 16 characters).
+- Agents ([3.7](#37-database-hosts-that-accept-no-inbound-connections-agent)) authenticate with a key stored only as a hash, open only the database addresses on their own allow list, and run without privileges. Database traffic goes inside the agent's connection: use HTTPS.
 - The service runs as root so it can do physical backups/restores. If you only use logical backups, you can create a dedicated user: `useradd -r dumpcat`, `chown -R dumpcat /var/lib/dumpcat`, and set `User=dumpcat` in the unit.
 
 ## 12. API & automation
@@ -610,6 +664,7 @@ dumpcat user passwd -u admin      # forgotten admin password
 dumpcat user reset-2fa -u admin   # lost 2FA device
 dumpcat user list
 dumpcat setup-token               # one-time token for creating the first admin in the web UI
+dumpcat agent -server URL -key K  # on a database host that accepts no inbound connections (3.7)
 dumpcat decode -in file.sql.zst.age -out file.sql
 dumpcat version
 ```
@@ -633,6 +688,8 @@ Internal data: `/var/lib/dumpcat/dumpcat.db` (SQLite), `master.key`, `logs/`, `s
 | Binlog & PITR: *SHOW BINARY LOGS … REPLICATION CLIENT* / `Access denied` while streaming | Grant `REPLICATION SLAVE` + `REPLICATION CLIENT` (MariaDB: `BINLOG MONITOR`) to the backup user |
 | PITR: *binlogs are only archived up to …* | Click *Close binlog now* on the **Binlog & PITR** page and wait a few seconds for the upload, or choose *Latest available* |
 | PITR: *… has not been archived* / *sequence is broken* | The server purged binlogs before they were archived, or the numbering was reset: keep binlogs longer on the server and take a new backup as a starting point |
+| Agent: *agent … is offline* | Start the agent on the database host (`systemctl status dumpcat-agent`, `journalctl -u dumpcat-agent`). *the server refused the agent* in its log: wrong or rotated key, or the URL is not DumpCat. Behind nginx, use the `/api/agent/` block of the sample configuration |
+| Agent: *… is not on this agent's allow list* | Start the agent with `--allow host:port` for that address, or enter the address the agent allows (see [3.7](#37-database-hosts-that-accept-no-inbound-connections-agent)) |
 | Service logs | `journalctl -u dumpcat -f`; per-task logs on the detail page or in `/var/lib/dumpcat/logs/` |
 
 ## 15. Development
@@ -649,7 +706,7 @@ DUMPCAT_DATA_DIR=./data DUMPCAT_LISTEN=127.0.0.1:6369 DUMPCAT_WEB_DIR=./web ./du
 Source layout:
 
 ```
-cmd/dumpcat        CLI (serve, user, decode, update, release)
+cmd/dumpcat        CLI (serve, agent, user, decode, update, release)
 internal/api       REST API, authentication, authorization, serves the UI
 internal/runner    orchestrates backup/upload/retention/verify/restore/catalog import, binlog archiving, PITR
 internal/engine    mysqldump, mydumper, xtrabackup/mariabackup, mysql/myloader, mysqlbinlog (stream & replay)
@@ -660,6 +717,7 @@ internal/store     SQLite: users, servers, storages, jobs, backups, audit
 internal/scheduler cron
 internal/notify    Email, Telegram, Slack, Discord, Webhook
 internal/update    self-update: release manifest, signatures, install & rollback
+internal/agent     agents: reverse tunnel from database hosts (WebSocket), allow lists
 web/               UI (plain HTML/CSS/JS, no external dependencies)
 scripts/install.sh Linux installer · deploy/ systemd unit, sample env, nginx
 ```

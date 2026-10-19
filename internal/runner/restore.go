@@ -100,6 +100,9 @@ func (r *Runner) StartRestore(runID int64, req RestoreRequest, userID int64, use
 		if req.Apply && runtime.GOOS != "linux" {
 			return nil, errors.New("automatic datadir replacement is only supported on Linux")
 		}
+		if req.Apply && target != nil && target.AgentID != nil {
+			return nil, errors.New("replacing the datadir works only on the machine running DumpCat, not on a server reached through an agent")
+		}
 	}
 	if run.Method != store.MethodPhysical && run.Meta["single_file"] == true {
 		if len(req.Databases) > 0 && len(req.Databases) != len(run.Databases) {

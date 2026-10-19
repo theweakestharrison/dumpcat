@@ -16,6 +16,7 @@ import (
 	"strings"
 	"time"
 
+	"dumpcat/internal/agent"
 	"dumpcat/internal/auth"
 	"dumpcat/internal/config"
 	"dumpcat/internal/engine"
@@ -41,6 +42,7 @@ type Server struct {
 	Version  string
 	WebFS    fs.FS
 	Updater  *update.Manager
+	Agents   *agent.Manager // database hosts that connect out (nil = disabled)
 	// ControlToken authenticates "dumpcat update" on the same machine (read from DATA_DIR/control.token).
 	ControlToken string
 
@@ -409,6 +411,14 @@ func (s *Server) routes(mux *http.ServeMux) {
 	s.route(mux, "PUT /api/servers/{id}", op, s.serverUpdate)
 	s.route(mux, "DELETE /api/servers/{id}", op, s.serverDelete)
 	s.route(mux, "GET /api/servers/{id}/info", vw, s.serverInfo)
+	// agents: database hosts that connect out to DumpCat
+	s.route(mux, "GET /api/agents", vw, s.agentsList)
+	s.route(mux, "POST /api/agents", adm, s.agentCreate)
+	s.route(mux, "PUT /api/agents/{id}", adm, s.agentUpdate)
+	s.route(mux, "POST /api/agents/{id}/rotate", adm, s.agentRotate)
+	s.route(mux, "DELETE /api/agents/{id}", adm, s.agentDelete)
+	mux.HandleFunc("GET "+agent.PathConnect, s.agentEndpoint(false))
+	mux.HandleFunc("GET "+agent.PathStream, s.agentEndpoint(true))
 	// storages
 	s.route(mux, "GET /api/storage-types", vw, s.storageTypes)
 	s.route(mux, "GET /api/storages", vw, s.storagesList)

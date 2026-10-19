@@ -13,6 +13,12 @@
     .\install.ps1 -NoService           # copy files and write the config only (no admin rights needed)
     .\install.ps1 -Uninstall [-Purge]
 
+  Agent only, on a database host that accepts no inbound connections (it
+  connects out to the DumpCat server):
+    .\install.ps1 -Agent -Server https://backup.example.com -Key dca_...
+                  [-Allow 127.0.0.1:3306] [-Insecure]
+    .\install.ps1 -Agent -Uninstall [-Purge]
+
   If scripts are blocked: powershell -ExecutionPolicy Bypass -File .\install.ps1
 #>
 [CmdletBinding()]
@@ -27,7 +33,12 @@ param(
   [switch]$NoRclone,
   [switch]$NoService,
   [switch]$Uninstall,
-  [switch]$Purge
+  [switch]$Purge,
+  [switch]$Agent,
+  [string]$Server = '',
+  [string]$Key = '',
+  [string]$Allow = '',
+  [switch]$Insecure
 )
 
 $ErrorActionPreference = 'Stop'
@@ -65,6 +76,104 @@ function Stop-DumpCat {
 
 if (-not $NoService -and -not (Test-Admin)) {
   Die 'Please run from an elevated PowerShell (Run as administrator), or use -NoService.'
+}
+
+# ---------- agent ----------
+if ($Agent) {
+  $AgentService = 'DumpCatAgent'
+  $AgentEnv = Join-Path $DataRoot 'agent.env'
+  if ($NoService) { Die '-Agent installs a service: run it without -NoService.' }
+  $asvc = Get-Service -Name $AgentService -ErrorAction SilentlyContinue
+  if ($asvc -and $asvc.Status -ne 'Stopped') {
+    Stop-Service -Name $AgentService -Force
+    $asvc.WaitForStatus('Stopped', (New-TimeSpan -Seconds 30))
+  }
+  if ($Uninstall) {
+    Info 'Uninstalling the DumpCat agent'
+    if ($asvc) { & sc.exe delete $AgentService | Out-Null }
+    if (-not (Get-DumpCatService) -and (Test-Path $InstallDir)) { Remove-Item -Recurse -Force $InstallDir }
+    if ($Purge) {
+      Remove-Item -Force -ErrorAction SilentlyContinue $AgentEnv, (Join-Path $DataRoot 'agent.log*')
+    } else {
+      Info "Keeping $AgentEnv (use -Purge to delete it)"
+    }
+    exit 0
+  }
+  if ($Server -and $Server -notmatch '^https?://') { Die '-Server must be the DumpCat address, e.g. https://backup.example.com' }
+  if (-not $Binary) { $Binary = Join-Path $PSScriptRoot 'dumpcat.exe' }
+  if (-not (Test-Path $Binary)) { Die "dumpcat.exe not found: $Binary (use -Binary PATH)" }
+
+  New-Item -ItemType Directory -Force -Path $InstallDir, $DataRoot | Out-Null
+  if ((Resolve-Path $Binary).Path -ne [IO.Path]::GetFullPath($Exe)) {
+    try { Copy-Item -Force $Binary $Exe }
+    catch {
+      if (-not (Test-Path $Exe)) { throw }
+      Warn "Keeping the installed dumpcat.exe: it is in use ($($_.Exception.Message))"
+    }
+  }
+  # only SYSTEM and Administrators may read the agent key
+  & icacls.exe $DataRoot /inheritance:r /grant:r '*S-1-5-18:(OI)(CI)F' '*S-1-5-32-544:(OI)(CI)F' /T /C /Q | Out-Null
+
+  $vars = [ordered]@{}
+  if (Test-Path $AgentEnv) {
+    foreach ($line in Get-Content $AgentEnv) {
+      if ($line -match '^\s*(DUMPCAT_AGENT_[A-Z_]+)\s*=(.*)$') { $vars[$Matches[1]] = $Matches[2].Trim() }
+    }
+  }
+  if ($Server) { $vars['DUMPCAT_AGENT_SERVER'] = $Server.TrimEnd('/') }
+  if ($Key) {
+    if (-not $Key.StartsWith('dca_')) { Warn 'Agent keys start with dca_ - is this the key from the Agents page?' }
+    $vars['DUMPCAT_AGENT_KEY'] = $Key
+  }
+  if ($Allow) { $vars['DUMPCAT_AGENT_ALLOW'] = $Allow }
+  if ($Insecure) { $vars['DUMPCAT_AGENT_INSECURE'] = '1' }
+  if (-not $vars['DUMPCAT_AGENT_SERVER']) { Die '-Server is required, e.g. -Server https://backup.example.com' }
+  if (-not $vars['DUMPCAT_AGENT_KEY']) { Die '-Key is required: the agent key from the Agents page of the web UI' }
+  $lines = @('# DumpCat agent - after editing: Restart-Service DumpCatAgent')
+  foreach ($k in $vars.Keys) { $lines += "$k=$($vars[$k])" }
+  Info "Writing $AgentEnv"
+  Write-Utf8NoBom $AgentEnv (($lines + '') -join "`r`n")
+  $example = Join-Path $PSScriptRoot 'agent.env.example'
+  if (Test-Path $example) { Copy-Item -Force $example (Join-Path $DataRoot 'agent.env.example') }
+
+  $binPath = "`"$Exe`" agent -config `"$AgentEnv`""
+  if ($asvc) {
+    & sc.exe config $AgentService binPath= $binPath | Out-Null
+  } else {
+    Info "Creating the $AgentService service"
+    New-Service -Name $AgentService -BinaryPathName $binPath -DisplayName 'DumpCat agent' `
+      -Description 'Connects this database host out to a DumpCat server' -StartupType Automatic | Out-Null
+  }
+  & sc.exe failure $AgentService reset= 86400 actions= restart/5000/restart/5000/restart/30000 | Out-Null
+  & sc.exe failureflag $AgentService 1 | Out-Null
+  $log = Join-Path $DataRoot 'agent.log'
+  $logLines = 0 # only look at what this start writes
+  if (Test-Path $log) { $logLines = @(Get-Content $log).Count }
+  Info "Starting the $AgentService service"
+  Start-Service -Name $AgentService
+  $connected = $false
+  for ($i = 0; $i -lt 15 -and -not $connected; $i++) {
+    Start-Sleep -Seconds 1
+    if ((Get-Service -Name $AgentService).Status -ne 'Running') { break }
+    if ((Test-Path $log) -and (Get-Content $log | Select-Object -Skip $logLines | Select-String -SimpleMatch 'connected to ')) { $connected = $true }
+  }
+  if ((Get-Service -Name $AgentService).Status -ne 'Running') {
+    if (Test-Path $log) { Get-Content $log -Tail 20 }
+    Die "The agent failed to start - see $log"
+  }
+  Write-Host ''
+  if ($connected) {
+    Write-Host 'The DumpCat agent is connected. It shows as online on the Agents page of the web UI.' -ForegroundColor Cyan
+  } else {
+    if (Test-Path $log) { Get-Content $log -Tail 10 }
+    Warn 'The agent is running but has not connected yet - check the address, the key and that this host can reach the server.'
+  }
+  Write-Host 'Next, in the web UI: Database servers > Add server > Connect: through this agent, with the database'
+  Write-Host 'address as seen from this host (e.g. 127.0.0.1 port 3306).'
+  Write-Host ''
+  Write-Host "Configuration: $AgentEnv  (after editing: Restart-Service $AgentService)"
+  Write-Host "Log:           $log"
+  exit 0
 }
 
 # ---------- uninstall ----------

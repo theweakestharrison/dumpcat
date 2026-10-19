@@ -55,7 +55,8 @@ func (s *Server) applyJob(in *jobInput, j *store.Job, isAdmin bool) error {
 	if j.Name == "" {
 		return badRequest("job name is required")
 	}
-	if _, err := s.Store.GetServer(in.ServerID); err != nil {
+	sv, err := s.Store.GetServer(in.ServerID)
+	if err != nil {
 		return badRequest("server does not exist")
 	}
 	j.ServerID = in.ServerID
@@ -63,6 +64,9 @@ func (s *Server) applyJob(in *jobInput, j *store.Job, isAdmin bool) error {
 	case store.MethodMysqldump, store.MethodMydumper, store.MethodPhysical:
 	default:
 		return badRequest("invalid backup method")
+	}
+	if in.Method == store.MethodPhysical && sv.AgentID != nil {
+		return badRequest("server %s is reached through an agent: physical backups need DumpCat installed on the database host — use mysqldump or mydumper", sv.Name)
 	}
 	j.Method = in.Method
 	j.DBMode = in.DBMode

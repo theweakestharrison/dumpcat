@@ -21,6 +21,7 @@ import (
 
 	"golang.org/x/term"
 
+	"dumpcat/internal/agent"
 	"dumpcat/internal/api"
 	"dumpcat/internal/auth"
 	"dumpcat/internal/config"
@@ -37,7 +38,7 @@ import (
 	"dumpcat/web"
 )
 
-var version = "1.1.0"
+var version = "1.2.0"
 
 // defaultUpdateURL is the release server baked in at build time
 // (-ldflags "-X main.defaultUpdateURL=https://..."); Settings and DUMPCAT_UPDATE_URL override it.
@@ -48,6 +49,8 @@ func usage() {
 
 Usage:
   dumpcat serve   [flags]                 run the web server (default)
+  dumpcat agent   -server URL -key KEY    run on a database host that accepts no inbound connections
+                                          ("dumpcat agent -h" for the options)
   dumpcat user add -u NAME [-r admin|operator|viewer] [-p PASS]
   dumpcat user passwd -u NAME              reset a password
   dumpcat user reset-2fa -u NAME           disable a user's 2FA
@@ -96,6 +99,8 @@ func main() {
 		if err != nil {
 			log.Fatal(err)
 		}
+	case "agent":
+		agentCmd(args)
 	case "user":
 		userCmd(args)
 	case "setup-token":
@@ -316,8 +321,30 @@ func serve(cfg *config.Config, stop <-chan struct{}, boot *update.Boot, exe stri
 	sched.Reload()
 	run.SyncArchivers()
 
+	// database hosts behind a firewall connect out to us; their servers are
+	// reached through local tunnel ports
+	agents := agent.NewManager()
+	agents.Auth = api.AgentAuth(st)
+	agents.OnHello = func(id int64, in agent.Info) {
+		st.AgentSeen(id, in.Since, in.RemoteAddr, in.Version, in.Hostname, in.OS)
+	}
+	agents.Logf = log.Printf
+	store.TunnelEndpoint = func(id int64, network, addr string) (string, int, error) {
+		host, port, err := agents.Endpoint(id, agent.Target{Net: network, Addr: addr})
+		if errors.Is(err, agent.ErrOffline) {
+			name := fmt.Sprintf("#%d", id)
+			if a, e := st.GetAgent(id); e == nil {
+				name = a.Name
+			}
+			err = fmt.Errorf("agent %s is offline — start it on the database host (see the Agents page)", name)
+		}
+		return host, port, err
+	}
+	defer agents.Close()
+
 	srv := &api.Server{Cfg: cfg, Store: st, Runner: run, Sched: sched, Storage: sm, OAuth: storage.NewOAuthManager(),
-		Tools: tools, Notifier: notifier, Limiter: auth.NewLimiter(), IPLimit: ipLimiter(), Version: version, WebFS: web.FS()}
+		Tools: tools, Notifier: notifier, Limiter: auth.NewLimiter(), IPLimit: ipLimiter(), Version: version, WebFS: web.FS(),
+		Agents: agents}
 	if d := os.Getenv("DUMPCAT_WEB_DIR"); d != "" {
 		srv.WebFS = os.DirFS(d) // development: edit UI without rebuilding
 	}

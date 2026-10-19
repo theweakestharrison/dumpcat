@@ -2,6 +2,10 @@ package store
 
 import (
 	"encoding/json"
+	"errors"
+	"fmt"
+	"net"
+	"strconv"
 	"time"
 )
 
@@ -84,6 +88,72 @@ type Server struct {
 	RestoreUsername    string `json:"restore_username"`
 	RestorePassword    string `json:"-"`
 	HasRestorePassword bool   `json:"has_restore_password"`
+	// AgentID: reach the server through this agent (it connects out to
+	// DumpCat); Host/Port/Socket are then as seen from the agent.
+	AgentID *int64 `json:"agent_id"`
+}
+
+// TunnelEndpoint resolves a target behind an agent to a local address (set
+// by the agent manager at startup).
+var TunnelEndpoint func(agentID int64, network, addr string) (host string, port int, err error)
+
+// Addr is where to connect: the server's own address (host/port, or a unix
+// socket when socket is set) or the local end of its agent tunnel.
+func (s *Server) Addr() (host string, port int, socket string, err error) {
+	if s.AgentID != nil && *s.AgentID > 0 {
+		network, addr := s.AgentTarget()
+		if TunnelEndpoint == nil {
+			return "", 0, "", errors.New("agent connections are not available")
+		}
+		host, port, err := TunnelEndpoint(*s.AgentID, network, addr)
+		if err != nil {
+			return "", 0, "", fmt.Errorf("server %s: %w", s.Name, err)
+		}
+		return host, port, "", nil
+	}
+	if s.Socket != "" && (s.Host == "" || s.Host == "localhost") {
+		return s.Host, 0, s.Socket, nil
+	}
+	host = s.Host
+	if host == "" || host == "localhost" {
+		host = "127.0.0.1"
+	}
+	port = s.Port
+	if port == 0 {
+		port = 3306
+	}
+	return host, port, "", nil
+}
+
+// AgentTarget is the address the agent dials for this server.
+func (s *Server) AgentTarget() (network, addr string) {
+	if s.Socket != "" && (s.Host == "" || s.Host == "localhost") {
+		return "unix", s.Socket
+	}
+	host := s.Host
+	if host == "" || host == "localhost" {
+		host = "127.0.0.1"
+	}
+	port := s.Port
+	if port == 0 {
+		port = 3306
+	}
+	return "tcp", net.JoinHostPort(host, strconv.Itoa(port))
+}
+
+// Agent is a database host that connects out to DumpCat.
+type Agent struct {
+	ID         int64      `json:"id"`
+	Name       string     `json:"name"`
+	KeyPrefix  string     `json:"key_prefix"`
+	CreatedAt  time.Time  `json:"created_at"`
+	UpdatedAt  time.Time  `json:"updated_at"`
+	LastSeenAt *time.Time `json:"last_seen_at"`
+	LastIP     string     `json:"last_ip"`
+	Version    string     `json:"version"`
+	Hostname   string     `json:"hostname"`
+	OS         string     `json:"os"`
+	KeyHash    string     `json:"-"`
 }
 
 // ForRestore returns a copy using the restore credentials when configured.

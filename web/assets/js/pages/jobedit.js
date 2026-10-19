@@ -67,7 +67,7 @@ export async function render(ctx) {
         <div class="form-grid">
           <div class="field"><label class="req">Job name</label><input type="text" name="name" value="${job.name}" required placeholder="e.g. shop-prod nightly"></div>
           <div class="field"><label class="req">Database server</label>
-            <div class="inline"><select name="server_id">${servers.map((s) => html`<option value="${s.id}" ${s.id === job.server_id ? 'selected' : ''}>${s.name} (${s.host || s.socket}${s.version ? ' · ' + s.version : ''})</option>`)}</select>
+            <div class="inline"><select name="server_id">${servers.map((s) => html`<option value="${s.id}" ${s.id === job.server_id ? 'selected' : ''}>${s.name} (${s.host || s.socket}${s.agent_id ? ' via agent' : ''}${s.version ? ' · ' + s.version : ''})</option>`)}</select>
             <button type="button" class="btn" id="load-info" title="Check server">${icon('refresh')}</button></div>
             <div class="help" id="server-msg"></div></div>
         </div>

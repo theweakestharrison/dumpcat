@@ -7,6 +7,11 @@
 #   sudo ./install.sh --tls-auto          # serve HTTPS with a self-signed certificate
 #   sudo ./install.sh --uninstall [--purge]
 #
+# Agent only, on a database host that accepts no inbound connections (it connects out to DumpCat):
+#   sudo ./install.sh --agent --server https://backup.example.com --key dca_...
+#        [--allow 127.0.0.1:3306,unix:/run/mysqld/mysqld.sock] [--insecure]
+#   sudo ./install.sh --agent --uninstall [--purge]
+#
 # Supported: Ubuntu 20.04+, Debian 11+, RHEL/Rocky/Alma/Oracle 8+, CentOS Stream, Fedora.
 set -euo pipefail
 
@@ -26,6 +31,13 @@ BIN_PATH=$BIN_DIR/dumpcat
 BIN_LINK=/usr/local/bin/dumpcat
 UNIT=/etc/systemd/system/dumpcat.service
 DOC_DIR=/usr/local/share/doc/dumpcat
+AGENT=0
+AGENT_SERVER=""
+AGENT_KEY=""
+AGENT_ALLOW=""
+AGENT_INSECURE=0
+AGENT_UNIT=/etc/systemd/system/dumpcat-agent.service
+AGENT_ENV=$CONF_DIR/agent.env
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 c_green=$'\e[32m'; c_yellow=$'\e[33m'; c_red=$'\e[31m'; c_bold=$'\e[1m'; c_off=$'\e[0m'
@@ -33,7 +45,7 @@ info()  { echo "${c_green}==>${c_off} $*"; }
 warn()  { echo "${c_yellow}!!${c_off} $*" >&2; }
 die()   { echo "${c_red}xx${c_off} $*" >&2; exit 1; }
 
-usage() { sed -n '2,10p' "$0" | sed 's/^# \{0,1\}//'; exit 0; }
+usage() { sed -n '2,15p' "$0" | sed 's/^# \{0,1\}//'; exit 0; }
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -45,6 +57,11 @@ while [[ $# -gt 0 ]]; do
     --data-dir) DATA_DIR="$2"; shift 2 ;;
     --uninstall) UNINSTALL=1; shift ;;
     --purge) PURGE=1; shift ;;
+    --agent) AGENT=1; shift ;;
+    --server) AGENT_SERVER="$2"; shift 2 ;;
+    --key) AGENT_KEY="$2"; shift 2 ;;
+    --allow) AGENT_ALLOW="$2"; shift 2 ;;
+    --insecure) AGENT_INSECURE=1; shift ;;
     -h|--help) usage ;;
     *) die "invalid argument: $1 (see --help)" ;;
   esac
@@ -52,6 +69,24 @@ done
 
 [[ $EUID -eq 0 ]] || die "please run as root (sudo)"
 command -v systemctl >/dev/null || die "systemd is required"
+
+if [[ $UNINSTALL -eq 1 && $AGENT -eq 1 ]]; then
+  info "Uninstalling the DumpCat agent"
+  systemctl disable --now dumpcat-agent 2>/dev/null || true
+  rm -f "$AGENT_UNIT"
+  systemctl daemon-reload
+  if [[ ! -f $UNIT ]]; then # the binary is shared with the DumpCat server
+    rm -f "$BIN_LINK"
+    rm -rf "$BIN_DIR" "$DOC_DIR"
+  fi
+  if [[ $PURGE -eq 1 ]]; then
+    rm -f "$AGENT_ENV" "$CONF_DIR/agent.env.example"
+    rmdir "$CONF_DIR" 2>/dev/null || true
+  else
+    info "Keeping $AGENT_ENV (use --purge to delete it)"
+  fi
+  exit 0
+fi
 
 if [[ $UNINSTALL -eq 1 ]]; then
   info "Uninstalling DumpCat"
@@ -80,6 +115,87 @@ if [[ -z "$BINARY" ]]; then
   done
 fi
 [[ -n "$BINARY" && -f "$BINARY" ]] || die "binary dumpcat-linux-$ARCH not found (use --binary /path/to/binary)"
+
+# ---------- agent ----------
+# set_env <name> <value>: sets a variable in the agent env file
+set_env() {
+  local tmp
+  tmp="$(mktemp "$AGENT_ENV.XXXXXX")"
+  grep -v "^$1=" "$AGENT_ENV" > "$tmp" || true
+  printf '%s=%s\n' "$1" "$2" >> "$tmp"
+  chmod 0600 "$tmp"
+  mv -f "$tmp" "$AGENT_ENV"
+}
+
+if [[ $AGENT -eq 1 ]]; then
+  if [[ -n $AGENT_SERVER && $AGENT_SERVER != http://* && $AGENT_SERVER != https://* ]]; then
+    die "--server must be the DumpCat address, e.g. https://backup.example.com"
+  fi
+  mkdir -p "$CONF_DIR"
+  chmod 0750 "$CONF_DIR"
+  if [[ ! -f $AGENT_ENV ]]; then
+    [[ -n $AGENT_SERVER ]] || die "--server is required, e.g. --server https://backup.example.com"
+    if [[ -z $AGENT_KEY && -t 0 ]]; then
+      read -rsp "Agent key (from the Agents page of the web UI): " AGENT_KEY
+      echo
+    fi
+    [[ -n $AGENT_KEY ]] || die "--key is required: the agent key from the Agents page of the web UI"
+    info "Creating configuration $AGENT_ENV"
+    ( umask 077; printf '%s\n' "# DumpCat agent — see $CONF_DIR/agent.env.example for all options" \
+        "# After editing: systemctl restart dumpcat-agent" > "$AGENT_ENV" )
+  fi
+  [[ -z $AGENT_KEY || $AGENT_KEY == dca_* ]] || warn "agent keys start with dca_ — is this the key from the Agents page?"
+  if [[ -n $AGENT_SERVER ]]; then set_env DUMPCAT_AGENT_SERVER "${AGENT_SERVER%/}"; fi
+  if [[ -n $AGENT_KEY ]]; then set_env DUMPCAT_AGENT_KEY "$AGENT_KEY"; fi
+  if [[ -n $AGENT_ALLOW ]]; then set_env DUMPCAT_AGENT_ALLOW "$AGENT_ALLOW"; fi
+  if [[ $AGENT_INSECURE -eq 1 ]]; then set_env DUMPCAT_AGENT_INSECURE 1; fi
+  chmod 0600 "$AGENT_ENV"
+  grep -q '^DUMPCAT_AGENT_SERVER=.' "$AGENT_ENV" && grep -q '^DUMPCAT_AGENT_KEY=.' "$AGENT_ENV" \
+    || die "$AGENT_ENV needs DUMPCAT_AGENT_SERVER and DUMPCAT_AGENT_KEY (use --server and --key)"
+
+  info "Installing the binary to $BIN_PATH"
+  mkdir -p "$BIN_DIR"
+  chmod 0755 "$BIN_DIR"
+  # rename over the old file: a DumpCat server on this host may be running it
+  install -m 0755 "$BINARY" "$BIN_PATH.new"
+  mv -f "$BIN_PATH.new" "$BIN_PATH"
+  ln -sfn "$BIN_PATH" "$BIN_LINK"
+  UNIT_SRC=""
+  for d in "$SCRIPT_DIR" "$SCRIPT_DIR/../deploy"; do
+    [[ -f "$d/agent.env.example" ]] && install -m 0644 "$d/agent.env.example" "$CONF_DIR/agent.env.example"
+    [[ -f "$d/dumpcat-agent.service" ]] && { UNIT_SRC="$d/dumpcat-agent.service"; break; }
+  done
+  [[ -n "$UNIT_SRC" ]] || die "dumpcat-agent.service not found next to install.sh"
+  install -m 0644 "$UNIT_SRC" "$AGENT_UNIT"
+  systemctl daemon-reload
+  systemctl enable dumpcat-agent >/dev/null 2>&1
+  STARTED="$(date '+%Y-%m-%d %H:%M:%S')"
+  systemctl restart dumpcat-agent
+  info "Waiting for the agent to connect"
+  CONNECTED=0
+  for _ in $(seq 1 15); do
+    sleep 1
+    systemctl is-active --quiet dumpcat-agent || break
+    if journalctl -u dumpcat-agent --since "$STARTED" --no-pager -q 2>/dev/null | grep -q "connected to "; then
+      CONNECTED=1
+      break
+    fi
+  done
+  systemctl is-active --quiet dumpcat-agent || { journalctl -u dumpcat-agent -n 30 --no-pager; die "the agent failed to start"; }
+  echo
+  if [[ $CONNECTED -eq 1 ]]; then
+    echo "${c_bold}The DumpCat agent is connected.${c_off} It shows as online on the Agents page of the web UI."
+  else
+    journalctl -u dumpcat-agent -n 10 --no-pager -q || true
+    warn "the agent is running but has not connected yet — check the address, the key and that this host can reach the server"
+  fi
+  echo "Next, in the web UI: Database servers → Add server → Connect: through this agent, with the database"
+  echo "address as seen from this host (e.g. 127.0.0.1 port 3306)."
+  echo
+  echo "Log: journalctl -u dumpcat-agent -f"
+  echo "Configuration: $AGENT_ENV  (after editing: systemctl restart dumpcat-agent)"
+  exit 0
+fi
 
 # ---------- distro ----------
 . /etc/os-release

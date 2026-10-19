@@ -78,6 +78,10 @@ func (r *Runner) sameServer(run *store.Run, sv *store.Server) bool {
 	if err != nil {
 		return false
 	}
+	// addresses only compare when both are seen from the same place
+	if agentOf(src) != agentOf(sv) {
+		return false
+	}
 	if src.Socket != "" && sv.Socket == src.Socket && isLocal(src.Host) && isLocal(sv.Host) {
 		return true
 	}
@@ -85,6 +89,13 @@ func (r *Runner) sameServer(run *store.Run, sv *store.Server) bool {
 }
 
 func isLocal(h string) bool { return h == "" || h == "localhost" }
+
+func agentOf(s *store.Server) int64 {
+	if s.AgentID == nil {
+		return 0
+	}
+	return *s.AgentID
+}
 
 var reVersion = regexp.MustCompile(`^(\d+)\.(\d+)`)
 

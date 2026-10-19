@@ -17,6 +17,7 @@ const NAV = [
   ] },
   { group: 'Configuration', items: [
     { path: '/servers', label: 'Database servers', icon: 'database' },
+    { path: '/agents', label: 'Agents', icon: 'link' },
     { path: '/storages', label: 'Storage', icon: 'cloud' },
     { path: '/notifications', label: 'Notifications', icon: 'bell', admin: true },
   ] },
@@ -41,6 +42,7 @@ const ROUTES = [
   ['/binlogs', 'binlogs'],
   ['/pitr', 'pitr'],
   ['/servers', 'servers'],
+  ['/agents', 'agents'],
   ['/storages', 'storages'],
   ['/notifications', 'notifications'],
   ['/users', 'users'],

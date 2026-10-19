@@ -109,10 +109,14 @@ func Mydumper(env *Env, spec *BackupSpec, sink Sink) (*Result, error) {
 	} else {
 		s := spec.Server
 		args = append(args, "--user="+s.Username)
-		if s.Socket != "" && (s.Host == "" || s.Host == "localhost") {
-			args = append(args, "--socket="+s.Socket)
+		host, port, socket, err := s.Addr()
+		if err != nil {
+			return nil, err
+		}
+		if socket != "" {
+			args = append(args, "--socket="+socket)
 		} else {
-			args = append(args, "--host="+s.Host, "--port="+strconv.Itoa(s.Port))
+			args = append(args, "--host="+host, "--port="+strconv.Itoa(port))
 		}
 	}
 	args = append(args, mydumperTLSArgs(h, spec.Server, env.TmpDir)...)

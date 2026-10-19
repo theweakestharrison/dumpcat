@@ -37,18 +37,14 @@ func Open(ctx context.Context, s *store.Server, database string) (*sql.DB, error
 	cfg := mysql.NewConfig()
 	cfg.User = s.Username
 	cfg.Passwd = s.Password
-	if s.Socket != "" && (s.Host == "" || s.Host == "localhost") {
+	host, port, socket, err := s.Addr() // direct, or the local end of an agent tunnel
+	if err != nil {
+		return nil, err
+	}
+	if socket != "" {
 		cfg.Net = "unix"
-		cfg.Addr = s.Socket
+		cfg.Addr = socket
 	} else {
-		host := s.Host
-		if host == "" || host == "localhost" {
-			host = "127.0.0.1"
-		}
-		port := s.Port
-		if port == 0 {
-			port = 3306
-		}
 		cfg.Net = "tcp"
 		cfg.Addr = net.JoinHostPort(host, strconv.Itoa(port))
 	}

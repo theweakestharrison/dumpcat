@@ -32,6 +32,7 @@ type serverInput struct {
 	Notes           string `json:"notes"`
 	RestoreUsername string `json:"restore_username"`
 	RestorePassword string `json:"restore_password"`
+	AgentID         int64  `json:"agent_id"` // 0 = connect directly
 }
 
 func (in *serverInput) apply(sv *store.Server) error {
@@ -42,7 +43,8 @@ func (in *serverInput) apply(sv *store.Server) error {
 		if port == 0 {
 			port = 3306
 		}
-		moved := strings.TrimSpace(in.Host) != sv.Host || port != sv.Port || strings.TrimSpace(in.Socket) != sv.Socket
+		moved := strings.TrimSpace(in.Host) != sv.Host || port != sv.Port || strings.TrimSpace(in.Socket) != sv.Socket ||
+			in.AgentID != agentID(sv)
 		if (moved || strings.TrimSpace(in.Username) != sv.Username) && in.Password == "" && sv.Password != "" {
 			return badRequest("re-enter the password when changing host/port/socket/user")
 		}
@@ -50,6 +52,11 @@ func (in *serverInput) apply(sv *store.Server) error {
 		if ru != "" && (moved || ru != sv.RestoreUsername) && in.RestorePassword == "" && sv.RestorePassword != "" {
 			return badRequest("re-enter the restore password when changing host/port/socket/restore user")
 		}
+	}
+	sv.AgentID = nil
+	if in.AgentID > 0 {
+		id := in.AgentID
+		sv.AgentID = &id
 	}
 	sv.Name = strings.TrimSpace(in.Name)
 	sv.Host = strings.TrimSpace(in.Host)
@@ -103,6 +110,24 @@ func (in *serverInput) apply(sv *store.Server) error {
 	return nil
 }
 
+func agentID(sv *store.Server) int64 {
+	if sv.AgentID == nil {
+		return 0
+	}
+	return *sv.AgentID
+}
+
+// checkAgent validates the agent a server is reached through.
+func (s *Server) checkAgent(sv *store.Server) error {
+	if sv.AgentID == nil {
+		return nil
+	}
+	if _, err := s.Store.GetAgent(*sv.AgentID); err != nil {
+		return badRequest("agent #%d does not exist", *sv.AgentID)
+	}
+	return nil
+}
+
 func (s *Server) serversList(w http.ResponseWriter, r *http.Request) error {
 	list, err := s.Store.ListServers()
 	if err != nil {
@@ -133,6 +158,9 @@ func (s *Server) serverCreate(w http.ResponseWriter, r *http.Request) error {
 	}
 	sv := &store.Server{}
 	if err := in.apply(sv); err != nil {
+		return err
+	}
+	if err := s.checkAgent(sv); err != nil {
 		return err
 	}
 	if err := s.Store.CreateServer(sv); err != nil {
@@ -172,6 +200,9 @@ func (s *Server) serverUpdate(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 	if err := in.apply(sv); err != nil {
+		return err
+	}
+	if err := s.checkAgent(sv); err != nil {
 		return err
 	}
 	if err := s.Store.UpdateServer(sv); err != nil {
@@ -254,6 +285,9 @@ func (s *Server) supportFor(sv *store.Server, info *dbconn.ServerInfo) []methodS
 	st := s.Tools.Get(sname)
 	ms = methodSupport{Method: store.MethodPhysical, OK: bt.Found && st.Found}
 	switch {
+	case sv.AgentID != nil:
+		ms.OK = false
+		ms.Message = "Not through an agent: physical backups copy the datadir, so DumpCat must be installed on the database host itself"
 	case !bt.Found:
 		ms.Message = "Missing " + bname + ": " + bt.Hint
 	case !st.Found:
@@ -310,6 +344,9 @@ func (s *Server) serverTestUnsaved(w http.ResponseWriter, r *http.Request) error
 		in.Name = "test"
 	}
 	if err := in.apply(sv); err != nil {
+		return err
+	}
+	if err := s.checkAgent(sv); err != nil {
 		return err
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), 45*time.Second)
