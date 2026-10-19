@@ -52,6 +52,19 @@ export function methodBadge(m, type) {
   return html`<span class="badge outline">${label}</span>${type === 'incremental' ? html` <span class="badge info">incr</span>` : ''}`;
 }
 
+// What an online agent reported about physical backups on its host:
+// { ok, short, detail } (null while it is offline).
+export function agentPhysical(st) {
+  if (!st || !st.online) return null;
+  const p = st.caps && st.caps.physical;
+  if (!p) return { ok: false, short: 'Update the agent', detail: `DumpCat ${st.version} on the agent cannot run physical backups` };
+  if (!p.allowed) return { ok: false, off: true, short: 'Off', detail: 'Start the agent with --allow-physical to run mariabackup/xtrabackup on this host' };
+  const tools = (p.tools || []).filter((t) => t.found).map((t) => `${t.name} ${(/\d+\.\d+\.\d+/.exec(t.version) || [''])[0]}`.trim());
+  if (!tools.length) return { ok: false, short: 'No backup tool', detail: `Install mariabackup (MariaDB) or Percona XtraBackup (MySQL) on ${st.hostname || 'the database host'}` };
+  if (p.datadir_error) return { ok: false, short: 'Datadir not readable', detail: p.datadir_error };
+  return { ok: true, short: tools.join(', '), detail: [p.user && `runs as ${p.user}`, p.datadir && `datadir ${p.datadir} readable`].filter(Boolean).join(' · ') };
+}
+
 export function storageIcon(type) {
   return { local: 'hdd', s3: 'archive', gdrive: 'folder', onedrive: 'folder', ftp: 'server', sftp: 'lock', webdav: 'link', b2: 'archive', azureblob: 'archive', dropbox: 'folder', rclone: 'layers' }[type] || 'cloud';
 }

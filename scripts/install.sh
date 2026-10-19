@@ -10,6 +10,7 @@
 # Agent only, on a database host that accepts no inbound connections (it connects out to DumpCat):
 #   sudo ./install.sh --agent --server https://backup.example.com --key dca_...
 #        [--allow 127.0.0.1:3306,unix:/run/mysqld/mysqld.sock] [--insecure]
+#        [--allow-physical]   # also run physical backups (mariabackup/xtrabackup) here
 #   sudo ./install.sh --agent --uninstall [--purge]
 #
 # Supported: Ubuntu 20.04+, Debian 11+, RHEL/Rocky/Alma/Oracle 8+, CentOS Stream, Fedora.
@@ -36,7 +37,9 @@ AGENT_SERVER=""
 AGENT_KEY=""
 AGENT_ALLOW=""
 AGENT_INSECURE=0
+AGENT_PHYSICAL=0
 AGENT_UNIT=/etc/systemd/system/dumpcat-agent.service
+AGENT_DROPIN=/etc/systemd/system/dumpcat-agent.service.d/physical.conf
 AGENT_ENV=$CONF_DIR/agent.env
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
@@ -45,7 +48,7 @@ info()  { echo "${c_green}==>${c_off} $*"; }
 warn()  { echo "${c_yellow}!!${c_off} $*" >&2; }
 die()   { echo "${c_red}xx${c_off} $*" >&2; exit 1; }
 
-usage() { sed -n '2,15p' "$0" | sed 's/^# \{0,1\}//'; exit 0; }
+usage() { sed -n '2,16p' "$0" | sed 's/^# \{0,1\}//'; exit 0; }
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -62,6 +65,7 @@ while [[ $# -gt 0 ]]; do
     --key) AGENT_KEY="$2"; shift 2 ;;
     --allow) AGENT_ALLOW="$2"; shift 2 ;;
     --insecure) AGENT_INSECURE=1; shift ;;
+    --allow-physical) AGENT_PHYSICAL=1; shift ;;
     -h|--help) usage ;;
     *) die "invalid argument: $1 (see --help)" ;;
   esac
@@ -73,7 +77,8 @@ command -v systemctl >/dev/null || die "systemd is required"
 if [[ $UNINSTALL -eq 1 && $AGENT -eq 1 ]]; then
   info "Uninstalling the DumpCat agent"
   systemctl disable --now dumpcat-agent 2>/dev/null || true
-  rm -f "$AGENT_UNIT"
+  rm -f "$AGENT_UNIT" "$AGENT_DROPIN"
+  rmdir "$(dirname "$AGENT_DROPIN")" 2>/dev/null || true
   systemctl daemon-reload
   if [[ ! -f $UNIT ]]; then # the binary is shared with the DumpCat server
     rm -f "$BIN_LINK"
@@ -149,6 +154,7 @@ if [[ $AGENT -eq 1 ]]; then
   if [[ -n $AGENT_KEY ]]; then set_env DUMPCAT_AGENT_KEY "$AGENT_KEY"; fi
   if [[ -n $AGENT_ALLOW ]]; then set_env DUMPCAT_AGENT_ALLOW "$AGENT_ALLOW"; fi
   if [[ $AGENT_INSECURE -eq 1 ]]; then set_env DUMPCAT_AGENT_INSECURE 1; fi
+  if [[ $AGENT_PHYSICAL -eq 1 ]]; then set_env DUMPCAT_AGENT_ALLOW_PHYSICAL 1; fi
   chmod 0600 "$AGENT_ENV"
   grep -q '^DUMPCAT_AGENT_SERVER=.' "$AGENT_ENV" && grep -q '^DUMPCAT_AGENT_KEY=.' "$AGENT_ENV" \
     || die "$AGENT_ENV needs DUMPCAT_AGENT_SERVER and DUMPCAT_AGENT_KEY (use --server and --key)"
@@ -167,6 +173,39 @@ if [[ $AGENT -eq 1 ]]; then
   done
   [[ -n "$UNIT_SRC" ]] || die "dumpcat-agent.service not found next to install.sh"
   install -m 0644 "$UNIT_SRC" "$AGENT_UNIT"
+  if grep -Eq '^DUMPCAT_AGENT_ALLOW_PHYSICAL=(1|true|yes|on)$' "$AGENT_ENV"; then
+    # physical backups read the datadir: the agent (and the backup tool it
+    # starts) runs as the datadir's owner instead of a throwaway user
+    DATADIR="$(grep '^DUMPCAT_AGENT_DATADIR=' "$AGENT_ENV" | tail -1 | cut -d= -f2-)"
+    if [[ -z $DATADIR ]] && command -v my_print_defaults >/dev/null; then
+      DATADIR="$(my_print_defaults mysqld mariadbd server 2>/dev/null | sed -n 's/^--datadir=//p' | tail -1)"
+    fi
+    DATADIR="${DATADIR:-/var/lib/mysql}"
+    if [[ -d $DATADIR ]]; then
+      DB_USER="$(stat -c %U "$DATADIR")"; DB_GROUP="$(stat -c %G "$DATADIR")"
+    else
+      warn "datadir $DATADIR not found — set DUMPCAT_AGENT_DATADIR in $AGENT_ENV and run this again"
+      DB_USER=mysql; DB_GROUP=mysql
+    fi
+    id "$DB_USER" >/dev/null 2>&1 || die "user $DB_USER (owner of $DATADIR) does not exist"
+    [[ $DB_USER != root ]] || warn "$DATADIR belongs to root: the agent cannot read it without capabilities"
+    info "Physical backups allowed: the agent runs as $DB_USER (owner of $DATADIR)"
+    mkdir -p "$(dirname "$AGENT_DROPIN")"
+    cat > "$AGENT_DROPIN" <<EOF
+# written by install.sh --allow-physical: mariabackup/xtrabackup read the
+# datadir, so the agent runs as its owner instead of a throwaway user
+[Service]
+DynamicUser=no
+User=$DB_USER
+Group=$DB_GROUP
+MemoryDenyWriteExecute=no
+EOF
+    if ! command -v mariadb-backup >/dev/null && ! command -v mariabackup >/dev/null && ! command -v xtrabackup >/dev/null; then
+      warn "no backup tool found: install mariadb-backup (MariaDB) or percona-xtrabackup (MySQL/Percona, version matching the server)"
+    fi
+  else
+    rm -f "$AGENT_DROPIN"
+  fi
   systemctl daemon-reload
   systemctl enable dumpcat-agent >/dev/null 2>&1
   STARTED="$(date '+%Y-%m-%d %H:%M:%S')"
@@ -191,6 +230,9 @@ if [[ $AGENT -eq 1 ]]; then
   fi
   echo "Next, in the web UI: Database servers → Add server → Connect: through this agent, with the database"
   echo "address as seen from this host (e.g. 127.0.0.1 port 3306)."
+  if [[ -f $AGENT_DROPIN ]]; then
+    echo "Physical backups: the Agents page shows the backup tool and whether the datadir is readable."
+  fi
   echo
   echo "Log: journalctl -u dumpcat-agent -f"
   echo "Configuration: $AGENT_ENV  (after editing: systemctl restart dumpcat-agent)"

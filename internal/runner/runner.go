@@ -15,6 +15,7 @@ import (
 	"sync"
 	"time"
 
+	"dumpcat/internal/agent"
 	"dumpcat/internal/engine"
 	"dumpcat/internal/notify"
 	"dumpcat/internal/pipeline"
@@ -32,6 +33,7 @@ type Runner struct {
 	DataDir    string
 	AppVersion string
 	BaseURL    func() string
+	Agents     *agent.Manager // physical backups of servers reached through an agent
 
 	mu         sync.Mutex
 	tasks      map[string]*Task

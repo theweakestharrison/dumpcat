@@ -33,6 +33,7 @@ type Info struct {
 	OS         string    `json:"os"`
 	Allow      []string  `json:"allow"`
 	Streams    int       `json:"streams"`
+	Caps       *Caps     `json:"caps"` // nil: an agent from before physical backups
 }
 
 // Manager is the server side: agent sessions and the local tunnel ports.
@@ -48,11 +49,13 @@ type Manager struct {
 	tunnels  map[string]*localPort
 	pending  map[string]*pending
 	streams  map[int64]int
+	active   map[*streamConn]int64 // physical backups running, by agent
 	closed   bool
 }
 
 func NewManager() *Manager {
-	return &Manager{sessions: map[int64]*session{}, tunnels: map[string]*localPort{}, pending: map[string]*pending{}, streams: map[int64]int{}}
+	return &Manager{sessions: map[int64]*session{}, tunnels: map[string]*localPort{}, pending: map[string]*pending{},
+		streams: map[int64]int{}, active: map[*streamConn]int64{}}
 }
 
 type session struct {
@@ -80,7 +83,7 @@ func (s *session) close() {
 
 type pending struct {
 	agentID int64
-	conn    chan net.Conn
+	conn    chan *streamConn
 	fail    chan error
 	gone    chan struct{}
 }
@@ -141,7 +144,7 @@ func (m *Manager) runSession(id int64, ws *websocket.Conn, remote string) {
 	}
 	now := time.Now()
 	sess := &session{agentID: id, ws: ws, done: make(chan struct{}),
-		info: Info{Online: true, Since: now, LastSeen: now, RemoteAddr: remote, Version: hello.Version, Hostname: hello.Hostname, OS: hello.OS, Allow: hello.Allow}}
+		info: Info{Online: true, Since: now, LastSeen: now, RemoteAddr: remote, Version: hello.Version, Hostname: hello.Hostname, OS: hello.OS, Allow: hello.Allow, Caps: hello.Caps}}
 	m.mu.Lock()
 	if m.closed {
 		m.mu.Unlock()
@@ -280,7 +283,7 @@ func (m *Manager) accept(tn *localPort) {
 }
 
 func (m *Manager) forward(tn *localPort, c net.Conn) {
-	remote, err := m.open(tn.agentID, tn.target)
+	remote, err := m.request(tn.agentID, Message{Type: "open", Net: tn.target.Net, Addr: tn.target.Addr})
 	if err != nil {
 		m.logf("agent #%d: cannot open %s: %v", tn.agentID, tn.target, err)
 		tunnel.MySQLError(c, "DumpCat agent: "+err.Error())
@@ -302,8 +305,9 @@ func randomID() string {
 	return hex.EncodeToString(b)
 }
 
-// open asks the agent to dial target and waits for its data connection.
-func (m *Manager) open(agentID int64, t Target) (net.Conn, error) {
+// request sends msg (open: dial a target; physical: run a backup) and waits
+// for the data connection the agent opens for it.
+func (m *Manager) request(agentID int64, msg Message) (*streamConn, error) {
 	m.mu.Lock()
 	sess := m.sessions[agentID]
 	if sess == nil {
@@ -311,7 +315,7 @@ func (m *Manager) open(agentID int64, t Target) (net.Conn, error) {
 		return nil, ErrOffline
 	}
 	id := randomID()
-	p := &pending{agentID: agentID, conn: make(chan net.Conn), fail: make(chan error, 1), gone: make(chan struct{})}
+	p := &pending{agentID: agentID, conn: make(chan *streamConn), fail: make(chan error, 1), gone: make(chan struct{})}
 	m.pending[id] = p
 	m.mu.Unlock()
 	defer func() {
@@ -320,7 +324,8 @@ func (m *Manager) open(agentID int64, t Target) (net.Conn, error) {
 		m.mu.Unlock()
 		close(p.gone)
 	}()
-	if err := sess.send(Message{Type: "open", ID: id, Net: t.Net, Addr: t.Addr}); err != nil {
+	msg.ID = id
+	if err := sess.send(msg); err != nil {
 		return nil, err
 	}
 	timer := time.NewTimer(openTimeout)
@@ -350,7 +355,8 @@ func (m *Manager) Status(agentID int64) Info {
 	return in
 }
 
-// Disconnect drops an agent's session and tunnel ports (key rotated, agent deleted).
+// Disconnect drops an agent's session, tunnel ports and physical backups
+// (key rotated, agent deleted).
 func (m *Manager) Disconnect(agentID int64) {
 	m.mu.Lock()
 	s := m.sessions[agentID]
@@ -362,12 +368,21 @@ func (m *Manager) Disconnect(agentID int64) {
 			delete(m.tunnels, k)
 		}
 	}
+	var running []*streamConn
+	for c, id := range m.active {
+		if id == agentID {
+			running = append(running, c)
+		}
+	}
 	m.mu.Unlock()
 	if s != nil {
 		s.close()
 	}
 	for _, ln := range lns {
 		ln.Close()
+	}
+	for _, c := range running {
+		c.Close() // a revoked key also stops its physical backups
 	}
 }
 

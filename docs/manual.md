@@ -37,7 +37,7 @@ The complete guide to installing, configuring and operating DumpCat. For an over
 | Retention | Keep the last N backups / N days / the last backup of each day, week and month (GFS), **per storage** (e.g. local keeps 3 backups, S3 keeps 30 days), incremental chains respected |
 | Restore | Restore to any server (**another instance, host or version**, with DEFINER / collation / GTID rewrites), **restore under new names**, partial restore, drop target databases first, no binlog, Fast mode, restore users; physical: download the full + incremental chain → prepare → (optionally) **replace the datadir automatically** with rollback |
 | Point-in-time recovery | **Continuous binlog archiving** (`mysqlbinlog --raw --stop-never`, compressed/encrypted like backups, uploaded to every storage of the job), recovery to **a point in time / a binlog position / just before a GTID** — picks the newest base backup automatically, downloads and checks every binlog before changing any data; binlog retention follows the oldest kept backup |
-| Connectivity | Directly, through the **agent** (the database host connects out over HTTPS) or through the **built-in WireGuard** — no inbound port on the database host ([3.7](#37-database-hosts-that-accept-no-inbound-connections-agent), [3.8](#38-built-in-wireguard)) |
+| Connectivity | Directly, through the **agent** (the database host connects out over HTTPS; with `--allow-physical` it also runs physical backups there) or through the **built-in WireGuard** — no inbound port on the database host ([3.7](#37-database-hosts-that-accept-no-inbound-connections-agent), [3.8](#38-built-in-wireguard)) |
 | Operations | Real-time progress (bytes, speed, %), live logs, task cancellation, limit on concurrent jobs, low priority (nice/ionice), pre/post commands, timeouts |
 | Notifications | Email (SMTP, HTML with a plain-text version), Telegram, Slack, Discord, Webhook (HMAC-signed) — on failure and/or success |
 | Security | bcrypt passwords, HttpOnly sessions + CSRF, lockout after repeated failed logins, TOTP 2FA, API tokens, roles, audit log, every password/cloud key encrypted at rest with AES-256-GCM, database passwords never on the command line |
@@ -53,7 +53,7 @@ The complete guide to installing, configuring and operating DumpCat. For an over
 | Incremental | — | — | ✅ |
 | Restore one database / rename | ✅ | ✅ | — (whole instance) |
 | Other version / migrate to another server | ✅ | ✅ | Same major version |
-| Requirements | MySQL client | mydumper/myloader | Runs **on the database server itself**, tools matching the server version |
+| Requirements | MySQL client | mydumper/myloader | Runs **on the database server itself** (DumpCat there, or an [agent](#physical-backups-through-the-agent) with `--allow-physical`), tools matching the server version |
 
 **Recommendations**
 
@@ -312,8 +312,8 @@ then flows both ways inside it. DumpCat's tools connect to local ports on the ba
 
 Everything that only needs a database connection works through an agent: mysqldump and mydumper backups, restores (also
 to a server behind another agent), binlog archiving and point-in-time recovery. DumpCat gives its tools a local port per
-database and the agent dials the database. Physical backups (XtraBackup / MariaBackup) copy the datadir: they need
-DumpCat installed on the database host itself.
+database and the agent dials the database. Physical backups (XtraBackup / MariaBackup) copy the datadir, so the tool must
+run on the database host: an agent started with `--allow-physical` does that (below).
 
 - **What the agent may reach.** Only the local MySQL/MariaDB by default: `127.0.0.1:3306`, `[::1]:3306` and the usual
   socket paths. Allow other addresses with `--allow` (Windows: `-Allow`), comma separated, e.g.
@@ -321,13 +321,13 @@ DumpCat installed on the database host itself.
   cannot be used to reach other machines on the database host's network. A server whose address is not allowed fails
   with *… is not on this agent's allow list* in the connection test and in the backup log.
 - **Configuration**: `/etc/dumpcat/agent.env` (Windows: `C:\ProgramData\DumpCat\agent.env`), readable by root /
-  Administrators only: `DUMPCAT_AGENT_SERVER`, `DUMPCAT_AGENT_KEY`, `DUMPCAT_AGENT_ALLOW`, `DUMPCAT_AGENT_INSECURE`
-  (see `agent.env.example`). After editing: `systemctl restart dumpcat-agent` (Windows: `Restart-Service DumpCatAgent`).
+  Administrators only: `DUMPCAT_AGENT_SERVER`, `DUMPCAT_AGENT_KEY`, `DUMPCAT_AGENT_ALLOW`, `DUMPCAT_AGENT_INSECURE`,
+  `DUMPCAT_AGENT_ALLOW_PHYSICAL`, `DUMPCAT_AGENT_DATADIR` (see `agent.env.example`). After editing: `systemctl restart dumpcat-agent` (Windows: `Restart-Service DumpCatAgent`).
   Running the installer again with new `--server`, `--key` or `--allow` values updates the file.
 - **Service**: `dumpcat-agent` on Linux — it runs as a throwaway unprivileged user (systemd `DynamicUser`) without
-  access to the file system; `DumpCatAgent` on Windows. Log: `journalctl -u dumpcat-agent -f`
+  access to the file system (with `--allow-physical`: as the owner of the datadir); `DumpCatAgent` on Windows. Log: `journalctl -u dumpcat-agent -f`
   (Windows: `C:\ProgramData\DumpCat\agent.log`). By hand, in the foreground:
-  `dumpcat agent -server https://backup.example.com -key dca_... [-allow ...] [-insecure]`.
+  `dumpcat agent -server https://backup.example.com -key dca_... [-allow ...] [-insecure] [-allow-physical]`.
 - **Encryption**: the database traffic travels inside the agent's connection. Serve DumpCat over HTTPS when it crosses
   an untrusted network; with a self-signed certificate (`DUMPCAT_TLS_AUTO=1`) add `--insecure` to the agent. Behind
   nginx, the sample `nginx-dumpcat.conf` already passes WebSocket upgrades on `/api/agent/` with a long timeout.
@@ -341,6 +341,44 @@ DumpCat installed on the database host itself.
 - **Uninstall**: `sudo ./install.sh --agent --uninstall [--purge]`, Windows: `.\install.ps1 -Agent -Uninstall [-Purge]`.
 
 ### 3.8 Built-in WireGuard
+
+#### Physical backups through the agent
+
+Physical backups read the database's files, so XtraBackup / MariaBackup has to run on the database host. Allow it on the
+agent (it is off by default) and the agent runs the tool there when a job asks, streaming the backup back to DumpCat:
+
+```bash
+sudo ./install.sh --agent --server https://backup.example.com --key dca_... --allow-physical
+```
+
+(Windows: `-AllowPhysical`; by hand: `dumpcat agent ... -allow-physical`; in `agent.env`:
+`DUMPCAT_AGENT_ALLOW_PHYSICAL=1`.) Install the backup tool on the database host — `mariadb-backup` for MariaDB, the
+Percona XtraBackup series matching MySQL — and choose the **Physical** method for a server connected through the agent.
+
+- **What happens**: DumpCat sends the job's settings and the backup user's credentials with each backup over the agent's
+  authenticated connection. The agent writes them into a private option file, runs
+  `mariabackup|xtrabackup --backup --stream=xbstream` and streams its output back; the option file is deleted when the
+  tool exits — nothing is stored on the agent. DumpCat compresses, encrypts, uploads, verifies and applies retention
+  exactly as for a local physical backup, and the tool's own log lines appear in the run log. Incrementals work the same
+  way (`--incremental-lsn` from the previous backup).
+- **Read access to the datadir**: on Linux, `--allow-physical` adds a systemd drop-in
+  (`/etc/systemd/system/dumpcat-agent.service.d/physical.conf`) so the agent runs as the owner of the datadir (usually
+  `mysql`, found from `my_print_defaults` or `/var/lib/mysql`) instead of a throwaway user. The Windows service runs as
+  LocalSystem.
+- **The Agents page** shows what each agent reported when it connected: the backup tool and its version, the OS user,
+  and whether the datadir is readable (`DUMPCAT_AGENT_DATADIR`, default `/var/lib/mysql` or the usual location; each
+  backup checks the server's own `@@datadir` again). The server page and the job editor say why the method is not ready:
+  *start the agent with --allow-physical*, *mariabackup is not installed on …*, *cannot read the datadir …*, a tool that
+  does not match the server version, or an agent too old to run physical backups (agents before this version keep
+  working for everything else).
+- **Cancelling** the run stops the tool on the database host. If the connection to the agent drops, the run fails and
+  nothing partial is kept; rotating the agent's key also stops its running backups.
+- **Limits of what DumpCat may ask**: the agent only backs up databases on its allow list, builds the command line
+  itself and passes a job's *extra arguments* only when they are plain `--name[=value]` options that name no file,
+  directory, program or other server (e.g. `--galera-info`, `--use-memory=1G`, `--kill-long-queries-timeout=30`).
+- **Restore** happens where DumpCat runs (see [7. Restore](#7-restore)): DumpCat downloads and prepares the backup; copy the
+  prepared directory to the database host and run `--copy-back` there (the restore log lists the commands), or restore
+  onto an instance on the DumpCat host. *Apply right away* is not available through an agent.
 
 An alternative to the agent: DumpCat can run a **WireGuard** endpoint itself, and the database hosts join it with the
 standard WireGuard tools. It is **off by default** and nothing is installed for it: WireGuard runs inside DumpCat in
@@ -398,7 +436,8 @@ Notes:
   address of DumpCat does not change the peers' keys, but every `dumpcat.conf` must then be updated (Endpoint / AllowedIPs).
 - Agent or WireGuard? The [agent](#37-database-hosts-that-accept-no-inbound-connections-agent) needs only outbound HTTPS
   and reaches MySQL on 127.0.0.1 with no MySQL changes. WireGuard uses standard, widely audited tools and UDP, but MySQL
-  must listen on the WireGuard address. Physical backups need DumpCat on the database host in both cases.
+  must listen on the WireGuard address. Physical backups work through an agent started with `--allow-physical`, not
+  through WireGuard.
 
 ## 4. Getting started
 
@@ -487,7 +526,9 @@ Open **Backups** → pick a backup → **Restore**.
 - *Don't write binlog* (`sql_log_bin=0`, also applied to DROP/CREATE DATABASE) so the restore is not replicated to replicas.
 - Data is streamed: download → decrypt → decompress → `mysql` (no temporary files). mydumper backups are extracted to a temporary directory and loaded by `myloader` in parallel (indexes are created after the data is loaded).
 
-**Physical (XtraBackup / MariaBackup)** — runs on the machine where DumpCat runs:
+**Physical (XtraBackup / MariaBackup)** — runs on the machine where DumpCat runs (also for backups taken through an
+[agent](#physical-backups-through-the-agent): prepare them here, then copy the prepared directory to the database host
+and run `--copy-back` there):
 1. Download and extract the full backup + the whole incremental chain → `--prepare` (incrementals are applied in the correct order).
 2. By default it stops here; the log prints instructions for a manual copy-back.
 3. (Admin) *Apply right away*: stop the service → rename the old datadir to `datadir.before-restore-<timestamp>` → `--copy-back`/`--move-back` → `chown` → start. If any step fails, it **rolls back automatically** to the old datadir.
@@ -753,7 +794,8 @@ Internal data: `/var/lib/dumpcat/dumpcat.db` (SQLite), `master.key`, `logs/`, `s
 |---|---|
 | Initial setup: *incorrect setup token* | DumpCat creates a new token at every start: show the current one with `sudo dumpcat setup-token` (Windows: `dumpcat.exe setup-token` as Administrator). After 5 wrong tokens, wait 15 minutes |
 | *missing tool ...* | Check the **System** page, install as instructed, click *Re-detect tools* |
-| Physical backup says the datadir is not accessible | DumpCat must run on the database server itself, as root (or as a user in the `mysql` group with read access to the datadir) |
+| Physical backup says the datadir is not accessible | DumpCat must run on the database server itself, as root (or as a user in the `mysql` group with read access to the datadir) — or connect the server through an agent with `--allow-physical` |
+| *the agent does not allow physical backups* / *cannot read the datadir* | Run the installer on the database host again with `--allow-physical` (it runs the agent as the datadir's owner); check the Agents page |
 | `xtrabackup ... unsupported server version` | Install the XtraBackup series matching MySQL (8.0/8.4), at a patch level ≥ the server's |
 | `Access denied` during a restore | Use a *separate restore account* with write privileges. *Don't write binlog* needs `SUPER`/`SYSTEM_VARIABLES_ADMIN`/`BINLOG ADMIN` — without it the restore stops right at the start, before changing anything. Without the privileges, *Fast mode* is skipped with a warning |
 | Slow uploads | Increase `--transfers`, `--s3-upload-concurrency` in *Extra rclone flags*; check the job's bandwidth limit |

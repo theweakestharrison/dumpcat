@@ -885,6 +885,8 @@ func (r *Runner) restorePhysical(ctx context.Context, task *Task, env *engine.En
 		env.Log.Printf("  systemctl stop <mysql|mariadb>; mv <datadir> <datadir>.old; mkdir <datadir>")
 		env.Log.Printf("  %s --copy-back --target-dir=%s --datadir=<datadir>", map[bool]string{true: "mariabackup", false: "xtrabackup"}[flavor == "mariadb"], fullDir)
 		env.Log.Printf("  chown -R mysql:mysql <datadir>; systemctl start <mysql|mariadb>")
+		env.Log.Printf("For another machine (e.g. a database host reached through an agent), copy the directory there and run the commands above on it:")
+		env.Log.Printf("  rsync -a %s/ <host>:/var/tmp/dumpcat-restore/   (then --target-dir=/var/tmp/dumpcat-restore)", fullDir)
 		return nil
 	}
 	return r.applyPhysical(ctx, task, env, flavor, fullDir, target, req, threads)

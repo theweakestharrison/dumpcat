@@ -16,6 +16,7 @@ import (
 
 	"golang.org/x/net/websocket"
 
+	"dumpcat/internal/engine"
 	"dumpcat/internal/tunnel"
 )
 
@@ -28,6 +29,11 @@ type Client struct {
 	Version  string
 	Insecure bool // skip TLS certificate verification (self-signed server)
 	Logf     func(format string, args ...any)
+	// AllowPhysical lets the server run physical backups (mariabackup,
+	// xtrabackup) on this host and stream them back (--allow-physical).
+	AllowPhysical bool
+	Datadir       string        // checked for read access when connecting ("": the usual location)
+	Tools         *engine.Tools // finds the backup tools (nil: the default search)
 }
 
 func (c *Client) logf(format string, args ...any) {
@@ -113,10 +119,11 @@ func (c *Client) session(ctx context.Context) error {
 		return websocket.JSON.Send(ws, m)
 	}
 	host, _ := os.Hostname()
-	if err := send(Message{Type: "hello", Version: c.Version, Hostname: host, OS: runtime.GOOS + "/" + runtime.GOARCH, Allow: c.Allow.Strings()}); err != nil {
+	caps := c.caps()
+	if err := send(Message{Type: "hello", Version: c.Version, Hostname: host, OS: runtime.GOOS + "/" + runtime.GOARCH, Allow: c.Allow.Strings(), Caps: caps}); err != nil {
 		return err
 	}
-	c.logf("connected to %s (may connect to: %s)", c.Server, strings.Join(c.Allow.Strings(), ", "))
+	c.logf("connected to %s (may connect to: %s; %s)", c.Server, strings.Join(c.Allow.Strings(), ", "), caps.Physical.describe())
 	stop := make(chan struct{})
 	defer close(stop)
 	go func() {
@@ -139,6 +146,8 @@ func (c *Client) session(ctx context.Context) error {
 			}
 		case "open":
 			go c.open(m, send)
+		case "physical":
+			go c.physical(ctx, m, send)
 		}
 	}
 }

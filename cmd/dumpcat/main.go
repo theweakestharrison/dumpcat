@@ -330,6 +330,7 @@ func serve(cfg *config.Config, stop <-chan struct{}, boot *update.Boot, exe stri
 		st.AgentSeen(id, in.Since, in.RemoteAddr, in.Version, in.Hostname, in.OS)
 	}
 	agents.Logf = log.Printf
+	run.Agents = agents
 	store.TunnelEndpoint = func(id int64, network, addr string) (string, int, error) {
 		host, port, err := agents.Endpoint(id, agent.Target{Net: network, Addr: addr})
 		if errors.Is(err, agent.ErrOffline) {

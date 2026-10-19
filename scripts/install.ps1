@@ -17,6 +17,7 @@
   connects out to the DumpCat server):
     .\install.ps1 -Agent -Server https://backup.example.com -Key dca_...
                   [-Allow 127.0.0.1:3306] [-Insecure]
+                  [-AllowPhysical]   # also run physical backups (mariabackup) here
     .\install.ps1 -Agent -Uninstall [-Purge]
 
   If scripts are blocked: powershell -ExecutionPolicy Bypass -File .\install.ps1
@@ -38,7 +39,8 @@ param(
   [string]$Server = '',
   [string]$Key = '',
   [string]$Allow = '',
-  [switch]$Insecure
+  [switch]$Insecure,
+  [switch]$AllowPhysical
 )
 
 $ErrorActionPreference = 'Stop'
@@ -127,6 +129,8 @@ if ($Agent) {
   }
   if ($Allow) { $vars['DUMPCAT_AGENT_ALLOW'] = $Allow }
   if ($Insecure) { $vars['DUMPCAT_AGENT_INSECURE'] = '1' }
+  # the service runs as LocalSystem, which can read the datadir
+  if ($AllowPhysical) { $vars['DUMPCAT_AGENT_ALLOW_PHYSICAL'] = '1' }
   if (-not $vars['DUMPCAT_AGENT_SERVER']) { Die '-Server is required, e.g. -Server https://backup.example.com' }
   if (-not $vars['DUMPCAT_AGENT_KEY']) { Die '-Key is required: the agent key from the Agents page of the web UI' }
   $lines = @('# DumpCat agent - after editing: Restart-Service DumpCatAgent')
@@ -170,6 +174,9 @@ if ($Agent) {
   }
   Write-Host 'Next, in the web UI: Database servers > Add server > Connect: through this agent, with the database'
   Write-Host 'address as seen from this host (e.g. 127.0.0.1 port 3306).'
+  if ($vars['DUMPCAT_AGENT_ALLOW_PHYSICAL'] -eq '1') {
+    Write-Host 'Physical backups: the Agents page shows whether mariabackup and the datadir were found.'
+  }
   Write-Host ''
   Write-Host "Configuration: $AgentEnv  (after editing: Restart-Service $AgentService)"
   Write-Host "Log:           $log"

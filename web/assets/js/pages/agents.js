@@ -1,36 +1,38 @@
 import { get, post, put, del } from '../api.js';
 import { html, setHTML, icon, on, fmtAgo, toast, toastErr, confirmBox, modal, empty, formData, copyText, bindModalForm, dropdown, patch } from '../ui.js';
 import { isAdmin, poll } from '../app.js';
-import { topology } from '../components.js';
+import { topology, agentPhysical } from '../components.js';
 
 export const title = 'Agents';
 
 const DEFAULT_RELEASES = 'https://downloads.dumpcat.cc';
 
 // The install commands for an agent; key is null when it is not known (it is shown once).
-function installCommands(info, key) {
+function installCommands(info, key, physical) {
   const v = /^\d+\.\d+\.\d+/.test(info.version || '') ? info.version : '';
   const rel = info.release_url || DEFAULT_RELEASES;
   const server = info.server_url;
   const k = key || '<agent key>';
   const linux = [
     ...(v ? [`curl -fLO ${rel}/${v}/dumpcat-${v}-linux.tar.gz`, `tar xzf dumpcat-${v}-linux.tar.gz && cd dumpcat-${v}-linux`] : []),
-    `sudo ./install.sh --agent --server ${server} --key ${k}`,
+    `sudo ./install.sh --agent --server ${server} --key ${k}${physical ? ' --allow-physical' : ''}`,
   ];
   const win = [
     ...(v ? [`Invoke-WebRequest ${rel}/${v}/dumpcat-${v}-windows-amd64.zip -OutFile dumpcat.zip`,
       `Expand-Archive dumpcat.zip -DestinationPath . ; cd dumpcat-${v}-windows-amd64`] : []),
-    `powershell -ExecutionPolicy Bypass -File .\\install.ps1 -Agent -Server ${server} -Key ${k}`,
+    `powershell -ExecutionPolicy Bypass -File .\\install.ps1 -Agent -Server ${server} -Key ${k}${physical ? ' -AllowPhysical' : ''}`,
   ];
   return {
     'Linux (systemd)': linux.join('\n'),
     'Windows (PowerShell as Administrator)': win.join('\n'),
-    'Any OS, in the foreground': `dumpcat agent -server ${server} -key ${k}`,
+    'Any OS, in the foreground': `dumpcat agent -server ${server} -key ${k}${physical ? ' -allow-physical' : ''}`,
   };
 }
 
+const commandsView = (cmds) => Object.entries(cmds).map(([k, v], i) => html`<div class="section-title" style="margin-top:${i ? 14 : 8}px">${k}</div><pre class="code">${v}</pre><button type="button" class="btn btn-sm" data-copy-cmd="${i}" style="margin-top:6px">${icon('copy')}Copy</button>`);
+
 function setupView(info, key) {
-  const cmds = installCommands(info, key);
+  const cmds = installCommands(info, key, false);
   const local = /^https?:\/\/(localhost|127\.|\[::1\])/i.test(info.server_url);
   return html`
     ${key ? html`<div class="alert warn" style="margin-bottom:14px">${icon('key')}<div><b>Copy the key now — it is shown only once.</b> Anyone with it can connect as this agent; rotate it if it leaks.</div></div>
@@ -38,7 +40,8 @@ function setupView(info, key) {
     : html`<div class="alert info">${icon('key')}<div>The key was shown when the agent was created and is not stored. Lost it? <b>Rotate key</b> issues a new one.</div></div>`}
     ${local ? html`<div class="alert warn" style="margin-top:14px">${icon('alert')}<div>The database host cannot reach <span class="mono">${info.server_url}</span>. Set the <b>Base URL</b> in Settings to the address it reaches DumpCat at, or replace it in the commands.</div></div>` : ''}
     <div class="help" style="margin:14px 0 6px">Run on the database host. The agent connects out to <span class="mono">${info.server_url}</span> over ${info.server_url.startsWith('https') ? 'HTTPS' : 'HTTP'} — the host needs no open port. By default it only reaches the local MySQL/MariaDB (127.0.0.1:3306 and the usual sockets); add <span class="mono">--allow host:port</span> for others.</div>
-    ${Object.entries(cmds).map(([k, v], i) => html`<div class="section-title" style="margin-top:${i ? 14 : 8}px">${k}</div><pre class="code">${v}</pre><button type="button" class="btn btn-sm" data-copy-cmd="${i}" style="margin-top:6px">${icon('copy')}Copy</button>`)}
+    <label class="check" style="margin:10px 0 4px"><input type="checkbox" id="allow-physical"><span>Allow physical backups<span class="help">The agent runs mariabackup/xtrabackup on the database host when DumpCat asks and streams the backup back. On Linux it then runs as the owner of the datadir (usually <span class="mono">mysql</span>) instead of a throwaway user.</span></span></label>
+    <div id="setup-cmds">${commandsView(cmds)}</div>
     ${!info.server_url.startsWith('https') ? html`<div class="alert info" style="margin-top:14px">${icon('lock')}<div>Database traffic goes through this connection: serve DumpCat over HTTPS (a reverse proxy, or <span class="mono">DUMPCAT_TLS_AUTO=1</span> with <span class="mono">--insecure</span> on the agent) when it crosses an untrusted network.</div></div>` : ''}`;
 }
 
@@ -50,7 +53,12 @@ function showSetup(info, name, key) {
   });
   // the key is shown once: a stray click outside must not close the dialog
   if (key) m.el.parentElement.dispatchEvent(new Event('input', { bubbles: true }));
-  const cmds = Object.values(installCommands(info, key));
+  let cmds = Object.values(installCommands(info, key, false));
+  m.el.querySelector('#allow-physical').addEventListener('change', (e) => {
+    const all = installCommands(info, key, e.target.checked);
+    cmds = Object.values(all);
+    setHTML(m.el.querySelector('#setup-cmds'), commandsView(all));
+  });
   on(m.el, 'click', '[data-copy-cmd]', (e, b) => copyText(cmds[+b.dataset.copyCmd]));
   on(m.el, 'click', '[data-copy-key]', () => copyText(key));
 }
@@ -64,6 +72,14 @@ function statusCell(a, st) {
     <div class="sub">${a.last_seen_at ? `last seen ${fmtAgo(a.last_seen_at)}` : 'never connected'}</div>`;
 }
 
+// Physical backups on the agent's host, as it reported them when it connected.
+function physicalCell(st) {
+  const p = agentPhysical(st);
+  if (!p) return html`<span class="muted">—</span>`;
+  if (p.ok) return html`<span class="badge good">${icon('check')}${p.short}</span><div class="sub">${p.detail}</div>`;
+  return html`<span class="badge ${p.off ? '' : 'warn'}" title="${p.detail}">${p.off ? '' : icon('alert')}${p.short}</span><div class="sub">${p.off ? '--allow-physical' : p.detail}</div>`;
+}
+
 const HOW = html`<div class="card"><div class="card-head"><h2>How it works</h2></div><div class="card-body">
   ${topology('agent')}
   <ol class="topo-steps">
@@ -71,19 +87,20 @@ const HOW = html`<div class="card"><div class="card-head"><h2>How it works</h2><
     <li><span><b>Install it on the database host</b>It connects out to DumpCat over HTTPS and stays connected.</span></li>
     <li><span><b>Add the server</b><i>Connect: Through agent</i>, with the address as seen from that host, e.g. 127.0.0.1:3306.</span></li>
   </ol>
-  <div class="help">mysqldump, mydumper, restores, binlog archiving and point-in-time recovery work as with a direct connection. Physical backups need DumpCat installed on the database host itself. Prefer a VPN? Use the built-in <a href="#/wireguard">WireGuard</a>.</div>
+  <div class="help">mysqldump, mydumper, restores, binlog archiving and point-in-time recovery work as with a direct connection. Physical backups (MariaBackup / XtraBackup) run on the database host when the agent is started with <span class="mono">--allow-physical</span>, and stream back into DumpCat's storage. Prefer a VPN? Use the built-in <a href="#/wireguard">WireGuard</a>.</div>
 </div></div>`;
 
 export async function render(ctx) {
   const { el } = ctx;
   let data = await get('/agents');
-  const tableView = () => html`${data.items.length ? html`<table class="table"><thead><tr><th>Agent</th><th>Status</th><th class="hide-sm">Host</th><th class="hide-md">Connected from</th><th class="hide-md">May connect to</th><th>Servers</th><th></th></tr></thead><tbody>
+  const tableView = () => html`${data.items.length ? html`<table class="table"><thead><tr><th>Agent</th><th>Status</th><th class="hide-sm">Host</th><th class="hide-md">Connected from</th><th class="hide-md">May connect to</th><th class="hide-md">Physical backups</th><th>Servers</th><th></th></tr></thead><tbody>
       ${data.items.map(({ agent: a, status: st, servers }) => html`<tr>
         <td><b>${a.name}</b><div class="sub mono">${a.key_prefix}…</div></td>
         <td>${statusCell(a, st)}</td>
         <td class="hide-sm">${(st.hostname || a.hostname) ? html`${st.hostname || a.hostname}<div class="sub">${st.os || a.os} · DumpCat ${st.version || a.version}${(st.version || a.version) !== data.version ? html` <span class="badge warn" title="The server runs ${data.version}">differs</span>` : ''}</div>` : html`<span class="muted">—</span>`}</td>
         <td class="hide-md mono small">${st.remote_addr || a.last_ip || html`<span class="muted">—</span>`}</td>
         <td class="hide-md mono small">${st.online ? st.allow.join(', ') : html`<span class="muted">—</span>`}</td>
+        <td class="hide-md">${physicalCell(st)}</td>
         <td>${servers.length ? html`<span class="chips">${servers.map((s) => html`<span class="badge outline">${s}</span>`)}</span>` : html`<span class="muted">—</span>`}</td>
         <td class="actions">${isAdmin() ? html`<span class="dropdown"><button class="btn btn-sm btn-ghost btn-icon" data-more="${a.id}" title="More">${icon('dots')}</button></span>` : ''}</td></tr>`)}
     </tbody></table>` : empty('No agents yet. Add one for a database host that DumpCat cannot connect to directly.', 'link')}`;

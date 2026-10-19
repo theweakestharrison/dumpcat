@@ -6,11 +6,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
 
+	"dumpcat/internal/agent"
 	"dumpcat/internal/auth"
 	"dumpcat/internal/dbconn"
 	"dumpcat/internal/engine"
@@ -143,9 +145,9 @@ func (r *Runner) execBackup(ctx context.Context, task *Task, run *store.Run, job
 		return
 	}
 	lg.Redact(server.Password, job.Passphrase)
-	if job.Method == store.MethodPhysical && server.Tunneled() {
+	if job.Method == store.MethodPhysical && server.WGPeerID != nil && *server.WGPeerID > 0 {
 		// xtrabackup/mariabackup copy the datadir of the machine they run on
-		fail(errors.New("physical backups need DumpCat installed on the database host itself: an agent or WireGuard only forwards the MySQL connection (use mysqldump or mydumper)"))
+		fail(errors.New("physical backups need the backup tool on the database host: WireGuard only forwards the MySQL connection (use an agent started with --allow-physical, DumpCat installed on the database host, or mysqldump/mydumper)"))
 		return
 	}
 
@@ -204,6 +206,12 @@ func (r *Runner) execBackup(ctx context.Context, task *Task, run *store.Run, job
 
 	// incremental base
 	spec := &engine.BackupSpec{Server: server, Flavor: flavor, ServerVersion: info.Version, Job: job, Databases: dbs}
+	if job.Method == store.MethodPhysical && server.AgentID != nil && *server.AgentID > 0 {
+		if spec.Remote, err = r.agentPhysical(server, flavor, lg); err != nil {
+			fail(err)
+			return
+		}
+	}
 	if run.Type == store.TypeIncremental {
 		parent := r.Store.LastSuccessfulRun(job.ID, store.MethodPhysical)
 		lsn := ""
@@ -513,6 +521,38 @@ func (r *Runner) execBackup(ctx context.Context, task *Task, run *store.Run, job
 	if (run.Status == store.StatusSuccess && job.NotifySuccess) || (run.Status != store.StatusSuccess && run.Status != store.StatusCanceled && job.NotifyFailure) {
 		r.notifyRun(run, job, now.Sub(start))
 	}
+}
+
+// agentPhysical runs a physical backup of a server reached through an agent
+// on the database host: the agent starts the tool there and streams the
+// xbstream back, into the same pipeline as a local backup.
+func (r *Runner) agentPhysical(server *store.Server, flavor string, lg *tasklog.Logger) (engine.RemotePhysical, error) {
+	id := *server.AgentID
+	name := fmt.Sprintf("#%d", id)
+	if a, err := r.Store.GetAgent(id); err == nil {
+		name = a.Name
+	}
+	if r.Agents == nil {
+		return nil, errors.New("agents are not available")
+	}
+	st := r.Agents.Status(id)
+	tool, _ := engine.PhysicalToolNames(flavor)
+	if p := st.PhysicalProblem(tool); p != "" {
+		return nil, fmt.Errorf("agent %s: %s", name, p)
+	}
+	lg.Printf("The backup runs on the database host %s through agent %s (%s, as %s)", st.Hostname, name, st.Caps.Physical.Tool(tool).Version, st.Caps.Physical.User)
+	network, addr := server.AgentTarget()
+	return func(ctx context.Context, o engine.PhysicalOptions, stdout, stderr io.Writer) (map[string]string, string, error) {
+		req := &agent.PhysicalRequest{PhysicalOptions: o, Net: network, Addr: addr, User: server.Username, Password: server.Password}
+		res, err := r.Agents.Physical(ctx, id, req, stdout, stderr)
+		if err != nil {
+			return nil, "", fmt.Errorf("agent %s: %w", name, err)
+		}
+		if res.Error != "" {
+			return res.Files, res.Tool, errors.New(res.Error)
+		}
+		return res.Files, res.Tool, nil
+	}, nil
 }
 
 func diskUsage(p string) (int64, int64, error) {

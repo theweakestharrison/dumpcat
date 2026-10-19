@@ -33,12 +33,15 @@ func agentCmd(args []string) {
 	allow := fs.String("allow", "", "database addresses this agent may connect to, comma separated: host:port or unix:/path (DUMPCAT_AGENT_ALLOW; default "+strings.Join(agent.DefaultAllow, ",")+")")
 	insecure := fs.Bool("insecure", false, "accept the server's certificate without verifying it, e.g. self-signed (DUMPCAT_AGENT_INSECURE)")
 	logFile := fs.String("log", "", "also write the log to this file (DUMPCAT_AGENT_LOG)")
+	allowPhysical := fs.Bool("allow-physical", false, "let DumpCat run physical backups (mariabackup/xtrabackup) on this host and stream them back; the agent must be able to read the datadir (DUMPCAT_AGENT_ALLOW_PHYSICAL)")
+	datadir := fs.String("datadir", "", "datadir the Agents page reports as readable or not (DUMPCAT_AGENT_DATADIR; default /var/lib/mysql or the usual location)")
 	fs.Usage = func() {
 		fmt.Fprintf(os.Stderr, `Usage: dumpcat agent [flags]
 
 Runs on a database host that accepts no inbound connections. The agent connects
 out to the DumpCat server over HTTPS and opens the database connections the
-server asks for — only to the addresses on its allow list.
+server asks for — only to the addresses on its allow list. With -allow-physical
+it also runs physical backups (mariabackup/xtrabackup) here for DumpCat.
 
 Flags (or DUMPCAT_AGENT_* variables in %s):
 `, defaultAgentEnvFile())
@@ -67,12 +70,17 @@ Flags (or DUMPCAT_AGENT_* variables in %s):
 	*key = pick("key", *key, "DUMPCAT_AGENT_KEY")
 	*allow = pick("allow", *allow, "DUMPCAT_AGENT_ALLOW")
 	*logFile = pick("log", *logFile, "DUMPCAT_AGENT_LOG")
-	if !set["insecure"] {
-		switch strings.ToLower(os.Getenv("DUMPCAT_AGENT_INSECURE")) {
-		case "1", "true", "yes", "on":
-			*insecure = true
+	*datadir = pick("datadir", *datadir, "DUMPCAT_AGENT_DATADIR")
+	envBool := func(flagName string, cur *bool, env string) {
+		if !set[flagName] {
+			switch strings.ToLower(os.Getenv(env)) {
+			case "1", "true", "yes", "on":
+				*cur = true
+			}
 		}
 	}
+	envBool("insecure", insecure, "DUMPCAT_AGENT_INSECURE")
+	envBool("allow-physical", allowPhysical, "DUMPCAT_AGENT_ALLOW_PHYSICAL")
 	if *server == "" || *key == "" {
 		fs.Usage()
 		fmt.Fprintln(os.Stderr, "\nerror: the server URL and the agent key are required")
@@ -104,7 +112,8 @@ Flags (or DUMPCAT_AGENT_* variables in %s):
 	if *insecure {
 		log.Printf("warning: the server certificate is not verified (-insecure)")
 	}
-	cl := &agent.Client{Server: *server, Key: *key, Allow: al, Version: version, Insecure: *insecure, Logf: log.Printf}
+	cl := &agent.Client{Server: *server, Key: *key, Allow: al, Version: version, Insecure: *insecure, Logf: log.Printf,
+		AllowPhysical: *allowPhysical, Datadir: *datadir}
 	run := func(stop <-chan struct{}) error {
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()

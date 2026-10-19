@@ -28,7 +28,7 @@ const INCR_PRESETS = [['', '— presets —'], ['0 * * * *', 'Every hour'], ['0 
 const METHODS = [
   { id: 'mysqldump', title: 'mysqldump / mariadb-dump', icon: 'file', desc: 'Single-threaded logical backup with --single-transaction (no InnoDB locking). Most flexible: restore individual databases, rename them, move across versions. Best for databases under ~50 GB.' },
   { id: 'mydumper', title: 'mydumper / myloader', icon: 'zap', desc: 'Multi-threaded logical backup that splits large tables into chunks; parallel restore is many times faster. Best for large databases that still need logical restores.' },
-  { id: 'physical', title: 'Physical (XtraBackup / MariaBackup)', icon: 'hdd', desc: 'Copies data files while the database is running (hot backup, no InnoDB locking), with incremental support. Fastest for very large databases (100 GB–TB); restore is a file copy. Must run on the database server itself.' },
+  { id: 'physical', title: 'Physical (XtraBackup / MariaBackup)', icon: 'hdd', desc: 'Copies data files while the database is running (hot backup, no InnoDB locking), with incremental support. Fastest for very large databases (100 GB–TB); restore is a file copy. Runs on the database server: DumpCat installed there, or an agent started with --allow-physical.' },
 ];
 
 export async function render(ctx) {

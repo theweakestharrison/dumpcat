@@ -8,6 +8,10 @@
 //
 // The agent only dials the addresses on its own allow list, so a compromised
 // DumpCat server cannot use it to reach the rest of the agent's network.
+//
+// Physical backups must read the datadir, so the tool has to run on the
+// database host: an agent started with --allow-physical runs mariabackup or
+// xtrabackup there when asked and streams the xbstream back (physical.go).
 package agent
 
 import (
@@ -26,7 +30,7 @@ const (
 
 // Message is a control frame (JSON text frames on the control connection).
 type Message struct {
-	Type     string   `json:"type"` // hello, open, error, ping, pong
+	Type     string   `json:"type"` // hello, open, physical, error, ping, pong
 	ID       string   `json:"id,omitempty"`
 	Net      string   `json:"net,omitempty"` // tcp or unix
 	Addr     string   `json:"addr,omitempty"`
@@ -35,6 +39,12 @@ type Message struct {
 	Hostname string   `json:"hostname,omitempty"`
 	OS       string   `json:"os,omitempty"`
 	Allow    []string `json:"allow,omitempty"`
+	// Caps (hello) is what the agent can do besides forwarding connections;
+	// agents before physical backups send none.
+	Caps *Caps `json:"caps,omitempty"`
+	// Physical (physical) is a backup the agent runs on its host and
+	// streams back over a data connection (see physical.go).
+	Physical *PhysicalRequest `json:"physical,omitempty"`
 }
 
 // Target is an address the agent dials on its side.

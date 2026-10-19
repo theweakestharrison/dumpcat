@@ -37,7 +37,7 @@ Hướng dẫn đầy đủ để cài đặt, cấu hình và vận hành DumpC
 | Retention | Giữ N bản gần nhất / N ngày / bản cuối mỗi ngày-tuần-tháng (GFS), **riêng cho từng storage** (vd: local giữ 3 bản, S3 giữ 30 ngày), tôn trọng chuỗi incremental |
 | Restore | Restore vào server bất kỳ (**instance, máy hoặc phiên bản khác**, tự gỡ DEFINER / đổi collation / bỏ GTID), **đổi tên database**, restore một phần, xóa DB đích trước, không ghi binlog, chế độ nhanh, restore users; vật lý: tải chuỗi full+incremental → prepare → (tùy chọn) **tự thay datadir** với rollback |
 | Khôi phục theo thời điểm (PITR) | **Lưu trữ binlog liên tục** (`mysqlbinlog --raw --stop-never`, nén/mã hóa như backup, upload lên mọi storage của job), khôi phục đến **một thời điểm / vị trí binlog / ngay trước một GTID** — tự chọn bản backup nền mới nhất, tải & kiểm tra mọi binlog trước khi thay đổi dữ liệu; retention binlog theo bản backup cũ nhất còn giữ |
-| Kết nối | Trực tiếp, qua **agent** (server database chủ động kết nối ra bằng HTTPS) hoặc qua **WireGuard tích hợp** — không cần mở port vào server database ([3.7](#37-server-database-không-cho-kết-nối-vào-agent), [3.8](#38-wireguard-tích-hợp)) |
+| Kết nối | Trực tiếp, qua **agent** (server database chủ động kết nối ra bằng HTTPS; với `--allow-physical` agent còn chạy backup vật lý ngay trên máy đó) hoặc qua **WireGuard tích hợp** — không cần mở port vào server database ([3.7](#37-server-database-không-cho-kết-nối-vào-agent), [3.8](#38-wireguard-tích-hợp)) |
 | Vận hành | Tiến độ realtime (bytes, tốc độ, %), log trực tiếp, hủy tác vụ, giới hạn số job chạy đồng thời, ưu tiên thấp (nice/ionice), pre/post command, timeout |
 | Thông báo | Email (SMTP, HTML kèm bản text), Telegram, Slack, Discord, Webhook (ký HMAC) — khi lỗi và/hoặc thành công |
 | Bảo mật | Mật khẩu bcrypt, phiên HttpOnly + CSRF, khóa đăng nhập sai nhiều lần, 2FA TOTP, API token, vai trò, audit log, mọi mật khẩu/khóa cloud mã hóa AES-256-GCM khi lưu, mật khẩu DB không bao giờ nằm trên dòng lệnh |
@@ -53,7 +53,7 @@ Hướng dẫn đầy đủ để cài đặt, cấu hình và vận hành DumpC
 | Incremental | — | — | ✅ |
 | Restore 1 DB / đổi tên | ✅ | ✅ | — (toàn instance) |
 | Khác phiên bản / chuyển server | ✅ | ✅ | Cùng phiên bản lớn |
-| Yêu cầu | client MySQL | mydumper/myloader | Chạy **trên chính server DB**, công cụ cùng phiên bản server |
+| Yêu cầu | client MySQL | mydumper/myloader | Chạy **trên chính server DB** (cài DumpCat ở đó, hoặc [agent](#backup-vật-lý-qua-agent) bật `--allow-physical`), công cụ cùng phiên bản server |
 
 **Khuyến nghị**
 
@@ -311,8 +311,8 @@ bên trong kết nối này. Các công cụ của DumpCat kết nối tới por
 
 Mọi thứ chỉ cần kết nối database đều chạy qua agent: backup mysqldump và mydumper, restore (kể cả sang server nằm sau một
 agent khác), lưu binlog và khôi phục theo thời điểm. DumpCat mở cho các công cụ của nó một port local cho mỗi database,
-còn agent quay số tới database. Backup vật lý (XtraBackup / MariaBackup) chép datadir nên cần cài DumpCat ngay trên server
-database.
+còn agent quay số tới database. Backup vật lý (XtraBackup / MariaBackup) chép datadir nên công cụ phải chạy trên chính
+server database: agent khởi động với `--allow-physical` làm việc đó (xem bên dưới).
 
 - **Agent được phép kết nối tới đâu.** Mặc định chỉ MySQL/MariaDB trên máy đó: `127.0.0.1:3306`, `[::1]:3306` và các
   đường dẫn socket thường gặp. Địa chỉ khác thì thêm bằng `--allow` (Windows: `-Allow`), phân cách bằng dấu phẩy, ví dụ
@@ -320,13 +320,13 @@ database.
   không dùng được để vào các máy khác trong mạng của server database. Server có địa chỉ không được phép sẽ báo
   *… is not on this agent's allow list* khi kiểm tra kết nối và trong log backup.
 - **Cấu hình**: `/etc/dumpcat/agent.env` (Windows: `C:\ProgramData\DumpCat\agent.env`), chỉ root / Administrators đọc
-  được: `DUMPCAT_AGENT_SERVER`, `DUMPCAT_AGENT_KEY`, `DUMPCAT_AGENT_ALLOW`, `DUMPCAT_AGENT_INSECURE` (xem
-  `agent.env.example`). Sửa xong: `systemctl restart dumpcat-agent` (Windows: `Restart-Service DumpCatAgent`). Chạy lại bộ
+  được: `DUMPCAT_AGENT_SERVER`, `DUMPCAT_AGENT_KEY`, `DUMPCAT_AGENT_ALLOW`, `DUMPCAT_AGENT_INSECURE`,
+  `DUMPCAT_AGENT_ALLOW_PHYSICAL`, `DUMPCAT_AGENT_DATADIR` (xem `agent.env.example`). Sửa xong: `systemctl restart dumpcat-agent` (Windows: `Restart-Service DumpCatAgent`). Chạy lại bộ
   cài với `--server`, `--key` hoặc `--allow` mới cũng cập nhật file này.
 - **Dịch vụ**: `dumpcat-agent` trên Linux — chạy bằng một user tạm không có quyền (systemd `DynamicUser`), không truy cập
-  được hệ thống file; `DumpCatAgent` trên Windows. Log: `journalctl -u dumpcat-agent -f`
+  được hệ thống file (với `--allow-physical`: chạy bằng user sở hữu datadir); `DumpCatAgent` trên Windows. Log: `journalctl -u dumpcat-agent -f`
   (Windows: `C:\ProgramData\DumpCat\agent.log`). Chạy tay, ở foreground:
-  `dumpcat agent -server https://backup.example.com -key dca_... [-allow ...] [-insecure]`.
+  `dumpcat agent -server https://backup.example.com -key dca_... [-allow ...] [-insecure] [-allow-physical]`.
 - **Mã hóa**: dữ liệu database đi bên trong kết nối của agent. Hãy chạy DumpCat qua HTTPS khi đường truyền đi qua mạng
   không tin cậy; nếu dùng chứng chỉ tự ký (`DUMPCAT_TLS_AUTO=1`) thì thêm `--insecure` cho agent. Đặt sau nginx thì file
   mẫu `nginx-dumpcat.conf` đã chuyển tiếp WebSocket cho `/api/agent/` với timeout dài.
@@ -340,6 +340,43 @@ database.
 - **Gỡ cài đặt**: `sudo ./install.sh --agent --uninstall [--purge]`, Windows: `.\install.ps1 -Agent -Uninstall [-Purge]`.
 
 ### 3.8 WireGuard tích hợp
+
+#### Backup vật lý qua agent
+
+Backup vật lý đọc trực tiếp các file của database, nên XtraBackup / MariaBackup phải chạy trên chính server database. Bật
+quyền này cho agent (mặc định tắt), agent sẽ chạy công cụ ngay trên máy đó khi có job yêu cầu và stream bản backup về
+DumpCat:
+
+```bash
+sudo ./install.sh --agent --server https://backup.example.com --key dca_... --allow-physical
+```
+
+(Windows: `-AllowPhysical`; chạy tay: `dumpcat agent ... -allow-physical`; trong `agent.env`:
+`DUMPCAT_AGENT_ALLOW_PHYSICAL=1`.) Cài công cụ backup trên server database — `mariadb-backup` cho MariaDB, dòng Percona
+XtraBackup khớp với MySQL — rồi chọn phương thức **Physical** cho server kết nối qua agent.
+
+- **Cách hoạt động**: mỗi lần backup, DumpCat gửi thiết lập của job và thông tin đăng nhập của user backup qua kết nối đã
+  xác thực của agent. Agent ghi chúng vào một file option riêng, chạy `mariabackup|xtrabackup --backup --stream=xbstream`
+  và stream kết quả về; file option bị xóa ngay khi công cụ kết thúc — agent không lưu gì cả. DumpCat nén, mã hóa, upload,
+  kiểm tra và áp retention y như backup vật lý chạy tại chỗ, và log của chính công cụ hiện trong log của lần chạy.
+  Incremental cũng vậy (`--incremental-lsn` lấy từ bản backup trước).
+- **Quyền đọc datadir**: trên Linux, `--allow-physical` thêm một drop-in systemd
+  (`/etc/systemd/system/dumpcat-agent.service.d/physical.conf`) để agent chạy bằng user sở hữu datadir (thường là
+  `mysql`, tìm qua `my_print_defaults` hoặc `/var/lib/mysql`) thay vì user tạm. Service trên Windows chạy bằng LocalSystem.
+- **Trang Agents** hiện những gì agent báo khi kết nối: công cụ backup và phiên bản, user hệ điều hành, và datadir có đọc
+  được không (`DUMPCAT_AGENT_DATADIR`, mặc định `/var/lib/mysql` hoặc vị trí thường gặp; mỗi lần backup agent kiểm tra lại
+  `@@datadir` của chính server). Trang server và trang sửa job ghi rõ vì sao phương thức chưa sẵn sàng:
+  *start the agent with --allow-physical*, *mariabackup is not installed on …*, *cannot read the datadir …*, công cụ không
+  khớp phiên bản server, hoặc agent quá cũ để chạy backup vật lý (agent các phiên bản trước vẫn chạy bình thường cho mọi
+  việc khác).
+- **Hủy** lần chạy sẽ dừng công cụ trên server database. Nếu mất kết nối tới agent, lần chạy báo lỗi và không giữ lại phần
+  dở dang; rotate key của agent cũng dừng các bản backup đang chạy của nó.
+- **Giới hạn những gì DumpCat được yêu cầu**: agent chỉ backup database nằm trong allow list, tự dựng dòng lệnh và chỉ
+  chuyển *extra arguments* của job khi đó là option dạng `--name[=value]` không trỏ tới file, thư mục, chương trình hay
+  server khác (vd `--galera-info`, `--use-memory=1G`, `--kill-long-queries-timeout=30`).
+- **Restore** thực hiện ở máy chạy DumpCat (xem [7. Restore](#7-restore)): DumpCat tải và prepare bản backup; chép thư mục
+  đã prepare sang server database rồi chạy `--copy-back` ở đó (log restore ghi sẵn các lệnh), hoặc restore vào một instance
+  trên máy chạy DumpCat. *Apply right away* không dùng được qua agent.
 
 Một cách khác thay cho agent: DumpCat tự chạy một endpoint **WireGuard**, và các server database tham gia bằng công cụ
 WireGuard chuẩn. Tính năng này **tắt mặc định** và không cần cài thêm gì: WireGuard chạy bên trong DumpCat (userspace),
@@ -397,7 +434,8 @@ Lưu ý:
   khóa của peer, nhưng phải cập nhật lại mọi file `dumpcat.conf` (Endpoint / AllowedIPs).
 - Agent hay WireGuard? [Agent](#37-server-database-không-cho-kết-nối-vào-agent) chỉ cần HTTPS đi ra và vào MySQL qua
   127.0.0.1, không phải sửa cấu hình MySQL. WireGuard dùng công cụ chuẩn, đã được kiểm định rộng rãi, qua UDP, nhưng MySQL
-  phải nghe trên địa chỉ WireGuard. Cả hai cách, backup vật lý đều cần DumpCat chạy ngay trên server database.
+  phải nghe trên địa chỉ WireGuard. Backup vật lý chạy được qua agent bật `--allow-physical`, không chạy được qua
+  WireGuard.
 
 ## 4. Bắt đầu sử dụng
 
@@ -485,7 +523,9 @@ Mở **Bản backup** → chọn bản → **Restore**.
 - *Không ghi binlog* (`sql_log_bin=0`, áp dụng cho cả DROP/CREATE DATABASE) để restore không lan sang replica.
 - Dữ liệu được stream: tải → giải mã → giải nén → `mysql` (không cần file tạm). mydumper được giải nén ra thư mục tạm rồi `myloader` song song (tạo index sau khi nạp dữ liệu).
 
-**Vật lý (XtraBackup / MariaBackup)** — thực hiện trên máy chạy DumpCat:
+**Vật lý (XtraBackup / MariaBackup)** — thực hiện trên máy chạy DumpCat (kể cả bản backup lấy qua
+[agent](#backup-vật-lý-qua-agent): prepare tại đây, rồi chép thư mục đã prepare sang server database và chạy `--copy-back`
+ở đó):
 1. Tải và giải nén bản full + toàn bộ chuỗi incremental → `--prepare` (áp dụng incremental theo đúng thứ tự).
 2. Mặc định dừng ở đây; log in hướng dẫn copy-back thủ công.
 3. (Admin) *Áp dụng ngay*: dừng service → đổi tên datadir cũ thành `datadir.before-restore-<thời gian>` → `--copy-back`/`--move-back` → `chown` → khởi động. Lỗi bất kỳ bước nào sẽ **tự rollback** về datadir cũ.
@@ -741,7 +781,8 @@ Dữ liệu nội bộ: `/var/lib/dumpcat/dumpcat.db` (SQLite), `master.key`, `l
 |---|---|
 | Thiết lập ban đầu: *incorrect setup token* | Mỗi lần khởi động DumpCat tạo mã mới: xem mã hiện tại bằng `sudo dumpcat setup-token` (Windows: `dumpcat.exe setup-token` với quyền Administrator). Sai 5 lần thì chờ 15 phút |
 | *Thiếu công cụ ...* | Xem trang **Hệ thống**, cài theo hướng dẫn, bấm *Dò lại công cụ* |
-| Backup vật lý báo datadir không truy cập được | DumpCat phải chạy trên chính server DB, bằng root (hoặc user thuộc nhóm `mysql` có quyền đọc datadir) |
+| Backup vật lý báo datadir không truy cập được | DumpCat phải chạy trên chính server DB, bằng root (hoặc user thuộc nhóm `mysql` có quyền đọc datadir) — hoặc kết nối server qua agent bật `--allow-physical` |
+| *the agent does not allow physical backups* / *cannot read the datadir* | Chạy lại bộ cài trên server database với `--allow-physical` (agent sẽ chạy bằng user sở hữu datadir); xem trang Agents |
 | `xtrabackup ... unsupported server version` | Cài XtraBackup cùng series với MySQL (8.0/8.4) và bản vá ≥ server |
 | `Access denied` khi restore | Dùng *tài khoản restore riêng* có quyền ghi. *Không ghi binlog* cần `SUPER`/`SYSTEM_VARIABLES_ADMIN`/`BINLOG ADMIN` — thiếu quyền thì restore dừng ngay từ đầu, chưa thay đổi gì. *Chế độ nhanh* thiếu quyền thì được bỏ qua kèm cảnh báo |
 | Upload chậm | Tăng `--transfers`, `--s3-upload-concurrency` ở *Cờ rclone bổ sung*; kiểm tra giới hạn băng thông của job |

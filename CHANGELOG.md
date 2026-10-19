@@ -3,6 +3,24 @@
 The section of the version being built becomes the release notes shown in the
 web UI and by `dumpcat update` (see `build.sh`). Newest version first.
 
+## Unreleased
+
+- Physical backups through an agent: an agent started with `--allow-physical` (`install.sh --agent --allow-physical`,
+  `install.ps1 -AllowPhysical`, `DUMPCAT_AGENT_ALLOW_PHYSICAL=1`) runs MariaBackup / XtraBackup on the database host
+  when a job asks and streams the backup back over its connection. DumpCat compresses, encrypts, uploads, verifies and
+  applies retention exactly as for a local physical backup; incrementals work, the tool's log lines appear in the run
+  log, and cancelling the run stops the tool on the database host.
+- The credentials travel with each backup and only live in a private option file while the tool runs. The agent only
+  backs up databases on its allow list, builds the command line itself and passes a job's extra arguments only when
+  they name no file, directory, program or server.
+- On Linux, `--allow-physical` runs the agent as the owner of the datadir (a systemd drop-in) instead of a throwaway user.
+- Agents report what they can do when they connect: the Agents page has a **Physical backups** column (tool and version,
+  OS user, datadir readable), and the server page and the job editor say why physical backups are not available (agent
+  without `--allow-physical`, tool missing, datadir not readable, tool not matching the server, agent too old). Older
+  agents keep working and report no physical capability.
+- Physical restores still run where DumpCat runs: backups taken through an agent are prepared there, and the restore
+  log shows how to copy the prepared directory to the database host.
+
 ## 1.3.1
 
 - Backups are verified after every run: new jobs read one copy back (the cheapest, a local directory first),

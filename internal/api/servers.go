@@ -308,49 +308,89 @@ func (s *Server) supportFor(sv *store.Server, info *dbconn.ServerInfo) []methodS
 	bt := s.Tools.Get(bname)
 	st := s.Tools.Get(sname)
 	ms = methodSupport{Method: store.MethodPhysical, OK: bt.Found && st.Found}
+	dd := sv.Datadir
+	if dd == "" {
+		dd = info.Datadir
+	}
 	switch {
-	case sv.Tunneled():
+	case sv.WGPeerID != nil && *sv.WGPeerID > 0:
 		ms.OK = false
-		ms.Message = "Not through an agent or WireGuard: physical backups copy the datadir, so DumpCat must be installed on the database host itself"
+		ms.Message = "Not through WireGuard: physical backups copy the datadir, so the backup tool must run on the database host — connect through an agent started with --allow-physical, or install DumpCat there"
+	case sv.AgentID != nil && *sv.AgentID > 0:
+		ms = s.agentPhysicalSupport(*sv.AgentID, flavor, info.Version, dd)
 	case !bt.Found:
 		ms.Message = "Missing " + bname + ": " + bt.Hint
 	case !st.Found:
 		ms.Message = "Missing " + sname + ": " + st.Hint
 	default:
-		ms.Message = bt.Version
-		sMaj, sMin, sPatch := verParts(info.Version)
-		if flavor == "mariadb" {
-			tMaj, tMin, tPatch := verParts(bt.Version)
-			if tMaj != sMaj || tMin != sMin {
-				ms.OK = false
-				ms.Message += fmt.Sprintf(" — does NOT match server version %d.%d (mariabackup must match the MariaDB version)", sMaj, sMin)
-			} else if tPatch < sPatch {
-				ms.Message += " — use a mariabackup with the same patch level as the server"
-			}
-		} else {
-			// "xtrabackup version 8.0.35-30 based on MySQL server 8.0.35"
-			tMaj, tMin, _ := verParts(bt.Version)
-			if sMaj == 5 && sMin == 7 && !(tMaj == 2 && tMin == 4) {
-				ms.OK = false
-				ms.Message += " — MySQL 5.7 requires Percona XtraBackup 2.4"
-			} else if sMaj >= 8 && (tMaj != sMaj || tMin != sMin) {
-				ms.OK = false
-				ms.Message += fmt.Sprintf(" — MySQL %d.%d requires XtraBackup %d.%d", sMaj, sMin, sMaj, sMin)
-			}
-		}
-		dd := sv.Datadir
-		if dd == "" {
-			dd = info.Datadir
-		}
+		var note string
+		ms.OK, note = physicalToolMatches(flavor, bt.Version, info.Version)
+		ms.Message = bt.Version + note
 		if dd != "" {
 			if _, err := os.Stat(dd); err != nil {
 				ms.OK = false
-				ms.Message += " — datadir " + dd + " is not accessible from this machine (physical backups must run on the database server itself, with read access to the datadir)"
+				ms.Message += " — datadir " + dd + " is not accessible from this machine (physical backups must run on the database server itself, with read access to the datadir, or through an agent started with --allow-physical)"
 			}
 		}
 	}
 	out = append(out, ms)
 	return out
+}
+
+// physicalToolMatches checks the backup tool's version against the server's;
+// note explains a mismatch (or a patch-level advice).
+func physicalToolMatches(flavor, toolVersion, serverVersion string) (ok bool, note string) {
+	sMaj, sMin, sPatch := verParts(serverVersion)
+	if flavor == "mariadb" {
+		tMaj, tMin, tPatch := verParts(toolVersion)
+		if tMaj != sMaj || tMin != sMin {
+			return false, fmt.Sprintf(" — does NOT match server version %d.%d (mariabackup must match the MariaDB version)", sMaj, sMin)
+		} else if tPatch < sPatch {
+			return true, " — use a mariabackup with the same patch level as the server"
+		}
+		return true, ""
+	}
+	// "xtrabackup version 8.0.35-30 based on MySQL server 8.0.35"
+	tMaj, tMin, _ := verParts(toolVersion)
+	if sMaj == 5 && sMin == 7 && !(tMaj == 2 && tMin == 4) {
+		return false, " — MySQL 5.7 requires Percona XtraBackup 2.4"
+	} else if sMaj >= 8 && (tMaj != sMaj || tMin != sMin) {
+		return false, fmt.Sprintf(" — MySQL %d.%d requires XtraBackup %d.%d", sMaj, sMin, sMaj, sMin)
+	}
+	return true, ""
+}
+
+// agentPhysicalSupport tells whether the agent can run physical backups on
+// the database host, from what it reported when it connected.
+func (s *Server) agentPhysicalSupport(agentID int64, flavor, serverVersion, datadir string) methodSupport {
+	ms := methodSupport{Method: store.MethodPhysical}
+	name := fmt.Sprintf("#%d", agentID)
+	if a, err := s.Store.GetAgent(agentID); err == nil {
+		name = a.Name
+	}
+	if s.Agents == nil {
+		ms.Message = "Agents are not enabled"
+		return ms
+	}
+	in := s.Agents.Status(agentID)
+	bname, sname := engine.PhysicalToolNames(flavor)
+	if p := in.PhysicalProblem(bname); p != "" {
+		ms.Message = "Agent " + name + ": " + p
+		return ms
+	}
+	t := in.Caps.Physical.Tool(bname)
+	var note string
+	ms.OK, note = physicalToolMatches(flavor, t.Version, serverVersion)
+	ms.Message = t.Version + " on " + in.Hostname + " (agent " + name + ")" + note
+	if p := in.DatadirProblem(datadir); p != "" {
+		ms.OK = false
+		ms.Message += " — " + p
+	}
+	// restores extract and prepare the backup where DumpCat runs
+	if !s.Tools.Get(sname).Found || !s.Tools.Get(bname).Found {
+		ms.Message += " — to restore these backups, install " + sname + " and " + bname + " on the DumpCat host too"
+	}
+	return ms
 }
 
 func (s *Server) serverTestUnsaved(w http.ResponseWriter, r *http.Request) error {
