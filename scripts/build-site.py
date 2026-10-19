@@ -241,7 +241,7 @@ T = {
         "trademark": "{name} is a trademark of its owner. DumpCat is an independent open-source project and is not affiliated with it.",
         "others": "Other comparisons", "cta_download": "Download DumpCat", "cta_github": "Source on GitHub",
         "foot": "Open source under the Apache-2.0 license, with the source on GitHub.", "support": "Support",
-        "install": "Install", "whatsnew": "What's new", "features": "Features",
+        "install": "Install", "whatsnew": "What's new", "features": "Features", "preview": "Preview",
         "guide_title": "Install DumpCat step by step: Linux and Windows",
         "guide_desc": "How to install DumpCat, the free MySQL and MariaDB backup manager: one command on a Linux server, download and double-click on Windows, then your first backup. Written for beginners.",
         "guide_h1": "Install DumpCat step by step",
@@ -265,7 +265,7 @@ T = {
         "trademark": "{name} là thương hiệu của chủ sở hữu. DumpCat là dự án mã nguồn mở độc lập, không liên kết với họ.",
         "others": "So sánh khác", "cta_download": "Tải DumpCat", "cta_github": "Mã nguồn trên GitHub",
         "foot": "Mã nguồn mở theo giấy phép Apache-2.0, mã nguồn trên GitHub.", "support": "Hỗ trợ",
-        "install": "Cài đặt", "whatsnew": "Có gì mới", "features": "Tính năng",
+        "install": "Cài đặt", "whatsnew": "Có gì mới", "features": "Tính năng", "preview": "Xem giao diện",
         "guide_title": "Cài DumpCat từng bước: Linux và Windows",
         "guide_desc": "Cách cài DumpCat, công cụ backup MySQL và MariaDB miễn phí: một lệnh trên server Linux, tải về và bấm đúp trên Windows, rồi tạo bản backup đầu tiên. Viết cho người mới.",
         "guide_h1": "Cài DumpCat từng bước",
@@ -379,7 +379,7 @@ def header(lang, slug, crumbs, h1, lead, at=None, cta=None, langs=LANGS, eyebrow
       <nav class="nav" aria-label="Site">
         <a href="/#methods">{t['features']}</a>
         <a href="{path(lang)}">{t['compare']}</a>
-        <a href="/demo/">Demo</a>
+        <a href="/demo/">{t['preview']}</a>
         <a href="{cl_path()}">{t['whatsnew']}</a>
         <a class="nav-gh" href="{REPO}" aria-label="GitHub" title="GitHub">{GH}</a>
       </nav>
