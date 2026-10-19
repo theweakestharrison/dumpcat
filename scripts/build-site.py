@@ -5,6 +5,8 @@ Writes (English and Vietnamese, linked with hreflang):
   site/compare/index.html, site/compare/<slug>/index.html
   site/vi/compare/index.html, site/vi/compare/<slug>/index.html
   site/install/index.html, site/vi/install/index.html   (the step-by-step install guide, from site-src/install/)
+  site/changelog/index.html, site/changelog/<version>/index.html   (What's new, from CHANGELOG.md, English)
+  the Compare and What's new blocks of site/index.html (between their begin/end markers)
   site/sitemap.xml, site/robots.txt
 
 Run from anywhere: python scripts/build-site.py   (standard library only). See docs/website.vi.md.
@@ -238,7 +240,7 @@ T = {
         "trademark": "{name} is a trademark of its owner. DumpCat is an independent open-source project and is not affiliated with it.",
         "others": "Other comparisons", "cta_download": "Download DumpCat", "cta_github": "Source on GitHub",
         "foot": "Open source under the Apache-2.0 license, with the source on GitHub.", "support": "Support",
-        "install": "Install",
+        "install": "Install", "whatsnew": "What's new",
         "guide_title": "Install DumpCat step by step: Linux and Windows",
         "guide_desc": "How to install DumpCat, the free MySQL and MariaDB backup manager: one command on a Linux server, download and double-click on Windows, then your first backup. Written for beginners.",
         "guide_h1": "Install DumpCat step by step",
@@ -262,7 +264,7 @@ T = {
         "trademark": "{name} là thương hiệu của chủ sở hữu. DumpCat là dự án mã nguồn mở độc lập, không liên kết với họ.",
         "others": "So sánh khác", "cta_download": "Tải DumpCat", "cta_github": "Mã nguồn trên GitHub",
         "foot": "Mã nguồn mở theo giấy phép Apache-2.0, mã nguồn trên GitHub.", "support": "Hỗ trợ",
-        "install": "Cài đặt",
+        "install": "Cài đặt", "whatsnew": "Có gì mới",
         "guide_title": "Cài DumpCat từng bước: Linux và Windows",
         "guide_desc": "Cách cài DumpCat, công cụ backup MySQL và MariaDB miễn phí: một lệnh trên server Linux, tải về và bấm đúp trên Windows, rồi tạo bản backup đầu tiên. Viết cho người mới.",
         "guide_h1": "Cài DumpCat từng bước",
@@ -318,9 +320,11 @@ def guide_path(lang):
     return "/install/" if lang == "en" else "/vi/install/"
 
 
-def head(lang, title, desc, slug, crumbs, at=None):
+def head(lang, title, desc, slug, crumbs, at=None, alternates=True):
     at = at or (lambda l: path(l, slug))
     url = BASE + at(lang)
+    alt = "".join(f'<link rel="alternate" hreflang="{l}" href="{BASE + at(l)}">\n' for l in LANGS) + \
+        f'<link rel="alternate" hreflang="x-default" href="{BASE + at("en")}">\n' if alternates else ""
     ld = {"@context": "https://schema.org", "@type": "BreadcrumbList",
           "itemListElement": [{"@type": "ListItem", "position": i + 1, "name": n, "item": BASE + u}
                               for i, (n, u) in enumerate(crumbs)]}
@@ -332,10 +336,7 @@ def head(lang, title, desc, slug, crumbs, at=None):
 <title>{esc(title)}</title>
 <meta name="description" content="{esc(desc)}">
 <link rel="canonical" href="{url}">
-<link rel="alternate" hreflang="en" href="{BASE + at('en')}">
-<link rel="alternate" hreflang="vi" href="{BASE + at('vi')}">
-<link rel="alternate" hreflang="x-default" href="{BASE + at('en')}">
-<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+{alt}<link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <meta property="og:type" content="article">
 <meta property="og:url" content="{url}">
 <meta property="og:site_name" content="DumpCat">
@@ -359,14 +360,14 @@ def head(lang, title, desc, slug, crumbs, at=None):
 """
 
 
-def header(lang, slug, crumbs, h1, lead, at=None, cta=None):
+def header(lang, slug, crumbs, h1, lead, at=None, cta=None, langs=LANGS, eyebrow=""):
     t = T[lang]
     at = at or (lambda l: path(l, slug))
     cta = cta or (f'<a class="btn btn-light" href="{guide_path(lang)}">{t["cta_download"]}</a>'
                   f'<a class="btn btn-ghost" href="{REPO}">{t["cta_github"]}</a>')
     lang_links = "".join(
         f'<a href="{at(l)}" hreflang="{l}" lang="{l}"{" aria-current=\"true\"" if l == lang else ""}>{l.upper()}</a>'
-        for l in LANGS)
+        for l in langs)
     crumb_html = " <span aria-hidden=\"true\">/</span> ".join(
         f'<a href="{u}">{esc(n)}</a>' if i < len(crumbs) - 1 else f'<span aria-current="page">{esc(n)}</span>'
         for i, (n, u) in enumerate(crumbs))
@@ -384,7 +385,7 @@ def header(lang, slug, crumbs, h1, lead, at=None, cta=None):
     </div>
     <div class="page-head">
       <nav class="crumbs" aria-label="Breadcrumb">{crumb_html}</nav>
-      <h1>{inline(h1)}</h1>
+      {f'<p class="eyebrow">{esc(eyebrow)}</p>' if eyebrow else ""}<h1>{inline(h1)}</h1>
       <p class="lead">{inline(lead)}</p>
       <div class="cta">{cta}</div>
     </div>
@@ -398,7 +399,7 @@ def footer(lang, script=""):
     return f"""<footer class="foot">
   <div class="wrap">
     <a class="brand" href="/"><svg aria-hidden="true"><use href="#dc-logo"/></svg>DumpCat</a>
-    <p>{esc(t['foot'])} <a href="{REPO}">GitHub</a> · <a href="{path(lang)}">{t['compare']}</a> · <a href="{guide_path(lang)}">{t['install']}</a> · {t['support']}: <a href="mailto:{SUPPORT}">{SUPPORT}</a></p>
+    <p>{esc(t['foot'])} <a href="{REPO}">GitHub</a> · <a href="{path(lang)}">{t['compare']}</a> · <a href="{guide_path(lang)}">{t['install']}</a> · <a href="{cl_path()}">{t['whatsnew']}</a> · {t['support']}: <a href="mailto:{SUPPORT}">{SUPPORT}</a></p>
   </div>
 </footer>{script}
 </body>
@@ -545,6 +546,149 @@ def guide_page(lang):
             + footer(lang, '\n<script src="/guide.js" defer></script>'))
 
 
+# ---------- What's new: one page per version, from CHANGELOG.md (English) ----------
+CHANGELOG = ROOT / "CHANGELOG.md"
+
+
+def md_inline(s):
+    """The inline Markdown of CHANGELOG.md: `code`, **bold**, *italic*, [text](url)."""
+    out = []
+    for i, part in enumerate(s.split("`")):
+        if i % 2:
+            out.append(f"<code>{esc(part)}</code>")
+            continue
+        t = esc(part)
+        t = re.sub(r"\[([^\]]+)\]\(([^)\s]+)\)", r'<a href="\2">\1</a>', t)
+        t = re.sub(r"\*\*(.+?)\*\*", r"<b>\1</b>", t)
+        t = re.sub(r"(?<![\w*])\*(?!\s)(.+?)(?<!\s)\*(?![\w*])", r"<i>\1</i>", t)
+        out.append(t)
+    return "".join(out)
+
+
+def anchor(title):
+    return re.sub(r"[^a-z0-9]+", "-", title.lower()).strip("-")
+
+
+def releases():
+    """CHANGELOG.md sections: version, date, summary, groups of items ("### " titles; untitled when there are none)."""
+    out = []
+    for block in re.split(r"(?m)^## ", CHANGELOG.read_text(encoding="utf-8"))[1:]:
+        head, _, body = block.partition("\n")
+        m = re.match(r"(\S+)(?: \((\d{4}-\d{2}-\d{2})\))?", head.strip())
+        rel = {"version": m.group(1), "date": m.group(2), "lead": [], "groups": []}
+        cur = None
+        for line in body.splitlines():
+            if line.startswith("### "):
+                cur = {"title": line[4:].strip(), "items": []}
+                rel["groups"].append(cur)
+            elif line.startswith("- "):
+                if cur is None:
+                    cur = {"title": "", "items": []}
+                    rel["groups"].append(cur)
+                cur["items"].append(line[2:].strip())
+            elif line.startswith("  ") and cur and cur["items"]:
+                cur["items"][-1] += " " + line.strip()
+            elif line.strip() and cur is None:
+                rel["lead"].append(line.strip())
+        rel["lead"] = " ".join(rel["lead"])
+        out.append(rel)
+    return out
+
+
+def cl_path(version=None):
+    return "/changelog/" + (f"{version}/" if version else "")
+
+
+def release_page(rel, rels):
+    v = rel["version"]
+    i = rels.index(rel)
+    newer, older = (rels[i - 1] if i else None), (rels[i + 1] if i + 1 < len(rels) else None)
+    crumbs = [("Home", "/"), ("What's new", cl_path()), (v, cl_path(v))]
+    when = f"Released {fmt_date(rel['date'], 'en')}" if rel["date"] else "Released"
+    eyebrow = when + (" · latest version" if i == 0 else "")
+    cta = (f'<a class="btn btn-light" href="{guide_path("en")}">Install DumpCat {esc(rels[0]["version"])}</a>'
+           f'<a class="btn btn-ghost" href="{cl_path()}">All versions</a>')
+    titled = [g for g in rel["groups"] if g["title"]]
+    toc = ""
+    if len(titled) > 1:
+        toc = ('<nav class="cl-toc" aria-label="In this release"><span>In this release</span>'
+               + "".join(f'<a href="#{anchor(g["title"])}">{esc(g["title"])}</a>' for g in titled) + "</nav>")
+    groups = ""
+    for g in rel["groups"]:
+        items = "".join(f"<li>{md_inline(x)}</li>" for x in g["items"])
+        title = f'<h2 id="{anchor(g["title"])}">{esc(g["title"])}</h2>' if g["title"] else ""
+        groups += f'<section class="cl-group">{title}<ul class="cl-items">{items}</ul></section>'
+    pager = '<nav class="cl-pager" aria-label="Other versions">'
+    pager += (f'<a class="older" href="{cl_path(older["version"])}"><small>Older</small>DumpCat {esc(older["version"])}</a>'
+              if older else "<span></span>")
+    pager += (f'<a class="newer" href="{cl_path(newer["version"])}"><small>Newer</small>DumpCat {esc(newer["version"])}</a>'
+              if newer else "<span></span>")
+    pager += "</nav>"
+    old_note = ""
+    if i:
+        old_note = (f'<p class="note">This is an older version: install the latest one from the <a href="{guide_path("en")}">'
+                    f'install guide</a>. DumpCat {esc(v)} itself stays available at '
+                    f'<code>https://downloads.dumpcat.cc/{esc(v)}/</code>.</p>')
+    title = f"What's new in DumpCat {v}"
+    desc = rel["lead"] or f"Release notes of DumpCat {v}."
+    return (head("en", title, desc, None, crumbs, at=lambda l: cl_path(v), alternates=False)
+            + header("en", None, crumbs, title, rel["lead"], at=lambda l: cl_path(v), cta=cta, langs=("en",), eyebrow=eyebrow)
+            + f"""
+<main class="cl">
+  <section class="section">
+    <div class="wrap narrow">
+      {toc}{groups}{old_note}{pager}
+    </div>
+  </section>
+</main>
+""" + footer("en"))
+
+
+def changelog_index(rels):
+    crumbs = [("Home", "/"), ("What's new", cl_path())]
+    items = ""
+    for i, r in enumerate(rels):
+        tags = "".join(f"<span>{esc(g['title'])}</span>" for g in r["groups"] if g["title"])
+        date = fmt_date(r["date"], "en") if r["date"] else ""
+        latest = '<em>Latest</em>' if i == 0 else ""
+        items += (f'<li><a href="{cl_path(r["version"])}"><span class="cl-v">DumpCat {esc(r["version"])}{latest}</span>'
+                  f'<span class="cl-date">{date}</span><span class="cl-lead">{md_inline(r["lead"])}</span>'
+                  f'{f"<span class=cl-tags>{tags}</span>" if tags else ""}</a></li>')
+    title = "What's new in DumpCat"
+    lead = "Every release, newest first. The same notes ship as CHANGELOG.md in every package and show in DumpCat when an update is available."
+    cta = (f'<a class="btn btn-light" href="{cl_path(rels[0]["version"])}">What\'s new in {esc(rels[0]["version"])}</a>'
+           f'<a class="btn btn-ghost" href="{guide_path("en")}">Install DumpCat</a>')
+    return (head("en", title + ": release notes", lead, None, crumbs, at=lambda l: cl_path(), alternates=False)
+            + header("en", None, crumbs, title, lead, at=lambda l: cl_path(), cta=cta, langs=("en",))
+            + f"""
+<main class="cl">
+  <section class="section">
+    <div class="wrap narrow">
+      <ol class="cl-list">{items}</ol>
+    </div>
+  </section>
+</main>
+""" + footer("en"))
+
+
+def whatsnew_block(rel):
+    """The landing page's What's new card: the newest version's summary and groups, linking to its page."""
+    v = rel["version"]
+    date = (f'<span lang="vi">{fmt_date(rel["date"], "vi")}</span><span lang="en">{fmt_date(rel["date"], "en")}</span>'
+            if rel["date"] else "")
+    titled = [g for g in rel["groups"] if g["title"]]
+    lis = "".join(f'<li><a href="{cl_path(v)}#{anchor(g["title"])}">{esc(g["title"])}</a></li>' for g in titled)
+    return (f'<div class="notes wn bi" data-wn-version="{esc(v)}">'
+            f'<p class="wn-label"><span lang="vi">Có gì mới</span><span lang="en">What\'s new</span></p>'
+            f'<h3><a href="{cl_path(v)}">DumpCat {esc(v)}</a> <span class="wn-date">{date}</span></h3>'
+            f'<p class="wn-lead">{md_inline(rel["lead"])}</p>'
+            + (f'<ul class="wn-list">{lis}</ul>' if lis else "")
+            + f'<p class="wn-links"><a href="{cl_path(v)}"><span lang="vi">Xem mọi thay đổi</span><span lang="en">See every change</span> →</a>'
+              f'<a href="{cl_path()}"><span lang="vi">Các phiên bản trước</span><span lang="en">Earlier versions</span></a></p>'
+              f'<p class="wn-note" lang="vi">Ghi chú phát hành viết bằng tiếng Anh.</p>'
+            f'</div>')
+
+
 def write(rel, text):
     f = OUT / rel
     f.parent.mkdir(parents=True, exist_ok=True)
@@ -569,19 +713,28 @@ def main():
         for o in tools:
             write(path(lang, o["slug"]).lstrip("/") + "index.html", tool_page(o, tools, lang))
         write(guide_path(lang).lstrip("/") + "index.html", guide_page(lang))
+    rels = releases()
+    write(cl_path().lstrip("/") + "index.html", changelog_index(rels))
+    for r in rels:
+        write(cl_path(r["version"]).lstrip("/") + "index.html", release_page(r, rels))
 
     # the landing page's short comparison sits between two markers in site/index.html
     idx = OUT / "index.html"
     page = idx.read_text(encoding="utf-8")
     a, z = "<!-- compare:begin (scripts/build-site.py) -->", "<!-- compare:end -->"
     i, j = page.index(a) + len(a), page.index(z)
-    idx.write_text(page[:i] + "\n" + landing_block(tools) + "\n          " + page[j:], encoding="utf-8", newline="\n")
+    page = page[:i] + "\n" + landing_block(tools) + "\n          " + page[j:]
+    a, z = "<!-- whatsnew:begin (scripts/build-site.py) -->", "<!-- whatsnew:end -->"
+    i, j = page.index(a) + len(a), page.index(z)
+    page = page[:i] + "\n" + whatsnew_block(rels[0]) + "\n        " + page[j:]
+    idx.write_text(page, encoding="utf-8", newline="\n")
 
     newest = max([o["checked"] for o in tools] + [datetime.date.today().isoformat()])
     guide_mod = datetime.date.fromtimestamp(max(p.stat().st_mtime for p in GUIDE.glob("*.html"))).isoformat()
     urls = ([("/", None, newest), (None, lambda l: path(l), newest), (None, guide_path, guide_mod)]
             + [(None, lambda l, s=o["slug"]: path(l, s), o["checked"]) for o in tools])
     items = []
+    urls += [(cl_path(), None, rels[0]["date"] or newest)] + [(cl_path(r["version"]), None, r["date"] or newest) for r in rels]
     for fixed, at, mod in urls:
         if fixed:
             items.append(f"  <url><loc>{BASE}{fixed}</loc><lastmod>{mod}</lastmod></url>")
@@ -593,7 +746,8 @@ def main():
           '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">\n'
           + "\n".join(items) + "\n</urlset>\n")
     write("robots.txt", f"User-agent: *\nAllow: /\n\nSitemap: {BASE}/sitemap.xml\n")
-    print(f"built {len(tools)} comparisons and the install guide x {len(LANGS)} languages, sitemap with {len(items)} URLs")
+    print(f"built {len(tools)} comparisons and the install guide x {len(LANGS)} languages, {len(rels)} release pages, "
+          f"sitemap with {len(items)} URLs")
 
 
 if __name__ == "__main__":

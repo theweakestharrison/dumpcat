@@ -95,7 +95,6 @@
     "d-next": "Downloaded it? Open <b>START-HERE.txt</b> in the package, or follow the <a href=\"/install/#downloaded\">step-by-step install guide</a>.",
     "d-bins": "Single binaries",
     "d-old": "Older versions stay available at <code>downloads.dumpcat.cc/&lt;version&gt;/</code>.",
-    "d-notes": "What's new",
     "i-label": "Install",
     "i-title": "Running in a minute",
     "i-intro": "One command on Linux, download and double-click on Windows. The installer sets up a service that starts with the machine and the backup tools that match your database version; the web UI is built into a single file.",
@@ -238,15 +237,6 @@
       el.appendChild(typeof p === "string" ? document.createTextNode(p) : p);
     });
   }
-  // Release notes are plain text from CHANGELOG.md: "- " lines become list items, `code` stays code.
-  function noteItem(line) {
-    var li = node("li");
-    line.split("`").forEach(function (part, i) {
-      if (part) li.appendChild(i % 2 ? node("code", "", part) : document.createTextNode(part));
-    });
-    return li;
-  }
-
   function renderRelease() {
     var s = STR[lang];
     var intro = document.getElementById("rel-intro");
@@ -275,13 +265,10 @@
       a.href = relURL(v + "/" + (a.getAttribute("data-pkg") === "windows" ? windows : linux));
     });
 
-    var notes = document.getElementById("rel-notes");
-    notes.textContent = "";
-    String(rel.notes || "").split("\n").forEach(function (line) {
-      line = line.trim().replace(/^[-*]\s+/, "");
-      if (line) notes.appendChild(noteItem(line));
-    });
-    notes.parentNode.hidden = !notes.children.length;
+    // The What's new card is built from CHANGELOG.md with the site; a release uploaded without
+    // deploying the site has no page yet, so the card of an older version is not shown.
+    var wn = document.querySelector("[data-wn-version]");
+    if (wn) wn.hidden = wn.getAttribute("data-wn-version") !== v;
 
     var bins = document.getElementById("rel-bins");
     bins.textContent = "";

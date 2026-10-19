@@ -81,11 +81,17 @@ cp dist/dumpcat-linux-amd64 dist/dumpcat-linux-arm64 dist/dumpcat-windows-amd64.
 sum()  { sha256sum "$1" | cut -d' ' -f1; }
 size() { wc -c < "$1" | tr -d ' '; }
 json_escape() { awk 'BEGIN { ORS = "" } { gsub(/\\/, "\\\\"); gsub(/"/, "\\\""); gsub(/\t/, "\\t"); gsub(/\r/, ""); if (NR > 1) print "\\n"; print }'; }
-# release notes: the "## <version>" section of CHANGELOG.md
-NOTES="$(awk -v v="$VERSION" '/^## / { if (on) exit; on = (index($0, "## " v) == 1); next } on' CHANGELOG.md 2>/dev/null | sed -e '/./,$!d' | json_escape)"
+# release notes: the "## <version>" section of CHANGELOG.md ("### " group titles as plain lines), and a link to
+# its page on dumpcat.cc for builds that use the official release server (NOTES_URL overrides, NOTES_URL= drops it)
+NOTES="$(awk -v v="$VERSION" '/^## / { if (on) exit; on = (index($0, "## " v) == 1); next } on' CHANGELOG.md 2>/dev/null | sed -e '/./,$!d' -e 's/^### //' | json_escape)"
+if [[ -z "${NOTES_URL+set}" && "$UPDATE_URL" == "https://downloads.dumpcat.cc" ]]; then
+  NOTES_URL="https://dumpcat.cc/changelog/$VERSION/"
+fi
 entry() { printf '    "%s": {"url": "%s/%s", "sha256": "%s", "size": %s}' "$1" "$VERSION" "$2" "$(sum "$REL/$2")" "$(size "$REL/$2")"; }
 {
-  printf '{\n  "version": "%s",\n  "released_at": "%s",\n  "notes": "%s",\n  "files": {\n' "$VERSION" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$NOTES"
+  printf '{\n  "version": "%s",\n  "released_at": "%s",\n  "notes": "%s",\n' "$VERSION" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$NOTES"
+  [[ -z "${NOTES_URL:-}" ]] || printf '  "notes_url": "%s",\n' "$NOTES_URL"
+  printf '  "files": {\n'
   entry linux/amd64 dumpcat-linux-amd64; printf ',\n'
   entry linux/arm64 dumpcat-linux-arm64; printf ',\n'
   entry windows/amd64 dumpcat-windows-amd64.exe; printf '\n'

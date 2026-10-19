@@ -100,9 +100,11 @@ hành". Sau lần phát hành đầu tiên (Phần 2), trang sẽ tự hiện đ
 
 ## Phần 2 — Mỗi lần phát hành
 
-1. Đặt phiên bản trong `VERSION` và viết mục `## <phiên bản>` trong `CHANGELOG.md`. Mục này trở thành release notes trên trang và trong
-   ứng dụng. Đổi luôn số phiên bản trong các lệnh tải và cài ở `README.md`, `README.vi.md`, `docs/manual.md` và `docs/manual.vi.md`
-   (`grep -rn "1\.0\.0" README*.md docs/manual*.md`), vì các file này nằm trong gói cài. Landing page thì tự cập nhật.
+1. Đặt phiên bản trong `VERSION` và viết mục `## <phiên bản> (<ngày>)` trong `CHANGELOG.md`: một câu tóm tắt, rồi các nhóm
+   `### <tên nhóm>`, mỗi nhóm là danh sách `- `. Mục này trở thành release notes trong ứng dụng (kèm link `notes_url` tới trang của
+   nó), trang `dumpcat.cc/changelog/<phiên bản>/` và thẻ **Có gì mới** trên landing page (câu tóm tắt và tên các nhóm). Đổi luôn số
+   phiên bản trong các lệnh tải và cài ở `docs/manual.md` và `docs/manual.vi.md` (`grep -rn "1\.4\.0" README*.md docs/manual*.md`),
+   vì các file này nằm trong gói cài.
 2. Build có ký bằng khóa tạo bởi `dumpcat release keygen` (giữ ngoài repo, có bản sao offline; xem
    `docs/manual.vi.md`, mục Cập nhật). Trong Git Bash:
 
@@ -130,12 +132,16 @@ hành". Sau lần phát hành đầu tiên (Phần 2), trang sẽ tự hiện đ
    - `curl.exe -s https://downloads.dumpcat.cc/latest.json` trả về phiên bản mới.
    - Mục **Tải về** trên `https://dumpcat.cc` hiện phiên bản mới, và link tải về được file.
    - Trên một máy đã cài: `dumpcat update -check`.
-6. Sinh lại bản demo để nó dùng giao diện của phiên bản mới, rồi deploy landing page:
+6. Sinh lại bản demo để nó dùng giao diện của phiên bản mới, sinh lại các trang (trang **Có gì mới** của phiên bản mới, thẻ trên
+   landing page), rồi deploy landing page:
 
    ```bash
    python scripts/build-demo.py
+   python scripts/build-site.py
    npx wrangler deploy
    ```
+
+   Nếu upload bản phát hành mà chưa deploy, landing page ẩn thẻ **Có gì mới** của phiên bản cũ cho tới khi deploy.
 
 Hai nguyên tắc:
 
@@ -203,6 +209,7 @@ Các trang `https://dumpcat.cc/compare/…` (tiếng Anh), `https://dumpcat.cc/v
 |---|---|
 | `site-src/compare/<slug>.json` | Một công cụ: tên, `grid` (bảng song song: mỗi dòng là `yes` / `paid` / `partial` / `no` / `unknown` kèm ghi chú ngắn EN/VI), giá trị chi tiết từng dòng, "chọn họ nếu" / "chọn DumpCat nếu", các bước chuyển, nguồn, ngày kiểm tra |
 | `site-src/install/en.html`, `vi.html` | Nội dung trang hướng dẫn cài đặt cho người mới |
+| `CHANGELOG.md` | Nguồn của các trang **Có gì mới** `/changelog/` và `/changelog/<phiên bản>/` (tiếng Anh) và thẻ trên landing page (giữa `whatsnew:begin` / `whatsnew:end`) |
 | `scripts/build-site.py` | Template; các dòng của bảng song song (`GRID`) và cột DumpCat (`US_GRID`); những dòng hiện trên landing page (`LANDING_ROWS`); sinh trang so sánh và trang hướng dẫn EN/VI, khối so sánh trong `site/index.html` (giữa hai dấu `compare:begin` / `compare:end`), `sitemap.xml` và `robots.txt` |
 
 Sửa hoặc thêm một công cụ:
