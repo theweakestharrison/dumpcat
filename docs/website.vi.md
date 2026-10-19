@@ -156,8 +156,10 @@ Hai nguyên tắc:
 
 | File | Nội dung |
 |---|---|
-| `site/index.html` | Nội dung trang. Chữ tiếng Việt nằm thẳng trong HTML |
-| `site/app.js` | Bản tiếng Anh (object `EN`), mô phỏng PITR, tab cài đặt, nút sao chép, mục Tải về đọc `latest.json` |
+| `site-src/landing/index.html` | Khung trang và chữ tiếng Việt. Chỗ nào có chữ thì mang `data-i18n="<khóa>"` (nội dung của phần tử), hoặc `data-i18n-<thuộc tính>="<khóa>"` cho một thuộc tính như `content`, `aria-label` |
+| `site-src/landing/en.html` | Chữ tiếng Anh: mỗi khóa một `<template data-i18n="<khóa>">…</template>` |
+| `site/index.html`, `site/vi/index.html` | Do `scripts/build-site.py` sinh từ hai file trên: `/` tiếng Anh, `/vi/` tiếng Việt. **Không sửa tay**, lần chạy script sau sẽ ghi đè |
+| `site/app.js` | Mô phỏng PITR, tab cài đặt, nút sao chép, chọn công cụ trong mục So sánh, mục Tải về đọc `latest.json`. Ngôn ngữ của các câu nó viết ra lấy theo `<html lang>` của trang |
 | `site/style.css` | Giao diện, tự đổi sáng/tối theo hệ điều hành |
 | `site/_headers` | Content-Security-Policy và các header bảo mật |
 | `site/favicon.svg` | Bản sao của `web/assets/favicon.svg` |
@@ -167,8 +169,24 @@ Hai nguyên tắc:
 | `site/og-image.html` | Nguồn của `og.png`. Không được deploy vì có tên trong `site/.assetsignore` |
 | `wrangler.jsonc` | Worker `dumpcat-site`: thư mục `site/` và domain `dumpcat.cc` |
 
-Trang hiện tiếng Anh mặc định. Lựa chọn EN/VI của người xem được lưu trong trình duyệt của họ. Font tải từ Google Fonts (Be Vietnam Pro,
-Bricolage Grotesque, JetBrains Mono).
+Landing page có hai địa chỉ: `https://dumpcat.cc/` (tiếng Anh, cũng là bản `x-default`) và `https://dumpcat.cc/vi/` (tiếng Việt). Mỗi
+trang là HTML tĩnh đúng một ngôn ngữ: `lang`, title, description, thẻ chia sẻ (Open Graph, X), JSON-LD, canonical riêng và `hreflang`
+trỏ qua lại. Vì vậy công cụ tìm kiếm đọc đúng nội dung mà không cần chạy JavaScript. Nút EN / VI chỉ là link sang trang kia (giữ nguyên
+mục đang xem, ví dụ `#download`). Trang không tự chuyển theo ngôn ngữ trình duyệt, để mỗi địa chỉ luôn trả về đúng một nội dung. Link
+trong trang đi tới bản cùng ngôn ngữ (`/install/` hay `/vi/install/`, `/compare/` hay `/vi/compare/`); **Có gì mới** chỉ có tiếng Anh.
+Font tải từ Google Fonts (Be Vietnam Pro, Bricolage Grotesque, JetBrains Mono).
+
+**Sửa chữ trên landing page:**
+
+1. Tiếng Việt: sửa trong `site-src/landing/index.html`. Tiếng Anh: sửa khóa cùng tên trong `site-src/landing/en.html`.
+2. Thêm một đoạn chữ mới: đặt `data-i18n="<khóa mới>"` lên phần tử trong `index.html`, rồi thêm
+   `<template data-i18n="<khóa mới>">…</template>` vào `en.html`. Script dừng và báo lỗi nếu một khóa thiếu bản tiếng Anh, hoặc
+   `en.html` có khóa không dùng tới.
+3. Chạy `python scripts/build-site.py`, xem thử (bên dưới), rồi commit cả file nguồn lẫn `site/index.html` và `site/vi/index.html`
+   trong cùng một commit (để `lastmod` trong sitemap đúng, xem Phần 4).
+
+Script tự điền những phần còn lại: canonical, `hreflang`, `og:url`, `og:locale`, JSON-LD (câu mô tả trong JSON-LD nằm ở `LANDING_LD`
+trong `scripts/build-site.py`), mục **So sánh** và thẻ **Có gì mới** (Phần 4).
 
 **Xem thử trên máy:**
 
@@ -176,18 +194,19 @@ Bricolage Grotesque, JetBrains Mono).
 python -m http.server 8642 --directory site
 ```
 
-Mở `http://localhost:8642`. Mục Tải về đọc `latest.json` thật trên `downloads.dumpcat.cc`, nhờ dòng `localhost:8642` trong CORS.
-Lưu ý: khi chạy thử trên máy, `_headers` không được áp dụng.
+Mở `http://localhost:8642` (tiếng Anh) và `http://localhost:8642/vi/` (tiếng Việt). Mục Tải về đọc `latest.json` thật trên
+`downloads.dumpcat.cc`, nhờ dòng `localhost:8642` trong CORS. Lưu ý: khi chạy thử trên máy, `_headers` không được áp dụng.
 
 **Deploy lại** sau khi sửa: chạy `npx wrangler deploy` ở thư mục gốc của repo. Nếu bản mới có lỗi, quay lại bản trước bằng
 `npx wrangler rollback`.
 
 **Lưu ý thêm:**
 
-- Số `1.0.0` trong HTML chỉ là giá trị dự phòng, hiện trong lúc trang đang tải `latest.json` hoặc khi tải lỗi. Script tự thay bằng phiên
-  bản thật.
-- Muốn đổi địa chỉ máy chủ phát hành thì sửa cả hai chỗ: `<meta name="dumpcat-release-base">` trong `index.html` và `connect-src`
-  trong `_headers`.
+- Số phiên bản trong HTML (nút Cài đặt, các link tải, chân trang) chỉ là giá trị dự phòng, hiện khi trình duyệt tắt JavaScript,
+  trong lúc trang đang tải `latest.json` hoặc khi tải lỗi. `app.js` tự thay bằng phiên bản thật. Muốn đổi giá trị dự phòng thì sửa
+  `site-src/landing/index.html` và khóa `cta-install` trong `en.html`, rồi chạy lại `build-site.py`.
+- Muốn đổi địa chỉ máy chủ phát hành thì sửa cả hai chỗ: `<meta name="dumpcat-release-base">` trong `site-src/landing/index.html` và
+  `connect-src` trong `_headers`.
 - **Sửa ảnh chia sẻ:** sửa `site/og-image.html`, render lại bằng Chrome, rồi deploy:
 
   ```bash
@@ -209,8 +228,8 @@ Các trang `https://dumpcat.cc/compare/…` (tiếng Anh), `https://dumpcat.cc/v
 |---|---|
 | `site-src/compare/<slug>.json` | Một công cụ: tên, `grid` (bảng song song: mỗi dòng là `yes` / `paid` / `partial` / `no` / `unknown` kèm ghi chú ngắn EN/VI), giá trị chi tiết từng dòng, "chọn họ nếu" / "chọn DumpCat nếu", các bước chuyển, nguồn, ngày kiểm tra |
 | `site-src/install/en.html`, `vi.html` | Nội dung trang hướng dẫn cài đặt cho người mới |
-| `CHANGELOG.md` | Nguồn của các trang **Có gì mới** `/changelog/` và `/changelog/<phiên bản>/` (tiếng Anh) và thẻ trên landing page (giữa `whatsnew:begin` / `whatsnew:end`) |
-| `scripts/build-site.py` | Template; các dòng của bảng song song (`GRID`) và cột DumpCat (`US_GRID`); những dòng hiện trên landing page (`LANDING_ROWS`); sinh trang so sánh và trang hướng dẫn EN/VI, khối so sánh trong `site/index.html` (giữa hai dấu `compare:begin` / `compare:end`), `sitemap.xml` và `robots.txt` |
+| `CHANGELOG.md` | Nguồn của các trang **Có gì mới** `/changelog/` và `/changelog/<phiên bản>/` (tiếng Anh) và thẻ **Có gì mới** trên landing page (chỗ `<!-- whatsnew (scripts/build-site.py) -->` trong `site-src/landing/index.html`) |
+| `scripts/build-site.py` | Template; các dòng của bảng song song (`GRID`) và cột DumpCat (`US_GRID`); những dòng hiện trên landing page (`LANDING_ROWS`); sinh trang so sánh và trang hướng dẫn EN/VI, hai bản của landing page (Phần 3) với mục **So sánh** của nó (chỗ `<!-- compare (scripts/build-site.py) -->`), `404.html`, `sitemap.xml` và `robots.txt` |
 
 Sửa hoặc thêm một công cụ:
 
@@ -227,8 +246,11 @@ Google Search Console và Bing Webmaster Tools.
 
 - `sitemap.xml` liệt kê mỗi trang một lần, đúng địa chỉ canonical của nó (có `/` ở cuối), kèm bản EN/VI bằng `hreflang` (và
   `x-default` là bản tiếng Anh). `lastmod` chỉ đổi khi nội dung trang đổi: lấy ngày commit cuối của file nguồn (hoặc hôm nay nếu file
-  đó đang sửa dở), ngày kiểm tra của trang so sánh, ngày phát hành của trang **Có gì mới**. Vì vậy hãy commit cả file nguồn lẫn file
-  sinh ra trong cùng một commit.
+  đó đang sửa dở), ngày kiểm tra của trang so sánh, ngày phát hành của trang **Có gì mới**. Với `/` và `/vi/` là ngày commit cuối của
+  chính `site/index.html` / `site/vi/index.html` (và `site/app.js`), nên sửa chữ tiếng Anh chỉ đổi `lastmod` của `/`. Vì vậy hãy commit
+  cả file nguồn lẫn file sinh ra trong cùng một commit.
+- Landing page `/` và `/vi/` là một cặp `hreflang` (`x-default` là `/`), giống các trang so sánh và hướng dẫn. Trên các trang tiếng
+  Việt, link **Trang chủ**, logo và **Tính năng** đưa về `/vi/`.
 - `robots.txt` cho phép crawl mọi trang và chỉ tới sitemap. `install.sh` và `install.ps1` được gửi kèm `X-Robots-Tag: noindex`
   (trong `_headers`), nên không hiện trong kết quả tìm kiếm.
 - `404.html` là trang báo không tìm thấy (`noindex`). `wrangler.jsonc` đặt `not_found_handling: "404-page"` nên mọi đường dẫn không

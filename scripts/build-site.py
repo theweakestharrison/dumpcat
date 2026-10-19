@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
-"""Generate the comparison pages of dumpcat.cc from site-src/compare/*.json.
+"""Generate the pages of dumpcat.cc.
 
 Writes (English and Vietnamese, linked with hreflang):
-  site/compare/index.html, site/compare/<slug>/index.html
+  site/index.html, site/vi/index.html   (the landing page, from site-src/landing/: index.html in Vietnamese, en.html)
+  site/compare/index.html, site/compare/<slug>/index.html   (the comparisons, from site-src/compare/*.json)
   site/vi/compare/index.html, site/vi/compare/<slug>/index.html
   site/install/index.html, site/vi/install/index.html   (the step-by-step install guide, from site-src/install/)
   site/changelog/index.html, site/changelog/<version>/index.html   (What's new, from CHANGELOG.md, English)
-  the Compare and What's new blocks of site/index.html (between their begin/end markers)
-  site/sitemap.xml, site/robots.txt
+  site/404.html, site/sitemap.xml, site/robots.txt
 
 Run from anywhere: python scripts/build-site.py   (standard library only). See docs/website.vi.md.
 """
@@ -17,10 +17,12 @@ import json
 import pathlib
 import re
 import subprocess
+import textwrap
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 SRC = ROOT / "site-src" / "compare"
 GUIDE = ROOT / "site-src" / "install"
+LANDING = ROOT / "site-src" / "landing"
 OUT = ROOT / "site"
 BASE = "https://dumpcat.cc"
 REPO = "https://github.com/theweakestharrison/DumpCat"
@@ -198,13 +200,8 @@ def hub_matrix(tools, lang):
     return f'<div class="matrix"><table><thead><tr>{head}</tr></thead><tbody>{body}</tbody></table></div>'
 
 
-def landing_block(tools):
-    """The short side-by-side comparison of the landing page, in both languages (the page shows one by html[lang])."""
-    def both(d, cls=""):
-        c = f' class="{cls}"' if cls else ""
-        return f'<span lang="vi"{c}>{esc(d["vi"])}</span><span lang="en"{c}>{esc(d["en"])}</span>'
-    def cell(c):
-        return (f'<span lang="vi">{mark(c, "vi")}</span><span lang="en">{mark(c, "en")}</span>')
+def landing_block(tools, lang):
+    """The short side-by-side comparison of the landing page: one tool at a time next to DumpCat (the chips switch it, app.js)."""
     labels = {k: l for _, rows in GRID for k, l in rows}
     first = tools[0]["slug"]
     chips = "".join(
@@ -213,24 +210,22 @@ def landing_block(tools):
     heads = "".join(f'<span class="vs-name" data-tool="{o["slug"]}"{"" if o["slug"] == first else " hidden"}>{wbr(o["name"])}</span>' for o in tools)
     rows = ""
     for key in LANDING_ROWS:
-        cells = "".join(f'<span class="lc-cell" data-tool="{o["slug"]}"{"" if o["slug"] == first else " hidden"}>{cell(o["grid"][key])}</span>'
+        cells = "".join(f'<span class="lc-cell" data-tool="{o["slug"]}"{"" if o["slug"] == first else " hidden"}>{mark(o["grid"][key], lang)}</span>'
                         for o in tools)
-        rows += f'<tr><th scope="row">{both(labels[key])}</th><td class="us">{cell(US_GRID[key])}</td><td>{cells}</td></tr>'
+        rows += f'<tr><th scope="row">{esc(labels[key][lang])}</th><td class="us">{mark(US_GRID[key], lang)}</td><td>{cells}</td></tr>'
     links = ""
     for o in tools:
-        text = {"en": "Full comparison: DumpCat vs " + o["name"], "vi": "So sánh đầy đủ DumpCat với " + o["name"]}
+        text = ("Full comparison: DumpCat vs " if lang == "en" else "So sánh đầy đủ DumpCat với ") + o["name"]
         shown = "" if o["slug"] == first else " hidden"
-        links += (f'<a class="lc-more" data-tool="{o["slug"]}"{shown} href="/compare/{o["slug"]}/"'
-                  f' data-vi-href="/vi/compare/{o["slug"]}/">{both(text)} →</a>')
-    all_link = both({"en": "All comparisons", "vi": "Tất cả so sánh"})
-    legends = legend("vi").replace("<ul ", '<ul lang="vi" ', 1) + legend("en").replace("<ul ", '<ul lang="en" ', 1)
+        links += f'<a class="lc-more" data-tool="{o["slug"]}"{shown} href="{path(lang, o["slug"])}">{esc(text)} →</a>'
+    all_link = "All comparisons" if lang == "en" else "Tất cả so sánh"
     return (f'<div class="lc">'
-            f'<div class="lc-chips" role="group" aria-label="Compare with">{chips}</div>'
+            f'<div class="lc-chips" role="group" aria-label="{"Compare with" if lang == "en" else "So sánh với"}">{chips}</div>'
             f'<div class="vs"><table><thead><tr><th scope="col"></th>'
             f'<th scope="col" class="us"><span class="vs-name"><svg aria-hidden="true"><use href="#dc-logo"/></svg>DumpCat</span></th>'
             f'<th scope="col">{heads}</th></tr></thead><tbody>{rows}</tbody></table></div>'
-            f'<div class="lc-foot"><div class="lc-links">{links}<a href="/compare/" data-vi-href="/vi/compare/">{all_link} →</a></div>'
-            f'{legends}</div>'
+            f'<div class="lc-foot"><div class="lc-links">{links}<a href="{path(lang)}">{all_link} →</a></div>'
+            f'{legend(lang)}</div>'
             f'</div>')
 
 T = {
@@ -322,6 +317,10 @@ def guide_path(lang):
     return "/install/" if lang == "en" else "/vi/install/"
 
 
+def home_path(lang):
+    return "/" if lang == "en" else "/vi/"
+
+
 def head(lang, title, desc, slug, crumbs, at=None, alternates=True, canonical=True, robots=""):
     at = at or (lambda l: path(l, slug))
     url = BASE + at(lang)
@@ -377,9 +376,9 @@ def header(lang, slug, crumbs, h1, lead, at=None, cta=None, langs=LANGS, eyebrow
     return f"""<header class="hero page-hero">
   <div class="wrap">
     <div class="topbar">
-      <a class="brand" href="/"><svg aria-hidden="true"><use href="#dc-logo"/></svg>DumpCat</a>
+      <a class="brand" href="{home_path(lang)}"><svg aria-hidden="true"><use href="#dc-logo"/></svg>DumpCat</a>
       <nav class="nav" aria-label="Site">
-        <a href="/#methods">{t['features']}</a>
+        <a href="{home_path(lang)}#methods">{t['features']}</a>
         <a href="{path(lang)}">{t['compare']}</a>
         <a href="/demo/">{t['preview']}</a>
         <a href="{cl_path()}">{t['whatsnew']}</a>
@@ -403,7 +402,7 @@ def footer(lang, script=""):
     t = T[lang]
     return f"""<footer class="foot">
   <div class="wrap">
-    <a class="brand" href="/"><svg aria-hidden="true"><use href="#dc-logo"/></svg>DumpCat</a>
+    <a class="brand" href="{home_path(lang)}"><svg aria-hidden="true"><use href="#dc-logo"/></svg>DumpCat</a>
     <p>{esc(t['foot'])} <a href="{REPO}">GitHub</a> · <a href="{path(lang)}">{t['compare']}</a> · <a href="{guide_path(lang)}">{t['install']}</a> · <a href="{cl_path()}">{t['whatsnew']}</a> · {t['support']}: <a href="mailto:{SUPPORT}">{SUPPORT}</a></p>
   </div>
 </footer>{script}
@@ -416,7 +415,7 @@ def tool_page(tool, tools, lang):
     t = T[lang]
     d = tool[lang]
     name = tool["name"]
-    crumbs = [(t["home"], "/"), (t["compare"], path(lang)), (f"DumpCat vs {name}", path(lang, tool["slug"]))]
+    crumbs = [(t["home"], home_path(lang)), (t["compare"], path(lang)), (f"DumpCat vs {name}", path(lang, tool["slug"]))]
     rows = "".join(
         f'<tr><th scope="row">{esc(label[lang])}</th><td class="us" data-m="DumpCat">{inline(ours[lang])}</td>'
         f'<td data-m="{esc(name)}">{inline(d["values"][key])}</td></tr>'
@@ -493,7 +492,7 @@ def tool_page(tool, tools, lang):
 
 def hub_page(tools, lang):
     t = T[lang]
-    crumbs = [(t["home"], "/"), (t["compare"], path(lang))]
+    crumbs = [(t["home"], home_path(lang)), (t["compare"], path(lang))]
     yn = lambda b: t["yes"] if b else t["no"]
     rows = (f'<tr class="fit"><th scope="row">DumpCat</th><td data-m="{esc(t["hub_kind"])}">{esc(t["us_kind"])}</td>'
             f'<td class="yes" data-m="{esc(t["hub_oss"])}">{t["yes"]}</td><td class="yes" data-m="{esc(t["hub_self"])}">{t["yes"]}</td>'
@@ -541,7 +540,7 @@ def hub_page(tools, lang):
 def guide_page(lang):
     """The step-by-step install guide: site-src/install/<lang>.html inside the common page frame."""
     t = T[lang]
-    crumbs = [(t["home"], "/"), (t["install"], guide_path(lang))]
+    crumbs = [(t["home"], home_path(lang)), (t["install"], guide_path(lang))]
     body = (GUIDE / f"{lang}.html").read_text(encoding="utf-8")
     cta = (f'<a class="btn btn-light" href="#linux">{t["guide_linux"]}</a>'
            f'<a class="btn btn-light" href="#windows">{t["guide_windows"]}</a>')
@@ -676,22 +675,127 @@ def changelog_index(rels):
 """ + footer("en"))
 
 
-def whatsnew_block(rel):
-    """The landing page's What's new card: the newest version's summary and groups, linking to its page."""
+def whatsnew_block(rel, lang):
+    """The landing page's What's new card: the newest version's summary and groups, linking to its page (in English)."""
     v = rel["version"]
-    date = (f'<span lang="vi">{fmt_date(rel["date"], "vi")}</span><span lang="en">{fmt_date(rel["date"], "en")}</span>'
-            if rel["date"] else "")
+    vi = lang == "vi"
+    en = ' lang="en"' if vi else ""
+    date = fmt_date(rel["date"], lang) if rel["date"] else ""
     titled = [g for g in rel["groups"] if g["title"]]
     lis = "".join(f'<li><a href="{cl_path(v)}#{anchor(g["title"])}">{esc(g["title"])}</a></li>' for g in titled)
-    return (f'<div class="notes wn bi" data-wn-version="{esc(v)}">'
-            f'<p class="wn-label"><span lang="vi">Có gì mới</span><span lang="en">What\'s new</span></p>'
+    return (f'<div class="notes wn" data-wn-version="{esc(v)}">'
+            f'<p class="wn-label">{"Có gì mới" if vi else "What&#x27;s new"}</p>'
             f'<h3><a href="{cl_path(v)}">DumpCat {esc(v)}</a> <span class="wn-date">{date}</span></h3>'
-            f'<p class="wn-lead">{md_inline(rel["lead"])}</p>'
-            + (f'<ul class="wn-list">{lis}</ul>' if lis else "")
-            + f'<p class="wn-links"><a href="{cl_path(v)}"><span lang="vi">Xem mọi thay đổi</span><span lang="en">See every change</span> →</a>'
-              f'<a href="{cl_path()}"><span lang="vi">Các phiên bản trước</span><span lang="en">Earlier versions</span></a></p>'
-              f'<p class="wn-note" lang="vi">Ghi chú phát hành viết bằng tiếng Anh.</p>'
-            f'</div>')
+            f'<p class="wn-lead"{en}>{md_inline(rel["lead"])}</p>'
+            + (f'<ul class="wn-list"{en}>{lis}</ul>' if lis else "")
+            + f'<p class="wn-links"><a href="{cl_path(v)}">{"Xem mọi thay đổi" if vi else "See every change"} →</a>'
+              f'<a href="{cl_path()}">{"Các phiên bản trước" if vi else "Earlier versions"}</a></p>'
+            + ('<p class="wn-note">Ghi chú phát hành viết bằng tiếng Anh.</p>' if vi else "")
+            + '</div>')
+
+
+# ---------- the landing page: site-src/landing/index.html (Vietnamese) and en.html (English) ----------
+# Its JSON-LD description; every other text of the page is in site-src/landing/.
+LANDING_LD = {
+    "en": "Open-source backup, restore and point-in-time recovery for MySQL and MariaDB: one self-hosted binary with a web UI.",
+    "vi": "Backup, restore và khôi phục theo thời điểm cho MySQL và MariaDB, mã nguồn mở: một file chạy tự host, có giao diện web.",
+}
+
+
+def landing_strings():
+    """site-src/landing/en.html: <template data-i18n="key">English</template> for every key of the page."""
+    out = {}
+    for key, text in re.findall(r'<template data-i18n="([^"]+)">(.*?)</template>', (LANDING / "en.html").read_text(encoding="utf-8"), re.S):
+        if key in out:
+            raise SystemExit(f"site-src/landing/en.html: {key} is there twice")
+        out[key] = textwrap.dedent(text.strip("\n").rstrip()) if "\n" in text.strip() else text.strip()
+    return out
+
+
+def closing_tag(page, name, pos):
+    """Where the element <name> opened just before pos ends: the index of its </name>."""
+    depth = 1
+    for m in re.compile(rf"<(/?){name}\b[^<>]*?(/?)>").finditer(page, pos):
+        if not m.group(2):
+            depth += -1 if m.group(1) else 1
+            if depth == 0:
+                return m.start()
+    raise SystemExit(f"site-src/landing/index.html: <{name}> is not closed")
+
+
+def localize(page, strings):
+    """The landing template in another language: an element with data-i18n="key" gets strings[key] as its content,
+    data-i18n-<attribute>="key" sets that attribute to strings[key]. With strings=None the template's own text stays.
+    The data-i18n markers are removed either way."""
+    out, pos, used = [], 0, set()
+    def get(key):
+        if key not in strings:
+            raise SystemExit(f"site-src/landing/en.html: no English for {key}")
+        used.add(key)
+        return strings[key]
+    for m in re.finditer(r"<([a-zA-Z][\w-]*)(\s[^<>]*?)?(/?)>", page):
+        if m.start() < pos:  # inside an element whose content was replaced
+            continue
+        name, attrs = m.group(1), m.group(2) or ""
+        if "data-i18n" not in attrs:
+            continue
+        out.append(page[pos:m.start()])
+        content = None
+        for key_m in re.finditer(r'\sdata-i18n(?:-([\w-]+))?="([^"]+)"', m.group(2)):
+            attr, key = key_m.groups()
+            if attr is None:
+                content = key
+            elif strings is not None:
+                value = get(key).replace('"', "&quot;")
+                attrs, n = re.subn(rf'(\s{attr}=")[^"]*"', lambda a: a.group(1) + value + '"', attrs, count=1)
+                if not n:
+                    raise SystemExit(f"site-src/landing/index.html: <{name}> has data-i18n-{attr} but no {attr}")
+        attrs = re.sub(r'\sdata-i18n(?:-[\w-]+)?="[^"]*"', "", attrs)
+        out.append(f"<{name}{attrs}{m.group(3)}>")
+        pos = m.end()
+        if content is not None and strings is not None:
+            text = get(content)
+            if "\n" in text:  # one item per line, indented under the element
+                indent = re.match(r"[ \t]*", page[page.rfind("\n", 0, m.start()) + 1:]).group()
+                text = "".join(f"\n{indent}  {line}" for line in text.splitlines()) + "\n" + indent
+            out.append(text)
+            pos = closing_tag(page, name, pos)
+    out.append(page[pos:])
+    if strings is not None and set(strings) - used:
+        raise SystemExit(f"site-src/landing/en.html: not used in index.html: {sorted(set(strings) - used)}")
+    return "".join(out)
+
+
+def landing_page(lang, tools, rel):
+    page = localize((LANDING / "index.html").read_text(encoding="utf-8"), landing_strings() if lang == "en" else None)
+    url = BASE + home_path(lang)
+    ld = {"@context": "https://schema.org", "@type": "SoftwareApplication", "name": "DumpCat", "url": url,
+          "description": LANDING_LD[lang], "applicationCategory": "DeveloperApplication", "operatingSystem": "Linux, Windows",
+          "license": "https://www.apache.org/licenses/LICENSE-2.0", "isAccessibleForFree": True,
+          "offers": {"@type": "Offer", "price": "0", "priceCurrency": "USD"}, "downloadUrl": url + "#download",
+          "image": f"{BASE}/og.png", "sameAs": [REPO],
+          "author": {"@type": "Person", "name": "theweakestharrison", "url": "https://github.com/theweakestharrison"}}
+    parts = [
+        (re.compile(r"<!-- The landing page, in Vietnamese;.*?-->", re.S),
+         "<!-- Written by scripts/build-site.py from site-src/landing/ (index.html and en.html): edit those, then run it. -->"),
+        ('<html lang="vi">', f'<html lang="{lang}">'),
+        ("<!-- urls (scripts/build-site.py): canonical, hreflang, og:url, og:locale -->\n",
+         f'<link rel="canonical" href="{url}">\n'
+         + "".join(f'<link rel="alternate" hreflang="{l}" href="{BASE + home_path(l)}">\n' for l in LANGS)
+         + f'<link rel="alternate" hreflang="x-default" href="{BASE + home_path("en")}">\n'
+         + f'<meta property="og:url" content="{url}">\n<meta property="og:locale" content="{"en_US" if lang == "en" else "vi_VN"}">\n'),
+        ("<!-- ld+json (scripts/build-site.py) -->",
+         '<script type="application/ld+json">\n' + json.dumps(ld, ensure_ascii=False, indent=2) + "\n</script>"),
+        ("<!-- compare (scripts/build-site.py) -->", landing_block(tools, lang)),
+        ("<!-- whatsnew (scripts/build-site.py) -->", whatsnew_block(rel, lang)),
+    ]
+    for marker, text in parts:
+        if isinstance(marker, str):
+            marker = re.compile(re.escape(marker))
+        page, n = marker.subn(lambda _: text, page)
+        if n != 1:
+            raise SystemExit(f"site-src/landing/index.html: {marker.pattern!r} found {n} times")
+    return page
 
 
 def write(rel, text):
@@ -764,23 +868,15 @@ def main():
     for r in rels:
         write(cl_path(r["version"]).lstrip("/") + "index.html", release_page(r, rels))
 
-    # the landing page's short comparison sits between two markers in site/index.html
-    idx = OUT / "index.html"
-    page = idx.read_text(encoding="utf-8")
-    a, z = "<!-- compare:begin (scripts/build-site.py) -->", "<!-- compare:end -->"
-    i, j = page.index(a) + len(a), page.index(z)
-    page = page[:i] + "\n" + landing_block(tools) + "\n          " + page[j:]
-    a, z = "<!-- whatsnew:begin (scripts/build-site.py) -->", "<!-- whatsnew:end -->"
-    i, j = page.index(a) + len(a), page.index(z)
-    page = page[:i] + "\n" + whatsnew_block(rels[0]) + "\n        " + page[j:]
-    idx.write_text(page, encoding="utf-8", newline="\n")
+    for lang in LANGS:
+        write(home_path(lang).lstrip("/") + "index.html", landing_page(lang, tools, rels[0]))
 
     write("404.html", not_found_page())
 
     # sitemap: every canonical page once, its language versions as hreflang alternates (x-default: English),
     # and a lastmod that changes only when the page's content does
     tool_dates = {o["slug"]: max(o["checked"], git_date(f"site-src/compare/{o['slug']}.json")) for o in tools}
-    urls = ([("/", None, git_date("site/index.html", "site/app.js")),
+    urls = ([(None, home_path, lambda l: git_date(f"site{home_path(l)}index.html", "site/app.js")),
              (None, lambda l: path(l), max(tool_dates.values())),
              (None, guide_path, git_date("site-src/install")),
              ("/demo/", None, git_date("web/index.html", "web/assets", "site-src/demo"))]
@@ -795,7 +891,7 @@ def main():
         alts = "".join(f'<xhtml:link rel="alternate" hreflang="{l}" href="{BASE + at(l)}"/>' for l in LANGS)
         alts += f'<xhtml:link rel="alternate" hreflang="x-default" href="{BASE + at("en")}"/>'
         for lang in LANGS:
-            items.append(f"  <url><loc>{BASE + at(lang)}</loc><lastmod>{mod}</lastmod>{alts}</url>")
+            items.append(f"  <url><loc>{BASE + at(lang)}</loc><lastmod>{mod(lang) if callable(mod) else mod}</lastmod>{alts}</url>")
     write("sitemap.xml", '<?xml version="1.0" encoding="UTF-8"?>\n'
           '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">\n'
           + "\n".join(items) + "\n</urlset>\n")
