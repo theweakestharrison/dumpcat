@@ -73,9 +73,59 @@ flowchart LR
 Restore chạy cùng đường ống theo chiều ngược lại. Backup logical được stream thẳng vào `mysql`, không cần file tạm;
 backup mydumper và backup vật lý được giải nén trước, rồi nạp bằng `myloader` hoặc prepare bằng XtraBackup / MariaBackup.
 
-Khi DumpCat không kết nối thẳng được tới database (vì firewall, NAT, hoặc MySQL chỉ nghe trên 127.0.0.1), server database
-sẽ chủ động kết nối ra: qua [agent](docs/manual.vi.md#37-server-database-không-cho-kết-nối-vào-agent) của DumpCat bằng HTTPS, hoặc qua
-[WireGuard tích hợp](docs/manual.vi.md#38-wireguard-tích-hợp). Không cần mở port nào trên server database.
+## Ba cách kết nối tới database
+
+DumpCat tới được database theo một trong ba cách, chọn riêng cho từng server (**Database servers → Add server →
+Connect**). Backup, restore và khôi phục theo thời điểm chạy như nhau với cả ba cách.
+
+**1. Kết nối trực tiếp qua port MySQL.** DumpCat kết nối tới database như mọi client: `host:3306`, có thể bật TLS, hoặc
+qua unix socket khi DumpCat chạy ngay trên server database. Dùng khi hai máy cùng mạng hoặc cùng VPC.
+
+```mermaid
+flowchart LR
+  dc["DumpCat"] == "giao thức MySQL · TCP 3306<br/>do DumpCat mở" ==> fw{{"firewall<br/>mở 3306 cho DumpCat"}}
+  subgraph D["Server database"]
+    db[("MySQL / MariaDB<br/>nghe trên mạng")]
+  end
+  fw ==> db
+```
+
+**2. VPN tích hợp sẵn (WireGuard).** DumpCat tự chạy một endpoint WireGuard — không cần cài gì thêm trên server backup,
+tắt cho tới khi bạn bật. Server database tham gia bằng công cụ WireGuard chuẩn và tự giữ tunnel từ phía nó, nên có thể
+nằm sau NAT và không nhận kết nối vào. [Cách cài đặt](docs/manual.vi.md#38-wireguard-tích-hợp)
+
+```mermaid
+flowchart RL
+  subgraph D["Server database"]
+    db[("MySQL / MariaDB<br/>nghe trên 10.66.0.2")] <-- "10.66.0.2:3306" --> wg["wg-quick@dumpcat"]
+  end
+  wg == "WireGuard · UDP 51820<br/>do server database mở ra" ==> fw{{"firewall / NAT<br/>không mở port vào"}}
+  fw ==> dc["DumpCat<br/>WireGuard tích hợp 10.66.0.1"]
+```
+
+**3. Agent.** Một `dumpcat agent` nhỏ trên server database chủ động kết nối ra DumpCat bằng HTTPS và mở các kết nối
+database mà DumpCat cần — chỉ tới những địa chỉ trong danh sách cho phép của nó. MySQL giữ nguyên, kể cả khi chỉ nghe
+trên 127.0.0.1. [Cách cài đặt](docs/manual.vi.md#37-server-database-không-cho-kết-nối-vào-agent)
+
+```mermaid
+flowchart RL
+  subgraph D["Server database"]
+    db[("MySQL / MariaDB<br/>127.0.0.1:3306")] <-- "kết nối local" --> ag["dumpcat agent"]
+  end
+  ag == "HTTPS · WebSocket<br/>do agent mở ra" ==> fw{{"firewall / NAT<br/>không mở port vào"}}
+  fw ==> dc["DumpCat"]
+```
+
+| | 1. Trực tiếp | 2. VPN tích hợp (WireGuard) | 3. Agent |
+|---|---|---|---|
+| Ai mở kết nối | DumpCat → database | Server database → DumpCat | Server database → DumpCat |
+| Port phải mở trên server database | MySQL (3306) cho địa chỉ của DumpCat | Không | Không |
+| Server database đi ra tới DumpCat qua | — (DumpCat tự kết nối tới) | UDP 51820 | HTTPS (port giao diện web) |
+| Cài trên server database | Không cần | WireGuard (`wg-quick`) và file DumpCat tạo sẵn | `dumpcat agent` (một lệnh cài) |
+| Cấu hình MySQL | User backup được phép từ địa chỉ của DumpCat | Nghe trên địa chỉ VPN; user được phép từ 10.66.0.1 | Giữ nguyên |
+| Backup vật lý (XtraBackup / MariaBackup) | Có, khi DumpCat chạy trên server database | Không (cần DumpCat trên server database) | Không (cần DumpCat trên server database) |
+| Hợp với | Cùng mạng hoặc VPC, hoặc DumpCat chạy trên server database | Đội đã dùng WireGuard; một gateway dẫn tới cả mạng nội bộ | Máy sau NAT hoặc firewall chặt; không đụng tới MySQL hay mạng |
+| Thiết lập ở | Database servers | Trang WireGuard, rồi Database servers | Trang Agents, rồi Database servers |
 
 ## Nền tảng hỗ trợ
 
@@ -133,8 +183,8 @@ hoặc `Get-FileHash` trên Windows). Muốn tự build gói cài đặt, xem [B
    chạy `sudo dumpcat setup-token` (Windows, quyền Administrator: `& "C:\Program Files\DumpCat\dumpcat.exe" setup-token`)
    hoặc xem log của service. (Cổng mặc định bấm trên bàn phím điện thoại sẽ ra chữ *MEOW*.)
 2. Tạo một user MySQL có quyền backup chỉ đọc ([các lệnh GRANT](docs/manual.vi.md#4-bắt-đầu-sử-dụng)).
-3. **Database servers → Add server → Test connection.** Chọn cách DumpCat kết nối: trực tiếp, qua agent hoặc qua
-   WireGuard. DumpCat hiển thị version, dung lượng từng database, các quyền còn thiếu và phương thức backup nào dùng được.
+3. **Database servers → Add server → Test connection.** Chọn cách DumpCat kết nối: trực tiếp, qua WireGuard hoặc qua
+   agent ([ba cách kết nối](#ba-cách-kết-nối-tới-database)). DumpCat hiển thị version, dung lượng từng database, các quyền còn thiếu và phương thức backup nào dùng được.
 4. **Storage → Add storage → Test.**
 5. **Backup jobs → New job.** Chọn server, phương thức, database, lịch chạy, mã hóa, nơi lưu và retention, rồi bấm
    **Save & run now**. Mỗi bản backup được kiểm tra ngay sau khi ghi (mặc định kiểm một bản).

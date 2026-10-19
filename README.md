@@ -73,9 +73,59 @@ flowchart LR
 Restores run the same pipeline in reverse. Logical backups stream straight into `mysql` with no temporary files;
 mydumper and physical backups are unpacked first, then loaded with `myloader` or prepared with XtraBackup / MariaBackup.
 
-When DumpCat cannot connect to the database (a firewall, NAT, or MySQL listening on 127.0.0.1 only), the database host
-connects out instead: through the DumpCat [agent](docs/manual.md#37-database-hosts-that-accept-no-inbound-connections-agent) over HTTPS, or through DumpCat's
-[built-in WireGuard](docs/manual.md#38-built-in-wireguard). Nothing has to be opened on the database host.
+## Connecting to your databases
+
+DumpCat reaches a database in one of three ways, chosen per server (**Database servers → Add server → Connect**). The
+backups, restores and point-in-time recovery work the same through all three.
+
+**1. Direct, through the MySQL port.** DumpCat connects to the database like any client: `host:3306`, TLS optional, or a
+unix socket when DumpCat runs on the database host itself. Use it when both machines are on the same network or VPC.
+
+```mermaid
+flowchart LR
+  dc["DumpCat"] == "MySQL protocol · TCP 3306<br/>opened by DumpCat" ==> fw{{"firewall<br/>3306 open for DumpCat"}}
+  subgraph D["Database host"]
+    db[("MySQL / MariaDB<br/>listens on the network")]
+  end
+  fw ==> db
+```
+
+**2. Built-in VPN (WireGuard).** DumpCat runs a WireGuard endpoint itself — nothing to install on the backup server, off
+until you turn it on. The database host joins with the standard WireGuard tools and keeps the tunnel open from its side,
+so it can stay behind NAT and accept no inbound connections. [How to set it up](docs/manual.md#38-built-in-wireguard)
+
+```mermaid
+flowchart RL
+  subgraph D["Database host"]
+    db[("MySQL / MariaDB<br/>listens on 10.66.0.2")] <-- "10.66.0.2:3306" --> wg["wg-quick@dumpcat"]
+  end
+  wg == "WireGuard · UDP 51820<br/>opened by the database host" ==> fw{{"firewall / NAT<br/>no inbound port"}}
+  fw ==> dc["DumpCat<br/>built-in WireGuard 10.66.0.1"]
+```
+
+**3. Agent.** A small `dumpcat agent` on the database host connects out to DumpCat over HTTPS and opens the database
+connections DumpCat asks for — only to the addresses on its allow list. MySQL stays exactly as it is, even if it listens
+on 127.0.0.1 only. [How to set it up](docs/manual.md#37-database-hosts-that-accept-no-inbound-connections-agent)
+
+```mermaid
+flowchart RL
+  subgraph D["Database host"]
+    db[("MySQL / MariaDB<br/>127.0.0.1:3306")] <-- "local connection" --> ag["dumpcat agent"]
+  end
+  ag == "HTTPS · WebSocket<br/>opened by the agent" ==> fw{{"firewall / NAT<br/>no inbound port"}}
+  fw ==> dc["DumpCat"]
+```
+
+| | 1. Direct | 2. Built-in VPN (WireGuard) | 3. Agent |
+|---|---|---|---|
+| Who opens the connection | DumpCat → database | The database host → DumpCat | The database host → DumpCat |
+| Port to open on the database host | MySQL (3306) for DumpCat's address | None | None |
+| The database host reaches DumpCat on | — (DumpCat connects to it) | UDP 51820 | HTTPS (the web UI port) |
+| To install on the database host | Nothing | WireGuard (`wg-quick`) and the file DumpCat generates | `dumpcat agent` (one installer command) |
+| MySQL settings | Backup user allowed from DumpCat's address | Listens on the VPN address; user allowed from 10.66.0.1 | Unchanged |
+| Physical backups (XtraBackup / MariaBackup) | Yes, when DumpCat runs on the database host | No (needs DumpCat on the database host) | No (needs DumpCat on the database host) |
+| Best for | Same network or VPC, or DumpCat on the database host | Teams that already use WireGuard; one gateway to a whole private network | Hosts behind NAT or a strict firewall; no change to MySQL or the network |
+| Set up in | Database servers | WireGuard page, then Database servers | Agents page, then Database servers |
 
 ## Supported platforms
 
@@ -136,8 +186,8 @@ Windows). To build the packages yourself, see [Building from source](#building-f
    run `sudo dumpcat setup-token` (Windows, as Administrator: `& "C:\Program Files\DumpCat\dumpcat.exe" setup-token`)
    or look in the service log. (The default port spells *MEOW* on a phone keypad.)
 2. Create a MySQL user with read-only backup privileges ([the grants](docs/manual.md#4-getting-started)).
-3. **Database servers → Add server → Test connection.** Choose how DumpCat connects: directly, through an agent or
-   through WireGuard. DumpCat shows the version, the size of each database, missing privileges and which backup methods
+3. **Database servers → Add server → Test connection.** Choose how DumpCat connects: directly, through WireGuard or
+   through an agent ([the three ways](#connecting-to-your-databases)). DumpCat shows the version, the size of each database, missing privileges and which backup methods
    work.
 4. **Storage → Add storage → Test.**
 5. **Backup jobs → New job.** Pick the server, method, databases, schedule, encryption, storage and retention, then
