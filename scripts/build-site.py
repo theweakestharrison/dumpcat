@@ -24,6 +24,7 @@ OUT = ROOT / "site"
 BASE = "https://dumpcat.cc"
 REPO = "https://github.com/theweakestharrison/DumpCat"
 SUPPORT = "fat@dumpcat.cc"
+GH = '<svg class="gh" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 0c4.42 0 8 3.58 8 8a8.013 8.013 0 0 1-5.45 7.59c-.4.08-.55-.17-.55-.38 0-.27.01-1.13.01-2.2 0-.75-.25-1.23-.54-1.48 1.78-.2 3.65-.88 3.65-3.95 0-.88-.31-1.59-.82-2.15.08-.2.36-1.02-.08-2.12 0 0-.67-.22-2.2.82-.64-.18-1.32-.27-2-.27-.68 0-1.36.09-2 .27-1.53-1.03-2.2-.82-2.2-.82-.44 1.1-.16 1.92-.08 2.12-.51.56-.82 1.28-.82 2.15 0 3.06 1.86 3.75 3.64 3.95-.23.2-.44.55-.51 1.07-.46.21-1.61.55-2.33-.66-.15-.24-.6-.83-1.23-.82-.67.01-.27.38.01.53.34.19.73.9.82 1.13.16.45.68 1.31 2.69.94 0 .67.01 1.3.01 1.49 0 .21-.15.45-.55.38A7.995 7.995 0 0 1 0 8c0-4.42 3.58-8 8-8Z"/></svg>'
 LANGS = ("en", "vi")
 
 # Rows of the comparison table: key, label per language, and DumpCat's own value.
@@ -240,7 +241,7 @@ T = {
         "trademark": "{name} is a trademark of its owner. DumpCat is an independent open-source project and is not affiliated with it.",
         "others": "Other comparisons", "cta_download": "Download DumpCat", "cta_github": "Source on GitHub",
         "foot": "Open source under the Apache-2.0 license, with the source on GitHub.", "support": "Support",
-        "install": "Install", "whatsnew": "What's new",
+        "install": "Install", "whatsnew": "What's new", "features": "Features",
         "guide_title": "Install DumpCat step by step: Linux and Windows",
         "guide_desc": "How to install DumpCat, the free MySQL and MariaDB backup manager: one command on a Linux server, download and double-click on Windows, then your first backup. Written for beginners.",
         "guide_h1": "Install DumpCat step by step",
@@ -264,7 +265,7 @@ T = {
         "trademark": "{name} là thương hiệu của chủ sở hữu. DumpCat là dự án mã nguồn mở độc lập, không liên kết với họ.",
         "others": "So sánh khác", "cta_download": "Tải DumpCat", "cta_github": "Mã nguồn trên GitHub",
         "foot": "Mã nguồn mở theo giấy phép Apache-2.0, mã nguồn trên GitHub.", "support": "Hỗ trợ",
-        "install": "Cài đặt", "whatsnew": "Có gì mới",
+        "install": "Cài đặt", "whatsnew": "Có gì mới", "features": "Tính năng",
         "guide_title": "Cài DumpCat từng bước: Linux và Windows",
         "guide_desc": "Cách cài DumpCat, công cụ backup MySQL và MariaDB miễn phí: một lệnh trên server Linux, tải về và bấm đúp trên Windows, rồi tạo bản backup đầu tiên. Viết cho người mới.",
         "guide_h1": "Cài DumpCat từng bước",
@@ -376,11 +377,13 @@ def header(lang, slug, crumbs, h1, lead, at=None, cta=None, langs=LANGS, eyebrow
     <div class="topbar">
       <a class="brand" href="/"><svg aria-hidden="true"><use href="#dc-logo"/></svg>DumpCat</a>
       <nav class="nav" aria-label="Site">
+        <a href="/#methods">{t['features']}</a>
         <a href="{path(lang)}">{t['compare']}</a>
-        <a href="{guide_path(lang)}">{t['install']}</a>
-        <a href="/#download">{t['download']}</a>
-        <a href="{REPO}">{t['github']}</a>
+        <a href="/demo/">Demo</a>
+        <a href="{cl_path()}">{t['whatsnew']}</a>
+        <a class="nav-gh" href="{REPO}" aria-label="GitHub" title="GitHub">{GH}</a>
       </nav>
+      <a class="nav-cta" href="{guide_path(lang)}">{t['install']}</a>
       <div class="lang" role="group" aria-label="Language">{lang_links}</div>
     </div>
     <div class="page-head">

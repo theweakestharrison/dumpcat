@@ -2,14 +2,11 @@
   "use strict";
 
   var EN = {
-    "nav-methods": "Methods",
-    "nav-storage": "Storage",
-    "nav-connect": "Connectivity",
-    "nav-demo": "Demo",
-    "nav-ops": "Operations",
-    "nav-download": "Download",
-    "nav-install": "Install",
+    "nav-features": "Features",
     "nav-compare": "Compare",
+    "nav-demo": "Demo",
+    "nav-whatsnew": "What's new",
+    "nav-install": "Install",
     "eyebrow": "Open source · Backup &amp; restore for MySQL and MariaDB",
     "h1": "Backups that never lock the database. <span class=\"soft\">Recovery to the exact second.</span>",
     "lead": "DumpCat is a single binary with a web UI. It schedules backups, compresses and encrypts them, ships copies to S3, Google Drive, OneDrive or SFTP, verifies them and brings your data back when you need it. Runs on Linux and Windows, fully offline.",
