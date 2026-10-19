@@ -1,0 +1,107 @@
+{
+  "slug": "backupsheep",
+  "name": "BackupSheep",
+  "order": 60,
+  "checked": "2026-10-18",
+  "kind": {
+    "en": "Self-hosted, open source (GPLv3), Docker",
+    "vi": "Tự host, mã nguồn mở (GPLv3), Docker"
+  },
+  "summary": {
+    "en": "Former SaaS, now an open-source self-hosted beta for databases, cloud snapshots and WordPress.",
+    "vi": "Từng là SaaS, nay là bản beta mã nguồn mở tự host cho database, snapshot cloud và WordPress."
+  },
+  "hub": {
+    "open_source": true,
+    "self_hosted": {
+      "en": "Yes (Docker Compose)",
+      "vi": "Có (Docker Compose)"
+    },
+    "pitr": {
+      "en": "Not documented",
+      "vi": "Chưa có tài liệu"
+    },
+    "price": {
+      "en": "Free (GPLv3)",
+      "vi": "Miễn phí (GPLv3)"
+    }
+  },
+  "en": {
+    "title": "BackupSheep vs DumpCat: open-source, self-hosted MySQL backups compared",
+    "description": "Two open-source, self-hosted backup tools for MySQL and MariaDB: BackupSheep (GPLv3, Docker) and DumpCat (Apache-2.0, single binary). Methods, point-in-time recovery, storage and deployment. October 2026.",
+    "lead": "BackupSheep was a paid SaaS from 2017 to 2023 and is now open source (GPLv3), self-hosted with Docker Compose and in beta. DumpCat is an Apache-2.0 backup manager shipped as one binary. Both keep your data on your own infrastructure; here is where they differ.",
+    "values": {
+      "price": "Free and open source (GPLv3). Released as a beta.",
+      "runs": "Self-hosted with Docker Compose: web app, queue worker, scheduler, PostgreSQL and RabbitMQ. Connects to databases directly or through an SSH tunnel.",
+      "platforms": "Wherever Docker Compose runs.",
+      "databases": "MySQL (bundled 8.4 client), MariaDB, PostgreSQL 14 to 18; also cloud provider snapshots and WordPress sites.",
+      "methods": "Native dumps. Physical backups are not mentioned.",
+      "pitr": "Binlog backups and point-in-time recovery are not mentioned.",
+      "storage": "26 destinations, including local / NFS, S3 with Object Lock, Google Drive, OneDrive, Dropbox and pCloud.",
+      "encryption": "Backup files are encrypted with installation-bound keys that the installer creates.",
+      "schedule": "Daily, weekly, monthly or cron schedules, with keep-last retention.",
+      "restore": "One-click restore from the console; every backup is a standalone archive.",
+      "datapath": "Your own infrastructure: from the BackupSheep instance you run to your storage.",
+      "alerts": "Email, Slack and Telegram; team permissions and an audit log."
+    },
+    "choose_them": [
+      "You also want PostgreSQL, cloud provider snapshots or WordPress sites in the same tool.",
+      "You already run everything with Docker Compose, and want a REST API for every action.",
+      "You want S3 Object Lock retention for immutable backups."
+    ],
+    "choose_us": [
+      "You need point-in-time recovery from binlogs, to a second or just before a GTID.",
+      "Your databases are large: parallel `mydumper` and hot physical backups with XtraBackup / MariaBackup, including incrementals.",
+      "You want a native Windows service, or one binary with an embedded SQLite database instead of a Docker stack with PostgreSQL and RabbitMQ.",
+      "You want a stable 1.x release rather than a beta.",
+      "You prefer the Apache-2.0 license."
+    ],
+    "switch": []
+  },
+  "vi": {
+    "title": "BackupSheep và DumpCat: so sánh hai công cụ backup MySQL mã nguồn mở, tự host",
+    "description": "Hai công cụ backup MySQL, MariaDB mã nguồn mở, tự host: BackupSheep (GPLv3, Docker) và DumpCat (Apache-2.0, một file chạy). Phương thức, khôi phục theo thời điểm, nơi lưu và cách triển khai. Tháng 10/2026.",
+    "lead": "BackupSheep từng là SaaS trả phí từ 2017 đến 2023, nay là mã nguồn mở (GPLv3), tự host bằng Docker Compose và đang ở giai đoạn beta. DumpCat là công cụ quản lý backup Apache-2.0, phát hành dưới dạng một file chạy. Cả hai đều giữ dữ liệu trong hạ tầng của bạn; dưới đây là chỗ khác nhau.",
+    "values": {
+      "price": "Miễn phí, mã nguồn mở (GPLv3). Đang là bản beta.",
+      "runs": "Tự host bằng Docker Compose: ứng dụng web, queue worker, bộ lập lịch, PostgreSQL và RabbitMQ. Kết nối tới database trực tiếp hoặc qua SSH tunnel.",
+      "platforms": "Nơi nào chạy được Docker Compose.",
+      "databases": "MySQL (kèm client 8.4), MariaDB, PostgreSQL 14 đến 18; ngoài ra snapshot của nhà cung cấp cloud và website WordPress.",
+      "methods": "Dump gốc của database. Không nhắc tới backup vật lý.",
+      "pitr": "Không nhắc tới backup binlog hay khôi phục theo thời điểm.",
+      "storage": "26 nơi lưu, gồm local / NFS, S3 có Object Lock, Google Drive, OneDrive, Dropbox và pCloud.",
+      "encryption": "File backup được mã hóa bằng khóa gắn với bản cài, do bộ cài tạo ra.",
+      "schedule": "Lịch theo ngày, tuần, tháng hoặc cron, retention giữ N bản gần nhất.",
+      "restore": "Khôi phục một cú nhấp trên giao diện; mỗi bản backup là một file độc lập.",
+      "datapath": "Trong hạ tầng của bạn: từ bản BackupSheep bạn tự chạy tới storage của bạn.",
+      "alerts": "Email, Slack và Telegram; phân quyền nhóm và nhật ký thao tác."
+    },
+    "choose_them": [
+      "Bạn muốn backup cả PostgreSQL, snapshot của nhà cung cấp cloud hay website WordPress trong cùng công cụ.",
+      "Bạn vốn chạy mọi thứ bằng Docker Compose và muốn REST API cho mọi thao tác.",
+      "Bạn cần retention bằng S3 Object Lock để backup không thể bị sửa xóa."
+    ],
+    "choose_us": [
+      "Bạn cần khôi phục theo thời điểm từ binlog, đến từng giây hoặc ngay trước một GTID.",
+      "Database của bạn lớn: `mydumper` song song và backup vật lý nóng bằng XtraBackup / MariaBackup, có incremental.",
+      "Bạn muốn chạy như Windows service, hoặc một file chạy dùng SQLite nhúng thay vì cả bộ Docker với PostgreSQL và RabbitMQ.",
+      "Bạn muốn bản ổn định 1.x thay vì bản beta.",
+      "Bạn thích giấy phép Apache-2.0 hơn."
+    ],
+    "switch": []
+  },
+  "sources": [
+    {
+      "label": "BackupSheep on GitHub",
+      "url": "https://github.com/bilal414/backupsheep"
+    },
+    {
+      "label": "BackupSheep README",
+      "url": "https://github.com/bilal414/backupsheep/blob/main/README.md"
+    },
+    {
+      "label": "BackupSheep website",
+      "url": "https://backupsheep.com/"
+    }
+  ]
+}

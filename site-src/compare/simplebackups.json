@@ -1,0 +1,101 @@
+{
+  "slug": "simplebackups",
+  "name": "SimpleBackups",
+  "order": 10,
+  "checked": "2026-10-18",
+  "kind": {"en": "Hosted backup service (SaaS)", "vi": "Dịch vụ backup trực tuyến (SaaS)"},
+  "summary": {
+    "en": "Hosted service for server, database and storage backups, from a free plan to $299/month.",
+    "vi": "Dịch vụ trực tuyến backup server, database và storage, từ gói miễn phí đến $299/tháng."
+  },
+  "hub": {
+    "open_source": false,
+    "self_hosted": {"en": "No, SaaS (an optional agent runs on your server)", "vi": "Không, SaaS (có thể cài agent trên server)"},
+    "pitr": {"en": "Partial: collects binlogs, replay not documented", "vi": "Một phần: thu binlog, chưa có tài liệu phát lại"},
+    "price": {"en": "Free plan; $49–$299/month", "vi": "Có gói miễn phí; $49–$299/tháng"}
+  },
+  "en": {
+    "title": "SimpleBackups alternative for MySQL: DumpCat, free and self-hosted",
+    "description": "DumpCat vs SimpleBackups for MySQL and MariaDB backups: price, point-in-time recovery, physical backups, restores and where your data goes. Sourced and checked in October 2026.",
+    "lead": "SimpleBackups is a hosted service that schedules and monitors backups of servers, databases and storage from its own infrastructure. DumpCat is a free, open-source backup manager that you run next to your database. Here is how they compare for MySQL and MariaDB.",
+    "values": {
+      "price": "Free plan: 1 job, 1 GB of SimpleBackups storage, daily runs, databases up to 1 GB. Paid plans from $49/month (Lite, 5 jobs) to $299/month (Max, 100 jobs); 20% off yearly. Storage you bring yourself is unlimited.",
+      "runs": "Hosted SaaS. It reaches your server over SSH or through its agent, or runs the backup on its own serverless workers.",
+      "platforms": "Any server it can reach over SSH or with its agent, plus managed databases through serverless workers.",
+      "databases": "MySQL, MariaDB, PostgreSQL, MongoDB, Redis and PlanetScale / Vitess. No list of supported versions is published.",
+      "methods": "`mysqldump` with default flags; the docs ask you to add `--single-transaction` yourself to avoid read locks. Physical backups only through your own XtraBackup script.",
+      "pitr": "Partial: it can collect binlogs once you enable them, but replaying them is not documented.",
+      "storage": "About 35 providers, including S3, Backblaze B2, Cloudflare R2, Azure, Google Cloud Storage, Google Drive, OneDrive, Dropbox, SFTP and local volumes, or SimpleBackups' own storage.",
+      "encryption": "AES-256 with OpenSSL, using your RSA public key.",
+      "schedule": "Frequency depends on the plan: daily on Free, every 12 hours on Lite, hourly on Plus, every 5 minutes on Max. Jobs, storage and database size are capped per plan.",
+      "restore": "The docs describe database restores as manual: download the backup and run the commands they give you. Automated MariaDB restores were announced in September 2026.",
+      "datapath": "With SSH or the agent, data goes from your server to your storage. With serverless workers it passes through SimpleBackups in transit. Credentials are stored encrypted by SimpleBackups unless you keep them in a `.my.cnf` file on your server.",
+      "alerts": "Email, Slack, Discord, Teams, Telegram, Pushover and webhooks, plus anomaly detection."
+    },
+    "choose_them": [
+      "You want nothing to install or keep running: SimpleBackups schedules and monitors from its own infrastructure, so you still get an alert when your server is down.",
+      "You back up several engines (PostgreSQL, MongoDB, Redis) or managed databases such as PlanetScale from one dashboard.",
+      "You need compliance paperwork such as ISO 27001, SSO or an SLA."
+    ],
+    "choose_us": [
+      "You need point-in-time recovery: DumpCat archives binlogs continuously and restores to a given second or just before a GTID.",
+      "Your databases are large: hot physical backups with XtraBackup / MariaBackup, incrementals, and no per-plan limits on jobs, database size or storage.",
+      "You want restores from the web UI, including into a new database name to compare before switching.",
+      "Credentials and data must stay inside your own infrastructure, or the server has no internet access.",
+      "You would rather not pay per job: DumpCat is free and open source."
+    ],
+    "switch": [
+      "Install DumpCat on the database server, or on a machine that can reach it.",
+      "Add the storage you already use with SimpleBackups (S3, B2, Google Drive…) as a DumpCat storage, in a new folder.",
+      "Recreate each job with its databases, schedule, encryption and retention, then run it once and check the integrity result.",
+      "Keep your SimpleBackups backups until DumpCat's retention covers the same period, then cancel the plan."
+    ]
+  },
+  "vi": {
+    "title": "Thay thế SimpleBackups cho MySQL: DumpCat, miễn phí và tự host",
+    "description": "So sánh DumpCat và SimpleBackups khi backup MySQL, MariaDB: giá, khôi phục theo thời điểm, backup vật lý, khôi phục và dữ liệu đi đâu. Có dẫn nguồn, kiểm tra tháng 10/2026.",
+    "lead": "SimpleBackups là dịch vụ trực tuyến lên lịch và theo dõi việc backup server, database và storage từ hạ tầng của họ. DumpCat là công cụ quản lý backup miễn phí, mã nguồn mở, chạy ngay cạnh database của bạn. Dưới đây là khác biệt giữa hai bên khi dùng cho MySQL và MariaDB.",
+    "values": {
+      "price": "Gói miễn phí: 1 job, 1 GB dung lượng của SimpleBackups, chạy mỗi ngày, database tối đa 1 GB. Gói trả phí từ $49/tháng (Lite, 5 job) đến $299/tháng (Max, 100 job); trả theo năm giảm 20%. Dùng storage riêng thì không giới hạn dung lượng.",
+      "runs": "Dịch vụ SaaS. Kết nối tới server qua SSH hoặc qua agent, hoặc chạy backup trên máy chủ serverless của họ.",
+      "platforms": "Server nào truy cập được qua SSH hoặc cài được agent, cùng các database được quản lý (managed) qua máy chủ serverless.",
+      "databases": "MySQL, MariaDB, PostgreSQL, MongoDB, Redis và PlanetScale / Vitess. Không công bố danh sách phiên bản hỗ trợ.",
+      "methods": "`mysqldump` với tham số mặc định; tài liệu hướng dẫn tự thêm `--single-transaction` để tránh khóa đọc. Backup vật lý chỉ làm được bằng script XtraBackup tự viết.",
+      "pitr": "Một phần: thu được binlog khi bạn bật, nhưng chưa có tài liệu về việc phát lại binlog.",
+      "storage": "Khoảng 35 nhà cung cấp, gồm S3, Backblaze B2, Cloudflare R2, Azure, Google Cloud Storage, Google Drive, OneDrive, Dropbox, SFTP và ổ local, hoặc storage của SimpleBackups.",
+      "encryption": "AES-256 bằng OpenSSL, dùng khóa công khai RSA của bạn.",
+      "schedule": "Tần suất tùy gói: mỗi ngày (Free), mỗi 12 giờ (Lite), mỗi giờ (Plus), mỗi 5 phút (Max). Số job, dung lượng và kích thước database bị giới hạn theo gói.",
+      "restore": "Tài liệu mô tả việc khôi phục database là thủ công: tải file backup về rồi chạy các lệnh được hướng dẫn. Tháng 9/2026 họ có thông báo thêm tính năng tự khôi phục MariaDB.",
+      "datapath": "Dùng SSH hoặc agent thì dữ liệu đi từ server của bạn tới storage của bạn. Dùng máy chủ serverless thì dữ liệu đi qua SimpleBackups trong lúc truyền. Thông tin đăng nhập được SimpleBackups lưu dạng mã hóa, trừ khi bạn để trong file `.my.cnf` trên server.",
+      "alerts": "Email, Slack, Discord, Teams, Telegram, Pushover và webhook, kèm phát hiện bất thường."
+    },
+    "choose_them": [
+      "Bạn không muốn cài hay duy trì gì: SimpleBackups lên lịch và theo dõi từ hạ tầng của họ, nên vẫn báo được khi server của bạn chết.",
+      "Bạn backup nhiều loại database (PostgreSQL, MongoDB, Redis) hoặc database được quản lý như PlanetScale trong cùng một bảng điều khiển.",
+      "Bạn cần giấy tờ tuân thủ như ISO 27001, SSO hoặc SLA."
+    ],
+    "choose_us": [
+      "Bạn cần khôi phục theo thời điểm: DumpCat lưu binlog liên tục và khôi phục đến đúng giây hoặc ngay trước một GTID.",
+      "Database của bạn lớn: backup vật lý nóng bằng XtraBackup / MariaBackup, có incremental, không giới hạn số job, kích thước database hay dung lượng theo gói.",
+      "Bạn muốn khôi phục ngay trên giao diện web, kể cả sang tên database mới để so sánh trước khi chuyển.",
+      "Thông tin đăng nhập và dữ liệu phải nằm trong hạ tầng của bạn, hoặc server không có internet.",
+      "Bạn không muốn trả tiền theo số job: DumpCat miễn phí và mã nguồn mở."
+    ],
+    "switch": [
+      "Cài DumpCat trên server database, hoặc trên một máy truy cập được tới nó.",
+      "Thêm storage bạn đang dùng với SimpleBackups (S3, B2, Google Drive…) làm nơi lưu của DumpCat, trong một thư mục mới.",
+      "Tạo lại từng job với database, lịch, mã hóa và retention, chạy thử một lần và xem kết quả kiểm tra toàn vẹn.",
+      "Giữ các bản backup của SimpleBackups cho tới khi retention của DumpCat phủ được cùng khoảng thời gian, rồi hủy gói."
+    ]
+  },
+  "sources": [
+    {"label": "SimpleBackups pricing", "url": "https://simplebackups.com/pricing"},
+    {"label": "SimpleBackups docs: backup lifecycle and data flow", "url": "https://simplebackups.com/docs/getting-started/architecture/backup-lifecycle-and-data-flow"},
+    {"label": "SimpleBackups docs: MySQL backup FAQ", "url": "https://simplebackups.com/docs/database-backup/mysql-backup/faq"},
+    {"label": "SimpleBackups docs: hot backups with Percona XtraBackup", "url": "https://simplebackups.com/docs/database-backup/mysql-backup/hot-backups-in-mysql-using-percona-xtrabackup"},
+    {"label": "SimpleBackups docs: enable the binary log", "url": "https://simplebackups.com/docs/database-backup/mysql-backup/how-to-enable-binary-log-for-mysql-or-mariadb"},
+    {"label": "SimpleBackups docs: notifications", "url": "https://simplebackups.com/docs/getting-started/features/notifications"},
+    {"label": "SimpleBackups docs: backup restore", "url": "https://simplebackups.com/docs/getting-started/features/backup-restore"},
+    {"label": "SimpleBackups changelog", "url": "https://simplebackups.com/changelog"}
+  ]
+}

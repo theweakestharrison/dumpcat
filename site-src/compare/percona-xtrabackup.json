@@ -1,0 +1,111 @@
+{
+  "slug": "percona-xtrabackup",
+  "name": "Percona XtraBackup",
+  "order": 37,
+  "checked": "2026-10-18",
+  "kind": {
+    "en": "Command-line physical backup tool",
+    "vi": "Công cụ backup vật lý dòng lệnh"
+  },
+  "summary": {
+    "en": "The open-source hot physical backup engine. DumpCat runs it for you, with scheduling, storage and restores.",
+    "vi": "Engine backup vật lý nóng mã nguồn mở. DumpCat chạy nó giúp bạn, kèm lịch, nơi lưu và khôi phục."
+  },
+  "hub": {
+    "open_source": true,
+    "self_hosted": {
+      "en": "Yes (CLI, Linux)",
+      "vi": "Có (dòng lệnh, Linux)"
+    },
+    "pitr": {
+      "en": "Manual, with mysqlbinlog",
+      "vi": "Thủ công, bằng mysqlbinlog"
+    },
+    "price": {
+      "en": "Free (GPL)",
+      "vi": "Miễn phí (GPL)"
+    }
+  },
+  "en": {
+    "title": "Percona XtraBackup with a web UI: scheduling, retention and PITR with DumpCat",
+    "description": "Using Percona XtraBackup from cron scripts? DumpCat runs XtraBackup and MariaBackup for you, with schedules, incrementals, retention, encryption, cloud storage, binlog point-in-time recovery and restores from a web UI.",
+    "lead": "Percona XtraBackup is the standard open-source tool for hot physical MySQL backups, and DumpCat uses it. On its own it is a command-line engine: scheduling, retention, uploads, binlogs and alerts are left to your scripts. This page shows what DumpCat adds on top, and when the bare tool is enough.",
+    "values": {
+      "price": "Free and open source (GPL).",
+      "runs": "A command-line tool you call from your own scripts or cron.",
+      "platforms": "Linux (packages, tarballs, Docker).",
+      "databases": "MySQL and Percona Server. MariaDB does not support XtraBackup and recommends MariaBackup instead.",
+      "methods": "Hot physical backups with incrementals (including page tracking); backup locks instead of a global read lock for non-InnoDB data.",
+      "pitr": "Manual: replay binlogs with `mysqlbinlog`. XtraBackup does not archive binlogs itself.",
+      "storage": "Local files or an xbstream stream; `xbcloud` uploads to S3, MinIO, Google Cloud Storage, Azure and Swift.",
+      "encryption": "zstd (default) or lz4 compression; AES-256 with `--encrypt`.",
+      "schedule": "None built in: no scheduler, retention or rotation.",
+      "restore": "By hand: prepare the backup, apply incrementals, then copy-back with the server stopped.",
+      "datapath": "Wherever your scripts send it.",
+      "alerts": "None built in."
+    },
+    "choose_them": [
+      "You already have reliable scripts, monitoring and runbooks around XtraBackup and only need the engine.",
+      "You need an XtraBackup option that DumpCat does not expose, or a fully custom pipeline."
+    ],
+    "choose_us": [
+      "You want XtraBackup and MariaBackup scheduled from a web UI, with full + incremental chains and retention handled for you.",
+      "You want binlogs archived continuously, so a physical backup plus binlogs restores to any second.",
+      "You want age encryption, uploads to S3, Google Drive, SFTP and more, and alerts when something fails.",
+      "You want restores that download the full + incremental chain, prepare it and can replace the datadir for you, rolling back automatically if any step fails."
+    ],
+    "switch": [
+      "Install DumpCat on the database server; the Linux installer installs the XtraBackup or MariaBackup version that matches your server.",
+      "Create a job with the physical method, a full schedule and an incremental schedule.",
+      "Turn on binlog archiving for point-in-time recovery, run the job once, then retire your cron scripts."
+    ]
+  },
+  "vi": {
+    "title": "Percona XtraBackup có giao diện web: lên lịch, retention và khôi phục theo thời điểm với DumpCat",
+    "description": "Đang chạy Percona XtraBackup bằng script cron? DumpCat chạy XtraBackup và MariaBackup giúp bạn, kèm lịch, incremental, retention, mã hóa, lưu lên cloud, khôi phục theo thời điểm bằng binlog và khôi phục trên giao diện web.",
+    "lead": "Percona XtraBackup là công cụ mã nguồn mở tiêu chuẩn để backup vật lý MySQL khi đang chạy, và DumpCat dùng chính nó. Bản thân nó là engine dòng lệnh: lên lịch, retention, upload, binlog và cảnh báo đều do script của bạn lo. Trang này cho thấy DumpCat thêm gì, và khi nào chỉ cần công cụ gốc là đủ.",
+    "values": {
+      "price": "Miễn phí, mã nguồn mở (GPL).",
+      "runs": "Công cụ dòng lệnh, gọi từ script của bạn hoặc cron.",
+      "platforms": "Linux (gói cài, tarball, Docker).",
+      "databases": "MySQL và Percona Server. MariaDB không hỗ trợ XtraBackup và khuyên dùng MariaBackup.",
+      "methods": "Backup vật lý nóng có incremental (kể cả page tracking); dùng backup lock thay cho khóa đọc toàn cục với dữ liệu không phải InnoDB.",
+      "pitr": "Thủ công: phát lại binlog bằng `mysqlbinlog`. XtraBackup không tự lưu binlog.",
+      "storage": "File local hoặc luồng xbstream; `xbcloud` upload lên S3, MinIO, Google Cloud Storage, Azure và Swift.",
+      "encryption": "Nén zstd (mặc định) hoặc lz4; AES-256 với `--encrypt`.",
+      "schedule": "Không có sẵn: không có lịch, retention hay xoay vòng.",
+      "restore": "Làm tay: prepare bản backup, áp các incremental, rồi copy-back khi server đã dừng.",
+      "datapath": "Đi đâu là do script của bạn.",
+      "alerts": "Không có sẵn."
+    },
+    "choose_them": [
+      "Bạn đã có script, giám sát và quy trình chắc chắn quanh XtraBackup và chỉ cần engine.",
+      "Bạn cần một tùy chọn XtraBackup mà DumpCat không có, hoặc một quy trình hoàn toàn tùy biến."
+    ],
+    "choose_us": [
+      "Bạn muốn XtraBackup và MariaBackup được lên lịch trên giao diện web, chuỗi full + incremental và retention được lo giúp.",
+      "Bạn muốn binlog được lưu liên tục, để bản backup vật lý cộng binlog khôi phục được đến bất kỳ giây nào.",
+      "Bạn muốn mã hóa age, upload lên S3, Google Drive, SFTP và hơn thế, cùng cảnh báo khi có lỗi.",
+      "Bạn muốn khôi phục tự tải chuỗi full + incremental, prepare và có thể thay datadir giúp bạn, tự quay lại nếu có bước nào lỗi."
+    ],
+    "switch": [
+      "Cài DumpCat trên server database; bộ cài Linux cài phiên bản XtraBackup hoặc MariaBackup khớp với server.",
+      "Tạo job với phương thức vật lý, một lịch full và một lịch incremental.",
+      "Bật lưu binlog để khôi phục theo thời điểm, chạy thử một lần, rồi bỏ các script cron cũ."
+    ]
+  },
+  "sources": [
+    {
+      "label": "Percona XtraBackup 8.4 documentation",
+      "url": "https://docs.percona.com/percona-xtrabackup/8.4/"
+    },
+    {
+      "label": "Percona XtraBackup: point-in-time recovery",
+      "url": "https://docs.percona.com/percona-xtrabackup/8.4/point-in-time-recovery.html"
+    },
+    {
+      "label": "MariaDB: backup and restore overview",
+      "url": "https://mariadb.com/docs/server/server-usage/backup-and-restore/backup-and-restore-overview"
+    }
+  ]
+}

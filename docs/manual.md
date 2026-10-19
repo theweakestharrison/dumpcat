@@ -35,7 +35,7 @@ The complete guide to installing, configuring and operating DumpCat. For an over
 | Storage | Several targets per job (e.g. local + S3 + Google Drive); write to local storage first and then upload, or **stream directly** to the cloud without a temporary disk; bandwidth limit; **copy** an existing backup to another storage; browse the files on a storage |
 | Scheduling | Cron (`0 2 * * *`, `@daily`, `@every 6h`), a separate schedule for incrementals, configurable time zone, preview of the next 5 runs |
 | Retention | Keep the last N backups / N days / the last backup of each day, week and month (GFS), **per storage** (e.g. local keeps 3 backups, S3 keeps 30 days), incremental chains respected |
-| Restore | Restore to any server, **restore under new names**, partial restore, drop target databases first, no binlog, Fast mode, restore users; physical: download the full + incremental chain → prepare → (optionally) **replace the datadir automatically** with rollback |
+| Restore | Restore to any server (**another instance, host or version**, with DEFINER / collation / GTID rewrites), **restore under new names**, partial restore, drop target databases first, no binlog, Fast mode, restore users; physical: download the full + incremental chain → prepare → (optionally) **replace the datadir automatically** with rollback |
 | Point-in-time recovery | **Continuous binlog archiving** (`mysqlbinlog --raw --stop-never`, compressed/encrypted like backups, uploaded to every storage of the job), recovery to **a point in time / a binlog position / just before a GTID** — picks the newest base backup automatically, downloads and checks every binlog before changing any data; binlog retention follows the oldest kept backup |
 | Operations | Real-time progress (bytes, speed, %), live logs, task cancellation, limit on concurrent jobs, low priority (nice/ionice), pre/post commands, timeouts |
 | Notifications | Email (SMTP), Telegram, Slack, Discord, Webhook (HMAC-signed) — on failure and/or success |
@@ -70,9 +70,9 @@ The latest version, its release notes and checksums are listed on [dumpcat.cc](h
 served from `https://downloads.dumpcat.cc/<version>/`.
 
 ```bash
-curl -fLO https://downloads.dumpcat.cc/1.0.0/dumpcat-1.0.0-linux.tar.gz
-tar xzf dumpcat-1.0.0-linux.tar.gz
-cd dumpcat-1.0.0-linux
+curl -fLO https://downloads.dumpcat.cc/1.1.0/dumpcat-1.1.0-linux.tar.gz
+tar xzf dumpcat-1.1.0-linux.tar.gz
+cd dumpcat-1.1.0-linux
 sudo ./install.sh
 ```
 
@@ -122,9 +122,9 @@ DumpCat also runs on Windows Server 2016+ / Windows 10+ (64-bit), as a Windows s
 In PowerShell **Run as administrator**:
 
 ```powershell
-Invoke-WebRequest https://downloads.dumpcat.cc/1.0.0/dumpcat-1.0.0-windows-amd64.zip -OutFile dumpcat-1.0.0-windows-amd64.zip
-Expand-Archive dumpcat-1.0.0-windows-amd64.zip -DestinationPath .
-cd dumpcat-1.0.0-windows-amd64
+Invoke-WebRequest https://downloads.dumpcat.cc/1.1.0/dumpcat-1.1.0-windows-amd64.zip -OutFile dumpcat-1.1.0-windows-amd64.zip
+Expand-Archive dumpcat-1.1.0-windows-amd64.zip -DestinationPath .
+cd dumpcat-1.1.0-windows-amd64
 powershell -ExecutionPolicy Bypass -File .\install.ps1
 ```
 
@@ -366,6 +366,36 @@ Open **Backups** → pick a backup → **Restore**.
 3. (Admin) *Apply right away*: stop the service → rename the old datadir to `datadir.before-restore-<timestamp>` → `--copy-back`/`--move-back` → `chown` → start. If any step fails, it **rolls back automatically** to the old datadir.
 
 To go back to **any moment** (not only when a backup ran), use *Point-in-time recovery* — see section 8.
+
+### Restoring to another instance (clone, migration, staging)
+
+A logical backup can be restored to **any server DumpCat can reach** — another host, another port on the same host,
+another MySQL / MariaDB version — for example to refresh a staging copy from production or to move to new hardware.
+
+1. Pick the target in *Restore to server*, or click **New server** to add it in place (use a restore account with write
+   privileges, see *Separate account for restores*).
+2. DumpCat connects to it with the restore account and shows its version and flavor, the databases already on it,
+   and any compatibility notes. Every database that would be overwritten on that target is listed in red and needs the
+   typed `RESTORE` confirmation, whichever server it is.
+3. *Compatibility with the target* — ticked automatically from what DumpCat found, and editable:
+   - **Remove DEFINER** from views, routines, triggers and events: they are created with the restore account as definer.
+     Needed when the original accounts don't exist on the target, or the restore user lacks `SET_USER_ID` / `SUPER`.
+     Suggested for any server other than the source.
+   - **Convert collations**: MySQL 8 `utf8mb4_0900_*` and MariaDB `*_uca1400_*` → `utf8mb4_unicode_ci` (or
+     `utf8mb4_bin` for case-sensitive ones), `utf8mb3_*` → `utf8_*`. Suggested for MySQL 8 → MariaDB, MySQL 8 → 5.7 and
+     MariaDB → MySQL.
+   - **Skip GTID_PURGED** (mysqldump): drops `SET @@GLOBAL.GTID_PURGED`, which fails on a server that already has a GTID
+     history and needs `SUPER`. Suggested when the dump contains it; keep it only to build a replica of the source.
+
+   Only schema statements are rewritten while streaming: `INSERT` lines (row data) are passed through untouched.
+   For mydumper backups the schema files are rewritten after extraction.
+4. Combine with *restore under new names* to keep a copy next to existing databases, and with *Point-in-time recovery*
+   to clone the source as it was at a given moment (binlogs cannot be replayed across MySQL and MariaDB).
+
+Physical backups are restored on the machine running DumpCat (another instance on the same host: choose it in the
+*Apply* box, which fills its datadir, service and owner). The target must run the same flavor and version series.
+To restore a physical backup on **another machine**, install DumpCat there, add the same storage and use
+**Import backup catalog** (section 10).
 
 A physical restore takes about as long as decompression + prepare + copy (no SQL is replayed statement by statement) → usually tens of times faster than a logical restore for large databases.
 

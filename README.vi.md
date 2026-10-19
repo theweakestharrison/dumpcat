@@ -41,8 +41,9 @@ binary Go có sẵn giao diện.
   thể ghi ra nhiều nơi, mỗi nơi có chính sách giữ bản riêng.
 - **Mã hóa và kiểm tra.** Nén zstd, mã hóa bằng [age](https://age-encryption.org) trước khi dữ liệu rời khỏi server,
   SHA-256 cho từng file, và bước kiểm tra toàn vẹn giải mã, giải nén lại bản backup khi bạn bấm hoặc sau mỗi lần chạy.
-- **Restore cẩn thận.** Restore sang tên database mới, thử giải mã mọi file trước khi xóa bất cứ thứ gì, chế độ nạp nhanh,
-  và tự rollback khi restore vật lý thay datadir.
+- **Restore cẩn thận.** Restore sang tên database mới hoặc sang instance / phiên bản khác (tự gỡ `DEFINER`, đổi
+  collation, bỏ `GTID_PURGED`), thử giải mã mọi file trước khi xóa bất cứ thứ gì, chế độ nạp nhanh, và tự rollback khi
+  restore vật lý thay datadir.
 - **Dùng được cho cả đội.** Vai trò admin, operator, viewer, đăng nhập hai lớp TOTP, API token, nhật ký thao tác, và thông
   báo qua email, Telegram, Slack, Discord hoặc webhook có ký HMAC.
 - **Định dạng chuẩn.** Mỗi bản backup có `manifest.json` và dùng zstd / gzip / age / xbstream, nên bạn restore được chỉ
@@ -89,9 +90,9 @@ Phiên bản mới nhất, ghi chú phát hành và mã kiểm tra có trên **[
 **Linux**, với quyền root:
 
 ```bash
-curl -fLO https://downloads.dumpcat.cc/1.0.0/dumpcat-1.0.0-linux.tar.gz
-tar xzf dumpcat-1.0.0-linux.tar.gz
-cd dumpcat-1.0.0-linux
+curl -fLO https://downloads.dumpcat.cc/1.1.0/dumpcat-1.1.0-linux.tar.gz
+tar xzf dumpcat-1.1.0-linux.tar.gz
+cd dumpcat-1.1.0-linux
 sudo ./install.sh
 ```
 
@@ -102,13 +103,13 @@ Tùy chọn: `--port 9090`, `--listen 127.0.0.1`, `--tls-auto`, `--no-deps`, `--
 **Windows**, trong PowerShell chạy bằng quyền Administrator:
 
 ```powershell
-Invoke-WebRequest https://downloads.dumpcat.cc/1.0.0/dumpcat-1.0.0-windows-amd64.zip -OutFile dumpcat-1.0.0-windows-amd64.zip
-Expand-Archive dumpcat-1.0.0-windows-amd64.zip -DestinationPath .
-cd dumpcat-1.0.0-windows-amd64
+Invoke-WebRequest https://downloads.dumpcat.cc/1.1.0/dumpcat-1.1.0-windows-amd64.zip -OutFile dumpcat-1.1.0-windows-amd64.zip
+Expand-Archive dumpcat-1.1.0-windows-amd64.zip -DestinationPath .
+cd dumpcat-1.1.0-windows-amd64
 powershell -ExecutionPolicy Bypass -File .\install.ps1
 ```
 
-Kiểm tra file tải về bằng [SHA256SUMS](https://downloads.dumpcat.cc/1.0.0/SHA256SUMS) (`sha256sum -c --ignore-missing SHA256SUMS`,
+Kiểm tra file tải về bằng [SHA256SUMS](https://downloads.dumpcat.cc/1.1.0/SHA256SUMS) (`sha256sum -c --ignore-missing SHA256SUMS`,
 hoặc `Get-FileHash` trên Windows). Muốn tự build gói cài đặt, xem [Build từ mã nguồn](#build-từ-mã-nguồn).
 
 ### 2. Chạy bản backup đầu tiên

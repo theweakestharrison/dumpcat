@@ -1,0 +1,115 @@
+{
+  "slug": "sqlbak",
+  "name": "SqlBak",
+  "order": 30,
+  "checked": "2026-10-18",
+  "kind": {
+    "en": "Agent + cloud dashboard (SaaS)",
+    "vi": "Agent + bảng điều khiển trên cloud (SaaS)"
+  },
+  "summary": {
+    "en": "Agent-based backup service from the makers of SQLBackupAndFTP, priced per server.",
+    "vi": "Dịch vụ backup dùng agent, của nhà làm SQLBackupAndFTP, tính phí theo server."
+  },
+  "hub": {
+    "open_source": false,
+    "self_hosted": {
+      "en": "Partly: agent on your server, dashboard in their cloud",
+      "vi": "Một phần: agent trên server, bảng điều khiển trên cloud của họ"
+    },
+    "pitr": {
+      "en": "Yes, mysqldump + binlog backups",
+      "vi": "Có, mysqldump + backup binlog"
+    },
+    "price": {
+      "en": "Free for 1 server / 2 databases; $6–$9 per server/month",
+      "vi": "Miễn phí 1 server / 2 database; $6–$9 mỗi server/tháng"
+    }
+  },
+  "en": {
+    "title": "SqlBak alternative for MySQL: DumpCat, free and fully self-hosted",
+    "description": "DumpCat vs SqlBak for MySQL and MariaDB backups: per-server pricing, backup methods, point-in-time recovery, encryption and the cloud dashboard. Sourced and checked in October 2026.",
+    "lead": "SqlBak, from Pranas.NET (the makers of SQLBackupAndFTP), puts an agent on each server and manages it from a cloud dashboard. DumpCat is a free, open-source backup manager that runs entirely on your own server. Here is how they compare for MySQL and MariaDB.",
+    "values": {
+      "price": "Free: 1 server, 2 databases, local / NAS / FTP / Box / B2 storage. Standard $6 and Professional $9 per server per month (current prices); 10% off yearly, 30-day trial.",
+      "runs": "An agent on your server, configured and monitored from SqlBak's web dashboard (SaaS).",
+      "platforms": "Agent for Windows and Linux.",
+      "databases": "MySQL 5.6, 5.7 and 8.0, MariaDB 10.2 and later; also SQL Server.",
+      "methods": "`mysqldump` full backups plus binlog incrementals. No physical (XtraBackup) backups documented.",
+      "pitr": "Yes: point-in-time restore from full and binlog backups.",
+      "storage": "Free: local, NAS, FTP, Box, Backblaze B2. Standard adds SFTP, Dropbox, Google Drive and OneDrive. Professional adds Amazon S3, Azure and S3-compatible storage.",
+      "encryption": "AES-256, on the Professional plan only.",
+      "schedule": "Scheduled full and binlog backups set up in the dashboard; retention options are described in SqlBak's docs.",
+      "restore": "One-click restore, including automatic restore to another server.",
+      "datapath": "Backups are uploaded directly from your server to your storage, bypassing sqlbak.com, and database credentials stay on your server. The agent reports to SqlBak's cloud dashboard.",
+      "alerts": "Alerts from the SqlBak dashboard, including when a server stops responding."
+    },
+    "choose_them": [
+      "You manage many servers and want one cloud dashboard that also warns you when a server stops responding.",
+      "You also back up SQL Server and want one tool for both.",
+      "You want automatic restores to another server, for example to keep a test copy up to date."
+    ],
+    "choose_us": [
+      "Your databases are large: DumpCat adds parallel `mydumper` and hot physical backups with XtraBackup / MariaBackup, including incrementals.",
+      "You run MySQL 8.4 or MariaDB 11, which DumpCat supports explicitly.",
+      "You want no per-server fee and no account: every storage type and encryption is included for free.",
+      "The server is on an isolated network, or you do not want a third-party dashboard involved at all."
+    ],
+    "switch": [
+      "Install DumpCat on each database server.",
+      "Add your existing storage (S3, Google Drive, SFTP…) to DumpCat, in a new folder.",
+      "Recreate the backup jobs, and turn on binlog archiving if you used SqlBak's point-in-time backups.",
+      "Run each job once and check the integrity result, then remove the SqlBak agent when DumpCat's retention covers what you need."
+    ]
+  },
+  "vi": {
+    "title": "Thay thế SqlBak cho MySQL: DumpCat, miễn phí và tự host hoàn toàn",
+    "description": "So sánh DumpCat và SqlBak khi backup MySQL, MariaDB: giá theo server, phương thức backup, khôi phục theo thời điểm, mã hóa và bảng điều khiển trên cloud. Có dẫn nguồn, kiểm tra tháng 10/2026.",
+    "lead": "SqlBak của Pranas.NET (nhà làm SQLBackupAndFTP) cài một agent lên từng server và quản lý qua bảng điều khiển trên cloud. DumpCat là công cụ quản lý backup miễn phí, mã nguồn mở, chạy hoàn toàn trên server của bạn. Dưới đây là khác biệt khi dùng cho MySQL và MariaDB.",
+    "values": {
+      "price": "Miễn phí: 1 server, 2 database, lưu ra local / NAS / FTP / Box / B2. Standard $6 và Professional $9 mỗi server mỗi tháng (giá hiện tại); trả theo năm giảm 10%, dùng thử 30 ngày.",
+      "runs": "Agent cài trên server, cấu hình và theo dõi qua bảng điều khiển web của SqlBak (SaaS).",
+      "platforms": "Agent cho Windows và Linux.",
+      "databases": "MySQL 5.6, 5.7 và 8.0, MariaDB 10.2 trở lên; ngoài ra còn SQL Server.",
+      "methods": "Backup full bằng `mysqldump` kèm backup binlog incremental. Không có tài liệu về backup vật lý (XtraBackup).",
+      "pitr": "Có: khôi phục theo thời điểm từ bản full và binlog.",
+      "storage": "Miễn phí: local, NAS, FTP, Box, Backblaze B2. Standard thêm SFTP, Dropbox, Google Drive, OneDrive. Professional thêm Amazon S3, Azure và storage tương thích S3.",
+      "encryption": "AES-256, chỉ có ở gói Professional.",
+      "schedule": "Lịch backup full và binlog đặt trên bảng điều khiển; tùy chọn retention xem trong tài liệu của SqlBak.",
+      "restore": "Khôi phục một cú nhấp, kể cả tự động khôi phục sang server khác.",
+      "datapath": "Backup được upload thẳng từ server của bạn tới storage, không qua sqlbak.com, và mật khẩu database nằm lại trên server. Agent báo cáo về bảng điều khiển trên cloud của SqlBak.",
+      "alerts": "Cảnh báo từ bảng điều khiển SqlBak, kể cả khi server ngừng phản hồi."
+    },
+    "choose_them": [
+      "Bạn quản lý nhiều server và muốn một bảng điều khiển trên cloud, báo cả khi server ngừng phản hồi.",
+      "Bạn cũng backup SQL Server và muốn dùng chung một công cụ.",
+      "Bạn muốn tự động khôi phục sang server khác, ví dụ để giữ một bản test luôn mới."
+    ],
+    "choose_us": [
+      "Database của bạn lớn: DumpCat có thêm `mydumper` song song và backup vật lý nóng bằng XtraBackup / MariaBackup, có incremental.",
+      "Bạn chạy MySQL 8.4 hoặc MariaDB 11, được DumpCat hỗ trợ rõ ràng.",
+      "Bạn không muốn trả phí theo server hay tạo tài khoản: mọi loại storage và mã hóa đều miễn phí.",
+      "Server nằm trong mạng cô lập, hoặc bạn không muốn có bảng điều khiển của bên thứ ba."
+    ],
+    "switch": [
+      "Cài DumpCat trên từng server database.",
+      "Thêm storage đang dùng (S3, Google Drive, SFTP…) vào DumpCat, trong một thư mục mới.",
+      "Tạo lại các job backup, và bật lưu binlog nếu bạn đang dùng backup theo thời điểm của SqlBak.",
+      "Chạy thử từng job và xem kết quả kiểm tra toàn vẹn, rồi gỡ agent SqlBak khi retention của DumpCat đã đủ."
+    ]
+  },
+  "sources": [
+    {
+      "label": "SqlBak pricing",
+      "url": "https://sqlbak.com/pricing"
+    },
+    {
+      "label": "SqlBak: MySQL backups",
+      "url": "https://sqlbak.com/mysql"
+    },
+    {
+      "label": "SqlBak blog",
+      "url": "https://sqlbak.com/blog/"
+    }
+  ]
+}

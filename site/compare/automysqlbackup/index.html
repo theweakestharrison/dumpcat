@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>AutoMySQLBackup alternative: DumpCat, a maintained MySQL backup tool with a web UI</title>
+<meta name="description" content="Moving on from AutoMySQLBackup? Compare the classic cron script with DumpCat, an open-source MySQL and MariaDB backup manager with remote storage, point-in-time recovery and restores from a web UI. October 2026.">
+<link rel="canonical" href="https://dumpcat.cc/compare/automysqlbackup/">
+<link rel="alternate" hreflang="en" href="https://dumpcat.cc/compare/automysqlbackup/">
+<link rel="alternate" hreflang="vi" href="https://dumpcat.cc/vi/compare/automysqlbackup/">
+<link rel="alternate" hreflang="x-default" href="https://dumpcat.cc/compare/automysqlbackup/">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://dumpcat.cc/compare/automysqlbackup/">
+<meta property="og:site_name" content="DumpCat">
+<meta property="og:title" content="AutoMySQLBackup alternative: DumpCat, a maintained MySQL backup tool with a web UI">
+<meta property="og:description" content="Moving on from AutoMySQLBackup? Compare the classic cron script with DumpCat, an open-source MySQL and MariaDB backup manager with remote storage, point-in-time recovery and restores from a web UI. October 2026.">
+<meta property="og:locale" content="en_US">
+<meta property="og:image" content="https://dumpcat.cc/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://dumpcat.cc/og.png">
+<meta name="theme-color" content="#1f5fbf">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=Bricolage+Grotesque:opsz,wdth,wght@12..96,75..100,400..800&family=JetBrains+Mono:wght@400;600&display=swap">
+<link rel="stylesheet" href="/style.css">
+<script type="application/ld+json">{"@context": "https://schema.org", "@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "Home", "item": "https://dumpcat.cc/"}, {"@type": "ListItem", "position": 2, "name": "Compare", "item": "https://dumpcat.cc/compare/"}, {"@type": "ListItem", "position": 3, "name": "DumpCat vs AutoMySQLBackup", "item": "https://dumpcat.cc/compare/automysqlbackup/"}]}</script>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs><linearGradient id="dc-bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#3a86e8"/><stop offset="1" stop-color="#1c56b0"/></linearGradient><symbol id="dc-logo" viewBox="0 0 64 64"><rect width="64" height="64" rx="15" fill="url(#dc-bg)"/><path d="M47.5 45.5c7.5 0 10.5-5.5 7.8-11.5" fill="none" stroke="#fff" stroke-width="4.2" stroke-linecap="round"/><path d="M15.6 25 18.4 7.6 30.5 17.5z" fill="#fff"/><path d="M48.4 25 45.6 7.6 33.5 17.5z" fill="#fff"/><path d="M19.4 18.6 20.4 12.4 25.6 16.4z" fill="#f9a8c9"/><path d="M44.6 18.6 43.6 12.4 38.4 16.4z" fill="#f9a8c9"/><path d="M15 21v24c0 3.9 7.6 7 17 7s17-3.1 17-7V21z" fill="#fff"/><ellipse cx="32" cy="21" rx="17" ry="7" fill="#d6e6fb"/><path d="M15 38c0 3.9 7.6 7 17 7s17-3.1 17-7" fill="none" stroke="#1c56b0" stroke-opacity=".28" stroke-width="2.4"/><circle cx="25.4" cy="31" r="2.5" fill="#1b2433"/><circle cx="38.6" cy="31" r="2.5" fill="#1b2433"/><path d="M30.1 34.2h3.8L32 36.4z" fill="#f27aa8"/></symbol></defs></svg>
+<header class="hero page-hero">
+  <div class="wrap">
+    <div class="topbar">
+      <a class="brand" href="/"><svg aria-hidden="true"><use href="#dc-logo"/></svg>DumpCat</a>
+      <nav class="nav" aria-label="Site">
+        <a href="/compare/">Compare</a>
+        <a href="/#download">Download</a>
+        <a href="https://github.com/theweakestharrison/DumpCat">GitHub</a>
+      </nav>
+      <div class="lang" role="group" aria-label="Language"><a href="/compare/automysqlbackup/" hreflang="en" lang="en" aria-current="true">EN</a><a href="/vi/compare/automysqlbackup/" hreflang="vi" lang="vi">VI</a></div>
+    </div>
+    <div class="page-head">
+      <nav class="crumbs" aria-label="Breadcrumb"><a href="/">Home</a> <span aria-hidden="true">/</span> <a href="/compare/">Compare</a> <span aria-hidden="true">/</span> <span aria-current="page">DumpCat vs AutoMySQLBackup</span></nav>
+      <h1>DumpCat vs AutoMySQLBackup</h1>
+      <p class="lead">AutoMySQLBackup is the bash script many servers still run from cron. Its original SourceForge project last released in 2011; Debian still packages version 2.6 and a GitHub fork keeps it alive. DumpCat does the same job with a web UI, remote storage and point-in-time recovery.</p>
+      <div class="cta">
+        <a class="btn btn-light" href="/#download">Download DumpCat</a>
+        <a class="btn btn-ghost" href="https://github.com/theweakestharrison/DumpCat">Source on GitHub</a>
+      </div>
+    </div>
+  </div>
+</header>
+
+<main>
+  <section class="section" aria-labelledby="glance-title">
+    <div class="wrap">
+      <h2 id="glance-title">At a glance</h2>
+      <div class="section-body table-scroll cmp">
+        <table>
+          <thead><tr><th scope="col"></th><th scope="col" class="us">DumpCat</th><th scope="col">AutoMySQLBackup</th></tr></thead>
+          <tbody><tr><th scope="row">Price and license</th><td class="us" data-m="DumpCat">Free and open source (Apache-2.0). No account, no license key.</td><td data-m="AutoMySQLBackup">Free and open source (GPL-2.0 or later).</td></tr><tr><th scope="row">How it runs</th><td class="us" data-m="DumpCat">Self-hosted: one binary with a web UI, running as a systemd or Windows service next to your database.</td><td data-m="AutoMySQLBackup">A bash script started by cron.</td></tr><tr><th scope="row">Platforms</th><td class="us" data-m="DumpCat">Linux (amd64, arm64) and Windows (64-bit).</td><td data-m="AutoMySQLBackup">Linux and Unix.</td></tr><tr><th scope="row">Databases</th><td class="us" data-m="DumpCat">MySQL 5.7, 8.0, 8.4, Percona Server, MariaDB 10.x and 11.x.</td><td data-m="AutoMySQLBackup">MySQL and MariaDB through the <code>mysqldump</code> client installed on the machine.</td></tr><tr><th scope="row">Backup methods</th><td class="us" data-m="DumpCat">Logical with <code>mysqldump</code> / <code>mariadb-dump</code> or parallel <code>mydumper</code>; hot physical backups with XtraBackup / MariaBackup, including incrementals. No locks on InnoDB.</td><td data-m="AutoMySQLBackup"><code>mysqldump</code>, with <code>--single-transaction</code> optional. The sixhop fork adds diff-based differential backups.</td></tr><tr><th scope="row">Point-in-time recovery</th><td class="us" data-m="DumpCat">Yes. Continuous binlog archiving; restore to a timestamp, a binlog position or just before a GTID.</td><td data-m="AutoMySQLBackup">No.</td></tr><tr><th scope="row">Storage</th><td class="us" data-m="DumpCat">Local disk / NFS, S3 and compatibles, Google Drive, OneDrive, SFTP, FTP / FTPS, WebDAV, Backblaze B2, Azure Blob, Dropbox and every rclone backend; several per job.</td><td data-m="AutoMySQLBackup">A local directory only.</td></tr><tr><th scope="row">Encryption</th><td class="us" data-m="DumpCat">age encryption on your server before anything is uploaded; zstd compression; SHA-256 for every file.</td><td data-m="AutoMySQLBackup">gzip, bzip2, xz or zstd compression; OpenSSL or GPG encryption in the fork.</td></tr><tr><th scope="row">Scheduling and retention</th><td class="us" data-m="DumpCat">Cron-style schedules; retention per storage by count, age or GFS (daily / weekly / monthly).</td><td data-m="AutoMySQLBackup">Whatever cron runs; daily, weekly and monthly rotation.</td></tr><tr><th scope="row">Restore</th><td class="us" data-m="DumpCat">From the web UI: restore under a new database name, test-decrypt every file before dropping anything, integrity checks after each run.</td><td data-m="AutoMySQLBackup">Manual, for example <code>zcat backup.sql.gz | mysql</code>.</td></tr><tr><th scope="row">Where your data goes</th><td class="us" data-m="DumpCat">Straight from your server to the storage you choose. Nothing passes through a third party.</td><td data-m="AutoMySQLBackup">Stays on the machine; copying it elsewhere is up to you.</td></tr><tr><th scope="row">Notifications</th><td class="us" data-m="DumpCat">Email, Telegram, Slack, Discord and HMAC-signed webhooks.</td><td data-m="AutoMySQLBackup">Email with the log or the backup attached.</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" aria-label="Choose AutoMySQLBackup if / Choose DumpCat if">
+    <div class="wrap choose">
+      <div class="choose-card">
+        <h2>Choose AutoMySQLBackup if</h2>
+        <ul><li>You want the smallest possible thing: one script and a cron line on a server where a local copy is enough.</li><li>It already runs, and you only need nightly local dumps.</li></ul>
+      </div>
+      <div class="choose-card us">
+        <h2>Choose DumpCat if</h2>
+        <ul><li>You want backups off the server: S3, Google Drive, OneDrive, SFTP and more, several per job with their own retention.</li><li>You want to restore from a web UI, into a new database name, with every file test-decrypted first.</li><li>You need point-in-time recovery or hot physical backups for large databases.</li><li>You want failure alerts on Telegram, Slack or Discord and a project that is actively maintained.</li></ul>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" aria-labelledby="switch-title">
+    <div class="wrap narrow">
+      <h2 id="switch-title">Switching from AutoMySQLBackup</h2>
+      <ol class="steps-list"><li>Install DumpCat on the server; the Linux installer also installs the backup tools that match your database.</li><li>Add a local storage pointing to a new directory, plus at least one remote storage.</li><li>Create a job with the same databases; set retention to match your daily / weekly / monthly rotation (GFS).</li><li>Run it once, check the integrity result, then remove the AutoMySQLBackup cron line.</li></ol>
+    </div>
+  </section>
+  <section class="section" aria-labelledby="sources-title">
+    <div class="wrap narrow">
+      <h2 id="sources-title">Sources</h2>
+      <p class="note">Facts about AutoMySQLBackup were checked on October 18, 2026 against the sources below. Products change: if something here is out of date, please open an issue on GitHub.</p>
+      <ol class="sources"><li><a href="https://sourceforge.net/projects/automysqlbackup/rss?path=/" rel="nofollow noopener">AutoMySQLBackup on SourceForge (release feed)</a></li><li><a href="https://sources.debian.org/src/automysqlbackup/" rel="nofollow noopener">AutoMySQLBackup in Debian</a></li><li><a href="https://github.com/sixhop/AutoMySQLBackup" rel="nofollow noopener">AutoMySQLBackup fork by sixhop on GitHub</a></li></ol>
+      <p class="note">AutoMySQLBackup is a trademark of its owner. DumpCat is an independent open-source project and is not affiliated with it.</p>
+    </div>
+  </section>
+
+  <section class="section" aria-labelledby="others-title">
+    <div class="wrap narrow">
+      <h2 id="others-title">Other comparisons</h2>
+      <ul class="related"><li><a href="/compare/sqlbackupandftp/">DumpCat vs SQLBackupAndFTP</a><span>Windows backup app for SQL Server, MySQL, MariaDB and PostgreSQL, licensed per computer.</span></li><li><a href="/compare/simplebackups/">DumpCat vs SimpleBackups</a><span>Hosted service for server, database and storage backups, from a free plan to $299/month.</span></li><li><a href="/compare/databasus/">DumpCat vs Databasus</a><span>Open-source multi-database backup web app (formerly Postgresus); logical-only for MySQL.</span></li><li><a href="/compare/sqlbak/">DumpCat vs SqlBak</a><span>Agent-based backup service from the makers of SQLBackupAndFTP, priced per server.</span></li><li><a href="/compare/percona-xtrabackup/">DumpCat vs Percona XtraBackup</a><span>The open-source hot physical backup engine. DumpCat runs it for you, with scheduling, storage and restores.</span></li><li><a href="/compare/mysql-enterprise-backup/">DumpCat vs MySQL Enterprise Backup</a><span>Oracle&#x27;s commercial physical backup tool, part of MySQL Enterprise Edition.</span></li><li><a href="/compare/snapshooter/">DumpCat vs SnapShooter</a><span>DigitalOcean-owned backup service; its last listed product update is from September 2024.</span></li><li><a href="/compare/navicat/">DumpCat vs Navicat</a><span>Popular paid database client; backups are a local, scheduled side feature.</span></li><li><a href="/compare/ottomatik/">DumpCat vs Ottomatik</a><span>Hosted scheduler that runs mysqldump on your server over SSH, from $14/month.</span></li><li><a href="/compare/backupsheep/">DumpCat vs BackupSheep</a><span>Former SaaS, now an open-source self-hosted beta for databases, cloud snapshots and WordPress.</span></li></ul>
+    </div>
+  </section>
+</main>
+<footer class="foot">
+  <div class="wrap">
+    <a class="brand" href="/"><svg aria-hidden="true"><use href="#dc-logo"/></svg>DumpCat</a>
+    <p>Open source under the Apache-2.0 license, with the source on GitHub. <a href="https://github.com/theweakestharrison/DumpCat">GitHub</a> · <a href="/compare/">Compare</a></p>
+  </div>
+</footer>
+</body>
+</html>

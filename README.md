@@ -42,8 +42,9 @@ single Go binary with the UI built in.
 - **Encrypted and verified.** zstd compression, [age](https://age-encryption.org) encryption before anything leaves the
   server, SHA-256 for every file, and an integrity check that decrypts and decompresses the backup on demand or after
   every run.
-- **Careful restores.** Restore under new database names, test-decrypt every file before anything is dropped, fast load
-  mode, and automatic rollback when a physical restore replaces the datadir.
+- **Careful restores.** Restore under new database names or onto another instance or version (with `DEFINER`,
+  collation and `GTID_PURGED` rewrites), test-decrypt every file before anything is dropped, fast load mode, and
+  automatic rollback when a physical restore replaces the datadir.
 - **Built for teams.** Admin, operator and viewer roles, TOTP two-factor login, API tokens, an audit log, and
   notifications by email, Telegram, Slack, Discord or HMAC-signed webhook.
 - **Standard formats.** Every backup carries a `manifest.json` and uses zstd / gzip / age / xbstream, so you can restore
@@ -90,9 +91,9 @@ are served from `https://downloads.dumpcat.cc/<version>/`.
 **Linux**, as root:
 
 ```bash
-curl -fLO https://downloads.dumpcat.cc/1.0.0/dumpcat-1.0.0-linux.tar.gz
-tar xzf dumpcat-1.0.0-linux.tar.gz
-cd dumpcat-1.0.0-linux
+curl -fLO https://downloads.dumpcat.cc/1.1.0/dumpcat-1.1.0-linux.tar.gz
+tar xzf dumpcat-1.1.0-linux.tar.gz
+cd dumpcat-1.1.0-linux
 sudo ./install.sh
 ```
 
@@ -103,14 +104,14 @@ Options: `--port 9090`, `--listen 127.0.0.1`, `--tls-auto`, `--no-deps`, `--unin
 **Windows**, in PowerShell run as Administrator:
 
 ```powershell
-Invoke-WebRequest https://downloads.dumpcat.cc/1.0.0/dumpcat-1.0.0-windows-amd64.zip -OutFile dumpcat-1.0.0-windows-amd64.zip
-Expand-Archive dumpcat-1.0.0-windows-amd64.zip -DestinationPath .
-cd dumpcat-1.0.0-windows-amd64
+Invoke-WebRequest https://downloads.dumpcat.cc/1.1.0/dumpcat-1.1.0-windows-amd64.zip -OutFile dumpcat-1.1.0-windows-amd64.zip
+Expand-Archive dumpcat-1.1.0-windows-amd64.zip -DestinationPath .
+cd dumpcat-1.1.0-windows-amd64
 powershell -ExecutionPolicy Bypass -File .\install.ps1
 ```
 
 To check a download, compare it with
-[SHA256SUMS](https://downloads.dumpcat.cc/1.0.0/SHA256SUMS) (`sha256sum -c --ignore-missing SHA256SUMS`, or `Get-FileHash` on
+[SHA256SUMS](https://downloads.dumpcat.cc/1.1.0/SHA256SUMS) (`sha256sum -c --ignore-missing SHA256SUMS`, or `Get-FileHash` on
 Windows). To build the packages yourself, see [Building from source](#building-from-source).
 
 ### 2. Run your first backup

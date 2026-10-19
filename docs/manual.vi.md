@@ -35,7 +35,7 @@ Hướng dẫn đầy đủ để cài đặt, cấu hình và vận hành DumpC
 | Lưu trữ | Nhiều đích cho một job (vd: local + S3 + Google Drive); ghi thẳng storage local rồi upload; hoặc **stream trực tiếp** lên cloud không dùng đĩa tạm; giới hạn băng thông; **sao chép** một bản backup có sẵn sang storage khác; duyệt file trên storage |
 | Lịch | Cron (`0 2 * * *`, `@daily`, `@every 6h`), lịch riêng cho incremental, múi giờ cấu hình được, xem trước 5 lần chạy kế tiếp |
 | Retention | Giữ N bản gần nhất / N ngày / bản cuối mỗi ngày-tuần-tháng (GFS), **riêng cho từng storage** (vd: local giữ 3 bản, S3 giữ 30 ngày), tôn trọng chuỗi incremental |
-| Restore | Restore vào server bất kỳ, **đổi tên database**, restore một phần, xóa DB đích trước, không ghi binlog, chế độ nhanh, restore users; vật lý: tải chuỗi full+incremental → prepare → (tùy chọn) **tự thay datadir** với rollback |
+| Restore | Restore vào server bất kỳ (**instance, máy hoặc phiên bản khác**, tự gỡ DEFINER / đổi collation / bỏ GTID), **đổi tên database**, restore một phần, xóa DB đích trước, không ghi binlog, chế độ nhanh, restore users; vật lý: tải chuỗi full+incremental → prepare → (tùy chọn) **tự thay datadir** với rollback |
 | Khôi phục theo thời điểm (PITR) | **Lưu trữ binlog liên tục** (`mysqlbinlog --raw --stop-never`, nén/mã hóa như backup, upload lên mọi storage của job), khôi phục đến **một thời điểm / vị trí binlog / ngay trước một GTID** — tự chọn bản backup nền mới nhất, tải & kiểm tra mọi binlog trước khi thay đổi dữ liệu; retention binlog theo bản backup cũ nhất còn giữ |
 | Vận hành | Tiến độ realtime (bytes, tốc độ, %), log trực tiếp, hủy tác vụ, giới hạn số job chạy đồng thời, ưu tiên thấp (nice/ionice), pre/post command, timeout |
 | Thông báo | Email (SMTP), Telegram, Slack, Discord, Webhook (ký HMAC) — khi lỗi và/hoặc thành công |
@@ -70,9 +70,9 @@ Phiên bản mới nhất, ghi chú phát hành và mã kiểm tra có trên [du
 `https://downloads.dumpcat.cc/<phiên bản>/`.
 
 ```bash
-curl -fLO https://downloads.dumpcat.cc/1.0.0/dumpcat-1.0.0-linux.tar.gz
-tar xzf dumpcat-1.0.0-linux.tar.gz
-cd dumpcat-1.0.0-linux
+curl -fLO https://downloads.dumpcat.cc/1.1.0/dumpcat-1.1.0-linux.tar.gz
+tar xzf dumpcat-1.1.0-linux.tar.gz
+cd dumpcat-1.1.0-linux
 sudo ./install.sh
 ```
 
@@ -122,9 +122,9 @@ DumpCat cũng chạy trên Windows Server 2016+ / Windows 10+ (64-bit), dưới 
 Mở PowerShell bằng **Run as administrator**:
 
 ```powershell
-Invoke-WebRequest https://downloads.dumpcat.cc/1.0.0/dumpcat-1.0.0-windows-amd64.zip -OutFile dumpcat-1.0.0-windows-amd64.zip
-Expand-Archive dumpcat-1.0.0-windows-amd64.zip -DestinationPath .
-cd dumpcat-1.0.0-windows-amd64
+Invoke-WebRequest https://downloads.dumpcat.cc/1.1.0/dumpcat-1.1.0-windows-amd64.zip -OutFile dumpcat-1.1.0-windows-amd64.zip
+Expand-Archive dumpcat-1.1.0-windows-amd64.zip -DestinationPath .
+cd dumpcat-1.1.0-windows-amd64
 powershell -ExecutionPolicy Bypass -File .\install.ps1
 ```
 
@@ -365,6 +365,34 @@ Mở **Bản backup** → chọn bản → **Restore**.
 3. (Admin) *Áp dụng ngay*: dừng service → đổi tên datadir cũ thành `datadir.before-restore-<thời gian>` → `--copy-back`/`--move-back` → `chown` → khởi động. Lỗi bất kỳ bước nào sẽ **tự rollback** về datadir cũ.
 
 Muốn quay về **một thời điểm bất kỳ** (không chỉ thời điểm backup), dùng *Point-in-time recovery* — xem mục 8.
+
+### Restore sang instance khác (nhân bản, chuyển server, staging)
+
+Bản backup logic restore được vào **mọi server DumpCat kết nối tới được** — máy khác, port khác trên cùng máy, phiên
+bản MySQL / MariaDB khác — ví dụ làm mới bản staging từ production hoặc chuyển sang máy mới.
+
+1. Chọn đích ở *Restore to server*, hoặc bấm **New server** để thêm ngay tại chỗ (dùng tài khoản restore có quyền ghi,
+   xem *Separate account for restores*).
+2. DumpCat kết nối bằng tài khoản restore và hiện phiên bản, flavor, các database đang có trên đó, kèm ghi chú tương
+   thích. Mọi database sẽ bị ghi đè trên server đích được liệt kê màu đỏ và phải gõ `RESTORE` để xác nhận, dù là server
+   nào.
+3. *Compatibility with the target* — tự tick theo những gì DumpCat thấy ở đích, có thể sửa:
+   - **Remove DEFINER** khỏi view, routine, trigger, event: chúng được tạo với definer là tài khoản restore. Cần khi tài
+     khoản gốc không có trên đích, hoặc user restore thiếu `SET_USER_ID` / `SUPER`. Gợi ý cho mọi server khác server gốc.
+   - **Convert collations**: `utf8mb4_0900_*` của MySQL 8 và `*_uca1400_*` của MariaDB → `utf8mb4_unicode_ci` (hoặc
+     `utf8mb4_bin` với loại phân biệt hoa thường), `utf8mb3_*` → `utf8_*`. Gợi ý khi MySQL 8 → MariaDB, MySQL 8 → 5.7 và
+     MariaDB → MySQL.
+   - **Skip GTID_PURGED** (mysqldump): bỏ `SET @@GLOBAL.GTID_PURGED` — câu này lỗi trên server đã có lịch sử GTID và cần
+     `SUPER`. Gợi ý khi dump có câu này; chỉ giữ lại nếu đang dựng replica của server gốc.
+
+   Chỉ các câu lệnh schema được viết lại khi stream: dòng `INSERT` (dữ liệu) đi qua nguyên vẹn. Với mydumper, các file
+   schema được viết lại sau khi giải nén.
+4. Kết hợp với *đổi tên đích* để giữ bản sao cạnh database hiện có, và với *Point-in-time recovery* để nhân bản server
+   gốc tại một thời điểm (không replay binlog giữa MySQL và MariaDB được).
+
+Backup vật lý được restore trên máy chạy DumpCat (instance khác trên cùng máy: chọn nó trong ô *Apply*, DumpCat tự điền
+datadir, service, owner). Đích phải cùng flavor và cùng dòng phiên bản. Muốn restore backup vật lý sang **máy khác**,
+cài DumpCat trên máy đó, thêm cùng storage rồi dùng **Import backup catalog** (mục 10).
 
 Thời gian restore vật lý ≈ thời gian giải nén + prepare + copy (không phải nạp lại từng câu SQL) → thường nhanh hơn restore logic hàng chục lần với DB lớn.
 

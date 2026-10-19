@@ -1,0 +1,92 @@
+{
+  "slug": "automysqlbackup",
+  "name": "AutoMySQLBackup",
+  "order": 35,
+  "checked": "2026-10-18",
+  "kind": {"en": "Bash script run from cron", "vi": "Script bash chạy bằng cron"},
+  "summary": {
+    "en": "Classic cron script with daily / weekly / monthly rotation; the original project stopped in 2011.",
+    "vi": "Script cron kinh điển, xoay vòng theo ngày / tuần / tháng; dự án gốc dừng từ 2011."
+  },
+  "hub": {
+    "open_source": true,
+    "self_hosted": {"en": "Yes (Linux / Unix)", "vi": "Có (Linux / Unix)"},
+    "pitr": {"en": "No", "vi": "Không"},
+    "price": {"en": "Free (GPL-2.0+)", "vi": "Miễn phí (GPL-2.0+)"}
+  },
+  "en": {
+    "title": "AutoMySQLBackup alternative: DumpCat, a maintained MySQL backup tool with a web UI",
+    "description": "Moving on from AutoMySQLBackup? Compare the classic cron script with DumpCat, an open-source MySQL and MariaDB backup manager with remote storage, point-in-time recovery and restores from a web UI. October 2026.",
+    "lead": "AutoMySQLBackup is the bash script many servers still run from cron. Its original SourceForge project last released in 2011; Debian still packages version 2.6 and a GitHub fork keeps it alive. DumpCat does the same job with a web UI, remote storage and point-in-time recovery.",
+    "values": {
+      "price": "Free and open source (GPL-2.0 or later).",
+      "runs": "A bash script started by cron.",
+      "platforms": "Linux and Unix.",
+      "databases": "MySQL and MariaDB through the `mysqldump` client installed on the machine.",
+      "methods": "`mysqldump`, with `--single-transaction` optional. The sixhop fork adds diff-based differential backups.",
+      "pitr": "No.",
+      "storage": "A local directory only.",
+      "encryption": "gzip, bzip2, xz or zstd compression; OpenSSL or GPG encryption in the fork.",
+      "schedule": "Whatever cron runs; daily, weekly and monthly rotation.",
+      "restore": "Manual, for example `zcat backup.sql.gz | mysql`.",
+      "datapath": "Stays on the machine; copying it elsewhere is up to you.",
+      "alerts": "Email with the log or the backup attached."
+    },
+    "choose_them": [
+      "You want the smallest possible thing: one script and a cron line on a server where a local copy is enough.",
+      "It already runs, and you only need nightly local dumps."
+    ],
+    "choose_us": [
+      "You want backups off the server: S3, Google Drive, OneDrive, SFTP and more, several per job with their own retention.",
+      "You want to restore from a web UI, into a new database name, with every file test-decrypted first.",
+      "You need point-in-time recovery or hot physical backups for large databases.",
+      "You want failure alerts on Telegram, Slack or Discord and a project that is actively maintained."
+    ],
+    "switch": [
+      "Install DumpCat on the server; the Linux installer also installs the backup tools that match your database.",
+      "Add a local storage pointing to a new directory, plus at least one remote storage.",
+      "Create a job with the same databases; set retention to match your daily / weekly / monthly rotation (GFS).",
+      "Run it once, check the integrity result, then remove the AutoMySQLBackup cron line."
+    ]
+  },
+  "vi": {
+    "title": "Thay thế AutoMySQLBackup: DumpCat, công cụ backup MySQL còn phát triển, có giao diện web",
+    "description": "Muốn thay AutoMySQLBackup? So sánh script cron kinh điển với DumpCat, công cụ quản lý backup MySQL, MariaDB mã nguồn mở có lưu từ xa, khôi phục theo thời điểm và khôi phục trên giao diện web. Tháng 10/2026.",
+    "lead": "AutoMySQLBackup là script bash mà rất nhiều server vẫn chạy bằng cron. Dự án gốc trên SourceForge phát hành lần cuối năm 2011; Debian vẫn đóng gói bản 2.6 và một bản fork trên GitHub vẫn được duy trì. DumpCat làm cùng việc đó, có giao diện web, lưu từ xa và khôi phục theo thời điểm.",
+    "values": {
+      "price": "Miễn phí, mã nguồn mở (GPL-2.0 trở lên).",
+      "runs": "Script bash do cron gọi.",
+      "platforms": "Linux và Unix.",
+      "databases": "MySQL và MariaDB, qua client `mysqldump` cài trên máy.",
+      "methods": "`mysqldump`, `--single-transaction` là tùy chọn. Bản fork của sixhop thêm backup differential dựa trên diff.",
+      "pitr": "Không.",
+      "storage": "Chỉ một thư mục local.",
+      "encryption": "Nén gzip, bzip2, xz hoặc zstd; mã hóa OpenSSL hoặc GPG trong bản fork.",
+      "schedule": "Theo lịch cron; xoay vòng theo ngày, tuần và tháng.",
+      "restore": "Thủ công, ví dụ `zcat backup.sql.gz | mysql`.",
+      "datapath": "Nằm lại trên máy; muốn chép đi đâu thì bạn tự lo.",
+      "alerts": "Email kèm log hoặc file backup."
+    },
+    "choose_them": [
+      "Bạn muốn thứ gọn nhất có thể: một script và một dòng cron, trên server mà một bản local là đủ.",
+      "Nó đang chạy ổn và bạn chỉ cần dump local mỗi đêm."
+    ],
+    "choose_us": [
+      "Bạn muốn backup nằm ngoài server: S3, Google Drive, OneDrive, SFTP và hơn thế, nhiều nơi cho một job, mỗi nơi một retention.",
+      "Bạn muốn khôi phục trên giao diện web, sang tên database mới, mọi file được thử giải mã trước.",
+      "Bạn cần khôi phục theo thời điểm hoặc backup vật lý nóng cho database lớn.",
+      "Bạn muốn cảnh báo lỗi qua Telegram, Slack hay Discord và một dự án vẫn đang được phát triển."
+    ],
+    "switch": [
+      "Cài DumpCat trên server; bộ cài Linux tự cài luôn các công cụ backup khớp với database.",
+      "Thêm một storage local trỏ tới thư mục mới, cùng ít nhất một storage từ xa.",
+      "Tạo job với cùng các database; đặt retention khớp với vòng xoay ngày / tuần / tháng hiện tại (GFS).",
+      "Chạy thử một lần, xem kết quả kiểm tra toàn vẹn, rồi xóa dòng cron của AutoMySQLBackup."
+    ]
+  },
+  "sources": [
+    {"label": "AutoMySQLBackup on SourceForge (release feed)", "url": "https://sourceforge.net/projects/automysqlbackup/rss?path=/"},
+    {"label": "AutoMySQLBackup in Debian", "url": "https://sources.debian.org/src/automysqlbackup/"},
+    {"label": "AutoMySQLBackup fork by sixhop on GitHub", "url": "https://github.com/sixhop/AutoMySQLBackup"}
+  ]
+}

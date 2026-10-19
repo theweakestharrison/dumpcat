@@ -7,11 +7,13 @@
     "nav-ops": "Operations",
     "nav-download": "Download",
     "nav-install": "Install",
-    "eyebrow": "Backup &amp; restore for MySQL and MariaDB",
+    "nav-compare": "Compare",
+    "eyebrow": "Open source · Backup &amp; restore for MySQL and MariaDB",
     "h1": "Backups that never lock the database. <span class=\"soft\">Recovery to the exact second.</span>",
     "lead": "DumpCat is a single binary with a web UI. It schedules backups, compresses and encrypts them, ships copies to S3, Google Drive, OneDrive or SFTP, verifies them and brings your data back when you need it. Runs on Linux and Windows, fully offline.",
-    "cta-install": "Install <span data-version>1.0.0</span>",
+    "cta-install": "Install <span data-version>1.1.0</span>",
     "cta-features": "See features",
+    "cta-github": "Source on GitHub",
     "pitr-title": "Point-in-time recovery",
     "pitr-tag": "Simulation",
     "pitr-sub": "Someone dropped the <code>orders</code> table at 14:37:12. Drag the marker to pick a recovery point: DumpCat picks the newest base backup and the binlog files to replay.",
@@ -54,11 +56,22 @@
     "o-list": "<div><dt>Encrypted before upload</dt><dd>age (ChaCha20-Poly1305 + scrypt) runs on your server, so the cloud provider cannot read your data.</dd></div>" +
       "<div><dt>Integrity checks</dt><dd><span class=\"nw\">SHA-256</span> for every file. Verify re-reads, decrypts, decompresses and looks for the <code>Dump completed</code> line.</dd></div>" +
       "<div><dt>GFS retention</dt><dd>Keep N backups, N days, the last one of each day, week and month. Incremental chains go only with their full.</dd></div>" +
-      "<div><dt>Careful restores</dt><dd>Every file is test-decrypted before any database is dropped. Restore under new names to compare, or use fast load mode.</dd></div>" +
+      "<div><dt>Careful restores</dt><dd>Every file is test-decrypted before any database is dropped. Restore under new names, or onto another server and version (MySQL 8 ↔ MariaDB).</dd></div>" +
       "<div><dt>Accounts and roles</dt><dd>admin, operator, viewer. TOTP two-factor, API tokens, an audit log and lockout after repeated failed logins.</dd></div>" +
       "<div><dt>Notifications</dt><dd>Email, Telegram, Slack, Discord and HMAC-signed webhooks, on failure or on success.</dd></div>" +
       "<div><dt>Live progress</dt><dd>Bytes, speed, percentage and logs in real time. Cancel a task at any moment.</dd></div>" +
       "<div><dt>Self-update</dt><dd><code>dumpcat update</code> checks <span class=\"nw\">SHA-256</span>, backs up the configuration, waits for running backups and rolls back on failure.</dd></div>",
+    "oss-label": "Open source",
+    "oss-title": "Free, open source, and your data stays yours",
+    "oss-intro": "DumpCat is released under the Apache-2.0 license. No account, no license key, no paid edition holding features back: everything on this page is in the build you download.",
+    "oss-list": "<div><dt>Apache-2.0 license</dt><dd>Use it at home or at work, modify it and redistribute it. The full text is in <a href=\"https://github.com/theweakestharrison/DumpCat/blob/main/LICENSE\">LICENSE</a>.</dd></div>" +
+      "<div><dt>No telemetry</dt><dd>DumpCat sends no usage data anywhere. The only call it makes on its own is reading <code>latest.json</code> once a day to announce new versions, and you can switch that off in Settings.</dd></div>" +
+      "<div><dt>No middleman</dt><dd>Backups, database passwords and encryption keys travel only from your server to the storage you choose.</dd></div>" +
+      "<div><dt>Signed releases</dt><dd>Every update is signed with ed25519 and checked against <span class=\"nw\">SHA-256</span> before it is installed. Building it yourself only takes Go.</dd></div>",
+    "oss-build-title": "Build from source",
+    "oss-contrib": "Bug reports, pull requests and translations are welcome, see <a href=\"https://github.com/theweakestharrison/DumpCat/blob/main/CONTRIBUTING.md\">CONTRIBUTING.md</a>. Please report security problems privately, as described in <a href=\"https://github.com/theweakestharrison/DumpCat/blob/main/SECURITY.md\">SECURITY.md</a>.",
+    "oss-github": "View on GitHub",
+    "oss-issues": "Report an issue",
     "d-label": "Download",
     "d-title": "Latest release",
     "d-linux": "amd64 and arm64, installer, systemd service and manual",
@@ -78,7 +91,7 @@
       "<li><div><b>Create a backup job</b><span>Pick a schedule, encryption, storage and retention, then Save &amp; run now.</span></div></li>",
     "meow-title": "Port 6369 spells <em>MEOW</em>",
     "meow": "Type 6-3-6-9 on a phone keypad and you get MEOW. It is the default port of the web UI.",
-    "foot": "Open source under the Apache-2.0 license, with the source on <a href=\"https://github.com/theweakestharrison/DumpCat\">GitHub</a>. The full manual, in English and Vietnamese, ships inside every package."
+    "foot": "Open source under the Apache-2.0 license, with the source on <a href=\"https://github.com/theweakestharrison/DumpCat\">GitHub</a>. <a class=\"compare-link\" href=\"/compare/\">How it compares with other tools</a>. The full manual, in English and Vietnamese, ships inside every package."
   };
 
   var STR = {
@@ -156,6 +169,7 @@
     document.documentElement.lang = lang;
     document.querySelectorAll(".lang button").forEach(function (b) { b.setAttribute("aria-pressed", String(b.getAttribute("data-lang") === lang)); });
     document.querySelectorAll(".copy").forEach(function (b) { b.textContent = STR[lang].copy; });
+    document.querySelectorAll(".compare-link").forEach(function (a) { a.setAttribute("href", lang === "vi" ? "/vi/compare/" : "/compare/"); });
     render();
     renderRelease();
   }

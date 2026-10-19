@@ -31,6 +31,24 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=Bricolage+Grotesque:opsz,wdth,wght@12..96,75..100,400..800&family=JetBrains+Mono:wght@400;600&display=swap">
 <link rel="stylesheet" href="/style.css">
 <script src="/app.js" defer></script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "DumpCat",
+  "url": "https://dumpcat.cc/",
+  "description": "Open-source backup, restore and point-in-time recovery for MySQL and MariaDB: one self-hosted binary with a web UI.",
+  "applicationCategory": "DeveloperApplication",
+  "operatingSystem": "Linux, Windows",
+  "license": "https://www.apache.org/licenses/LICENSE-2.0",
+  "isAccessibleForFree": true,
+  "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+  "downloadUrl": "https://dumpcat.cc/#download",
+  "image": "https://dumpcat.cc/og.png",
+  "sameAs": ["https://github.com/theweakestharrison/DumpCat"],
+  "author": { "@type": "Person", "name": "theweakestharrison", "url": "https://github.com/theweakestharrison" }
+}
+</script>
 </head>
 <body>
 
@@ -51,6 +69,7 @@
         <a href="#ops" data-i18n="nav-ops">Vận hành</a>
         <a href="#download" data-i18n="nav-download">Tải về</a>
         <a href="#install" data-i18n="nav-install">Cài đặt</a>
+        <a class="compare-link" href="/compare/" data-i18n="nav-compare">So sánh</a>
         <a href="https://github.com/theweakestharrison/DumpCat">GitHub</a>
       </nav>
       <div class="lang" role="group" aria-label="Language">
@@ -61,12 +80,13 @@
 
     <div class="hero-main">
       <div class="hero-copy">
-        <p class="eyebrow" data-i18n="eyebrow">Backup &amp; restore cho MySQL và MariaDB</p>
+        <p class="eyebrow" data-i18n="eyebrow">Mã nguồn mở · Backup &amp; restore cho MySQL và MariaDB</p>
         <h1 data-i18n="h1">Backup không khóa database. <span class="soft">Khôi phục đến đúng giây bạn cần.</span></h1>
         <p class="lead" data-i18n="lead">DumpCat là một file chạy duy nhất kèm giao diện web. Nó lên lịch backup, nén và mã hóa, đẩy bản sao lên S3, Google Drive, OneDrive hay SFTP, tự kiểm tra toàn vẹn và đưa dữ liệu về khi bạn cần. Chạy trên Linux lẫn Windows, không cần internet.</p>
         <div class="cta">
-          <a class="btn btn-light" href="#install" data-i18n="cta-install">Cài đặt bản <span data-version>1.0.0</span></a>
+          <a class="btn btn-light" href="#install" data-i18n="cta-install">Cài đặt bản <span data-version>1.1.0</span></a>
           <a class="btn btn-ghost" href="#methods" data-i18n="cta-features">Xem tính năng</a>
+          <a class="btn btn-ghost" href="https://github.com/theweakestharrison/DumpCat"><svg class="gh" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 0c4.42 0 8 3.58 8 8a8.013 8.013 0 0 1-5.45 7.59c-.4.08-.55-.17-.55-.38 0-.27.01-1.13.01-2.2 0-.75-.25-1.23-.54-1.48 1.78-.2 3.65-.88 3.65-3.95 0-.88-.31-1.59-.82-2.15.08-.2.36-1.02-.08-2.12 0 0-.67-.22-2.2.82-.64-.18-1.32-.27-2-.27-.68 0-1.36.09-2 .27-1.53-1.03-2.2-.82-2.2-.82-.44 1.1-.16 1.92-.08 2.12-.51.56-.82 1.28-.82 2.15 0 3.06 1.86 3.75 3.64 3.95-.23.2-.44.55-.51 1.07-.46.21-1.61.55-2.33-.66-.15-.24-.6-.83-1.23-.82-.67.01-.27.38.01.53.34.19.73.9.82 1.13.16.45.68 1.31 2.69.94 0 .67.01 1.3.01 1.49 0 .21-.15.45-.55.38A7.995 7.995 0 0 1 0 8c0-4.42 3.58-8 8-8Z"/></svg><span data-i18n="cta-github">Mã nguồn trên GitHub</span></a>
         </div>
         <p class="compat"><b>MySQL</b> 5.7 · 8.0 · 8.4 &nbsp;/&nbsp; <b>Percona Server</b> &nbsp;/&nbsp; <b>MariaDB</b> 10.x · 11.x</p>
       </div>
@@ -200,12 +220,44 @@
         <div><dt>Mã hóa trước khi upload</dt><dd>age (ChaCha20-Poly1305 + scrypt) chạy trên server của bạn, nhà cung cấp cloud không đọc được dữ liệu.</dd></div>
         <div><dt>Kiểm tra toàn vẹn</dt><dd><span class="nw">SHA-256</span> cho từng file. Verify đọc lại, giải mã, giải nén và tìm dòng <code>Dump completed</code>.</dd></div>
         <div><dt>Retention kiểu GFS</dt><dd>Giữ N bản, N ngày, bản cuối mỗi ngày, tuần, tháng. Chuỗi incremental chỉ bị xóa cùng bản full gốc.</dd></div>
-        <div><dt>Restore cẩn thận</dt><dd>Thử giải mã mọi file trước khi DROP database. Restore sang tên mới để so sánh, chế độ nạp nhanh.</dd></div>
+        <div><dt>Restore cẩn thận</dt><dd>Thử giải mã mọi file trước khi DROP database. Restore sang tên mới, hoặc sang server và phiên bản khác (MySQL 8 ↔ MariaDB).</dd></div>
         <div><dt>Tài khoản và phân quyền</dt><dd>admin, operator, viewer. 2FA bằng TOTP, API token, nhật ký thao tác, khóa sau nhiều lần đăng nhập sai.</dd></div>
         <div><dt>Thông báo</dt><dd>Email, Telegram, Slack, Discord và Webhook ký HMAC, khi lỗi hoặc khi thành công.</dd></div>
         <div><dt>Tiến trình trực tiếp</dt><dd>Số byte, tốc độ, phần trăm và log chạy theo thời gian thực. Hủy tác vụ bất cứ lúc nào.</dd></div>
         <div><dt>Tự cập nhật</dt><dd><code>dumpcat update</code> kiểm tra <span class="nw">SHA-256</span>, backup cấu hình, chờ backup đang chạy xong và tự rollback nếu lỗi.</dd></div>
       </dl>
+    </div>
+  </section>
+
+  <section class="section" id="opensource" aria-labelledby="oss-title">
+    <div class="wrap">
+      <div class="head">
+        <div>
+          <p class="label" data-i18n="oss-label">Mã nguồn mở</p>
+          <h2 id="oss-title" data-i18n="oss-title">Miễn phí, mã nguồn mở, dữ liệu vẫn là của bạn</h2>
+        </div>
+        <p class="intro" data-i18n="oss-intro">DumpCat phát hành theo giấy phép Apache-2.0. Không cần tài khoản, không license key, không có bản trả phí khóa bớt tính năng: mọi thứ trên trang này đều nằm trong bản bạn tải về.</p>
+      </div>
+      <div class="section-body storage-grid">
+        <dl class="oss-list" data-i18n="oss-list">
+          <div><dt>Giấy phép Apache-2.0</dt><dd>Dùng cho cá nhân hay doanh nghiệp, sửa và phân phối lại đều được. Toàn văn giấy phép nằm trong <a href="https://github.com/theweakestharrison/DumpCat/blob/main/LICENSE">LICENSE</a>.</dd></div>
+          <div><dt>Không telemetry</dt><dd>DumpCat không gửi dữ liệu sử dụng đi đâu cả. Việc duy nhất nó tự gọi ra ngoài là mỗi ngày đọc <code>latest.json</code> một lần để báo bản mới, và bạn tắt được trong Settings.</dd></div>
+          <div><dt>Không qua máy chủ trung gian</dt><dd>Backup, mật khẩu database và khóa mã hóa chỉ đi từ server của bạn tới nơi lưu trữ do bạn chọn.</dd></div>
+          <div><dt>Bản phát hành có ký</dt><dd>Mỗi bản cập nhật được ký ed25519 và kiểm tra <span class="nw">SHA-256</span> trước khi cài. Muốn tự build thì chỉ cần Go.</dd></div>
+        </dl>
+        <div class="aside">
+          <h3 data-i18n="oss-build-title">Build từ mã nguồn</h3>
+          <div class="code">
+            <div class="code-bar"><span>bash</span><button type="button" class="copy" data-target="cmd-build">Sao chép</button></div>
+            <pre><code id="cmd-build">git clone https://github.com/theweakestharrison/DumpCat.git
+cd DumpCat
+go build -o dumpcat ./cmd/dumpcat</code></pre>
+          </div>
+          <p data-i18n="oss-contrib">Báo lỗi, gửi pull request hay dịch tài liệu đều được chào đón, xem <a href="https://github.com/theweakestharrison/DumpCat/blob/main/CONTRIBUTING.md">CONTRIBUTING.md</a>. Lỗi bảo mật xin báo riêng theo <a href="https://github.com/theweakestharrison/DumpCat/blob/main/SECURITY.md">SECURITY.md</a>.</p>
+          <p class="oss-links"><a class="btn btn-solid" href="https://github.com/theweakestharrison/DumpCat"><svg class="gh" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 0c4.42 0 8 3.58 8 8a8.013 8.013 0 0 1-5.45 7.59c-.4.08-.55-.17-.55-.38 0-.27.01-1.13.01-2.2 0-.75-.25-1.23-.54-1.48 1.78-.2 3.65-.88 3.65-3.95 0-.88-.31-1.59-.82-2.15.08-.2.36-1.02-.08-2.12 0 0-.67-.22-2.2.82-.64-.18-1.32-.27-2-.27-.68 0-1.36.09-2 .27-1.53-1.03-2.2-.82-2.2-.82-.44 1.1-.16 1.92-.08 2.12-.51.56-.82 1.28-.82 2.15 0 3.06 1.86 3.75 3.64 3.95-.23.2-.44.55-.51 1.07-.46.21-1.61.55-2.33-.66-.15-.24-.6-.83-1.23-.82-.67.01-.27.38.01.53.34.19.73.9.82 1.13.16.45.68 1.31 2.69.94 0 .67.01 1.3.01 1.49 0 .21-.15.45-.55.38A7.995 7.995 0 0 1 0 8c0-4.42 3.58-8 8-8Z"/></svg><span data-i18n="oss-github">Xem trên GitHub</span></a>
+            <a class="btn btn-line" href="https://github.com/theweakestharrison/DumpCat/issues" data-i18n="oss-issues">Báo lỗi</a></p>
+        </div>
+      </div>
     </div>
   </section>
 
@@ -222,14 +274,14 @@
       <div class="section-body release" id="release" hidden>
         <div class="release-files">
           <div class="pkgs">
-            <a class="pkg" id="pkg-linux" href="https://downloads.dumpcat.cc/1.0.0/dumpcat-1.0.0-linux.tar.gz">
+            <a class="pkg" id="pkg-linux" href="https://downloads.dumpcat.cc/1.1.0/dumpcat-1.1.0-linux.tar.gz">
               <span class="pkg-os">Linux</span>
-              <span class="pkg-file" id="pkg-linux-file">dumpcat-1.0.0-linux.tar.gz</span>
+              <span class="pkg-file" id="pkg-linux-file">dumpcat-1.1.0-linux.tar.gz</span>
               <span class="pkg-desc" data-i18n="d-linux">amd64 và arm64, script cài đặt, service systemd và hướng dẫn</span>
             </a>
-            <a class="pkg" id="pkg-windows" href="https://downloads.dumpcat.cc/1.0.0/dumpcat-1.0.0-windows-amd64.zip">
+            <a class="pkg" id="pkg-windows" href="https://downloads.dumpcat.cc/1.1.0/dumpcat-1.1.0-windows-amd64.zip">
               <span class="pkg-os">Windows</span>
-              <span class="pkg-file" id="pkg-windows-file">dumpcat-1.0.0-windows-amd64.zip</span>
+              <span class="pkg-file" id="pkg-windows-file">dumpcat-1.1.0-windows-amd64.zip</span>
               <span class="pkg-desc" data-i18n="d-windows">64-bit, script cài Windows service và hướng dẫn</span>
             </a>
           </div>
@@ -263,9 +315,9 @@
           <div role="tabpanel" id="panel-linux" aria-labelledby="tab-linux">
             <div class="code">
               <div class="code-bar"><span>bash</span><button type="button" class="copy" data-target="cmd-linux">Sao chép</button></div>
-              <pre><code id="cmd-linux">curl -fLO <span data-base>https://downloads.dumpcat.cc/</span><span data-version>1.0.0</span>/dumpcat-<span data-version>1.0.0</span>-linux.tar.gz
-tar xzf dumpcat-<span data-version>1.0.0</span>-linux.tar.gz
-cd dumpcat-<span data-version>1.0.0</span>-linux
+              <pre><code id="cmd-linux">curl -fLO <span data-base>https://downloads.dumpcat.cc/</span><span data-version>1.1.0</span>/dumpcat-<span data-version>1.1.0</span>-linux.tar.gz
+tar xzf dumpcat-<span data-version>1.1.0</span>-linux.tar.gz
+cd dumpcat-<span data-version>1.1.0</span>-linux
 sudo ./install.sh</code></pre>
             </div>
             <p class="panel-note" data-i18n="i-linux-note">Cài vào <code>/opt/dumpcat</code>, tạo service systemd, cài <code>rclone</code>, MySQL/MariaDB client, mariabackup hoặc XtraBackup đúng version, và mydumper nếu repo có. Tùy chọn: <code>--port 9090</code>, <code>--listen 127.0.0.1</code>, <code>--tls-auto</code>.</p>
@@ -273,9 +325,9 @@ sudo ./install.sh</code></pre>
           <div role="tabpanel" id="panel-windows" aria-labelledby="tab-windows" hidden>
             <div class="code">
               <div class="code-bar"><span>PowerShell (Administrator)</span><button type="button" class="copy" data-target="cmd-windows">Sao chép</button></div>
-              <pre><code id="cmd-windows">Invoke-WebRequest <span data-base>https://downloads.dumpcat.cc/</span><span data-version>1.0.0</span>/dumpcat-<span data-version>1.0.0</span>-windows-amd64.zip -OutFile dumpcat-<span data-version>1.0.0</span>-windows-amd64.zip
-Expand-Archive dumpcat-<span data-version>1.0.0</span>-windows-amd64.zip -DestinationPath .
-cd dumpcat-<span data-version>1.0.0</span>-windows-amd64
+              <pre><code id="cmd-windows">Invoke-WebRequest <span data-base>https://downloads.dumpcat.cc/</span><span data-version>1.1.0</span>/dumpcat-<span data-version>1.1.0</span>-windows-amd64.zip -OutFile dumpcat-<span data-version>1.1.0</span>-windows-amd64.zip
+Expand-Archive dumpcat-<span data-version>1.1.0</span>-windows-amd64.zip -DestinationPath .
+cd dumpcat-<span data-version>1.1.0</span>-windows-amd64
 powershell -ExecutionPolicy Bypass -File .\install.ps1</code></pre>
             </div>
             <p class="panel-note" data-i18n="i-win-note">Chạy PowerShell bằng quyền Administrator. Windows Server 2016+ / Windows 10+ 64-bit, chạy như Windows service. Không có mydumper và XtraBackup cho MySQL; database hàng trăm GB nên chạy DumpCat trên Linux.</p>
@@ -309,8 +361,8 @@ powershell -ExecutionPolicy Bypass -File .\install.ps1</code></pre>
 
 <footer class="foot">
   <div class="wrap">
-    <a class="brand" href="#top"><svg aria-hidden="true"><use href="#dc-logo"/></svg>DumpCat <span data-version>1.0.0</span></a>
-    <p data-i18n="foot">Mã nguồn mở theo giấy phép Apache-2.0, mã nguồn trên <a href="https://github.com/theweakestharrison/DumpCat">GitHub</a>. Hướng dẫn đầy đủ bằng tiếng Anh và tiếng Việt có sẵn trong mọi gói cài đặt.</p>
+    <a class="brand" href="#top"><svg aria-hidden="true"><use href="#dc-logo"/></svg>DumpCat <span data-version>1.1.0</span></a>
+    <p data-i18n="foot">Mã nguồn mở theo giấy phép Apache-2.0, mã nguồn trên <a href="https://github.com/theweakestharrison/DumpCat">GitHub</a>. <a class="compare-link" href="/compare/">So sánh với các công cụ khác</a>. Hướng dẫn đầy đủ bằng tiếng Anh và tiếng Việt có sẵn trong mọi gói cài đặt.</p>
   </div>
 </footer>
 </body>

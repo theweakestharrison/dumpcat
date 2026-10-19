@@ -9,7 +9,7 @@ const OPT_LABELS = {
   location_id: 'Source location', target_server_id: 'Target server (id)', databases: 'Databases', rename: 'Rename', drop_existing: 'Drop target databases first',
   no_binlog: 'No binlog', fast_mode: 'Fast mode', restore_users: 'Restore users', threads: 'Threads', target_dir: 'Extraction directory',
   apply: 'Apply to datadir', service_name: 'Service', datadir: 'Datadir', move_back: 'Move-back', use_memory: 'use-memory', os_user: 'OS user',
-  pitr: 'Point-in-time recovery',
+  pitr: 'Point-in-time recovery', strip_definer: 'Remove DEFINER', convert_collations: 'Convert collations', skip_gtid_purged: 'Skip GTID_PURGED',
 };
 
 function fmtPITR(t) {

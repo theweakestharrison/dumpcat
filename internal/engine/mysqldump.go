@@ -16,8 +16,9 @@ import (
 
 var (
 	reChangeMaster = regexp.MustCompile(`(?:MASTER|SOURCE)_LOG_FILE='([^']+)',\s*(?:MASTER|SOURCE)_LOG_POS=(\d+)`)
-	reGtidPurged   = regexp.MustCompile(`GTID_PURGED='([^']*)'`)
-	reMariaGtid    = regexp.MustCompile(`gtid_slave_pos='([^']*)'`)
+	// MySQL 8 writes SET @@GLOBAL.GTID_PURGED=/*!80000 '+'*/ 'uuid:1-5,uuid:1-3'; (one UUID per line)
+	reGtidPurged = regexp.MustCompile(`GTID_PURGED=(?:/\*!\d+ '\+'\*/ *)?'([^']*)'`)
+	reMariaGtid  = regexp.MustCompile(`gtid_slave_pos='([^']*)'`)
 )
 
 // mysqldumpArgs builds the common non-locking dump options.
@@ -229,7 +230,7 @@ func parseBinlogHeader(hd string, meta map[string]any) {
 		}
 	}
 	if m := grepFirst(reGtidPurged, hd); m != nil {
-		meta["gtid"] = m[1]
+		meta["gtid"] = strings.Join(strings.Fields(m[1]), "")
 	} else if m := grepFirst(reMariaGtid, hd); m != nil {
 		meta["gtid"] = m[1]
 	}

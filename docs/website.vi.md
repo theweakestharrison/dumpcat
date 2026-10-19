@@ -183,3 +183,25 @@ Lưu ý: khi chạy thử trên máy, `_headers` không được áp dụng.
 
   Facebook, Zalo, X và Slack lưu cache ảnh xem trước. Để chúng lấy ảnh mới, dán link vào
   [Facebook Sharing Debugger](https://developers.facebook.com/tools/debug/) và bấm **Scrape Again**.
+
+---
+
+## Phần 4 — Trang so sánh (SEO)
+
+Các trang `https://dumpcat.cc/compare/…` (tiếng Anh) và `https://dumpcat.cc/vi/compare/…` (tiếng Việt) được tạo từ dữ liệu, không
+viết tay:
+
+| File | Nội dung |
+|---|---|
+| `site-src/compare/<slug>.json` | Một công cụ: tên, giá trị từng dòng của bảng so sánh, "chọn họ nếu" / "chọn DumpCat nếu", các bước chuyển, nguồn, ngày kiểm tra |
+| `scripts/build-site.py` | Template, cột DumpCat (dùng chung cho mọi trang), sinh trang so sánh EN/VI, `sitemap.xml` và `robots.txt` |
+
+Sửa hoặc thêm một công cụ:
+
+1. Sửa (hoặc chép từ file có sẵn) `site-src/compare/<slug>.json`. Mọi thông tin về sản phẩm khác **phải có nguồn** trong
+   `sources`. Điều gì chưa kiểm chứng được thì ghi "Not documented on the pages we checked" chứ không đoán. Cập nhật `checked`.
+2. Chạy `python scripts/build-site.py` (chỉ dùng thư viện chuẩn của Python), xem thử bằng `python -m http.server 8642 --directory site`.
+3. Deploy: `npx wrangler deploy`.
+
+Nên kiểm tra lại giá và tính năng của các công cụ khoảng 6 tháng một lần. Sau lần deploy đầu, thêm `https://dumpcat.cc/sitemap.xml` vào
+Google Search Console và Bing Webmaster Tools.

@@ -1,0 +1,127 @@
+{
+  "slug": "snapshooter",
+  "name": "SnapShooter",
+  "order": 40,
+  "checked": "2026-10-18",
+  "kind": {
+    "en": "Hosted backup service (SaaS), owned by DigitalOcean",
+    "vi": "Dịch vụ backup trực tuyến (SaaS) của DigitalOcean"
+  },
+  "summary": {
+    "en": "DigitalOcean-owned backup service; its last listed product update is from September 2024.",
+    "vi": "Dịch vụ backup thuộc DigitalOcean; lần cập nhật sản phẩm gần nhất được liệt kê là tháng 9/2024."
+  },
+  "hub": {
+    "open_source": false,
+    "self_hosted": {
+      "en": "No, SaaS (SSH or agent)",
+      "vi": "Không, SaaS (qua SSH hoặc agent)"
+    },
+    "pitr": {
+      "en": "Partial: binlog backups",
+      "vi": "Một phần: backup binlog"
+    },
+    "price": {
+      "en": "Free plan; $14–$199/month",
+      "vi": "Có gói miễn phí; $14–$199/tháng"
+    }
+  },
+  "en": {
+    "title": "SnapShooter alternative for MySQL: DumpCat, free and self-hosted",
+    "description": "DumpCat vs SnapShooter for MySQL and MariaDB backups: pricing, binlog and point-in-time recovery, storage options and project status after the DigitalOcean acquisition. Sourced, October 2026.",
+    "lead": "SnapShooter is a hosted backup service that DigitalOcean acquired in January 2023; the last product update listed in its docs is from September 2024. DumpCat is a free, open-source backup manager that runs on your own server. Here is how they compare for MySQL and MariaDB.",
+    "values": {
+      "price": "Free: 1 job, daily, 500 MB. Lite $14/month (3 jobs, 10 GB), Startup $39 (20 jobs, 60 GB), Business $79 (50 jobs, every 5 minutes, 120 GB), Agency $199 (250 jobs, 240 GB).",
+      "runs": "Hosted SaaS that connects over SSH or through its agent; managed databases are backed up by its serverless workers.",
+      "platforms": "Servers reachable over SSH or with the agent, and managed databases.",
+      "databases": "MySQL and other engines. Supported versions are not listed on the pages we checked.",
+      "methods": "`mysqldump` of all databases or a single one. Table locking behaviour is not documented on the pages we checked.",
+      "pitr": "Partial: a MySQL binlog backup option uploads binlogs incrementally.",
+      "storage": "S3-compatible storage only (AWS, Backblaze B2, DigitalOcean Spaces, Filebase, UpCloud, Wasabi, MinIO), or SnapShooter's own storage.",
+      "encryption": "OpenSSL with an RSA key; which plans include it differs between parts of the pricing page.",
+      "schedule": "From daily (Free) to every 5 minutes (Business); jobs and storage are capped per plan.",
+      "restore": "Automatic restores from the dashboard.",
+      "datapath": "Over SSH or the agent the dump goes from your server to your storage; serverless backups of managed databases run on SnapShooter's workers.",
+      "alerts": "Email alerts; two-factor login for the dashboard."
+    },
+    "choose_them": [
+      "You are on DigitalOcean and also want Droplet and volume snapshots in the same place.",
+      "One small daily backup is enough, and the free plan covers it.",
+      "You want automatic restores without running anything yourself."
+    ],
+    "choose_us": [
+      "You want a project that is open source and does not depend on one vendor's roadmap.",
+      "You need storage beyond S3: Google Drive, OneDrive, SFTP, FTP, WebDAV or local disk.",
+      "You want full point-in-time recovery to a second or a GTID, plus hot physical backups for large databases.",
+      "You want backups to run without any third-party service in the loop."
+    ],
+    "switch": [
+      "Install DumpCat on the database server.",
+      "Add the same S3 bucket (in a new folder) or any other storage to DumpCat.",
+      "Recreate each job, turn on binlog archiving if you used SnapShooter's binlog backups, and run it once.",
+      "Keep the SnapShooter backups until DumpCat's retention covers the same period."
+    ]
+  },
+  "vi": {
+    "title": "Thay thế SnapShooter cho MySQL: DumpCat, miễn phí và tự host",
+    "description": "So sánh DumpCat và SnapShooter khi backup MySQL, MariaDB: giá, binlog và khôi phục theo thời điểm, nơi lưu và tình trạng sản phẩm sau khi DigitalOcean mua lại. Có dẫn nguồn, tháng 10/2026.",
+    "lead": "SnapShooter là dịch vụ backup trực tuyến được DigitalOcean mua lại vào tháng 1/2023; lần cập nhật sản phẩm gần nhất trong tài liệu của họ là tháng 9/2024. DumpCat là công cụ quản lý backup miễn phí, mã nguồn mở, chạy trên server của bạn. Dưới đây là khác biệt khi dùng cho MySQL và MariaDB.",
+    "values": {
+      "price": "Miễn phí: 1 job, mỗi ngày, 500 MB. Lite $14/tháng (3 job, 10 GB), Startup $39 (20 job, 60 GB), Business $79 (50 job, mỗi 5 phút, 120 GB), Agency $199 (250 job, 240 GB).",
+      "runs": "Dịch vụ SaaS kết nối qua SSH hoặc agent; database được quản lý (managed) thì backup bằng máy chủ serverless của họ.",
+      "platforms": "Server truy cập được qua SSH hoặc cài được agent, và các database được quản lý.",
+      "databases": "MySQL và các database khác. Các trang chúng tôi kiểm tra không liệt kê phiên bản hỗ trợ.",
+      "methods": "`mysqldump` toàn bộ hoặc một database. Các trang chúng tôi kiểm tra không nói về việc khóa bảng.",
+      "pitr": "Một phần: có tùy chọn backup binlog MySQL, upload binlog theo kiểu incremental.",
+      "storage": "Chỉ storage tương thích S3 (AWS, Backblaze B2, DigitalOcean Spaces, Filebase, UpCloud, Wasabi, MinIO), hoặc storage của SnapShooter.",
+      "encryption": "OpenSSL với khóa RSA; gói nào có tính năng này thì mỗi phần của trang giá ghi một khác.",
+      "schedule": "Từ mỗi ngày (Free) đến mỗi 5 phút (Business); số job và dung lượng bị giới hạn theo gói.",
+      "restore": "Khôi phục tự động từ bảng điều khiển.",
+      "datapath": "Qua SSH hoặc agent, bản dump đi từ server của bạn tới storage của bạn; backup serverless cho database được quản lý chạy trên máy của SnapShooter.",
+      "alerts": "Cảnh báo qua email; đăng nhập hai lớp cho bảng điều khiển."
+    },
+    "choose_them": [
+      "Bạn dùng DigitalOcean và muốn chụp snapshot Droplet, volume ở cùng một chỗ.",
+      "Một bản backup nhỏ mỗi ngày là đủ, và gói miễn phí đáp ứng được.",
+      "Bạn muốn khôi phục tự động mà không phải tự chạy gì."
+    ],
+    "choose_us": [
+      "Bạn muốn một dự án mã nguồn mở, không phụ thuộc lộ trình của một nhà cung cấp.",
+      "Bạn cần lưu ra nơi khác ngoài S3: Google Drive, OneDrive, SFTP, FTP, WebDAV hay ổ local.",
+      "Bạn muốn khôi phục theo thời điểm đến từng giây hoặc GTID, cùng backup vật lý nóng cho database lớn.",
+      "Bạn muốn backup chạy mà không phụ thuộc dịch vụ của bên thứ ba nào."
+    ],
+    "switch": [
+      "Cài DumpCat trên server database.",
+      "Thêm cùng bucket S3 (trong thư mục mới) hoặc storage khác vào DumpCat.",
+      "Tạo lại từng job, bật lưu binlog nếu bạn đang dùng backup binlog của SnapShooter, rồi chạy thử một lần.",
+      "Giữ các bản backup của SnapShooter cho tới khi retention của DumpCat phủ được cùng khoảng thời gian."
+    ]
+  },
+  "sources": [
+    {
+      "label": "DigitalOcean acquires SnapShooter (January 2023)",
+      "url": "https://www.digitalocean.com/blog/digitalocean-acquires-snapshooter"
+    },
+    {
+      "label": "SnapShooter docs on DigitalOcean (product updates)",
+      "url": "https://docs.digitalocean.com/products/snapshooter/"
+    },
+    {
+      "label": "SnapShooter docs: features",
+      "url": "https://docs.digitalocean.com/products/snapshooter/details/features/"
+    },
+    {
+      "label": "SnapShooter pricing",
+      "url": "https://snapshooter.com/pricing"
+    },
+    {
+      "label": "SnapShooter: MySQL backups",
+      "url": "https://snapshooter.com/database/mysql"
+    },
+    {
+      "label": "SnapShooter features",
+      "url": "https://snapshooter.com/features"
+    }
+  ]
+}

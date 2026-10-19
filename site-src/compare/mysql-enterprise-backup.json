@@ -1,0 +1,86 @@
+{
+  "slug": "mysql-enterprise-backup",
+  "name": "MySQL Enterprise Backup",
+  "order": 38,
+  "checked": "2026-10-18",
+  "kind": {"en": "Oracle's commercial command-line backup tool", "vi": "Công cụ backup dòng lệnh thương mại của Oracle"},
+  "summary": {
+    "en": "Oracle's commercial physical backup tool, part of MySQL Enterprise Edition.",
+    "vi": "Công cụ backup vật lý thương mại của Oracle, nằm trong MySQL Enterprise Edition."
+  },
+  "hub": {
+    "open_source": false,
+    "self_hosted": {"en": "Yes (CLI)", "vi": "Có (dòng lệnh)"},
+    "pitr": {"en": "Yes, manual steps", "vi": "Có, thao tác thủ công"},
+    "price": {"en": "MySQL Enterprise Edition subscription", "vi": "Theo gói MySQL Enterprise Edition"}
+  },
+  "en": {
+    "title": "MySQL Enterprise Backup alternative: DumpCat, free and open source",
+    "description": "DumpCat vs MySQL Enterprise Backup: licensing, physical and incremental backups, point-in-time recovery, MariaDB support, scheduling and alerts. Sourced and checked in October 2026.",
+    "lead": "MySQL Enterprise Backup (mysqlbackup) is Oracle's commercial physical backup tool, included with MySQL Enterprise Edition. DumpCat is a free, open-source backup manager that schedules XtraBackup / MariaBackup and logical dumps from a web UI. Here is how they compare.",
+    "values": {
+      "price": "Proprietary, part of a MySQL Enterprise Edition subscription; Oracle's store lists Enterprise Edition subscriptions from US$5,350.",
+      "runs": "The `mysqlbackup` command-line tool.",
+      "platforms": "Linux / Unix and Windows.",
+      "databases": "Oracle MySQL only, matched to the server version (MEB 8.4.11 supports server 8.4.3 and later). Not MariaDB.",
+      "methods": "Physical: hot for InnoDB, warm (read-only) for other tables. Full, differential, incremental and partial backups; table-level restore; redo log archiving.",
+      "pitr": "Yes, using the binlogs in the backup; the restore steps are manual.",
+      "storage": "Local disk, Oracle Cloud (OCI), S3-compatible, OpenStack Swift, Google Cloud, or tape through SBT.",
+      "encryption": "AES-256 (CBC) in MEB's own format; lz4, zlib or lzma compression for InnoDB.",
+      "schedule": "No built-in scheduler; the docs suggest cron.",
+      "restore": "Command line, with a `validate` command to check backup integrity.",
+      "datapath": "Wherever you configure it to write.",
+      "alerts": "None built in."
+    },
+    "choose_them": [
+      "You run Oracle MySQL with an Enterprise subscription and want Oracle support for backups too.",
+      "You need table-level restore from a physical backup, differential backups or tape via SBT.",
+      "You are on Oracle Cloud (OCI) and want native integration."
+    ],
+    "choose_us": [
+      "You want it free: DumpCat is open source, with no subscription.",
+      "You run MariaDB or Percona Server as well as MySQL.",
+      "You want schedules, retention, alerts and restores in a web UI instead of cron and runbooks.",
+      "You want point-in-time recovery to a second or a GTID from the UI, with binlogs archived continuously."
+    ],
+    "switch": []
+  },
+  "vi": {
+    "title": "Thay thế MySQL Enterprise Backup: DumpCat, miễn phí và mã nguồn mở",
+    "description": "So sánh DumpCat và MySQL Enterprise Backup: bản quyền, backup vật lý và incremental, khôi phục theo thời điểm, hỗ trợ MariaDB, lên lịch và cảnh báo. Có dẫn nguồn, kiểm tra tháng 10/2026.",
+    "lead": "MySQL Enterprise Backup (mysqlbackup) là công cụ backup vật lý thương mại của Oracle, đi kèm MySQL Enterprise Edition. DumpCat là công cụ quản lý backup miễn phí, mã nguồn mở, lên lịch XtraBackup / MariaBackup và dump logical ngay trên giao diện web. Dưới đây là khác biệt giữa hai bên.",
+    "values": {
+      "price": "Phần mềm đóng, nằm trong gói MySQL Enterprise Edition; cửa hàng của Oracle niêm yết gói Enterprise Edition từ 5.350 USD.",
+      "runs": "Công cụ dòng lệnh `mysqlbackup`.",
+      "platforms": "Linux / Unix và Windows.",
+      "databases": "Chỉ Oracle MySQL, khớp theo phiên bản server (MEB 8.4.11 hỗ trợ server từ 8.4.3). Không hỗ trợ MariaDB.",
+      "methods": "Vật lý: nóng với InnoDB, ấm (chỉ đọc) với bảng khác. Backup full, differential, incremental và một phần; khôi phục từng bảng; lưu redo log.",
+      "pitr": "Có, dùng binlog trong bản backup; các bước khôi phục làm thủ công.",
+      "storage": "Ổ local, Oracle Cloud (OCI), tương thích S3, OpenStack Swift, Google Cloud, hoặc băng từ qua SBT.",
+      "encryption": "AES-256 (CBC) theo định dạng riêng của MEB; nén lz4, zlib hoặc lzma cho InnoDB.",
+      "schedule": "Không có bộ lập lịch; tài liệu khuyên dùng cron.",
+      "restore": "Dòng lệnh, có lệnh `validate` để kiểm tra bản backup.",
+      "datapath": "Ghi tới nơi bạn cấu hình.",
+      "alerts": "Không có sẵn."
+    },
+    "choose_them": [
+      "Bạn chạy Oracle MySQL có gói Enterprise và muốn Oracle hỗ trợ cả phần backup.",
+      "Bạn cần khôi phục từng bảng từ bản backup vật lý, backup differential hoặc ghi băng từ qua SBT.",
+      "Bạn dùng Oracle Cloud (OCI) và muốn tích hợp sẵn."
+    ],
+    "choose_us": [
+      "Bạn muốn miễn phí: DumpCat là mã nguồn mở, không cần gói đăng ký.",
+      "Bạn chạy cả MariaDB hoặc Percona Server bên cạnh MySQL.",
+      "Bạn muốn lịch, retention, cảnh báo và khôi phục trên giao diện web thay vì cron và tài liệu vận hành.",
+      "Bạn muốn khôi phục theo thời điểm đến từng giây hoặc GTID ngay trên giao diện, với binlog được lưu liên tục."
+    ],
+    "switch": []
+  },
+  "sources": [
+    {"label": "MySQL Enterprise Backup 8.4 release notes", "url": "https://dev.mysql.com/doc/relnotes/mysql-enterprise-backup/8.4/en/"},
+    {"label": "MySQL Enterprise Backup: compatibility with server versions", "url": "https://dev.mysql.com/doc/mysql-enterprise-backup/8.4/en/bugs.compatibility.html"},
+    {"label": "MySQL Enterprise Backup: point-in-time recovery", "url": "https://dev.mysql.com/doc/mysql-enterprise-backup/8.4/en/advanced.point.html"},
+    {"label": "MySQL Enterprise Backup: encryption", "url": "https://dev.mysql.com/doc/mysql-enterprise-backup/8.4/en/meb-encryption.html"},
+    {"label": "Oracle Store: MySQL", "url": "https://shop.oracle.com/apex/product?p1=MySQL"}
+  ]
+}

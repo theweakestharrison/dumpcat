@@ -1,0 +1,84 @@
+{
+  "slug": "databasus",
+  "name": "Databasus",
+  "order": 15,
+  "checked": "2026-10-18",
+  "kind": {"en": "Self-hosted, open source (Apache-2.0), Docker", "vi": "Tự host, mã nguồn mở (Apache-2.0), Docker"},
+  "summary": {
+    "en": "Open-source multi-database backup web app (formerly Postgresus); logical-only for MySQL.",
+    "vi": "Ứng dụng web backup nhiều loại database, mã nguồn mở (trước là Postgresus); với MySQL chỉ backup logical."
+  },
+  "hub": {
+    "open_source": true,
+    "self_hosted": {"en": "Yes (Docker, Compose, Helm)", "vi": "Có (Docker, Compose, Helm)"},
+    "pitr": {"en": "PostgreSQL only; not for MySQL", "vi": "Chỉ PostgreSQL; không có cho MySQL"},
+    "price": {"en": "Free (Apache-2.0)", "vi": "Miễn phí (Apache-2.0)"}
+  },
+  "en": {
+    "title": "Databasus vs DumpCat: open-source MySQL backup tools compared",
+    "description": "Databasus (formerly Postgresus) and DumpCat are both open-source, self-hosted backup tools. Compare them for MySQL and MariaDB: physical backups, point-in-time recovery, deployment and verification. October 2026.",
+    "lead": "Databasus, formerly Postgresus, is a popular open-source backup web app that grew from PostgreSQL to MySQL, MariaDB and other engines. DumpCat focuses on MySQL and MariaDB only. Both are Apache-2.0 and self-hosted; here is where they differ.",
+    "values": {
+      "price": "Free and open source (Apache-2.0).",
+      "runs": "Self-hosted web app, deployed with an install script, Docker, Docker Compose or Helm.",
+      "platforms": "Wherever Docker or Kubernetes runs.",
+      "databases": "MySQL 5.7, 8.0, 8.4 and later, MariaDB from 5.5; also PostgreSQL and other engines.",
+      "methods": "Logical only for MySQL and MariaDB: `mysqldump` / `mariadb-dump` with `--single-transaction`. Physical and incremental backups are for PostgreSQL only.",
+      "pitr": "Not for MySQL or MariaDB; point-in-time recovery (WAL) is PostgreSQL only.",
+      "storage": "Local, S3, Cloudflare R2, Google Drive, Azure Blob, NAS, FTP, SFTP and rclone.",
+      "encryption": "AES-256-GCM; compression on by default.",
+      "schedule": "Retention by time, count, GFS tiers or total size.",
+      "restore": "Restores from the UI, and restore verification in throwaway containers that reports row counts.",
+      "datapath": "Your own infrastructure: from the Databasus instance you run to your storage.",
+      "alerts": "Email, Telegram, Slack, Discord, Teams, Mattermost and webhooks; workspaces, roles, audit logs, two-factor login, Google and GitHub sign-in."
+    },
+    "choose_them": [
+      "You back up PostgreSQL as well, where Databasus also offers physical backups and point-in-time recovery.",
+      "You run on Kubernetes or Docker and want a Helm chart.",
+      "You want automatic restore verification in throwaway containers, or team workspaces with Google / GitHub sign-in."
+    ],
+    "choose_us": [
+      "You need point-in-time recovery for MySQL or MariaDB: DumpCat archives binlogs and restores to a second or just before a GTID.",
+      "Your MySQL databases are large: parallel `mydumper` and hot physical backups with XtraBackup / MariaBackup, including incrementals.",
+      "You do not want Docker: DumpCat is one binary, installed as a systemd or native Windows service.",
+      "You want a tool built only around MySQL and MariaDB, with restores into a new database name and checks before anything is dropped."
+    ],
+    "switch": []
+  },
+  "vi": {
+    "title": "Databasus và DumpCat: so sánh hai công cụ backup MySQL mã nguồn mở",
+    "description": "Databasus (trước là Postgresus) và DumpCat đều là công cụ backup mã nguồn mở, tự host. So sánh khi dùng cho MySQL, MariaDB: backup vật lý, khôi phục theo thời điểm, cách triển khai và kiểm tra. Tháng 10/2026.",
+    "lead": "Databasus, trước đây là Postgresus, là ứng dụng web backup mã nguồn mở phổ biến, mở rộng từ PostgreSQL sang MySQL, MariaDB và các database khác. DumpCat chỉ tập trung vào MySQL và MariaDB. Cả hai đều Apache-2.0 và tự host; dưới đây là chỗ khác nhau.",
+    "values": {
+      "price": "Miễn phí, mã nguồn mở (Apache-2.0).",
+      "runs": "Ứng dụng web tự host, cài bằng script, Docker, Docker Compose hoặc Helm.",
+      "platforms": "Nơi nào chạy được Docker hoặc Kubernetes.",
+      "databases": "MySQL 5.7, 8.0, 8.4 trở lên, MariaDB từ 5.5; ngoài ra PostgreSQL và các database khác.",
+      "methods": "Với MySQL và MariaDB chỉ có backup logical: `mysqldump` / `mariadb-dump` với `--single-transaction`. Backup vật lý và incremental chỉ dành cho PostgreSQL.",
+      "pitr": "Không có cho MySQL, MariaDB; khôi phục theo thời điểm (WAL) chỉ dành cho PostgreSQL.",
+      "storage": "Local, S3, Cloudflare R2, Google Drive, Azure Blob, NAS, FTP, SFTP và rclone.",
+      "encryption": "AES-256-GCM; mặc định có nén.",
+      "schedule": "Retention theo thời gian, số bản, các mức GFS hoặc tổng dung lượng.",
+      "restore": "Khôi phục trên giao diện, và kiểm tra khôi phục trong container tạm, báo số dòng.",
+      "datapath": "Trong hạ tầng của bạn: từ bản Databasus bạn tự chạy tới storage của bạn.",
+      "alerts": "Email, Telegram, Slack, Discord, Teams, Mattermost và webhook; workspace, phân quyền, nhật ký thao tác, đăng nhập hai lớp, đăng nhập bằng Google và GitHub."
+    },
+    "choose_them": [
+      "Bạn backup cả PostgreSQL, nơi Databasus có thêm backup vật lý và khôi phục theo thời điểm.",
+      "Bạn chạy trên Kubernetes hoặc Docker và muốn có Helm chart.",
+      "Bạn muốn tự động kiểm tra khôi phục trong container tạm, hoặc workspace cho nhóm với đăng nhập Google / GitHub."
+    ],
+    "choose_us": [
+      "Bạn cần khôi phục theo thời điểm cho MySQL, MariaDB: DumpCat lưu binlog và khôi phục đến từng giây hoặc ngay trước một GTID.",
+      "Database MySQL của bạn lớn: `mydumper` song song và backup vật lý nóng bằng XtraBackup / MariaBackup, có incremental.",
+      "Bạn không muốn dùng Docker: DumpCat là một file chạy, cài như service systemd hoặc Windows service.",
+      "Bạn muốn công cụ chỉ xoay quanh MySQL và MariaDB, khôi phục sang tên database mới và kiểm tra trước khi xóa bất cứ gì."
+    ],
+    "switch": []
+  },
+  "sources": [
+    {"label": "Databasus on GitHub", "url": "https://github.com/databasus/databasus"},
+    {"label": "Databasus: MySQL backup", "url": "https://databasus.com/mysql-backup"},
+    {"label": "Databasus: restore verification", "url": "https://databasus.com/restore-verification"}
+  ]
+}

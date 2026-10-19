@@ -442,6 +442,7 @@ func (s *Server) routes(mux *http.ServeMux) {
 	s.route(mux, "POST /api/runs/{id}/verify", op, s.runVerify)
 	s.route(mux, "POST /api/runs/{id}/delete", op, s.runDelete)
 	s.route(mux, "POST /api/runs/{id}/restore", op, s.runRestore)
+	s.route(mux, "POST /api/runs/{id}/restore-check", op, s.runRestoreCheck)
 	s.route(mux, "POST /api/runs/{id}/copy", op, s.runCopy)
 	s.route(mux, "GET /api/runs/{id}/download", op, s.runDownload)
 	// restores

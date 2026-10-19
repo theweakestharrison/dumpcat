@@ -1,0 +1,123 @@
+{
+  "slug": "ottomatik",
+  "name": "Ottomatik",
+  "order": 50,
+  "checked": "2026-10-18",
+  "kind": {
+    "en": "Hosted backup service (SaaS) over SSH",
+    "vi": "Dịch vụ backup trực tuyến (SaaS) qua SSH"
+  },
+  "summary": {
+    "en": "Hosted scheduler that runs mysqldump on your server over SSH, from $14/month.",
+    "vi": "Dịch vụ lên lịch chạy mysqldump trên server của bạn qua SSH, từ $14/tháng."
+  },
+  "hub": {
+    "open_source": false,
+    "self_hosted": {
+      "en": "No, SaaS (connects over SSH)",
+      "vi": "Không, SaaS (kết nối qua SSH)"
+    },
+    "pitr": {
+      "en": "Partial: binlog upload, manual replay",
+      "vi": "Một phần: upload binlog, phát lại thủ công"
+    },
+    "price": {
+      "en": "$14–$199/month, 14-day trial",
+      "vi": "$14–$199/tháng, dùng thử 14 ngày"
+    }
+  },
+  "en": {
+    "title": "Ottomatik alternative for MySQL: DumpCat, free and self-hosted",
+    "description": "DumpCat vs Ottomatik for MySQL backups: pricing, SSH access, point-in-time recovery, restores and where credentials are stored. Sourced and checked in October 2026.",
+    "lead": "Ottomatik is a hosted service that logs in to your server over SSH to run and upload backups. DumpCat is a free, open-source backup manager that runs on the server itself. Here is how they compare for MySQL and MariaDB.",
+    "values": {
+      "price": "Lite $14/month (3 jobs, daily, 5 GB), Professional $79 (50 jobs, every 5 minutes, 100 GB, API), Agency $199 (250 jobs, every minute, 200 GB). Your own storage on every plan; 14-day trial.",
+      "runs": "Hosted SaaS. Its servers connect to yours over SSH and install Python, pip and the AWS CLI there.",
+      "platforms": "Linux servers.",
+      "databases": "MySQL, PostgreSQL and MongoDB. MariaDB support is not stated on the pages we checked.",
+      "methods": "`mysqldump`, with options for a single transaction or skipping locks, routines and events.",
+      "pitr": "Partial: binlogs can be uploaded to S3 or copied by a file backup job; replaying them is manual.",
+      "storage": "Ottomatik's storage, Amazon S3 and S3-compatible, Google Drive, Dropbox, Backblaze.",
+      "encryption": "Credentials are stored encrypted; encryption of the backup files is not described on the pages we checked.",
+      "schedule": "From daily (Lite) to every minute (Agency); jobs and storage capped per plan.",
+      "restore": "One-click restore to the same or another server, on some plans.",
+      "datapath": "The backup goes from your server straight to your storage, but Ottomatik keeps SSH, database and storage credentials (encrypted) on its side.",
+      "alerts": "Webhooks; team roles for the dashboard."
+    },
+    "choose_them": [
+      "You want scheduling and monitoring that run outside your server, with nothing to keep updated yourself.",
+      "You back up PostgreSQL and MongoDB too and want one dashboard for all of them.",
+      "You want backups as often as every minute and one-click restores to another server."
+    ],
+    "choose_us": [
+      "You would rather not give a third party SSH access to your database server.",
+      "You want point-in-time recovery from the UI instead of replaying binlogs by hand.",
+      "You run Windows servers, or need hot physical backups for large databases.",
+      "You want it free, with no limits on jobs or storage."
+    ],
+    "switch": [
+      "Install DumpCat on the database server.",
+      "Add your S3, Google Drive or Dropbox storage to DumpCat, in a new folder.",
+      "Recreate each job with its schedule and retention, turn on binlog archiving, and run it once.",
+      "Once DumpCat's retention covers what you need, remove Ottomatik's SSH key from the server."
+    ]
+  },
+  "vi": {
+    "title": "Thay thế Ottomatik cho MySQL: DumpCat, miễn phí và tự host",
+    "description": "So sánh DumpCat và Ottomatik khi backup MySQL: giá, quyền truy cập SSH, khôi phục theo thời điểm, khôi phục và nơi lưu thông tin đăng nhập. Có dẫn nguồn, kiểm tra tháng 10/2026.",
+    "lead": "Ottomatik là dịch vụ trực tuyến đăng nhập vào server của bạn qua SSH để chạy và upload backup. DumpCat là công cụ quản lý backup miễn phí, mã nguồn mở, chạy ngay trên server. Dưới đây là khác biệt khi dùng cho MySQL và MariaDB.",
+    "values": {
+      "price": "Lite $14/tháng (3 job, mỗi ngày, 5 GB), Professional $79 (50 job, mỗi 5 phút, 100 GB, API), Agency $199 (250 job, mỗi phút, 200 GB). Gói nào cũng dùng được storage riêng; dùng thử 14 ngày.",
+      "runs": "Dịch vụ SaaS. Máy chủ của họ kết nối tới server của bạn qua SSH và cài Python, pip, AWS CLI lên đó.",
+      "platforms": "Server Linux.",
+      "databases": "MySQL, PostgreSQL và MongoDB. Các trang chúng tôi kiểm tra không nói về MariaDB.",
+      "methods": "`mysqldump`, có tùy chọn single transaction hoặc bỏ khóa, routines và events.",
+      "pitr": "Một phần: binlog được upload lên S3 hoặc chép bằng job backup file; phát lại thì làm thủ công.",
+      "storage": "Storage của Ottomatik, Amazon S3 và tương thích, Google Drive, Dropbox, Backblaze.",
+      "encryption": "Thông tin đăng nhập được lưu dạng mã hóa; các trang chúng tôi kiểm tra không nói về việc mã hóa file backup.",
+      "schedule": "Từ mỗi ngày (Lite) đến mỗi phút (Agency); số job và dung lượng giới hạn theo gói.",
+      "restore": "Khôi phục một cú nhấp về cùng server hoặc server khác, ở một số gói.",
+      "datapath": "Bản backup đi thẳng từ server của bạn tới storage, nhưng Ottomatik giữ (dạng mã hóa) thông tin đăng nhập SSH, database và storage.",
+      "alerts": "Webhook; phân quyền nhóm trên bảng điều khiển."
+    },
+    "choose_them": [
+      "Bạn muốn phần lên lịch và theo dõi chạy bên ngoài server, không phải tự cập nhật gì.",
+      "Bạn backup cả PostgreSQL và MongoDB và muốn chung một bảng điều khiển.",
+      "Bạn muốn backup dày tới mỗi phút và khôi phục một cú nhấp sang server khác."
+    ],
+    "choose_us": [
+      "Bạn không muốn cấp quyền SSH vào server database cho bên thứ ba.",
+      "Bạn muốn khôi phục theo thời điểm ngay trên giao diện thay vì tự phát lại binlog.",
+      "Bạn dùng server Windows, hoặc cần backup vật lý nóng cho database lớn.",
+      "Bạn muốn miễn phí, không giới hạn số job hay dung lượng."
+    ],
+    "switch": [
+      "Cài DumpCat trên server database.",
+      "Thêm storage S3, Google Drive hoặc Dropbox vào DumpCat, trong một thư mục mới.",
+      "Tạo lại từng job với lịch và retention, bật lưu binlog, rồi chạy thử một lần.",
+      "Khi retention của DumpCat đã đủ, xóa SSH key của Ottomatik khỏi server."
+    ]
+  },
+  "sources": [
+    {
+      "label": "Ottomatik pricing",
+      "url": "https://ottomatik.io/pricing"
+    },
+    {
+      "label": "Ottomatik: MySQL backup and restore",
+      "url": "https://ottomatik.io/mysql-backup-restore"
+    },
+    {
+      "label": "Ottomatik help: how sensitive data is encrypted",
+      "url": "http://support.ottomatik.io/en/articles/2345858-how-is-my-sensitive-data-encrypted"
+    },
+    {
+      "label": "Ottomatik help: MySQL binlog backups",
+      "url": "http://support.ottomatik.io/en/articles/2345856-what-are-mysql-binlog-backups"
+    },
+    {
+      "label": "Ottomatik help: automated MySQL dump restore",
+      "url": "http://support.ottomatik.io/en/articles/2345892-how-to-run-an-automated-mysql-dump-restore"
+    }
+  ]
+}

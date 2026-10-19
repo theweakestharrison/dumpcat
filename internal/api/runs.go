@@ -212,6 +212,28 @@ func (s *Server) runRestore(w http.ResponseWriter, r *http.Request) error {
 	return ok(w, rs)
 }
 
+// runRestoreCheck compares a backup with the server it would be restored to
+// (version, flavor, databases already there) and suggests portability options.
+func (s *Server) runRestoreCheck(w http.ResponseWriter, r *http.Request) error {
+	id, err := pathID(r, "id")
+	if err != nil {
+		return err
+	}
+	var in struct {
+		TargetServerID int64 `json:"target_server_id"`
+	}
+	if err := readJSON(r, &in); err != nil {
+		return err
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
+	defer cancel()
+	tc, err := s.Runner.CheckRestoreTarget(ctx, id, in.TargetServerID)
+	if err != nil {
+		return badRequest("%v", err)
+	}
+	return ok(w, tc)
+}
+
 // runDownload streams a stored backup file (as stored, or decoded with ?decode=1).
 func (s *Server) runDownload(w http.ResponseWriter, r *http.Request) error {
 	id, err := pathID(r, "id")

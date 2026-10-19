@@ -89,6 +89,38 @@ function serverForm(s = {}) {
   </details></form>`;
 }
 
+// Add/edit dialog. The restore form uses it too, to add a target instance
+// without leaving the page; onSaved receives the saved server.
+export function openServerForm(s, onSaved) {
+  const m = modal({
+    title: s ? `Edit server: ${s.name}` : 'Add database server', size: 'lg', body: serverForm(s || {}),
+    footer: html`<button class="btn" id="test">${icon('zap')}Test connection</button><span style="flex:1"></span><button class="btn" data-close>Cancel</button><button class="btn btn-primary" id="save">${icon('check')}Save</button>`,
+  });
+  const form = m.el.querySelector('#srv-form');
+  const payload = () => { const d = formData(form); if (s) d.id = s.id; return d; };
+  form.tls_mode.addEventListener('change', () => m.el.querySelector('#ca-field').classList.toggle('hidden', form.tls_mode.value !== 'verify'));
+  on(m.el, 'click', '[data-grant]', (e, b) => {
+    m.el.querySelectorAll('[data-grant]').forEach((x) => x.classList.toggle('active', x === b));
+    m.el.querySelector('#grant-sql').textContent = GRANT_SQL[b.dataset.grant];
+  });
+  m.el.querySelector('#copy-grant').onclick = () => copyText(m.el.querySelector('#grant-sql').textContent);
+  on(m.el, 'click', '#show-grant', () => {
+    const g = m.el.querySelector('#grant-box');
+    g.open = true;
+    g.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
+  m.el.querySelector('#test').onclick = (e) => busy(e.currentTarget, async () => {
+    const box = m.el.querySelector('#test-result');
+    try { setHTML(box, infoView(await post('/servers/test', payload()))); } catch (er) { setHTML(box, html`<div class="alert bad">${icon('alert')}<div>${er.message}</div></div>`); }
+  });
+  bindModalForm(form, m.el.querySelector('#save'), async () => {
+    const saved = s ? await put(`/servers/${s.id}`, payload()) : await post('/servers', payload());
+    m.close();
+    toast('Server saved');
+    await onSaved(saved);
+  });
+}
+
 export async function render(ctx) {
   const { el } = ctx;
   let list = await get('/servers');
@@ -106,35 +138,7 @@ export async function render(ctx) {
   draw();
   const reload = async () => { list = await get('/servers'); draw(); };
 
-  const openForm = (s) => {
-    const m = modal({
-      title: s ? `Edit server: ${s.name}` : 'Add database server', size: 'lg', body: serverForm(s || {}),
-      footer: html`<button class="btn" id="test">${icon('zap')}Test connection</button><span style="flex:1"></span><button class="btn" data-close>Cancel</button><button class="btn btn-primary" id="save">${icon('check')}Save</button>`,
-    });
-    const form = m.el.querySelector('#srv-form');
-    const payload = () => { const d = formData(form); if (s) d.id = s.id; return d; };
-    form.tls_mode.addEventListener('change', () => m.el.querySelector('#ca-field').classList.toggle('hidden', form.tls_mode.value !== 'verify'));
-    on(m.el, 'click', '[data-grant]', (e, b) => {
-      m.el.querySelectorAll('[data-grant]').forEach((x) => x.classList.toggle('active', x === b));
-      m.el.querySelector('#grant-sql').textContent = GRANT_SQL[b.dataset.grant];
-    });
-    m.el.querySelector('#copy-grant').onclick = () => copyText(m.el.querySelector('#grant-sql').textContent);
-    on(m.el, 'click', '#show-grant', () => {
-      const g = m.el.querySelector('#grant-box');
-      g.open = true;
-      g.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    });
-    m.el.querySelector('#test').onclick = (e) => busy(e.currentTarget, async () => {
-      const box = m.el.querySelector('#test-result');
-      try { setHTML(box, infoView(await post('/servers/test', payload()))); } catch (er) { setHTML(box, html`<div class="alert bad">${icon('alert')}<div>${er.message}</div></div>`); }
-    });
-    bindModalForm(form, m.el.querySelector('#save'), async () => {
-      if (s) await put(`/servers/${s.id}`, payload()); else await post('/servers', payload());
-      m.close();
-      toast('Server saved');
-      await reload();
-    });
-  };
+  const openForm = (s) => openServerForm(s, reload);
 
   on(el, 'click', '#add', () => openForm(null));
   on(el, 'click', '[data-edit]', async (e, b) => openForm(await get(`/servers/${b.dataset.edit}`)));

@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>SimpleBackups alternative for MySQL: DumpCat, free and self-hosted</title>
+<meta name="description" content="DumpCat vs SimpleBackups for MySQL and MariaDB backups: price, point-in-time recovery, physical backups, restores and where your data goes. Sourced and checked in October 2026.">
+<link rel="canonical" href="https://dumpcat.cc/compare/simplebackups/">
+<link rel="alternate" hreflang="en" href="https://dumpcat.cc/compare/simplebackups/">
+<link rel="alternate" hreflang="vi" href="https://dumpcat.cc/vi/compare/simplebackups/">
+<link rel="alternate" hreflang="x-default" href="https://dumpcat.cc/compare/simplebackups/">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://dumpcat.cc/compare/simplebackups/">
+<meta property="og:site_name" content="DumpCat">
+<meta property="og:title" content="SimpleBackups alternative for MySQL: DumpCat, free and self-hosted">
+<meta property="og:description" content="DumpCat vs SimpleBackups for MySQL and MariaDB backups: price, point-in-time recovery, physical backups, restores and where your data goes. Sourced and checked in October 2026.">
+<meta property="og:locale" content="en_US">
+<meta property="og:image" content="https://dumpcat.cc/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://dumpcat.cc/og.png">
+<meta name="theme-color" content="#1f5fbf">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=Bricolage+Grotesque:opsz,wdth,wght@12..96,75..100,400..800&family=JetBrains+Mono:wght@400;600&display=swap">
+<link rel="stylesheet" href="/style.css">
+<script type="application/ld+json">{"@context": "https://schema.org", "@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "Home", "item": "https://dumpcat.cc/"}, {"@type": "ListItem", "position": 2, "name": "Compare", "item": "https://dumpcat.cc/compare/"}, {"@type": "ListItem", "position": 3, "name": "DumpCat vs SimpleBackups", "item": "https://dumpcat.cc/compare/simplebackups/"}]}</script>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs><linearGradient id="dc-bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#3a86e8"/><stop offset="1" stop-color="#1c56b0"/></linearGradient><symbol id="dc-logo" viewBox="0 0 64 64"><rect width="64" height="64" rx="15" fill="url(#dc-bg)"/><path d="M47.5 45.5c7.5 0 10.5-5.5 7.8-11.5" fill="none" stroke="#fff" stroke-width="4.2" stroke-linecap="round"/><path d="M15.6 25 18.4 7.6 30.5 17.5z" fill="#fff"/><path d="M48.4 25 45.6 7.6 33.5 17.5z" fill="#fff"/><path d="M19.4 18.6 20.4 12.4 25.6 16.4z" fill="#f9a8c9"/><path d="M44.6 18.6 43.6 12.4 38.4 16.4z" fill="#f9a8c9"/><path d="M15 21v24c0 3.9 7.6 7 17 7s17-3.1 17-7V21z" fill="#fff"/><ellipse cx="32" cy="21" rx="17" ry="7" fill="#d6e6fb"/><path d="M15 38c0 3.9 7.6 7 17 7s17-3.1 17-7" fill="none" stroke="#1c56b0" stroke-opacity=".28" stroke-width="2.4"/><circle cx="25.4" cy="31" r="2.5" fill="#1b2433"/><circle cx="38.6" cy="31" r="2.5" fill="#1b2433"/><path d="M30.1 34.2h3.8L32 36.4z" fill="#f27aa8"/></symbol></defs></svg>
+<header class="hero page-hero">
+  <div class="wrap">
+    <div class="topbar">
+      <a class="brand" href="/"><svg aria-hidden="true"><use href="#dc-logo"/></svg>DumpCat</a>
+      <nav class="nav" aria-label="Site">
+        <a href="/compare/">Compare</a>
+        <a href="/#download">Download</a>
+        <a href="https://github.com/theweakestharrison/DumpCat">GitHub</a>
+      </nav>
+      <div class="lang" role="group" aria-label="Language"><a href="/compare/simplebackups/" hreflang="en" lang="en" aria-current="true">EN</a><a href="/vi/compare/simplebackups/" hreflang="vi" lang="vi">VI</a></div>
+    </div>
+    <div class="page-head">
+      <nav class="crumbs" aria-label="Breadcrumb"><a href="/">Home</a> <span aria-hidden="true">/</span> <a href="/compare/">Compare</a> <span aria-hidden="true">/</span> <span aria-current="page">DumpCat vs SimpleBackups</span></nav>
+      <h1>DumpCat vs SimpleBackups</h1>
+      <p class="lead">SimpleBackups is a hosted service that schedules and monitors backups of servers, databases and storage from its own infrastructure. DumpCat is a free, open-source backup manager that you run next to your database. Here is how they compare for MySQL and MariaDB.</p>
+      <div class="cta">
+        <a class="btn btn-light" href="/#download">Download DumpCat</a>
+        <a class="btn btn-ghost" href="https://github.com/theweakestharrison/DumpCat">Source on GitHub</a>
+      </div>
+    </div>
+  </div>
+</header>
+
+<main>
+  <section class="section" aria-labelledby="glance-title">
+    <div class="wrap">
+      <h2 id="glance-title">At a glance</h2>
+      <div class="section-body table-scroll cmp">
+        <table>
+          <thead><tr><th scope="col"></th><th scope="col" class="us">DumpCat</th><th scope="col">SimpleBackups</th></tr></thead>
+          <tbody><tr><th scope="row">Price and license</th><td class="us" data-m="DumpCat">Free and open source (Apache-2.0). No account, no license key.</td><td data-m="SimpleBackups">Free plan: 1 job, 1 GB of SimpleBackups storage, daily runs, databases up to 1 GB. Paid plans from $49/month (Lite, 5 jobs) to $299/month (Max, 100 jobs); 20% off yearly. Storage you bring yourself is unlimited.</td></tr><tr><th scope="row">How it runs</th><td class="us" data-m="DumpCat">Self-hosted: one binary with a web UI, running as a systemd or Windows service next to your database.</td><td data-m="SimpleBackups">Hosted SaaS. It reaches your server over SSH or through its agent, or runs the backup on its own serverless workers.</td></tr><tr><th scope="row">Platforms</th><td class="us" data-m="DumpCat">Linux (amd64, arm64) and Windows (64-bit).</td><td data-m="SimpleBackups">Any server it can reach over SSH or with its agent, plus managed databases through serverless workers.</td></tr><tr><th scope="row">Databases</th><td class="us" data-m="DumpCat">MySQL 5.7, 8.0, 8.4, Percona Server, MariaDB 10.x and 11.x.</td><td data-m="SimpleBackups">MySQL, MariaDB, PostgreSQL, MongoDB, Redis and PlanetScale / Vitess. No list of supported versions is published.</td></tr><tr><th scope="row">Backup methods</th><td class="us" data-m="DumpCat">Logical with <code>mysqldump</code> / <code>mariadb-dump</code> or parallel <code>mydumper</code>; hot physical backups with XtraBackup / MariaBackup, including incrementals. No locks on InnoDB.</td><td data-m="SimpleBackups"><code>mysqldump</code> with default flags; the docs ask you to add <code>--single-transaction</code> yourself to avoid read locks. Physical backups only through your own XtraBackup script.</td></tr><tr><th scope="row">Point-in-time recovery</th><td class="us" data-m="DumpCat">Yes. Continuous binlog archiving; restore to a timestamp, a binlog position or just before a GTID.</td><td data-m="SimpleBackups">Partial: it can collect binlogs once you enable them, but replaying them is not documented.</td></tr><tr><th scope="row">Storage</th><td class="us" data-m="DumpCat">Local disk / NFS, S3 and compatibles, Google Drive, OneDrive, SFTP, FTP / FTPS, WebDAV, Backblaze B2, Azure Blob, Dropbox and every rclone backend; several per job.</td><td data-m="SimpleBackups">About 35 providers, including S3, Backblaze B2, Cloudflare R2, Azure, Google Cloud Storage, Google Drive, OneDrive, Dropbox, SFTP and local volumes, or SimpleBackups&#x27; own storage.</td></tr><tr><th scope="row">Encryption</th><td class="us" data-m="DumpCat">age encryption on your server before anything is uploaded; zstd compression; SHA-256 for every file.</td><td data-m="SimpleBackups">AES-256 with OpenSSL, using your RSA public key.</td></tr><tr><th scope="row">Scheduling and retention</th><td class="us" data-m="DumpCat">Cron-style schedules; retention per storage by count, age or GFS (daily / weekly / monthly).</td><td data-m="SimpleBackups">Frequency depends on the plan: daily on Free, every 12 hours on Lite, hourly on Plus, every 5 minutes on Max. Jobs, storage and database size are capped per plan.</td></tr><tr><th scope="row">Restore</th><td class="us" data-m="DumpCat">From the web UI: restore under a new database name, test-decrypt every file before dropping anything, integrity checks after each run.</td><td data-m="SimpleBackups">The docs describe database restores as manual: download the backup and run the commands they give you. Automated MariaDB restores were announced in September 2026.</td></tr><tr><th scope="row">Where your data goes</th><td class="us" data-m="DumpCat">Straight from your server to the storage you choose. Nothing passes through a third party.</td><td data-m="SimpleBackups">With SSH or the agent, data goes from your server to your storage. With serverless workers it passes through SimpleBackups in transit. Credentials are stored encrypted by SimpleBackups unless you keep them in a <code>.my.cnf</code> file on your server.</td></tr><tr><th scope="row">Notifications</th><td class="us" data-m="DumpCat">Email, Telegram, Slack, Discord and HMAC-signed webhooks.</td><td data-m="SimpleBackups">Email, Slack, Discord, Teams, Telegram, Pushover and webhooks, plus anomaly detection.</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" aria-label="Choose SimpleBackups if / Choose DumpCat if">
+    <div class="wrap choose">
+      <div class="choose-card">
+        <h2>Choose SimpleBackups if</h2>
+        <ul><li>You want nothing to install or keep running: SimpleBackups schedules and monitors from its own infrastructure, so you still get an alert when your server is down.</li><li>You back up several engines (PostgreSQL, MongoDB, Redis) or managed databases such as PlanetScale from one dashboard.</li><li>You need compliance paperwork such as ISO 27001, SSO or an SLA.</li></ul>
+      </div>
+      <div class="choose-card us">
+        <h2>Choose DumpCat if</h2>
+        <ul><li>You need point-in-time recovery: DumpCat archives binlogs continuously and restores to a given second or just before a GTID.</li><li>Your databases are large: hot physical backups with XtraBackup / MariaBackup, incrementals, and no per-plan limits on jobs, database size or storage.</li><li>You want restores from the web UI, including into a new database name to compare before switching.</li><li>Credentials and data must stay inside your own infrastructure, or the server has no internet access.</li><li>You would rather not pay per job: DumpCat is free and open source.</li></ul>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" aria-labelledby="switch-title">
+    <div class="wrap narrow">
+      <h2 id="switch-title">Switching from SimpleBackups</h2>
+      <ol class="steps-list"><li>Install DumpCat on the database server, or on a machine that can reach it.</li><li>Add the storage you already use with SimpleBackups (S3, B2, Google Drive…) as a DumpCat storage, in a new folder.</li><li>Recreate each job with its databases, schedule, encryption and retention, then run it once and check the integrity result.</li><li>Keep your SimpleBackups backups until DumpCat&#x27;s retention covers the same period, then cancel the plan.</li></ol>
+    </div>
+  </section>
+  <section class="section" aria-labelledby="sources-title">
+    <div class="wrap narrow">
+      <h2 id="sources-title">Sources</h2>
+      <p class="note">Facts about SimpleBackups were checked on October 18, 2026 against the sources below. Products change: if something here is out of date, please open an issue on GitHub.</p>
+      <ol class="sources"><li><a href="https://simplebackups.com/pricing" rel="nofollow noopener">SimpleBackups pricing</a></li><li><a href="https://simplebackups.com/docs/getting-started/architecture/backup-lifecycle-and-data-flow" rel="nofollow noopener">SimpleBackups docs: backup lifecycle and data flow</a></li><li><a href="https://simplebackups.com/docs/database-backup/mysql-backup/faq" rel="nofollow noopener">SimpleBackups docs: MySQL backup FAQ</a></li><li><a href="https://simplebackups.com/docs/database-backup/mysql-backup/hot-backups-in-mysql-using-percona-xtrabackup" rel="nofollow noopener">SimpleBackups docs: hot backups with Percona XtraBackup</a></li><li><a href="https://simplebackups.com/docs/database-backup/mysql-backup/how-to-enable-binary-log-for-mysql-or-mariadb" rel="nofollow noopener">SimpleBackups docs: enable the binary log</a></li><li><a href="https://simplebackups.com/docs/getting-started/features/notifications" rel="nofollow noopener">SimpleBackups docs: notifications</a></li><li><a href="https://simplebackups.com/docs/getting-started/features/backup-restore" rel="nofollow noopener">SimpleBackups docs: backup restore</a></li><li><a href="https://simplebackups.com/changelog" rel="nofollow noopener">SimpleBackups changelog</a></li></ol>
+      <p class="note">SimpleBackups is a trademark of its owner. DumpCat is an independent open-source project and is not affiliated with it.</p>
+    </div>
+  </section>
+
+  <section class="section" aria-labelledby="others-title">
+    <div class="wrap narrow">
+      <h2 id="others-title">Other comparisons</h2>
+      <ul class="related"><li><a href="/compare/sqlbackupandftp/">DumpCat vs SQLBackupAndFTP</a><span>Windows backup app for SQL Server, MySQL, MariaDB and PostgreSQL, licensed per computer.</span></li><li><a href="/compare/databasus/">DumpCat vs Databasus</a><span>Open-source multi-database backup web app (formerly Postgresus); logical-only for MySQL.</span></li><li><a href="/compare/sqlbak/">DumpCat vs SqlBak</a><span>Agent-based backup service from the makers of SQLBackupAndFTP, priced per server.</span></li><li><a href="/compare/automysqlbackup/">DumpCat vs AutoMySQLBackup</a><span>Classic cron script with daily / weekly / monthly rotation; the original project stopped in 2011.</span></li><li><a href="/compare/percona-xtrabackup/">DumpCat vs Percona XtraBackup</a><span>The open-source hot physical backup engine. DumpCat runs it for you, with scheduling, storage and restores.</span></li><li><a href="/compare/mysql-enterprise-backup/">DumpCat vs MySQL Enterprise Backup</a><span>Oracle&#x27;s commercial physical backup tool, part of MySQL Enterprise Edition.</span></li><li><a href="/compare/snapshooter/">DumpCat vs SnapShooter</a><span>DigitalOcean-owned backup service; its last listed product update is from September 2024.</span></li><li><a href="/compare/navicat/">DumpCat vs Navicat</a><span>Popular paid database client; backups are a local, scheduled side feature.</span></li><li><a href="/compare/ottomatik/">DumpCat vs Ottomatik</a><span>Hosted scheduler that runs mysqldump on your server over SSH, from $14/month.</span></li><li><a href="/compare/backupsheep/">DumpCat vs BackupSheep</a><span>Former SaaS, now an open-source self-hosted beta for databases, cloud snapshots and WordPress.</span></li></ul>
+    </div>
+  </section>
+</main>
+<footer class="foot">
+  <div class="wrap">
+    <a class="brand" href="/"><svg aria-hidden="true"><use href="#dc-logo"/></svg>DumpCat</a>
+    <p>Open source under the Apache-2.0 license, with the source on GitHub. <a href="https://github.com/theweakestharrison/DumpCat">GitHub</a> · <a href="/compare/">Compare</a></p>
+  </div>
+</footer>
+</body>
+</html>

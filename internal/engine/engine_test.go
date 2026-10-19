@@ -67,3 +67,17 @@ func TestParseKV(t *testing.T) {
 		t.Fatal(m)
 	}
 }
+
+func TestParseBinlogHeaderGTID(t *testing.T) {
+	for in, want := range map[string]string{
+		"SET @@GLOBAL.GTID_PURGED='abc:1-5';\n":                              "abc:1-5",
+		"SET @@GLOBAL.GTID_PURGED=/*!80000 '+'*/ 'abc:1-5,\ndef:1-3';\n":     "abc:1-5,def:1-3",
+		"-- CHANGE REPLICATION SOURCE TO SOURCE_LOG_FILE='binlog.000002';\n": "",
+	} {
+		m := map[string]any{}
+		parseBinlogHeader(in, m)
+		if got, _ := m["gtid"].(string); got != want {
+			t.Errorf("%q -> %q want %q", in, got, want)
+		}
+	}
+}

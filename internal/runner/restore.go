@@ -35,6 +35,10 @@ type RestoreRequest struct {
 	RestoreUsers   bool              `json:"restore_users"`
 	Threads        int               `json:"threads"`
 	Passphrase     string            `json:"passphrase,omitempty"`
+	// logical restores onto another instance: rewrite the dump so it loads there
+	StripDefiner      bool `json:"strip_definer"`
+	ConvertCollations bool `json:"convert_collations"`
+	SkipGTIDPurged    bool `json:"skip_gtid_purged"`
 	// physical
 	TargetDir   string `json:"target_dir"`
 	Apply       bool   `json:"apply"`
@@ -45,6 +49,19 @@ type RestoreRequest struct {
 	OSUser      string `json:"os_user"`
 	// point-in-time recovery: replay archived binlogs after the restore
 	PITR *PITRTarget `json:"pitr,omitempty"`
+}
+
+func (q RestoreRequest) portable() engine.PortableOpts {
+	return engine.PortableOpts{StripDefiner: q.StripDefiner, ConvertCollations: q.ConvertCollations, SkipGTIDPurged: q.SkipGTIDPurged}
+}
+
+// entry adapts a database's default collation to the target when
+// collations are converted.
+func (q RestoreRequest) entry(d store.DBEntry) store.DBEntry {
+	if q.ConvertCollations {
+		d.Collation = engine.PortableCollation(d.Collation)
+	}
+	return d
 }
 
 func notifyEvent(kind, status, title, errMsg string) notify.Event {
@@ -497,7 +514,7 @@ func prepareDatabase(ctx context.Context, s *store.Server, d store.DBEntry, name
 }
 
 func (r *Runner) restoreMysqldump(ctx context.Context, task *Task, env *engine.Env, run *store.Run, target *store.Server, req RestoreRequest, pass string) error {
-	flavor, err := r.targetFlavor(ctx, target)
+	flavor, err := r.inspectTarget(ctx, run, target, req, env.Log)
 	if err != nil {
 		return err
 	}
@@ -554,7 +571,7 @@ func (r *Runner) restoreMysqldump(ctx context.Context, task *Task, env *engine.E
 		task.SetEstimate(f.Size)
 		if req.DropExisting {
 			for _, d := range run.Databases {
-				if err := prepareDatabase(ctx, target, d, d.Name, true, req.NoBinlog, env.Log); err != nil {
+				if err := prepareDatabase(ctx, target, req.entry(d), d.Name, true, req.NoBinlog, env.Log); err != nil {
 					return err
 				}
 			}
@@ -564,7 +581,7 @@ func (r *Runner) restoreMysqldump(ctx context.Context, task *Task, env *engine.E
 		if err != nil {
 			return err
 		}
-		err = engine.RestoreSQL(env, target, flavor, rd, engine.SQLRestoreOpts{NoBinlog: req.NoBinlog})
+		err = engine.RestoreSQL(env, target, flavor, engine.PortableSQL(rd, req.portable()), engine.SQLRestoreOpts{NoBinlog: req.NoBinlog})
 		if derr := done(err == nil); err == nil && derr != nil {
 			env.Log.Printf("%v", derr)
 		}
@@ -589,7 +606,7 @@ func (r *Runner) restoreMysqldump(ctx context.Context, task *Task, env *engine.E
 				return fmt.Errorf("file for database %s not found", d.Name)
 			}
 			name := targetName(req, d.Name)
-			if err := prepareDatabase(ctx, target, d, name, req.DropExisting, req.NoBinlog, env.Log); err != nil {
+			if err := prepareDatabase(ctx, target, req.entry(d), name, req.DropExisting, req.NoBinlog, env.Log); err != nil {
 				return fmt.Errorf("%s: %w", name, err)
 			}
 			env.Log.Printf("Restore %s → %s (%s)", d.Name, name, humanBytes(f.Size))
@@ -600,7 +617,7 @@ func (r *Runner) restoreMysqldump(ctx context.Context, task *Task, env *engine.E
 			}
 			e2 := *env
 			e2.Ctx = ctx
-			err = engine.RestoreSQL(&e2, target, flavor, rd, engine.SQLRestoreOpts{Database: name, NoBinlog: req.NoBinlog})
+			err = engine.RestoreSQL(&e2, target, flavor, engine.PortableSQL(rd, req.portable()), engine.SQLRestoreOpts{Database: name, NoBinlog: req.NoBinlog})
 			if derr := done(err == nil); err == nil && derr != nil {
 				env.Log.Printf("%v", derr)
 			}
@@ -641,7 +658,7 @@ func (r *Runner) restoreUsers(ctx context.Context, task *Task, env *engine.Env, 
 }
 
 func (r *Runner) restoreMydumper(ctx context.Context, task *Task, env *engine.Env, run *store.Run, target *store.Server, req RestoreRequest, pass, workDir string) error {
-	flavor, err := r.targetFlavor(ctx, target)
+	flavor, err := r.inspectTarget(ctx, run, target, req, env.Log)
 	if err != nil {
 		return err
 	}
@@ -681,6 +698,13 @@ func (r *Runner) restoreMydumper(ctx context.Context, task *Task, env *engine.En
 		return err
 	}
 	env.Log.Printf("Extracted %d files", n)
+	if o := req.portable(); o.Any() {
+		n, err := engine.RewriteMydumperSchemas(dir, o)
+		if err != nil {
+			return fmt.Errorf("rewriting the schema files: %w", err)
+		}
+		env.Log.Printf("Rewrote %d schema file(s) for the target (%s)", n, strings.Join(o.Labels(), ", "))
+	}
 	if req.FastMode {
 		defer r.enableFastMode(ctx, target, env.Log)()
 	}
@@ -700,7 +724,7 @@ func (r *Runner) restoreMydumper(ctx context.Context, task *Task, env *engine.En
 	for _, d := range dbs {
 		name := targetName(req, d.Name)
 		if req.DropExisting {
-			if err := prepareDatabase(ctx, target, d, name, true, req.NoBinlog, env.Log); err != nil {
+			if err := prepareDatabase(ctx, target, req.entry(d), name, true, req.NoBinlog, env.Log); err != nil {
 				return err
 			}
 		}
@@ -717,7 +741,7 @@ func (r *Runner) restoreMydumper(ctx context.Context, task *Task, env *engine.En
 			o.SourceDB = d.Name
 			o.TargetDB = targetName(req, d.Name)
 			if !req.DropExisting {
-				if err := prepareDatabase(ctx, target, d, o.TargetDB, false, req.NoBinlog, env.Log); err != nil {
+				if err := prepareDatabase(ctx, target, req.entry(d), o.TargetDB, false, req.NoBinlog, env.Log); err != nil {
 					return err
 				}
 			}

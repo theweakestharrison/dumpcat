@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Thay thế SnapShooter cho MySQL: DumpCat, miễn phí và tự host</title>
+<meta name="description" content="So sánh DumpCat và SnapShooter khi backup MySQL, MariaDB: giá, binlog và khôi phục theo thời điểm, nơi lưu và tình trạng sản phẩm sau khi DigitalOcean mua lại. Có dẫn nguồn, tháng 10/2026.">
+<link rel="canonical" href="https://dumpcat.cc/vi/compare/snapshooter/">
+<link rel="alternate" hreflang="en" href="https://dumpcat.cc/compare/snapshooter/">
+<link rel="alternate" hreflang="vi" href="https://dumpcat.cc/vi/compare/snapshooter/">
+<link rel="alternate" hreflang="x-default" href="https://dumpcat.cc/compare/snapshooter/">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://dumpcat.cc/vi/compare/snapshooter/">
+<meta property="og:site_name" content="DumpCat">
+<meta property="og:title" content="Thay thế SnapShooter cho MySQL: DumpCat, miễn phí và tự host">
+<meta property="og:description" content="So sánh DumpCat và SnapShooter khi backup MySQL, MariaDB: giá, binlog và khôi phục theo thời điểm, nơi lưu và tình trạng sản phẩm sau khi DigitalOcean mua lại. Có dẫn nguồn, tháng 10/2026.">
+<meta property="og:locale" content="vi_VN">
+<meta property="og:image" content="https://dumpcat.cc/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://dumpcat.cc/og.png">
+<meta name="theme-color" content="#1f5fbf">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=Bricolage+Grotesque:opsz,wdth,wght@12..96,75..100,400..800&family=JetBrains+Mono:wght@400;600&display=swap">
+<link rel="stylesheet" href="/style.css">
+<script type="application/ld+json">{"@context": "https://schema.org", "@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "Trang chủ", "item": "https://dumpcat.cc/"}, {"@type": "ListItem", "position": 2, "name": "So sánh", "item": "https://dumpcat.cc/vi/compare/"}, {"@type": "ListItem", "position": 3, "name": "DumpCat vs SnapShooter", "item": "https://dumpcat.cc/vi/compare/snapshooter/"}]}</script>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs><linearGradient id="dc-bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#3a86e8"/><stop offset="1" stop-color="#1c56b0"/></linearGradient><symbol id="dc-logo" viewBox="0 0 64 64"><rect width="64" height="64" rx="15" fill="url(#dc-bg)"/><path d="M47.5 45.5c7.5 0 10.5-5.5 7.8-11.5" fill="none" stroke="#fff" stroke-width="4.2" stroke-linecap="round"/><path d="M15.6 25 18.4 7.6 30.5 17.5z" fill="#fff"/><path d="M48.4 25 45.6 7.6 33.5 17.5z" fill="#fff"/><path d="M19.4 18.6 20.4 12.4 25.6 16.4z" fill="#f9a8c9"/><path d="M44.6 18.6 43.6 12.4 38.4 16.4z" fill="#f9a8c9"/><path d="M15 21v24c0 3.9 7.6 7 17 7s17-3.1 17-7V21z" fill="#fff"/><ellipse cx="32" cy="21" rx="17" ry="7" fill="#d6e6fb"/><path d="M15 38c0 3.9 7.6 7 17 7s17-3.1 17-7" fill="none" stroke="#1c56b0" stroke-opacity=".28" stroke-width="2.4"/><circle cx="25.4" cy="31" r="2.5" fill="#1b2433"/><circle cx="38.6" cy="31" r="2.5" fill="#1b2433"/><path d="M30.1 34.2h3.8L32 36.4z" fill="#f27aa8"/></symbol></defs></svg>
+<header class="hero page-hero">
+  <div class="wrap">
+    <div class="topbar">
+      <a class="brand" href="/"><svg aria-hidden="true"><use href="#dc-logo"/></svg>DumpCat</a>
+      <nav class="nav" aria-label="Site">
+        <a href="/vi/compare/">So sánh</a>
+        <a href="/#download">Tải về</a>
+        <a href="https://github.com/theweakestharrison/DumpCat">GitHub</a>
+      </nav>
+      <div class="lang" role="group" aria-label="Language"><a href="/compare/snapshooter/" hreflang="en" lang="en">EN</a><a href="/vi/compare/snapshooter/" hreflang="vi" lang="vi" aria-current="true">VI</a></div>
+    </div>
+    <div class="page-head">
+      <nav class="crumbs" aria-label="Breadcrumb"><a href="/">Trang chủ</a> <span aria-hidden="true">/</span> <a href="/vi/compare/">So sánh</a> <span aria-hidden="true">/</span> <span aria-current="page">DumpCat vs SnapShooter</span></nav>
+      <h1>DumpCat vs SnapShooter</h1>
+      <p class="lead">SnapShooter là dịch vụ backup trực tuyến được DigitalOcean mua lại vào tháng 1/2023; lần cập nhật sản phẩm gần nhất trong tài liệu của họ là tháng 9/2024. DumpCat là công cụ quản lý backup miễn phí, mã nguồn mở, chạy trên server của bạn. Dưới đây là khác biệt khi dùng cho MySQL và MariaDB.</p>
+      <div class="cta">
+        <a class="btn btn-light" href="/#download">Tải DumpCat</a>
+        <a class="btn btn-ghost" href="https://github.com/theweakestharrison/DumpCat">Mã nguồn trên GitHub</a>
+      </div>
+    </div>
+  </div>
+</header>
+
+<main>
+  <section class="section" aria-labelledby="glance-title">
+    <div class="wrap">
+      <h2 id="glance-title">So sánh nhanh</h2>
+      <div class="section-body table-scroll cmp">
+        <table>
+          <thead><tr><th scope="col"></th><th scope="col" class="us">DumpCat</th><th scope="col">SnapShooter</th></tr></thead>
+          <tbody><tr><th scope="row">Giá và giấy phép</th><td class="us" data-m="DumpCat">Miễn phí, mã nguồn mở (Apache-2.0). Không cần tài khoản hay license key.</td><td data-m="SnapShooter">Miễn phí: 1 job, mỗi ngày, 500 MB. Lite $14/tháng (3 job, 10 GB), Startup $39 (20 job, 60 GB), Business $79 (50 job, mỗi 5 phút, 120 GB), Agency $199 (250 job, 240 GB).</td></tr><tr><th scope="row">Cách chạy</th><td class="us" data-m="DumpCat">Tự host: một file chạy kèm giao diện web, chạy như service systemd hoặc Windows service cạnh database.</td><td data-m="SnapShooter">Dịch vụ SaaS kết nối qua SSH hoặc agent; database được quản lý (managed) thì backup bằng máy chủ serverless của họ.</td></tr><tr><th scope="row">Hệ điều hành</th><td class="us" data-m="DumpCat">Linux (amd64, arm64) và Windows (64-bit).</td><td data-m="SnapShooter">Server truy cập được qua SSH hoặc cài được agent, và các database được quản lý.</td></tr><tr><th scope="row">Database</th><td class="us" data-m="DumpCat">MySQL 5.7, 8.0, 8.4, Percona Server, MariaDB 10.x và 11.x.</td><td data-m="SnapShooter">MySQL và các database khác. Các trang chúng tôi kiểm tra không liệt kê phiên bản hỗ trợ.</td></tr><tr><th scope="row">Phương thức backup</th><td class="us" data-m="DumpCat">Logical bằng <code>mysqldump</code> / <code>mariadb-dump</code> hoặc <code>mydumper</code> song song; backup vật lý nóng bằng XtraBackup / MariaBackup, có incremental. Không khóa InnoDB.</td><td data-m="SnapShooter"><code>mysqldump</code> toàn bộ hoặc một database. Các trang chúng tôi kiểm tra không nói về việc khóa bảng.</td></tr><tr><th scope="row">Khôi phục theo thời điểm</th><td class="us" data-m="DumpCat">Có. Lưu binlog liên tục; khôi phục đến một thời điểm, một vị trí binlog hoặc ngay trước một GTID.</td><td data-m="SnapShooter">Một phần: có tùy chọn backup binlog MySQL, upload binlog theo kiểu incremental.</td></tr><tr><th scope="row">Nơi lưu trữ</th><td class="us" data-m="DumpCat">Ổ local / NFS, S3 và tương thích, Google Drive, OneDrive, SFTP, FTP / FTPS, WebDAV, Backblaze B2, Azure Blob, Dropbox và mọi backend của rclone; nhiều nơi cho một job.</td><td data-m="SnapShooter">Chỉ storage tương thích S3 (AWS, Backblaze B2, DigitalOcean Spaces, Filebase, UpCloud, Wasabi, MinIO), hoặc storage của SnapShooter.</td></tr><tr><th scope="row">Mã hóa</th><td class="us" data-m="DumpCat">Mã hóa age ngay trên server trước khi upload; nén zstd; SHA-256 cho từng file.</td><td data-m="SnapShooter">OpenSSL với khóa RSA; gói nào có tính năng này thì mỗi phần của trang giá ghi một khác.</td></tr><tr><th scope="row">Lịch và retention</th><td class="us" data-m="DumpCat">Lịch kiểu cron; retention riêng cho từng nơi lưu theo số bản, số ngày hoặc GFS (ngày / tuần / tháng).</td><td data-m="SnapShooter">Từ mỗi ngày (Free) đến mỗi 5 phút (Business); số job và dung lượng bị giới hạn theo gói.</td></tr><tr><th scope="row">Khôi phục</th><td class="us" data-m="DumpCat">Ngay trên giao diện web: restore sang tên database mới, thử giải mã mọi file trước khi xóa gì, kiểm tra toàn vẹn sau mỗi lần chạy.</td><td data-m="SnapShooter">Khôi phục tự động từ bảng điều khiển.</td></tr><tr><th scope="row">Dữ liệu đi đâu</th><td class="us" data-m="DumpCat">Đi thẳng từ server của bạn tới nơi lưu bạn chọn, không qua bên thứ ba nào.</td><td data-m="SnapShooter">Qua SSH hoặc agent, bản dump đi từ server của bạn tới storage của bạn; backup serverless cho database được quản lý chạy trên máy của SnapShooter.</td></tr><tr><th scope="row">Thông báo</th><td class="us" data-m="DumpCat">Email, Telegram, Slack, Discord và webhook ký HMAC.</td><td data-m="SnapShooter">Cảnh báo qua email; đăng nhập hai lớp cho bảng điều khiển.</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" aria-label="Chọn SnapShooter nếu / Chọn DumpCat nếu">
+    <div class="wrap choose">
+      <div class="choose-card">
+        <h2>Chọn SnapShooter nếu</h2>
+        <ul><li>Bạn dùng DigitalOcean và muốn chụp snapshot Droplet, volume ở cùng một chỗ.</li><li>Một bản backup nhỏ mỗi ngày là đủ, và gói miễn phí đáp ứng được.</li><li>Bạn muốn khôi phục tự động mà không phải tự chạy gì.</li></ul>
+      </div>
+      <div class="choose-card us">
+        <h2>Chọn DumpCat nếu</h2>
+        <ul><li>Bạn muốn một dự án mã nguồn mở, không phụ thuộc lộ trình của một nhà cung cấp.</li><li>Bạn cần lưu ra nơi khác ngoài S3: Google Drive, OneDrive, SFTP, FTP, WebDAV hay ổ local.</li><li>Bạn muốn khôi phục theo thời điểm đến từng giây hoặc GTID, cùng backup vật lý nóng cho database lớn.</li><li>Bạn muốn backup chạy mà không phụ thuộc dịch vụ của bên thứ ba nào.</li></ul>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" aria-labelledby="switch-title">
+    <div class="wrap narrow">
+      <h2 id="switch-title">Chuyển từ SnapShooter sang DumpCat</h2>
+      <ol class="steps-list"><li>Cài DumpCat trên server database.</li><li>Thêm cùng bucket S3 (trong thư mục mới) hoặc storage khác vào DumpCat.</li><li>Tạo lại từng job, bật lưu binlog nếu bạn đang dùng backup binlog của SnapShooter, rồi chạy thử một lần.</li><li>Giữ các bản backup của SnapShooter cho tới khi retention của DumpCat phủ được cùng khoảng thời gian.</li></ol>
+    </div>
+  </section>
+  <section class="section" aria-labelledby="sources-title">
+    <div class="wrap narrow">
+      <h2 id="sources-title">Nguồn</h2>
+      <p class="note">Thông tin về SnapShooter được kiểm tra ngày 18 tháng 10, 2026 theo các nguồn bên dưới. Sản phẩm thay đổi theo thời gian: nếu có gì đã cũ, xin mở một issue trên GitHub.</p>
+      <ol class="sources"><li><a href="https://www.digitalocean.com/blog/digitalocean-acquires-snapshooter" rel="nofollow noopener">DigitalOcean acquires SnapShooter (January 2023)</a></li><li><a href="https://docs.digitalocean.com/products/snapshooter/" rel="nofollow noopener">SnapShooter docs on DigitalOcean (product updates)</a></li><li><a href="https://docs.digitalocean.com/products/snapshooter/details/features/" rel="nofollow noopener">SnapShooter docs: features</a></li><li><a href="https://snapshooter.com/pricing" rel="nofollow noopener">SnapShooter pricing</a></li><li><a href="https://snapshooter.com/database/mysql" rel="nofollow noopener">SnapShooter: MySQL backups</a></li><li><a href="https://snapshooter.com/features" rel="nofollow noopener">SnapShooter features</a></li></ol>
+      <p class="note">SnapShooter là thương hiệu của chủ sở hữu. DumpCat là dự án mã nguồn mở độc lập, không liên kết với họ.</p>
+    </div>
+  </section>
+
+  <section class="section" aria-labelledby="others-title">
+    <div class="wrap narrow">
+      <h2 id="others-title">So sánh khác</h2>
+      <ul class="related"><li><a href="/vi/compare/sqlbackupandftp/">DumpCat vs SQLBackupAndFTP</a><span>Ứng dụng backup trên Windows cho SQL Server, MySQL, MariaDB và PostgreSQL, bản quyền theo máy.</span></li><li><a href="/vi/compare/simplebackups/">DumpCat vs SimpleBackups</a><span>Dịch vụ trực tuyến backup server, database và storage, từ gói miễn phí đến $299/tháng.</span></li><li><a href="/vi/compare/databasus/">DumpCat vs Databasus</a><span>Ứng dụng web backup nhiều loại database, mã nguồn mở (trước là Postgresus); với MySQL chỉ backup logical.</span></li><li><a href="/vi/compare/sqlbak/">DumpCat vs SqlBak</a><span>Dịch vụ backup dùng agent, của nhà làm SQLBackupAndFTP, tính phí theo server.</span></li><li><a href="/vi/compare/automysqlbackup/">DumpCat vs AutoMySQLBackup</a><span>Script cron kinh điển, xoay vòng theo ngày / tuần / tháng; dự án gốc dừng từ 2011.</span></li><li><a href="/vi/compare/percona-xtrabackup/">DumpCat vs Percona XtraBackup</a><span>Engine backup vật lý nóng mã nguồn mở. DumpCat chạy nó giúp bạn, kèm lịch, nơi lưu và khôi phục.</span></li><li><a href="/vi/compare/mysql-enterprise-backup/">DumpCat vs MySQL Enterprise Backup</a><span>Công cụ backup vật lý thương mại của Oracle, nằm trong MySQL Enterprise Edition.</span></li><li><a href="/vi/compare/navicat/">DumpCat vs Navicat</a><span>Phần mềm quản trị database trả phí phổ biến; backup là tính năng phụ, lưu local, chạy theo lịch.</span></li><li><a href="/vi/compare/ottomatik/">DumpCat vs Ottomatik</a><span>Dịch vụ lên lịch chạy mysqldump trên server của bạn qua SSH, từ $14/tháng.</span></li><li><a href="/vi/compare/backupsheep/">DumpCat vs BackupSheep</a><span>Từng là SaaS, nay là bản beta mã nguồn mở tự host cho database, snapshot cloud và WordPress.</span></li></ul>
+    </div>
+  </section>
+</main>
+<footer class="foot">
+  <div class="wrap">
+    <a class="brand" href="/"><svg aria-hidden="true"><use href="#dc-logo"/></svg>DumpCat</a>
+    <p>Mã nguồn mở theo giấy phép Apache-2.0, mã nguồn trên GitHub. <a href="https://github.com/theweakestharrison/DumpCat">GitHub</a> · <a href="/vi/compare/">So sánh</a></p>
+  </div>
+</footer>
+</body>
+</html>

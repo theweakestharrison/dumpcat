@@ -1,0 +1,84 @@
+{
+  "slug": "navicat",
+  "name": "Navicat",
+  "order": 45,
+  "checked": "2026-10-18",
+  "kind": {"en": "Database GUI client with a backup feature", "vi": "Phần mềm quản trị database có tính năng backup"},
+  "summary": {
+    "en": "Popular paid database client; backups are a local, scheduled side feature.",
+    "vi": "Phần mềm quản trị database trả phí phổ biến; backup là tính năng phụ, lưu local, chạy theo lịch."
+  },
+  "hub": {
+    "open_source": false,
+    "self_hosted": {"en": "Desktop app", "vi": "Ứng dụng desktop"},
+    "pitr": {"en": "No", "vi": "Không"},
+    "price": {"en": "From US$279 perpetual or $13.99/month", "vi": "Từ 279 USD vĩnh viễn hoặc $13.99/tháng"}
+  },
+  "en": {
+    "title": "Navicat backup vs DumpCat: scheduled MySQL backups without a desktop client",
+    "description": "Using Navicat for MySQL backups? Compare its backup and automation features with DumpCat, a free open-source backup manager: remote storage, encryption, point-in-time recovery and server-side scheduling. October 2026.",
+    "lead": "Navicat for MySQL is a full database client from PremiumSoft, and backup is one of its many features. DumpCat does only backups and restores, as a service on the server. If you mostly use Navicat to schedule backups, this is how the two compare.",
+    "values": {
+      "price": "Perpetual: Standard US$419, Enterprise $559, Non-Commercial $279, each with a year of maintenance. Subscription: from $13.99/month (Non-Commercial) or $20.99/month (Standard).",
+      "runs": "A desktop client; scheduled backups are batch jobs run by Windows Task Scheduler, or from the command line on macOS and Linux.",
+      "platforms": "Windows, macOS and Linux (plus iOS).",
+      "databases": "MySQL and MariaDB (other Navicat editions cover more engines).",
+      "methods": "Navicat's own backup format, per object, with \"Lock All Tables\" or \"Use Single Transaction\" (InnoDB only). Not in the Essentials edition.",
+      "pitr": "No binlog backup or point-in-time recovery documented.",
+      "storage": "Files in a local folder (the Settings Location). No cloud upload documented.",
+      "encryption": "No compression or encryption documented for backups.",
+      "schedule": "Batch jobs on the computer's own scheduler; no retention documented.",
+      "restore": "Into an existing or a new database; restore drops and recreates the selected objects.",
+      "datapath": "To the computer running Navicat.",
+      "alerts": "Email over SMTP for batch jobs."
+    },
+    "choose_them": [
+      "You want a full database IDE for queries, modelling and data transfer, and occasional backups are a bonus.",
+      "You back up small databases by hand from your workstation."
+    ],
+    "choose_us": [
+      "You want backups to run on the server, not on a desktop that has to stay on.",
+      "You want backups compressed, encrypted and copied to S3, Google Drive, OneDrive or SFTP automatically.",
+      "You need retention, alerts on Telegram, Slack or Discord, and point-in-time recovery.",
+      "You want hot physical backups with XtraBackup / MariaBackup for large databases. And it is free."
+    ],
+    "switch": []
+  },
+  "vi": {
+    "title": "Backup bằng Navicat hay DumpCat: backup MySQL theo lịch không cần phần mềm desktop",
+    "description": "Đang dùng Navicat để backup MySQL? So sánh tính năng backup và tự động hóa của nó với DumpCat, công cụ quản lý backup miễn phí, mã nguồn mở: lưu từ xa, mã hóa, khôi phục theo thời điểm và lên lịch ngay trên server. Tháng 10/2026.",
+    "lead": "Navicat for MySQL là phần mềm quản trị database đầy đủ của PremiumSoft, và backup chỉ là một trong nhiều tính năng. DumpCat chỉ làm backup và khôi phục, chạy như một service trên server. Nếu bạn chủ yếu dùng Navicat để backup theo lịch, đây là khác biệt giữa hai bên.",
+    "values": {
+      "price": "Mua vĩnh viễn: Standard 419 USD, Enterprise 559 USD, Non-Commercial 279 USD, kèm một năm bảo trì. Thuê bao: từ $13.99/tháng (Non-Commercial) hoặc $20.99/tháng (Standard).",
+      "runs": "Phần mềm desktop; backup theo lịch là batch job chạy bằng Windows Task Scheduler, hoặc dòng lệnh trên macOS và Linux.",
+      "platforms": "Windows, macOS và Linux (cùng iOS).",
+      "databases": "MySQL và MariaDB (các bản Navicat khác hỗ trợ thêm database).",
+      "methods": "Định dạng backup riêng của Navicat, theo từng đối tượng, chọn \"Lock All Tables\" hoặc \"Use Single Transaction\" (chỉ InnoDB). Không có ở bản Essentials.",
+      "pitr": "Không có tài liệu về backup binlog hay khôi phục theo thời điểm.",
+      "storage": "File trong một thư mục local (Settings Location). Không có tài liệu về upload lên cloud.",
+      "encryption": "Không có tài liệu về nén hay mã hóa bản backup.",
+      "schedule": "Batch job theo bộ lập lịch của máy; không có tài liệu về retention.",
+      "restore": "Vào database có sẵn hoặc database mới; khôi phục sẽ xóa và tạo lại các đối tượng được chọn.",
+      "datapath": "Về máy đang chạy Navicat.",
+      "alerts": "Email qua SMTP cho batch job."
+    },
+    "choose_them": [
+      "Bạn cần một IDE database đầy đủ để truy vấn, thiết kế và chuyển dữ liệu, còn backup thỉnh thoảng chỉ là phần thêm.",
+      "Bạn tự backup database nhỏ bằng tay từ máy làm việc."
+    ],
+    "choose_us": [
+      "Bạn muốn backup chạy trên server, không phụ thuộc một máy desktop phải luôn bật.",
+      "Bạn muốn bản backup được nén, mã hóa và tự chép lên S3, Google Drive, OneDrive hay SFTP.",
+      "Bạn cần retention, cảnh báo qua Telegram, Slack hay Discord, và khôi phục theo thời điểm.",
+      "Bạn muốn backup vật lý nóng bằng XtraBackup / MariaBackup cho database lớn. Và miễn phí."
+    ],
+    "switch": []
+  },
+  "sources": [
+    {"label": "Navicat for MySQL release notes", "url": "https://www.navicat.com/en/products/navicat-for-mysql-release-note"},
+    {"label": "Navicat store: Navicat for MySQL", "url": "https://www.navicat.com/en/store/navicat-for-mysql"},
+    {"label": "Navicat store: subscription plans", "url": "https://www.navicat.com/en/store/navicat-for-mysql-plan"},
+    {"label": "Navicat manual: backup", "url": "https://www.navicat.com/manual/online_manual/en/navicat/win_manual/backup.html"},
+    {"label": "Navicat manual: automation", "url": "https://www.navicat.com/manual/online_manual/en/navicat/win_manual/automation.html"}
+  ]
+}

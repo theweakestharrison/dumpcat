@@ -1,0 +1,96 @@
+{
+  "slug": "sqlbackupandftp",
+  "name": "SQLBackupAndFTP",
+  "order": 5,
+  "checked": "2026-10-18",
+  "kind": {"en": "Windows desktop app and service", "vi": "Ứng dụng desktop và service cho Windows"},
+  "summary": {
+    "en": "Windows backup app for SQL Server, MySQL, MariaDB and PostgreSQL, licensed per computer.",
+    "vi": "Ứng dụng backup trên Windows cho SQL Server, MySQL, MariaDB và PostgreSQL, bản quyền theo máy."
+  },
+  "hub": {
+    "open_source": false,
+    "self_hosted": {"en": "Yes, Windows only", "vi": "Có, chỉ Windows"},
+    "pitr": {"en": "Partial: binlog incrementals", "vi": "Một phần: incremental bằng binlog"},
+    "price": {"en": "Free for 2 databases; $39–$129, $499 lifetime", "vi": "Miễn phí 2 database; $39–$129, trọn đời $499"}
+  },
+  "en": {
+    "title": "SQLBackupAndFTP alternative for MySQL: DumpCat, free, open source, Linux and Windows",
+    "description": "DumpCat vs SQLBackupAndFTP for MySQL and MariaDB backups: price per computer, Windows vs Linux, binlog incrementals, point-in-time recovery, encryption and cloud storage. Sourced, October 2026.",
+    "lead": "SQLBackupAndFTP, from Pranas.NET, is a long-standing Windows app that backs up SQL Server, MySQL, MariaDB and PostgreSQL to local and cloud storage. DumpCat is a free, open-source MySQL and MariaDB backup manager for Linux and Windows. Here is how they compare.",
+    "values": {
+      "price": "One-time licence per computer: Free (2 databases), Lite $39 (5 databases), Standard $89, Professional $129, Professional Lifetime $499. Optional yearly Full-Service plan.",
+      "runs": "Windows desktop app plus a Windows service; needs .NET Framework 4.7.2. For Linux the vendor offers a separate product, SqlBak.",
+      "platforms": "Windows only.",
+      "databases": "MySQL 5.6, 5.7, 8.0 and 8.4, MariaDB 10.6, 10.11 and 11.4; also SQL Server and PostgreSQL.",
+      "methods": "Full backups are `mysqldump` SQL scripts. Incrementals (Standard and up) copy binlogs after `FLUSH BINARY LOGS` and need the app on the MySQL server itself. No physical backups.",
+      "pitr": "Partial: incrementals are binlogs, but restoring to a chosen point in time is not documented.",
+      "storage": "Local / NAS, FTP, SFTP, FTPS, OneDrive, Box, Backblaze B2, Yandex, Google Drive and Dropbox. Amazon S3, S3-compatible, Azure and OneDrive for Business need Professional.",
+      "encryption": "Zip or 7z compression; AES-256 password encryption on Professional only.",
+      "schedule": "Built-in scheduler and cleanup of old backups.",
+      "restore": "One-click restore of a full + incremental chain, under a new name or to another server.",
+      "datapath": "From your Windows machine to your storage.",
+      "alerts": "Email on every edition; Slack, Teams, Discord and webhooks from Lite."
+    },
+    "choose_them": [
+      "You are on Windows and also back up SQL Server or PostgreSQL, and want one tool for all of them.",
+      "You prefer a one-time licence and a desktop app with guided setup wizards for cloud storage.",
+      "You want vendor support with a paid service plan."
+    ],
+    "choose_us": [
+      "Your MySQL or MariaDB server runs on Linux: DumpCat runs natively on Linux (amd64, arm64) and on Windows.",
+      "You need real point-in-time recovery: continuous binlog archiving and restore to a second or just before a GTID.",
+      "Your databases are large: parallel `mydumper` and hot physical backups with XtraBackup / MariaBackup.",
+      "You want S3, encryption and every notification channel without a paid tier: DumpCat is free and open source."
+    ],
+    "switch": [
+      "Install DumpCat on the database server (Linux or Windows).",
+      "Add the storage you use today (Google Drive, S3, SFTP…) to DumpCat, in a new folder.",
+      "Recreate each job, and turn on binlog archiving where you used SQLBackupAndFTP's incremental backups.",
+      "Run each job once and check the integrity result; keep the old backups until DumpCat's retention covers the same period."
+    ]
+  },
+  "vi": {
+    "title": "Thay thế SQLBackupAndFTP cho MySQL: DumpCat, miễn phí, mã nguồn mở, chạy Linux và Windows",
+    "description": "So sánh DumpCat và SQLBackupAndFTP khi backup MySQL, MariaDB: giá theo máy, Windows hay Linux, incremental bằng binlog, khôi phục theo thời điểm, mã hóa và lưu lên cloud. Có dẫn nguồn, tháng 10/2026.",
+    "lead": "SQLBackupAndFTP của Pranas.NET là ứng dụng Windows lâu năm, backup SQL Server, MySQL, MariaDB và PostgreSQL ra ổ local và cloud. DumpCat là công cụ quản lý backup MySQL, MariaDB miễn phí, mã nguồn mở, chạy trên Linux và Windows. Dưới đây là khác biệt giữa hai bên.",
+    "values": {
+      "price": "Mua một lần, theo từng máy: Free (2 database), Lite $39 (5 database), Standard $89, Professional $129, Professional Lifetime $499. Có thêm gói dịch vụ hằng năm tùy chọn.",
+      "runs": "Ứng dụng desktop kèm Windows service; cần .NET Framework 4.7.2. Với Linux, hãng có sản phẩm riêng là SqlBak.",
+      "platforms": "Chỉ Windows.",
+      "databases": "MySQL 5.6, 5.7, 8.0 và 8.4, MariaDB 10.6, 10.11 và 11.4; ngoài ra SQL Server và PostgreSQL.",
+      "methods": "Bản full là script SQL từ `mysqldump`. Incremental (từ Standard) chép binlog sau `FLUSH BINARY LOGS` và cần cài ứng dụng ngay trên server MySQL. Không có backup vật lý.",
+      "pitr": "Một phần: incremental là binlog, nhưng không có tài liệu về khôi phục đến một thời điểm chọn trước.",
+      "storage": "Local / NAS, FTP, SFTP, FTPS, OneDrive, Box, Backblaze B2, Yandex, Google Drive và Dropbox. Amazon S3, tương thích S3, Azure và OneDrive for Business cần gói Professional.",
+      "encryption": "Nén zip hoặc 7z; mã hóa AES-256 bằng mật khẩu chỉ có ở Professional.",
+      "schedule": "Có bộ lập lịch và tự dọn backup cũ.",
+      "restore": "Khôi phục một cú nhấp cả chuỗi full + incremental, sang tên mới hoặc server khác.",
+      "datapath": "Từ máy Windows của bạn tới storage của bạn.",
+      "alerts": "Email ở mọi phiên bản; Slack, Teams, Discord và webhook từ gói Lite."
+    },
+    "choose_them": [
+      "Bạn dùng Windows và còn backup SQL Server hoặc PostgreSQL, muốn chung một công cụ.",
+      "Bạn thích mua bản quyền một lần và dùng ứng dụng desktop có wizard hướng dẫn cài storage cloud.",
+      "Bạn muốn được hãng hỗ trợ qua gói dịch vụ trả phí."
+    ],
+    "choose_us": [
+      "Server MySQL, MariaDB của bạn chạy Linux: DumpCat chạy trực tiếp trên Linux (amd64, arm64) lẫn Windows.",
+      "Bạn cần khôi phục theo thời điểm thực sự: lưu binlog liên tục và khôi phục đến từng giây hoặc ngay trước một GTID.",
+      "Database của bạn lớn: `mydumper` song song và backup vật lý nóng bằng XtraBackup / MariaBackup.",
+      "Bạn muốn S3, mã hóa và mọi kênh thông báo mà không phải mua gói cao: DumpCat miễn phí và mã nguồn mở."
+    ],
+    "switch": [
+      "Cài DumpCat trên server database (Linux hoặc Windows).",
+      "Thêm storage đang dùng (Google Drive, S3, SFTP…) vào DumpCat, trong một thư mục mới.",
+      "Tạo lại từng job, và bật lưu binlog ở những chỗ bạn đang dùng incremental của SQLBackupAndFTP.",
+      "Chạy thử từng job và xem kết quả kiểm tra toàn vẹn; giữ backup cũ cho tới khi retention của DumpCat phủ được cùng khoảng thời gian."
+    ]
+  },
+  "sources": [
+    {"label": "SQLBackupAndFTP download and version history", "url": "https://sqlbackupandftp.com/download"},
+    {"label": "SQLBackupAndFTP features and editions", "url": "https://sqlbackupandftp.com/features"},
+    {"label": "SQLBackupAndFTP: MySQL backup", "url": "https://sqlbackupandftp.com/mysql-backup"},
+    {"label": "SQLBackupAndFTP docs: how MySQL backup and restore works", "url": "https://sqlbackupandftp.com/docs/docs/how-it-works/how-backup-restore-of-databases/mysql/"},
+    {"label": "SQLBackupAndFTP docs: encryption", "url": "https://sqlbackupandftp.com/docs/docs/job-settings/backup-job/encryption/"}
+  ]
+}
