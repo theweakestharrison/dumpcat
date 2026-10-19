@@ -104,18 +104,49 @@ func TOTPCode(secret string, t time.Time) (string, error) {
 
 // VerifyTOTP accepts the current code and one step before/after (clock skew).
 func VerifyTOTP(secret, code string, t time.Time) bool {
+	_, ok := TOTPStep(secret, code, t)
+	return ok
+}
+
+// TOTPStep checks a code like VerifyTOTP and returns the 30-second step it belongs to, so that
+// the caller can refuse a code that was already used.
+func TOTPStep(secret, code string, t time.Time) (int64, bool) {
 	code = strings.TrimSpace(strings.ReplaceAll(code, " ", ""))
 	if len(code) != 6 || secret == "" {
-		return false
+		return 0, false
 	}
 	c := t.Unix() / 30
 	for _, d := range []int64{0, -1, 1} {
 		want, err := totpAt(secret, uint64(c+d))
 		if err == nil && ConstantTimeEqual(want, code) {
-			return true
+			return c + d, true
 		}
 	}
-	return false
+	return 0, false
+}
+
+// TOTPGuard remembers the last step each user signed in with: a code works once.
+type TOTPGuard struct {
+	mu   sync.Mutex
+	last map[int64]int64
+}
+
+// Use reports whether code is valid for secret and newer than the last code user id used.
+func (g *TOTPGuard) Use(id int64, secret, code string, t time.Time) bool {
+	step, ok := TOTPStep(secret, code, t)
+	if !ok {
+		return false
+	}
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	if g.last == nil {
+		g.last = map[int64]int64{}
+	}
+	if step <= g.last[id] {
+		return false
+	}
+	g.last[id] = step
+	return true
 }
 
 func TOTPURL(issuer, account, secret string) string {
@@ -185,6 +216,50 @@ func (l *Limiter) Fail(key string) {
 			}
 		}
 	}
+}
+
+// Take reserves one attempt for key before the credentials are checked, so that parallel
+// requests cannot all slip through before the first failure is recorded. It returns the
+// remaining lock duration (0: the attempt may go ahead). A successful attempt gives its slot
+// back with Release (or clears the key with Reset).
+func (l *Limiter) Take(key string) time.Duration {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	now := time.Now()
+	a := l.m[key]
+	if a != nil {
+		if d := a.lockedUntil.Sub(now); d > 0 {
+			return d
+		}
+	}
+	if a == nil || now.Sub(a.first) > l.Window {
+		a = &attempt{first: now}
+		l.m[key] = a
+	}
+	if a.fails >= l.MaxFails {
+		a.lockedUntil = now.Add(l.Lockout)
+		a.fails = 0
+		a.first = now
+		return l.Lockout
+	}
+	a.fails++
+	if len(l.m) > 10000 {
+		for k, v := range l.m {
+			if now.Sub(v.first) > l.Window && now.After(v.lockedUntil) {
+				delete(l.m, k)
+			}
+		}
+	}
+	return 0
+}
+
+// Release gives back the slot of an attempt that succeeded.
+func (l *Limiter) Release(key string) {
+	l.mu.Lock()
+	if a := l.m[key]; a != nil && a.fails > 0 {
+		a.fails--
+	}
+	l.mu.Unlock()
 }
 
 func (l *Limiter) Reset(key string) {

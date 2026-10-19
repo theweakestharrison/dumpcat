@@ -60,6 +60,12 @@ func WriteCnf(dir string, s *store.Server, o CnfOptions) (string, []string, erro
 	if err != nil {
 		return "", nil, err
 	}
+	// one value per line: a line break would add options of its own (plugin-dir, init-command…)
+	for _, v := range []string{s.Username, host, socket} {
+		if strings.ContainsAny(v, "\r\n\x00") {
+			return "", nil, fmt.Errorf("server %s: the user, host or socket contains a line break", s.Name)
+		}
+	}
 	conn := func(glib bool) []string {
 		var lines []string
 		if s.Username != "" {
@@ -116,8 +122,11 @@ func WriteCnf(dir string, s *store.Server, o CnfOptions) (string, []string, erro
 		return "", nil, err
 	}
 	f.Close()
+	// MYSQL_PWD only when the option file could not hold the password: the environment of a
+	// process is easier to read (/proc/<pid>/environ for the same user, crash reports) than a 0600 file
 	var env []string
-	if s.Password != "" {
+	risky := strings.ContainsAny(s.Password, "\n\r") || (strings.Contains(s.Password, `"`) && strings.Contains(s.Password, "#"))
+	if s.Password != "" && risky && len(o.Groups) > 0 {
 		env = append(env, "MYSQL_PWD="+s.Password)
 	}
 	return f.Name(), env, nil

@@ -7,6 +7,12 @@ export const title = 'Agents';
 
 const DEFAULT_RELEASES = 'https://downloads.dumpcat.cc';
 
+// Values from settings (Base URL, release server) are quoted when they hold anything but URL
+// characters: a pasted command must never run more than it shows.
+const SAFE_ARG = /^[A-Za-z0-9._:/@%+=,~-]+$/;
+const sh = (s) => (SAFE_ARG.test(s) ? s : `'${String(s).replace(/'/g, "'\\''")}'`);
+const ps = (s) => (SAFE_ARG.test(s) ? s : `'${String(s).replace(/'/g, "''")}'`);
+
 // The install commands for an agent; key is null when it is not known (it is shown once).
 function installCommands(info, key, physical) {
   const v = /^\d+\.\d+\.\d+/.test(info.version || '') ? info.version : '';
@@ -14,18 +20,18 @@ function installCommands(info, key, physical) {
   const server = info.server_url;
   const k = key || '<agent key>';
   const linux = [
-    ...(v ? [`curl -fLO ${rel}/${v}/dumpcat-${v}-linux.tar.gz`, `tar xzf dumpcat-${v}-linux.tar.gz && cd dumpcat-${v}-linux`] : []),
-    `sudo ./install.sh --agent --server ${server} --key ${k}${physical ? ' --allow-physical' : ''}`,
+    ...(v ? [`curl -fLO ${sh(`${rel}/${v}/dumpcat-${v}-linux.tar.gz`)}`, `tar xzf dumpcat-${v}-linux.tar.gz && cd dumpcat-${v}-linux`] : []),
+    `sudo ./install.sh --agent --server ${sh(server)} --key ${key ? sh(key) : k}${physical ? ' --allow-physical' : ''}`,
   ];
   const win = [
-    ...(v ? [`Invoke-WebRequest ${rel}/${v}/dumpcat-${v}-windows-amd64.zip -OutFile dumpcat.zip`,
+    ...(v ? [`Invoke-WebRequest ${ps(`${rel}/${v}/dumpcat-${v}-windows-amd64.zip`)} -OutFile dumpcat.zip`,
       `Expand-Archive dumpcat.zip -DestinationPath . ; cd dumpcat-${v}-windows-amd64`] : []),
-    `powershell -ExecutionPolicy Bypass -File .\\install.ps1 -Agent -Server ${server} -Key ${k}${physical ? ' -AllowPhysical' : ''}`,
+    `powershell -ExecutionPolicy Bypass -File .\\install.ps1 -Agent -Server ${ps(server)} -Key ${key ? ps(key) : k}${physical ? ' -AllowPhysical' : ''}`,
   ];
   return {
     'Linux (systemd)': linux.join('\n'),
     'Windows (PowerShell as Administrator)': win.join('\n'),
-    'Any OS, in the foreground': `dumpcat agent -server ${server} -key ${k}${physical ? ' -allow-physical' : ''}`,
+    'Any OS, in the foreground': `dumpcat agent -server ${sh(server)} -key ${key ? sh(key) : k}${physical ? ' -allow-physical' : ''}`,
   };
 }
 
@@ -42,7 +48,7 @@ function setupView(info, key) {
     <div class="help" style="margin:14px 0 6px">Run on the database host. The agent connects out to <span class="mono">${info.server_url}</span> over ${info.server_url.startsWith('https') ? 'HTTPS' : 'HTTP'} — the host needs no open port. By default it only reaches the local MySQL/MariaDB (127.0.0.1:3306 and the usual sockets); add <span class="mono">--allow host:port</span> for others.</div>
     <label class="check" style="margin:10px 0 4px"><input type="checkbox" id="allow-physical"><span>Allow physical backups<span class="help">The agent runs mariabackup/xtrabackup on the database host when DumpCat asks and streams the backup back. On Linux it then runs as the owner of the datadir (usually <span class="mono">mysql</span>) instead of a throwaway user.</span></span></label>
     <div id="setup-cmds">${commandsView(cmds)}</div>
-    ${!info.server_url.startsWith('https') ? html`<div class="alert info" style="margin-top:14px">${icon('lock')}<div>Database traffic goes through this connection: serve DumpCat over HTTPS (a reverse proxy, or <span class="mono">DUMPCAT_TLS_AUTO=1</span> with <span class="mono">--insecure</span> on the agent) when it crosses an untrusted network.</div></div>` : ''}`;
+    ${!info.server_url.startsWith('https') ? html`<div class="alert info" style="margin-top:14px">${icon('lock')}<div>Database traffic goes through this connection: serve DumpCat over HTTPS with a certificate the database host trusts (for example a reverse proxy with Let's Encrypt) when it crosses an untrusted network. The built-in self-signed certificate (<span class="mono">DUMPCAT_TLS_AUTO=1</span>) needs <span class="mono">--insecure</span> on the agent, which encrypts the traffic but does not stop someone on the network path from posing as DumpCat: use it only on networks you trust.</div></div>` : ''}`;
 }
 
 function showSetup(info, name, key) {

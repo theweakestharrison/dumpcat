@@ -944,6 +944,9 @@ func (a *archiver) archiveFile(ctx context.Context, job *store.Job, name string)
 		comp := pipeline.NormalizeCompression(job.Compression)
 		pass := ""
 		if job.Encrypt {
+			if job.Passphrase == "" {
+				return errNoPassphrase // never archive in plaintext what should be encrypted
+			}
 			pass = job.Passphrase
 		}
 		size, sum, rawSum, err := encodeBinlog(raw, stored, pipeline.ChainOptions{Compression: comp, Level: job.CompressionLevel, Threads: 2, Passphrase: pass})

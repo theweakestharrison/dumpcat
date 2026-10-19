@@ -17,6 +17,7 @@ import (
 	"net"
 	"net/http"
 	"net/smtp"
+	neturl "net/url"
 	"os"
 	"strconv"
 	"strings"
@@ -214,6 +215,12 @@ func (n *Notifier) postJSON(ctx context.Context, url string, v any, headers map[
 	}
 	resp, err := n.client.Do(req)
 	if err != nil {
+		// a webhook URL (Slack, Discord) or a Telegram bot URL is the secret itself: keep it out
+		// of the error, which reaches the log and the channel test
+		var ue *neturl.Error
+		if errors.As(err, &ue) {
+			return fmt.Errorf("%s %s://%s/…: %w", ue.Op, req.URL.Scheme, req.URL.Host, ue.Err)
+		}
 		return err
 	}
 	defer resp.Body.Close()

@@ -64,6 +64,15 @@ func (r *Runner) ImportFromStorage(ctx context.Context, storageID int64) (*Impor
 			res.Errors = append(res.Errors, fmt.Sprintf("%s: invalid manifest location", e.Path))
 			continue
 		}
+		// older manifests may lack the names: they are the two levels of the storage path
+		if seg := strings.SplitN(dir, "/", 2); len(seg) == 2 {
+			if m.JobSlug == "" {
+				m.JobSlug = seg[0]
+			}
+			if m.DirName == "" {
+				m.DirName = seg[1]
+			}
+		}
 		if err := validateManifest(&m); err != nil {
 			res.Skipped++
 			res.Errors = append(res.Errors, fmt.Sprintf("%s: %v", e.Path, err))
@@ -72,6 +81,13 @@ func (r *Runner) ImportFromStorage(ctx context.Context, storageID int64) (*Impor
 		if existing, err := r.Store.GetRunByUUID(m.UUID); err == nil {
 			if r.Store.LocationExists(existing.ID, st.ID) {
 				res.Skipped++
+				continue
+			}
+			// a copy of a known backup must hold exactly its files: a manifest that only borrows the
+			// UUID must not attach other data to it (or bring a deleted backup back)
+			if !sameFiles(existing.Files, m.Files) {
+				res.Skipped++
+				res.Errors = append(res.Errors, fmt.Sprintf("%s: same backup id as #%d but different files", e.Path, existing.ID))
 				continue
 			}
 			if existing.Status == store.StatusFailed || existing.Status == store.StatusCanceled ||
@@ -112,8 +128,13 @@ func (r *Runner) ImportFromStorage(ctx context.Context, storageID int64) (*Impor
 				run.Passphrase = j.Passphrase
 			}
 		}
-		if run.StartedAt.IsZero() {
-			run.StartedAt = time.Now()
+		// a date in the future would count as the newest backup and silence freshness alerts
+		if now := time.Now(); run.StartedAt.IsZero() || run.StartedAt.After(now) {
+			run.StartedAt = now
+		}
+		if run.FinishedAt != nil && run.FinishedAt.After(time.Now()) {
+			fin := time.Now()
+			run.FinishedAt = &fin
 		}
 		if err := r.Store.CreateRun(run); err != nil {
 			res.Errors = append(res.Errors, fmt.Sprintf("%s: %v", e.Path, err))
@@ -155,7 +176,27 @@ func (r *Runner) ImportFromStorage(ctx context.Context, storageID int64) (*Impor
 var hexRe = regexp.MustCompile(`^[0-9a-f]{64}$`)
 
 // validateManifest rejects manifests that could not have been written by us.
+// safeSegment: a job or backup directory name from a manifest, which ends up in local paths
+// (the extraction directory of a physical restore) and in storage paths.
+var safeSegment = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$`)
+
+// charsetRe: character set and collation names, written unquoted into CREATE DATABASE.
+var charsetRe = regexp.MustCompile(`^[A-Za-z0-9_]{1,64}$`)
+
 func validateManifest(m *store.Manifest) error {
+	// the storage that holds a manifest may be writable by someone who cannot touch this host:
+	// nothing in it may name a path outside the backup's own directory
+	if !safeSegment.MatchString(m.DirName) || strings.Contains(m.DirName, "..") {
+		return fmt.Errorf("invalid backup directory name %q", m.DirName)
+	}
+	if m.JobSlug != "" && (!safeSegment.MatchString(m.JobSlug) || strings.Contains(m.JobSlug, "..")) {
+		return fmt.Errorf("invalid job directory name %q", m.JobSlug)
+	}
+	for _, d := range m.Databases {
+		if (d.Charset != "" && !charsetRe.MatchString(d.Charset)) || (d.Collation != "" && !charsetRe.MatchString(d.Collation)) {
+			return fmt.Errorf("invalid character set or collation for database %q", d.Name)
+		}
+	}
 	switch m.Method {
 	case store.MethodMysqldump, store.MethodMydumper, store.MethodPhysical:
 	default:
@@ -206,4 +247,22 @@ func (r *Runner) Housekeeping() {
 		r.Store.PurgeAudit(time.Now().AddDate(-1, 0, 0))
 	}
 	r.CleanupStaleWork()
+}
+
+// sameFiles reports whether two backups list the same files with the same sizes and checksums.
+func sameFiles(a, b []store.BackupFile) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	byName := make(map[string]store.BackupFile, len(a))
+	for _, f := range a {
+		byName[f.Name] = f
+	}
+	for _, f := range b {
+		g, ok := byName[f.Name]
+		if !ok || g.Size != f.Size || !strings.EqualFold(g.SHA256, f.SHA256) {
+			return false
+		}
+	}
+	return true
 }

@@ -71,7 +71,7 @@ function cardBody(s) {
   } else if (s.available) {
     summary = html`<div class="alert info">${icon('download')}<div><b>DumpCat ${latest.version} is available</b>${latest.released_at ? html` <span class="muted">(released ${latest.released_at})</span>` : ''}.
       ${latest.notes ? html`<pre class="release-notes">${latest.notes}</pre>` : ''}
-      ${latest.notes_url ? html`<a href="${latest.notes_url}" target="_blank" rel="noopener">Release notes</a>` : ''}</div></div>`;
+      ${/^https?:\/\//i.test(latest.notes_url || '') ? html`<a href="${latest.notes_url}" target="_blank" rel="noopener">Release notes</a>` : ''}</div></div>`;
   } else if (latest) {
     summary = html`<div class="alert good">${icon('check')}<div>You are running the latest version.</div></div>`;
   } else {

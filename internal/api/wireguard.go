@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/netip"
 	"net/url"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -197,7 +198,9 @@ func (s *Server) wgUpdate(w http.ResponseWriter, r *http.Request) error {
 		}
 	}
 	ep := strings.TrimSpace(in.Endpoint)
-	if strings.Contains(ep, "://") || strings.ContainsAny(ep, " /") {
+	// the endpoint is written into each peer's wg-quick file, which runs PostUp= lines as root:
+	// only host name / IP characters and a port, never a line break
+	if strings.Contains(ep, "://") || !wgEndpointRe.MatchString(ep) && ep != "" {
 		return badRequest("the endpoint is a host name or IP address, optionally with :port (e.g. backup.example.com)")
 	}
 	cfg.Enabled, cfg.ListenPort, cfg.Address, cfg.Endpoint = in.Enabled, in.ListenPort, prefix.String(), ep
@@ -507,3 +510,6 @@ func (s *Server) wgPeerDelete(w http.ResponseWriter, r *http.Request) error {
 	_ = s.applyWG()
 	return ok(w, map[string]bool{"ok": true})
 }
+
+// wgEndpointRe: a host name, IPv4 or [IPv6] address, optionally with :port.
+var wgEndpointRe = regexp.MustCompile(`^(\[[0-9A-Fa-f:.]+\]|[A-Za-z0-9.-]+|[0-9A-Fa-f:]+)(:[0-9]{1,5})?$`)

@@ -289,6 +289,12 @@ func RequireSecretsOnMove(t string, incoming, existing map[string]string) error 
 			moved = true
 		}
 	}
+	// switching certificate checks off lets someone on the path pose as the server: same rule
+	for _, k := range []string{"no_check_certificate", "insecure", "skip_verify", "insecure_skip_verify"} {
+		if on(incoming[k]) && !on(existing[k]) {
+			moved = true
+		}
+	}
 	if !moved {
 		return nil
 	}
@@ -298,7 +304,7 @@ func RequireSecretsOnMove(t string, incoming, existing map[string]string) error 
 	}
 	for k := range sec {
 		if incoming[k] == SecretMask && existing[k] != "" {
-			return fmt.Errorf("re-enter the password / secret key when changing host/URL/endpoint/user")
+			return fmt.Errorf("re-enter the password / secret key when changing host/URL/endpoint/user or turning off certificate checks")
 		}
 	}
 	return nil
@@ -316,4 +322,13 @@ func MergeSecrets(t string, incoming, existing map[string]string) map[string]str
 		out[k] = v
 	}
 	return out
+}
+
+// on reports a checkbox value that is set.
+func on(v string) bool {
+	switch strings.ToLower(strings.TrimSpace(v)) {
+	case "true", "1", "yes", "on":
+		return true
+	}
+	return false
 }

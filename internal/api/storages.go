@@ -129,6 +129,13 @@ func (s *Server) buildStorage(ctx context.Context, in storageInput, existing *st
 			cfg[k] = strings.TrimSpace(v)
 		}
 	}
+	// S3 without keys signs in with the host's own cloud identity (instance role, environment,
+	// ~/.aws): that reaches every bucket the host may use, so only admins may choose it
+	if in.Type == "s3" && cfg["access_key_id"] == "" {
+		if u := userFromCtx(ctx); u != nil && u.Role != store.RoleAdmin {
+			return nil, errf(403, "only admins can configure S3 storage without an access key (it uses the host's own cloud credentials)")
+		}
+	}
 	if st.Name == "" {
 		return nil, badRequest("storage name is required")
 	}

@@ -47,3 +47,47 @@ func TestPassword(t *testing.T) {
 		t.Fatal("bcrypt")
 	}
 }
+
+// Attempts are reserved before the password is checked: parallel requests get no extra tries,
+// and a successful attempt gives its slot back.
+func TestLimiterTake(t *testing.T) {
+	l := NewLimiter()
+	for i := 0; i < l.MaxFails; i++ {
+		if d := l.Take("k"); d > 0 {
+			t.Fatalf("attempt %d refused", i+1)
+		}
+	}
+	if d := l.Take("k"); d == 0 {
+		t.Fatal("one attempt too many was allowed")
+	}
+	if d := l.Take("k"); d == 0 {
+		t.Fatal("the key must stay locked")
+	}
+	l2 := NewLimiter()
+	for i := 0; i < 20; i++ {
+		if d := l2.Take("ok"); d > 0 {
+			t.Fatalf("successful attempts must not lock (attempt %d)", i+1)
+		}
+		l2.Release("ok")
+	}
+}
+
+// A two-factor code signs in once.
+func TestTOTPGuard(t *testing.T) {
+	secret := NewTOTPSecret()
+	now := time.Now()
+	code, err := totpAt(secret, uint64(now.Unix()/30))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var g TOTPGuard
+	if !g.Use(1, secret, code, now) {
+		t.Fatal("a valid code was refused")
+	}
+	if g.Use(1, secret, code, now) {
+		t.Fatal("the same code worked twice")
+	}
+	if g.Use(2, secret, "000000", now) && code != "000000" {
+		t.Fatal("a wrong code was accepted")
+	}
+}

@@ -130,6 +130,12 @@ func (s *Store) DeleteUserSessions(userID int64, exceptID string) {
 	_, _ = s.db.Exec(`DELETE FROM sessions WHERE user_id=? AND id<>?`, userID, exceptID)
 }
 
+// DeleteUserTokens revokes every API token of a user (password reset by an admin, account
+// disabled): a token made with a stolen session must not outlive the recovery.
+func (s *Store) DeleteUserTokens(userID int64) {
+	_, _ = s.db.Exec(`DELETE FROM api_tokens WHERE user_id=?`, userID)
+}
+
 func (s *Store) PurgeSessions() {
 	_, _ = s.db.Exec(`DELETE FROM sessions WHERE expires_at < ?`, now())
 }

@@ -58,6 +58,8 @@ type Server struct {
 	setupToken     string // normalized; "" = no setup possible
 	setupTokenPath string
 	setupLimit     *auth.Limiter // per-IP wrong setup tokens
+
+	totp auth.TOTPGuard // a two-factor code signs in once
 }
 
 const sessionCookie = "dumpcat_session"
@@ -153,11 +155,16 @@ func queryInt(r *http.Request, name string, def int) int {
 
 func (s *Server) clientIP(r *http.Request) string {
 	if s.Cfg.TrustProxy {
-		if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
-			return strings.TrimSpace(strings.Split(xff, ",")[0])
-		}
-		if xr := r.Header.Get("X-Real-IP"); xr != "" {
+		// the proxy sets X-Real-IP itself; X-Forwarded-For starts with whatever the client sent,
+		// so only its last entry, the one the proxy appended, can be trusted
+		if xr := strings.TrimSpace(r.Header.Get("X-Real-IP")); xr != "" && net.ParseIP(xr) != nil {
 			return xr
+		}
+		if xff := r.Header.Values("X-Forwarded-For"); len(xff) > 0 {
+			parts := strings.Split(xff[len(xff)-1], ",")
+			if ip := strings.TrimSpace(parts[len(parts)-1]); net.ParseIP(ip) != nil {
+				return ip
+			}
 		}
 	}
 	host, _, err := net.SplitHostPort(r.RemoteAddr)
@@ -200,6 +207,17 @@ func (s *Server) route(mux *http.ServeMux, pattern, minRole string, h handlerFun
 				writeJSON(w, 500, map[string]string{"error": "internal error"})
 			}
 		}()
+		if r.Body != nil && r.Method != http.MethodGet && r.Method != http.MethodHead {
+			// a client may take 30 s to send a request body, not forever: the deadline is lifted
+			// once the body is read, so long-running handlers keep their connection
+			rc := http.NewResponseController(w)
+			if rc.SetReadDeadline(time.Now().Add(30*time.Second)) == nil {
+				var once sync.Once
+				lift := func() { once.Do(func() { _ = rc.SetReadDeadline(time.Time{}) }) }
+				r.Body = &deadlineBody{ReadCloser: r.Body, done: lift}
+				defer lift()
+			}
+		}
 		if minRole != "" {
 			a, err := s.authenticate(w, r)
 			if err != nil {
@@ -500,4 +518,18 @@ func (s *Server) routes(mux *http.ServeMux) {
 	mux.HandleFunc("/api/", func(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, 404, map[string]string{"error": "API endpoint not found"})
 	})
+}
+
+// deadlineBody lifts the read deadline of a request once its body has been read to the end.
+type deadlineBody struct {
+	io.ReadCloser
+	done func()
+}
+
+func (b *deadlineBody) Read(p []byte) (int, error) {
+	n, err := b.ReadCloser.Read(p)
+	if err != nil {
+		b.done()
+	}
+	return n, err
 }

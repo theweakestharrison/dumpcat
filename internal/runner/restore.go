@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"strings"
 	"time"
@@ -291,7 +292,7 @@ func (r *Runner) openBackupFile(ctx context.Context, task *Task, b storage.Backe
 			return derr
 		}
 		if f.SHA256 != "" && hr.SHA256() != f.SHA256 {
-			return fmt.Errorf("WARNING: checksum mismatch for %s", f.Name)
+			return fmt.Errorf("checksum mismatch for %s: the stored file is not the one that was backed up (damaged or changed on the storage)", f.Name)
 		}
 		return nil
 	}
@@ -506,10 +507,11 @@ func prepareDatabase(ctx context.Context, s *store.Server, d store.DBEntry, name
 		}
 	}
 	q := "CREATE DATABASE IF NOT EXISTS " + dbconn.QuoteIdent(name)
-	if d.Charset != "" {
+	// names from the catalog, written unquoted: only plain identifiers
+	if d.Charset != "" && charsetRe.MatchString(d.Charset) {
 		q += " CHARACTER SET " + d.Charset
 	}
-	if d.Collation != "" {
+	if d.Collation != "" && charsetRe.MatchString(d.Collation) {
 		q += " COLLATE " + d.Collation
 	}
 	_, err = conn.ExecContext(ctx, q)
@@ -586,7 +588,7 @@ func (r *Runner) restoreMysqldump(ctx context.Context, task *Task, env *engine.E
 		}
 		err = engine.RestoreSQL(env, target, flavor, engine.PortableSQL(rd, req.portable()), engine.SQLRestoreOpts{NoBinlog: req.NoBinlog})
 		if derr := done(err == nil); err == nil && derr != nil {
-			env.Log.Printf("%v", derr)
+			return derr // the file is not the one that was backed up: the restore must not pass
 		}
 		if err != nil {
 			return err
@@ -624,7 +626,7 @@ func (r *Runner) restoreMysqldump(ctx context.Context, task *Task, env *engine.E
 			popts.RenameFrom, popts.RenameTo = d.Name, name // definitions naming the source database follow the rename
 			err = engine.RestoreSQL(&e2, target, flavor, engine.PortableSQL(rd, popts), engine.SQLRestoreOpts{Database: name, NoBinlog: req.NoBinlog})
 			if derr := done(err == nil); err == nil && derr != nil {
-				env.Log.Printf("%v", derr)
+				return fmt.Errorf("%s: %w", name, derr)
 			}
 			if err != nil {
 				return fmt.Errorf("%s: %w", name, err)
@@ -655,7 +657,9 @@ func (r *Runner) restoreUsers(ctx context.Context, task *Task, env *engine.Env, 
 		return err
 	}
 	err = engine.RestoreSQL(env, target, flavor, rd, engine.SQLRestoreOpts{NoBinlog: req.NoBinlog, Force: true})
-	done(err == nil)
+	if derr := done(err == nil); err == nil && derr != nil {
+		return derr
+	}
 	if err != nil {
 		env.Log.Printf("Some users/grants statements failed: %v", err)
 	}
@@ -800,7 +804,12 @@ func (r *Runner) restorePhysical(ctx context.Context, task *Task, env *engine.En
 	}
 	dir := strings.TrimSpace(req.TargetDir)
 	if dir == "" {
-		dir = filepath.Join(r.DataDir, "restore", fmt.Sprintf("%s-%s", run.JobSlug, run.DirName))
+		// the names come from the catalog (or an imported manifest): the directory must stay one level under restore/
+		base := filepath.Join(r.DataDir, "restore")
+		dir = filepath.Join(base, fmt.Sprintf("%s-%s", run.JobSlug, run.DirName))
+		if rel, err := filepath.Rel(base, dir); err != nil || rel == "." || strings.HasPrefix(rel, "..") || strings.ContainsAny(rel, `/\`) {
+			return fmt.Errorf("invalid backup directory name %q", run.JobSlug+"-"+run.DirName)
+		}
 	}
 	dir, _ = filepath.Abs(dir)
 	if entries, err := os.ReadDir(dir); err == nil && len(entries) > 0 {
@@ -943,16 +952,19 @@ func (r *Runner) applyPhysical(ctx context.Context, task *Task, env *engine.Env,
 	if service == "" {
 		return errors.New("could not determine the MySQL/MariaDB service name (enter it in the form)")
 	}
+	if err := checkPhysicalTarget(datadir, service, osUser, r.DataDir); err != nil {
+		return err
+	}
 	stamp := time.Now().Format("20060102-150405")
 	oldDir := datadir + ".before-restore-" + stamp
 	lg.Printf("=== APPLYING TO DATADIR %s (service %s) ===", datadir, service)
-	if err := runSimple(ctx, lg, "systemctl", "stop", service); err != nil {
+	if err := runSimple(ctx, lg, "systemctl", "stop", "--", service); err != nil {
 		return fmt.Errorf("could not stop the service: %w", err)
 	}
 	if _, err := os.Stat(datadir); err == nil {
 		lg.Printf("Renaming the old datadir → %s", oldDir)
 		if err := os.Rename(datadir, oldDir); err != nil {
-			_ = runSimple(context.Background(), lg, "systemctl", "start", service)
+			_ = runSimple(context.Background(), lg, "systemctl", "start", "--", service)
 			return fmt.Errorf("could not rename the old datadir: %w", err)
 		}
 	}
@@ -964,7 +976,7 @@ func (r *Runner) applyPhysical(ctx context.Context, task *Task, env *engine.Env,
 				lg.Printf("Rollback failed: %v. Run it yourself: mv %s %s", err, oldDir, datadir)
 			}
 		}
-		_ = runSimple(context.Background(), lg, "systemctl", "start", service)
+		_ = runSimple(context.Background(), lg, "systemctl", "start", "--", service)
 		return cause
 	}
 	if err := os.MkdirAll(datadir, 0o750); err != nil {
@@ -973,17 +985,78 @@ func (r *Runner) applyPhysical(ctx context.Context, task *Task, env *engine.Env,
 	if err := engine.CopyBack(env, flavor, fullDir, datadir, req.MoveBack, threads); err != nil {
 		return rollback(err)
 	}
-	if err := runSimple(ctx, lg, "chown", "-R", osUser+":"+osUser, datadir); err != nil {
+	if err := runSimple(ctx, lg, "chown", "-R", "--", osUser+":"+osUser, datadir); err != nil {
 		return rollback(err)
 	}
 	if p, err := exec.LookPath("restorecon"); err == nil {
 		_ = runSimple(ctx, lg, p, "-R", datadir)
 	}
-	if err := runSimple(ctx, lg, "systemctl", "start", service); err != nil {
+	if err := runSimple(ctx, lg, "systemctl", "start", "--", service); err != nil {
 		lg.Printf("The service failed to start with the new data.")
 		return rollback(fmt.Errorf("could not start the service: %w", err))
 	}
 	lg.Printf("Service %s is running with the restored data.", service)
 	lg.Printf("The old datadir is kept at %s — delete it manually once you have verified the restore.", oldDir)
 	return nil
+}
+
+var (
+	unitNameRe = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9@._:-]{0,127}$`)
+	osUserRe   = regexp.MustCompile(`^[a-z_][a-z0-9_.-]{0,31}$`)
+)
+
+// System directories the restore never replaces: these, and everything under them...
+var systemTrees = []string{"/bin", "/boot", "/dev", "/etc", "/lib", "/lib32", "/lib64", "/proc", "/run", "/sbin", "/sys", "/usr"}
+
+// ...and these themselves (a datadir may live under them).
+var systemDirs = []string{"/home", "/media", "/mnt", "/opt", "/root", "/srv", "/tmp", "/var", "/var/lib", "/var/log", "/var/tmp"}
+
+// datadirMarkers: a non-empty directory holding none of these is not a MySQL/MariaDB datadir.
+var datadirMarkers = []string{"mysql", "ibdata1", "mysql.ibd", "aria_log_control", "ib_logfile0", "#innodb_redo", "auto.cnf", "undo_001", "ibtmp1"}
+
+// checkPhysicalTarget refuses a datadir, service or OS user that would make the restore, which
+// runs as root and renames, replaces and chowns the datadir, act on anything but a database's
+// datadir. The values may come from a server record that operators can edit.
+func checkPhysicalTarget(datadir, service, osUser, dataDir string) error {
+	if !unitNameRe.MatchString(service) {
+		return fmt.Errorf("invalid service name %q", service)
+	}
+	if !osUserRe.MatchString(osUser) {
+		return fmt.Errorf("invalid OS user %q", osUser)
+	}
+	clean := filepath.Clean(datadir)
+	if clean != datadir || !filepath.IsAbs(clean) || strings.ContainsAny(clean, "\x00\r\n") {
+		return fmt.Errorf("invalid datadir %q: use a clean absolute path", datadir)
+	}
+	slash := filepath.ToSlash(clean)
+	for _, d := range systemTrees {
+		if slash == d || strings.HasPrefix(slash, d+"/") {
+			return fmt.Errorf("refusing to replace %s: it is a system directory", clean)
+		}
+	}
+	for _, d := range systemDirs {
+		if slash == d {
+			return fmt.Errorf("refusing to replace %s: it is a system directory", clean)
+		}
+	}
+	if own, err := filepath.Abs(dataDir); err == nil {
+		if rel, err := filepath.Rel(own, clean); err == nil && !strings.HasPrefix(rel, "..") {
+			return fmt.Errorf("refusing to replace %s: it is inside DumpCat's data directory", clean)
+		}
+		if rel, err := filepath.Rel(clean, own); err == nil && !strings.HasPrefix(rel, "..") {
+			return fmt.Errorf("refusing to replace %s: it contains DumpCat's data directory", clean)
+		}
+	}
+	entries, err := os.ReadDir(clean)
+	if err != nil || len(entries) == 0 {
+		return nil // missing or empty: nothing is replaced
+	}
+	for _, e := range entries {
+		for _, m := range datadirMarkers {
+			if e.Name() == m {
+				return nil
+			}
+		}
+	}
+	return fmt.Errorf("refusing to replace %s: it does not look like a MySQL/MariaDB datadir (no mysql/, ibdata1 or aria_log_control)", clean)
 }

@@ -564,3 +564,49 @@ func (s *Store) ListAudit(limit, offset int, q string) ([]AuditEntry, int, error
 func (s *Store) PurgeAudit(before time.Time) {
 	_, _ = s.db.Exec(`DELETE FROM audit_log WHERE ts < ?`, before.Unix())
 }
+
+// keyCheck is a value encrypted with the master key when the database was first opened with it.
+const keyCheckKV = "master_key_check"
+
+// CheckMasterKey refuses a master key that does not open this database's secrets (master.key lost
+// and recreated, or the database moved to another host without it). Running anyway would read every
+// password and passphrase as empty, and jobs that encrypt backups would have no passphrase.
+func (s *Store) CheckMasterKey() error {
+	mismatch := errors.New("the master key (DATA_DIR/master.key or DUMPCAT_MASTER_KEY) does not match this database: " +
+		"its passwords and passphrases cannot be decrypted. Put back the master.key that belongs to this database " +
+		"(it was created next to dumpcat.db on its first start), then start DumpCat again")
+	if v, ok := s.GetKV(keyCheckKV); ok {
+		if out, err := s.box.Decrypt(v); err != nil || out != "dumpcat" {
+			return mismatch
+		}
+		return nil
+	}
+	// a database from before this check: its stored secrets must decrypt
+	for _, q := range []string{
+		`SELECT password FROM servers WHERE password <> '' LIMIT 20`,
+		`SELECT passphrase FROM jobs WHERE passphrase <> '' LIMIT 20`,
+	} {
+		rows, err := s.db.Query(q)
+		if err != nil {
+			return err
+		}
+		bad := false
+		for rows.Next() {
+			var v string
+			if rows.Scan(&v) == nil {
+				if _, err := s.box.Decrypt(v); err != nil {
+					bad = true
+				}
+			}
+		}
+		rows.Close()
+		if bad {
+			return mismatch
+		}
+	}
+	v, err := s.box.Encrypt("dumpcat")
+	if err != nil {
+		return err
+	}
+	return s.SetKV(keyCheckKV, v)
+}

@@ -181,6 +181,10 @@ func openStoreErr(cfg *config.Config) (*store.Store, error) {
 	if err != nil {
 		return nil, fmt.Errorf("opening the database: %w", err)
 	}
+	if err := st.CheckMasterKey(); err != nil {
+		st.Close()
+		return nil, err
+	}
 	return st, nil
 }
 
@@ -615,6 +619,7 @@ func userCmd(args []string) {
 			u.PasswordHash = hash
 			u.Disabled = false
 			st.DeleteUserSessions(u.ID, "")
+			st.DeleteUserTokens(u.ID)
 		case "reset-2fa":
 			u.TOTPEnabled, u.TOTPSecret = false, ""
 		case "enable":
@@ -622,6 +627,7 @@ func userCmd(args []string) {
 		case "disable":
 			u.Disabled = true
 			st.DeleteUserSessions(u.ID, "")
+			st.DeleteUserTokens(u.ID)
 		}
 		if err := st.UpdateUser(u); err != nil {
 			log.Fatal(err)

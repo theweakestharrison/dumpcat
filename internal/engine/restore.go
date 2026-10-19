@@ -43,7 +43,8 @@ func RestoreSQL(env *Env, target *store.Server, flavor string, r io.Reader, o SQ
 		"--defaults-extra-file=" + cnf,
 		"--default-character-set=utf8mb4",
 		"--max-allowed-packet=1G",
-		"--binary-mode",
+		"--binary-mode",    // no client commands (\!, source, tee) from the dump
+		"--local-infile=0", // and no LOAD DATA LOCAL reading files of this host
 		"--batch",
 	}
 	if o.Force {

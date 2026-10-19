@@ -119,6 +119,11 @@ func (r *Runner) execBackup(ctx context.Context, task *Task, run *store.Run, job
 	}
 
 	lg.Printf("DumpCat %s — backup job \"%s\" (%s, %s)", r.AppVersion, job.Name, job.Method, run.Type)
+	if job.Encrypt && job.Passphrase == "" {
+		// never fall back to plaintext: an empty passphrase means it could not be decrypted
+		fail(errNoPassphrase)
+		return
+	}
 	lg.Printf("Waiting for an execution slot...")
 	if err := r.acquire(ctx); err != nil {
 		fail(err)
@@ -725,3 +730,7 @@ func (r *Runner) notifyRun(run *store.Run, job *store.Job, dur time.Duration) {
 	}
 	r.Notifier.Send(ev)
 }
+
+// errNoPassphrase: the job encrypts its backups but its passphrase reads as empty, which happens
+// when the master key does not match the database (master.key lost or replaced).
+var errNoPassphrase = errors.New("this job encrypts its backups but its passphrase cannot be read (was DATA_DIR/master.key replaced or lost?): nothing is stored unencrypted; restore the original master.key, or enter the passphrase again in the job")

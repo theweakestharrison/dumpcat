@@ -46,6 +46,7 @@ type Manager struct {
 
 	mu       sync.Mutex
 	sessions map[int64]*session
+	gen      map[int64]uint64 // bumped by Disconnect: older authentications cannot register
 	tunnels  map[string]*localPort
 	pending  map[string]*pending
 	streams  map[int64]int
@@ -132,10 +133,14 @@ func (m *Manager) ServeControl(w http.ResponseWriter, r *http.Request, remote st
 	if !ok {
 		return
 	}
-	websocket.Server{Handshake: noOriginCheck, Handler: func(ws *websocket.Conn) { m.runSession(id, ws, remote) }}.ServeHTTP(w, r)
+	// the key was valid now; a rotation before the session registers must still cut it off
+	m.mu.Lock()
+	gen := m.gen[id]
+	m.mu.Unlock()
+	websocket.Server{Handshake: noOriginCheck, Handler: func(ws *websocket.Conn) { m.runSession(id, gen, ws, remote) }}.ServeHTTP(w, r)
 }
 
-func (m *Manager) runSession(id int64, ws *websocket.Conn, remote string) {
+func (m *Manager) runSession(id int64, gen uint64, ws *websocket.Conn, remote string) {
 	defer ws.Close()
 	_ = ws.SetReadDeadline(time.Now().Add(15 * time.Second))
 	var hello Message
@@ -146,7 +151,7 @@ func (m *Manager) runSession(id int64, ws *websocket.Conn, remote string) {
 	sess := &session{agentID: id, ws: ws, done: make(chan struct{}),
 		info: Info{Online: true, Since: now, LastSeen: now, RemoteAddr: remote, Version: hello.Version, Hostname: hello.Hostname, OS: hello.OS, Allow: hello.Allow, Caps: hello.Caps}}
 	m.mu.Lock()
-	if m.closed {
+	if m.closed || m.gen[id] != gen { // shut down, or the key was rotated / the agent deleted since
 		m.mu.Unlock()
 		return
 	}
@@ -359,6 +364,10 @@ func (m *Manager) Status(agentID int64) Info {
 // (key rotated, agent deleted).
 func (m *Manager) Disconnect(agentID int64) {
 	m.mu.Lock()
+	if m.gen == nil {
+		m.gen = map[int64]uint64{}
+	}
+	m.gen[agentID]++ // sessions authenticated before now never register
 	s := m.sessions[agentID]
 	delete(m.sessions, agentID)
 	var lns []net.Listener

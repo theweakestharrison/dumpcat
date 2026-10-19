@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/netip"
 	"os"
+	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
@@ -47,8 +48,13 @@ func (in *serverInput) apply(sv *store.Server) error {
 		}
 		moved := strings.TrimSpace(in.Host) != sv.Host || port != sv.Port || strings.TrimSpace(in.Socket) != sv.Socket ||
 			in.AgentID != idOf(sv.AgentID) || in.WGPeerID != idOf(sv.WGPeerID)
+		// weaker TLS, or another CA, lets someone on the path pose as the server: same rule
+		tlsRank := map[string]int{"": 0, "disabled": 0, "required": 1, "verify": 2}
+		if tlsRank[in.TLSMode] < tlsRank[sv.TLSMode] || (sv.TLSMode == "verify" && strings.TrimSpace(in.CACert) != sv.CACert) {
+			moved = true
+		}
 		if (moved || strings.TrimSpace(in.Username) != sv.Username) && in.Password == "" && sv.Password != "" {
-			return badRequest("re-enter the password when changing host/port/socket/user")
+			return badRequest("re-enter the password when changing host/port/socket/user or weakening TLS")
 		}
 		ru := strings.TrimSpace(in.RestoreUsername)
 		if ru != "" && (moved || ru != sv.RestoreUsername) && in.RestorePassword == "" && sv.RestorePassword != "" {
@@ -116,8 +122,33 @@ func (in *serverInput) apply(sv *store.Server) error {
 	if sv.Username == "" {
 		return badRequest("user is required")
 	}
+	// these values go into option files and command lines run as the service user: a line break
+	// would add options of its own
+	for label, v := range map[string]string{"host": sv.Host, "socket": sv.Socket, "user": sv.Username, "restore user": sv.RestoreUsername,
+		"datadir": sv.Datadir, "service name": sv.ServiceName, "OS user": sv.OSUser, "name": sv.Name} {
+		if strings.ContainsFunc(v, func(r rune) bool { return r < 0x20 || r == 0x7f }) {
+			return badRequest("the %s contains a line break or another control character", label)
+		}
+	}
+	if sv.ServiceName != "" && !serviceNameRe.MatchString(sv.ServiceName) {
+		return badRequest("invalid service name: letters, digits and @ . _ : - only, e.g. mariadb or mysql@main")
+	}
+	if sv.OSUser != "" && !osUserRe.MatchString(sv.OSUser) {
+		return badRequest("invalid OS user: a Linux user name such as mysql")
+	}
+	if sv.Datadir != "" && (!strings.HasPrefix(sv.Datadir, "/") && !filepath.IsAbs(sv.Datadir)) {
+		return badRequest("the datadir must be an absolute path")
+	}
+	if strings.HasPrefix(sv.Host, "-") || strings.HasPrefix(sv.Username, "-") || strings.HasPrefix(sv.RestoreUsername, "-") {
+		return badRequest("the host and user names cannot start with -")
+	}
 	return nil
 }
+
+var (
+	serviceNameRe = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9@._:-]{0,127}$`)
+	osUserRe      = regexp.MustCompile(`^[a-z_][a-z0-9_.-]{0,31}$`)
+)
 
 func idOf(p *int64) int64 {
 	if p == nil {

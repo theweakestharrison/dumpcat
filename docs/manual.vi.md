@@ -799,9 +799,12 @@ Nên sao lưu thêm `/var/lib/dumpcat/master.key` và `dumpcat.db` (cấu hình,
 - Đặt sau HTTPS (nginx/caddy hoặc TLS tích hợp), giới hạn IP truy cập/VPN.
 - Khi chưa có admin, muốn tạo admin đầu tiên phải nhập **mã thiết lập** dùng một lần (trong log của service hoặc `dumpcat setup-token`, xem [mục 4](#4-bắt-đầu-sử-dụng)), kể cả khi truy cập từ localhost. Mỗi lần khởi động tạo mã mới; mã được so sánh constant-time, sai 5 lần → khóa IP đó 15 phút, và bị xóa ngay khi đã có tài khoản.
 - Bật **2FA** cho admin (Hồ sơ & bảo mật). Có thể bật nhắc 2FA bắt buộc trong Cài đặt.
-- Vai trò: **admin** (tất cả), **operator** (server, storage cloud/FTP/SFTP, job, chạy backup/restore), **viewer** (chỉ xem). Các thao tác chạm tới hệ thống file của máy chủ (storage thư mục cục bộ / rclone tùy chỉnh, pre/post command, chọn thư mục giải nén, thay datadir) chỉ dành cho admin.
-- Đăng nhập sai 5 lần trong 15 phút → khóa tài khoản đó 15 phút; một IP sai 20 lần → khóa IP 15 phút.
-- Mật khẩu DB, khóa cloud, token OAuth, passphrase được mã hóa AES-256-GCM bằng `master.key` (chmod 600). Có thể đặt khóa qua biến `DUMPCAT_MASTER_KEY` thay vì file.
+- Vai trò: **admin** (tất cả), **operator** (server, storage cloud/FTP/SFTP, job, chạy backup/restore), **viewer** (chỉ xem). Các thao tác chạm tới hệ thống file hoặc quyền truy cập của máy chủ (storage thư mục cục bộ / rclone tùy chỉnh, S3 không khóa vì nó dùng danh tính cloud của chính máy chủ, pre/post command, tham số thêm cho công cụ, chọn thư mục giải nén, thay datadir) chỉ dành cho admin. Thay datadir bị từ chối với thư mục hệ thống và với thư mục không giống datadir MySQL/MariaDB.
+- Một địa chỉ đăng nhập sai 5 lần trong 15 phút → khóa tài khoản đó với địa chỉ đó 15 phút (người khác vẫn đăng nhập được); một IP sai 20 lần → khóa IP 15 phút. Mỗi lần thử được tính trước khi kiểm tra mật khẩu, nên gửi song song không được thêm lượt. Mỗi mã 2FA chỉ dùng được một lần.
+- Khi chạy sau reverse proxy (`DUMPCAT_TRUST_PROXY=1`), địa chỉ client lấy từ `X-Real-IP` hoặc mục cuối của `X-Forwarded-For`, tức mục do proxy thêm vào.
+- Tạo API token phải nhập mật khẩu tài khoản. Khi admin đặt lại mật khẩu hoặc khóa một tài khoản (hay `dumpcat user passwd` / `disable`), mọi API token của tài khoản đó bị thu hồi.
+- Phải nhập lại mật khẩu của server hay storage khi đổi địa chỉ hoặc user, hạ mức TLS, đổi chứng chỉ CA hoặc tắt kiểm tra chứng chỉ.
+- Mật khẩu DB, khóa cloud, token OAuth, passphrase được mã hóa AES-256-GCM bằng `master.key` (chmod 600). Có thể đặt khóa qua biến `DUMPCAT_MASTER_KEY` thay vì file. DumpCat không khởi động với một master key không thuộc về database của nó (ví dụ chép `dumpcat.db` sang máy khác mà quên `master.key`), và job có mã hóa sẽ báo lỗi chứ không lưu bản không mã hóa khi không đọc được passphrase.
 - Mật khẩu DB truyền qua option file tạm (0600) và xóa sau khi dùng — không xuất hiện trong `ps`. Log tự che các bí mật.
 - API không bao giờ trả về giá trị bí mật (chỉ cờ "đã lưu").
 - Mã hóa backup (age) diễn ra trên server trước khi upload: nhà cung cấp cloud không đọc được dữ liệu. Passphrase nên dài (≥ 16 ký tự).

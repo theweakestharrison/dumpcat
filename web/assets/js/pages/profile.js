@@ -75,7 +75,8 @@ export async function render(ctx) {
     const m = modal({
       title: 'New API token',
       body: html`<form id="tk"><div class="field"><label class="req">Name</label><input type="text" name="name" placeholder="e.g. jenkins-deploy" required></div>
-        <div class="field" style="margin-top:12px"><label>Expires after (days, 0 = never)</label><input type="number" name="expires_days" value="90" min="0"></div></form>`,
+        <div class="field" style="margin-top:12px"><label>Expires after (days, 0 = never)</label><input type="number" name="expires_days" value="90" min="0"></div>
+        <div class="field" style="margin-top:12px"><label class="req">Your current password</label><input type="password" name="password" autocomplete="current-password" required></div></form>`,
       footer: html`<button class="btn" data-close>Cancel</button><button class="btn btn-primary" id="mk">Create</button>`,
     });
     m.el.querySelector('#mk').onclick = (ev) => busy(ev.currentTarget, async () => {

@@ -2,6 +2,7 @@ package api
 
 import (
 	"encoding/base64"
+	"fmt"
 	"net/http"
 	"regexp"
 	"runtime"
@@ -124,15 +125,23 @@ func (s *Server) authLogin(w http.ResponseWriter, r *http.Request) error {
 	if err := readJSON(r, &in); err != nil {
 		return err
 	}
+	if len(in.Username) > 100 || len(in.Password) > 1024 || len(in.TOTP) > 16 {
+		return badRequest("incorrect username or password")
+	}
 	ip := s.clientIP(r)
-	userKey := "u:" + strings.ToLower(strings.TrimSpace(in.Username))
+	// attempts are counted per user and address: failures from one place cannot lock the
+	// account for everyone else, and the per-address limit still caps guessing; each attempt
+	// is reserved before the password is checked, so parallel requests get no extra tries
+	userKey := "u:" + strings.ToLower(strings.TrimSpace(in.Username)) + "|" + ip
 	ipKey := "ip:" + ip
-	if d := max(s.Limiter.Check(userKey), s.IPLimit.Check(ipKey)); d > 0 {
+	if d := s.IPLimit.Take(ipKey); d > 0 {
+		return errf(429, "too many failed sign-in attempts, try again in %d minutes", int(d.Minutes())+1)
+	}
+	if d := s.Limiter.Take(userKey); d > 0 {
+		s.IPLimit.Release(ipKey)
 		return errf(429, "too many failed sign-in attempts, try again in %d minutes", int(d.Minutes())+1)
 	}
 	fail := func(msg string) error {
-		s.Limiter.Fail(userKey)
-		s.IPLimit.Fail(ipKey)
 		s.Store.Audit(nil, in.Username, "login_failed", "", msg, ip)
 		return errf(401, "%s", msg)
 	}
@@ -149,13 +158,17 @@ func (s *Server) authLogin(w http.ResponseWriter, r *http.Request) error {
 	}
 	if u.TOTPEnabled {
 		if strings.TrimSpace(in.TOTP) == "" {
+			// the password was right: not a failure, the next request carries the code
+			s.Limiter.Release(userKey)
+			s.IPLimit.Release(ipKey)
 			return ok(w, map[string]any{"totp_required": true})
 		}
-		if !auth.VerifyTOTP(u.TOTPSecret, in.TOTP, time.Now()) {
+		if !s.useTOTP(u.ID, u.TOTPSecret, in.TOTP) {
 			return fail("incorrect two-factor code")
 		}
 	}
 	s.Limiter.Reset(userKey)
+	s.IPLimit.Release(ipKey)
 	se, err := s.startSession(w, r, u, in.Remember)
 	if err != nil {
 		return err
@@ -203,8 +216,8 @@ func (s *Server) mePassword(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		return err
 	}
-	if !auth.CheckPassword(u.PasswordHash, in.Current) {
-		return badRequest("current password is incorrect")
+	if err := s.recheckPassword(u, in.Current, "current password is incorrect"); err != nil {
+		return err
 	}
 	hash, err := auth.HashPassword(in.New)
 	if err != nil {
@@ -259,7 +272,7 @@ func (s *Server) meTOTPEnable(w http.ResponseWriter, r *http.Request) error {
 	if u.TOTPSecret == "" {
 		return badRequest("2FA setup has not been started")
 	}
-	if !auth.VerifyTOTP(u.TOTPSecret, in.Code, time.Now()) {
+	if !s.useTOTP(u.ID, u.TOTPSecret, in.Code) {
 		return badRequest("incorrect code — check that your phone's clock is correct")
 	}
 	u.TOTPEnabled = true
@@ -281,8 +294,8 @@ func (s *Server) meTOTPDisable(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		return err
 	}
-	if !auth.CheckPassword(u.PasswordHash, in.Password) {
-		return badRequest("incorrect password")
+	if err := s.recheckPassword(u, in.Password, "incorrect password"); err != nil {
+		return err
 	}
 	u.TOTPEnabled = false
 	u.TOTPSecret = ""
@@ -308,12 +321,22 @@ func (s *Server) meTokenCreate(w http.ResponseWriter, r *http.Request) error {
 	var in struct {
 		Name        string `json:"name"`
 		ExpiresDays int    `json:"expires_days"`
+		Password    string `json:"password"`
 	}
 	if err := readJSON(r, &in); err != nil {
 		return err
 	}
 	if strings.TrimSpace(in.Name) == "" {
 		return badRequest("token name is required")
+	}
+	// a token outlives sessions and password changes: creating one needs the password, so a
+	// stolen session cannot turn itself into lasting access
+	u, err := s.Store.GetUser(userOf(r).ID)
+	if err != nil {
+		return err
+	}
+	if err := s.recheckPassword(u, in.Password, "enter your current password to create a token"); err != nil {
+		return err
 	}
 	raw := "mv_" + auth.RandomToken(30)
 	t := &store.APIToken{UserID: userOf(r).ID, Name: strings.TrimSpace(in.Name), Prefix: raw[:10], Hash: auth.SHA256Hex(raw)}
@@ -447,6 +470,7 @@ func (s *Server) userUpdate(w http.ResponseWriter, r *http.Request) error {
 	}
 	if u.Disabled || in.Password != "" {
 		s.Store.DeleteUserSessions(u.ID, "")
+		s.Store.DeleteUserTokens(u.ID)
 	}
 	s.audit(r, "user_update", "user:"+u.Username, "role="+u.Role)
 	return ok(w, s.userView(u))
@@ -491,4 +515,23 @@ func (s *Server) userReset2FA(w http.ResponseWriter, r *http.Request) error {
 	}
 	s.audit(r, "user_reset_2fa", "user:"+u.Username, "")
 	return ok(w, map[string]bool{"ok": true})
+}
+
+// recheckPassword confirms the signed-in user's password before a sensitive change, with the
+// same attempt limit as signing in: a stolen session cannot guess its way to the password.
+func (s *Server) recheckPassword(u *store.User, password, msg string) error {
+	key := fmt.Sprintf("pw:%d", u.ID)
+	if d := s.Limiter.Take(key); d > 0 {
+		return errf(429, "too many wrong passwords, try again in %d minutes", int(d.Minutes())+1)
+	}
+	if len(password) > 1024 || !auth.CheckPassword(u.PasswordHash, password) {
+		return badRequest("%s", msg)
+	}
+	s.Limiter.Reset(key)
+	return nil
+}
+
+// useTOTP checks a two-factor code that may be used only once.
+func (s *Server) useTOTP(id int64, secret, code string) bool {
+	return s.totp.Use(id, secret, code, time.Now())
 }

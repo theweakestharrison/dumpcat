@@ -345,6 +345,19 @@ func (e *Event) telegram() string {
 
 // ---------- Slack (attachment with a color bar, Block Kit) ----------
 
+// discordEsc keeps names and messages (job names, errors from a database server or an imported
+// catalog) from turning into Discord markdown: masked links, mentions, formatting.
+func discordEsc(s string) string {
+	var b strings.Builder
+	for _, r := range s {
+		if strings.ContainsRune("\\*_~`|[]()<>#@-", r) {
+			b.WriteByte('\\')
+		}
+		b.WriteRune(r)
+	}
+	return b.String()
+}
+
 func slackEsc(s string) string {
 	return strings.NewReplacer("&", "&amp;", "<", "&lt;", ">", "&gt;").Replace(s)
 }
@@ -372,7 +385,7 @@ func (e *Event) slack(host string) map[string]any {
 	}
 	blocks = append(blocks, map[string]any{"type": "context", "elements": []any{map[string]any{"type": "mrkdwn",
 		"text": fmt.Sprintf("DumpCat on %s · <!date^%d^{date_short_pretty} {time}|%s>", slackEsc(host), e.Time.Unix(), e.when())}}})
-	return map[string]any{"text": l.Icon + " " + e.Title, "attachments": []any{map[string]any{"color": l.Slack, "blocks": blocks}}}
+	return map[string]any{"text": l.Icon + " " + slackEsc(e.Title), "attachments": []any{map[string]any{"color": l.Slack, "blocks": blocks}}}
 }
 
 // ---------- Discord (embed) ----------
@@ -399,7 +412,7 @@ func (e *Event) discord(host string) map[string]any {
 		if v == "" {
 			v = "—"
 		}
-		fields = append(fields, map[string]any{"name": trunc(k, 256), "value": trunc(v, 1024), "inline": len(v) <= 40})
+		fields = append(fields, map[string]any{"name": trunc(k, 256), "value": trunc(discordEsc(v), 1024), "inline": len(v) <= 40})
 	}
 	if len(fields) > 0 {
 		embed["fields"] = fields
