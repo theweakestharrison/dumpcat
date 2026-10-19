@@ -46,6 +46,9 @@ binary Go có sẵn giao diện.
 - **Mã hóa và kiểm tra.** Nén zstd, mã hóa bằng [age](https://age-encryption.org) trước khi dữ liệu rời khỏi server,
   SHA-256 cho từng file, và mỗi bản backup được đọc lại ngay sau khi ghi: giải mã, giải nén, kiểm tra, nên bản hỏng lộ
   ra ngay chứ không đợi tới lúc restore.
+- **Diễn tập restore.** Theo lịch, DumpCat restore bản backup mới nhất vào một server sandbox dưới tên tạm, so từng bảng
+  và số dòng với những gì backup đã ghi nhận, chạy các assertion SQL của bạn, ghi lại thời gian restore (RTO) rồi xóa
+  bản sao. Backup đạt được đánh dấu **Restore-tested**; diễn tập thất bại sẽ gửi cảnh báo.
 - **Restore cẩn thận.** Restore sang tên database mới hoặc sang instance / phiên bản khác (tự gỡ `DEFINER`, đổi
   collation, bỏ `GTID_PURGED`), thử giải mã mọi file trước khi xóa bất cứ thứ gì, chế độ nạp nhanh, và tự rollback khi
   restore vật lý thay datadir.

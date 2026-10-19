@@ -34,7 +34,7 @@ type look struct {
 
 func (e *Event) look() look {
 	l := look{Kind: map[string]string{
-		"backup": "Backup", "restore": "Restore", "verify": "Integrity check", "binlog": "Binlog archiving", "test": "Test notification",
+		"backup": "Backup", "restore": "Restore", "verify": "Integrity check", "binlog": "Binlog archiving", "test": "Test notification", "drill": "Restore drill",
 	}[e.Kind]}
 	if l.Kind == "" {
 		l.Kind = strings.ToUpper(e.Kind[:min(1, len(e.Kind))]) + e.Kind[min(1, len(e.Kind)):]

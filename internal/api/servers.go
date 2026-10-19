@@ -252,6 +252,9 @@ func (s *Server) serverDelete(w http.ResponseWriter, r *http.Request) error {
 	if n, _ := s.Store.ServerInUse(id); n > 0 {
 		return badRequest("server is used by %d job(s) — delete or reassign them first", n)
 	}
+	if n := s.Store.DrillsUsingServer(id); n > 0 {
+		return badRequest("server is the sandbox of %d restore drill(s) — change or delete them first", n)
+	}
 	if err := s.Store.DeleteServer(id); err != nil {
 		return err
 	}

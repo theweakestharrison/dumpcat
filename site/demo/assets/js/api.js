@@ -123,6 +123,8 @@ function jobView(j) {
   if (lr) v.last_run = { id: lr.id, status: lr.status, type: lr.type, started_at: lr.started_at, finished_at: lr.finished_at, size_bytes: lr.size_bytes, error: lr.error };
   const nx = jobNext(j);
   if (nx) v.next_run = nx;
+  const ld = db.drillRuns.filter((x) => x.job_id === j.id).at(-1);
+  if (ld) v.last_drill = { id: ld.id, status: ld.status, started_at: ld.started_at, summary: ld.summary, error: ld.error };
   return v;
 }
 function serverView(s) {
@@ -223,6 +225,28 @@ function restoreLog(x) {
     if (x.options.pitr) at(0.8, `Replaying binlogs up to ${x.options.pitr.time || x.options.pitr.gtid || 'the target'}... OK`);
     at(1, `RESTORE SUCCEEDED in ${Math.round((t1 - t0) / 1000)}s`);
   }
+  return L.join('\n') + '\n';
+}
+function drillLog(x) {
+  if (x.log) return x.log.join('\n') + '\n';
+  const t0 = new Date(x.started_at).getTime();
+  const t1 = new Date(x.finished_at || x.started_at).getTime();
+  const L = [];
+  const at = (f, s) => L.push(`${stamp(t0 + (t1 - t0) * f)} ${s}`);
+  at(0, `DumpCat ${VERSION} — RESTORE DRILL "${x.drill_name}": backup #${x.run_id} "${x.job_name}" ${x.run_dir} → sandbox ${x.target_server_name}`);
+  at(0, `Sandbox: ${x.target_server_name} — mysql 8.4.3 on ${x.target_server_name}`);
+  for (const m of x.databases) at(0, `  ${m.name} → ${m.temp}`);
+  at(0.01, '=== RESTORE ===');
+  at(0.02, 'Pre-restore check: every file opened & decoded');
+  for (const m of x.databases) at(0.05, `Restore ${m.name} → ${m.temp}`);
+  const rto = x.checks.find((c) => c.kind === 'restore');
+  at(0.8, `Restored in ${rto ? rto.actual : '—'}`);
+  at(0.81, '=== CHECKS ===');
+  for (const m of x.databases) at(0.85, `${m.name}: ${m.tables} tables ✓, ${m.rows.toLocaleString('en-US')} rows ✓`);
+  for (const c of x.checks.filter((y) => y.kind === 'sql')) at(0.95, `Assertion "${c.name}": ${c.status === 'ok' ? '✓' : '✗'} ${c.message}`);
+  for (const m of x.databases) at(0.98, `DROP DATABASE IF EXISTS \`${m.temp}\``);
+  at(0.99, 'Temporary databases dropped');
+  at(1, x.status === 'passed' ? `DRILL PASSED in ${Math.round((t1 - t0) / 1000)}s — ${x.summary}` : `DRILL FAILED: ${x.error.replace(/\n/g, '; ')}`);
   return L.join('\n') + '\n';
 }
 const logPage = (text, q) => {
@@ -422,6 +446,122 @@ function startRestore(run, req) {
   return x;
 }
 
+const hdur = (ms) => { const s = Math.round(ms / 1000); return s >= 60 ? `${Math.floor(s / 60)}m${String(s % 60).padStart(2, '0')}s` : `${s}s`; };
+const drillRunning = (id) => [...tasks.values()].some((t) => t.kind === 'drill' && t.drill_id === id);
+const drillProblem = (j) => (j.method === 'physical' ? 'restore drills test logical backups (mysqldump, mydumper); physical backups are not supported yet'
+  : j.method === 'mysqldump' && j.options.single_file ? 'the job writes one file for all databases, which restores under the original names only — turn off "One file for all databases" to drill its backups' : '');
+const drillRunView = (x) => { const { log, ...rest } = x; return rest; };
+function drillView(d) {
+  const job = db.jobs.find((j) => j.id === d.job_id);
+  const v = { drill: d, running: drillRunning(d.id), same_server: !!job && job.server_id === d.target_server_id };
+  const x = db.drillRuns.filter((y) => y.drill_id === d.id).at(-1);
+  if (x) v.last_run = { id: x.id, status: x.status, run_id: x.run_id, run_dir: x.run_dir, started_at: x.started_at, finished_at: x.finished_at, restore_ms: x.restore_ms, summary: x.summary, error: x.error };
+  if (d.enabled && d.schedule) { try { v.next_at = cronNext(d.schedule, 1)[0]; } catch { /* invalid */ } }
+  if (job && drillProblem(job)) v.problem = drillProblem(job);
+  return v;
+}
+function applyDrill(d, b) {
+  if (!String(b.name || '').trim()) fail('drill name is required');
+  const job = db.jobs.find((j) => j.id === +b.job_id) || fail('job does not exist');
+  if (drillProblem(job)) fail(drillProblem(job));
+  const sv = db.servers.find((x) => x.id === +b.target_server_id) || fail('sandbox server does not exist');
+  if (b.schedule && b.schedule.trim()) cronNext(b.schedule, 1);
+  const assertions = (b.assertions || []).filter((a) => (a.sql || '').trim() || (a.name || '').trim()).map((a, i) => {
+    const q = String(a.sql || '').trim().replace(/;+$/, '');
+    if (!/^[\s(]*(select|with)\b/i.test(q) || q.includes(';')) fail(`assertion "${a.name || `Assertion ${i + 1}`}": an assertion must be one SELECT (or WITH … SELECT) query`);
+    return { name: String(a.name || '').trim() || `Assertion ${i + 1}`, database: a.database || '', sql: q };
+  });
+  Object.assign(d, { name: b.name.trim(), job_id: job.id, job_name: job.name, target_server_id: sv.id, target_server_name: sv.name, schedule: (b.schedule || '').trim(), enabled: !!b.enabled,
+    databases: b.databases || [], assertions, options: { threads: Math.max(0, Math.min(+((b.options || {}).threads) || 0, 32)), no_binlog: !!(b.options || {}).no_binlog, max_rto_minutes: Math.max(0, +((b.options || {}).max_rto_minutes) || 0) },
+    notify_success: !!b.notify_success, notify_failure: !!b.notify_failure, updated_at: iso(now()) });
+}
+function startDrill(d, runId, trigger = 'manual') {
+  if (drillRunning(d.id)) fail('this drill is already running', 409);
+  const job = db.jobs.find((j) => j.id === d.job_id) || fail('job not found');
+  if (drillProblem(job)) fail(drillProblem(job));
+  const run = runId ? find(db.runs, runId, 'backup') : db.runs.filter((r) => r.job_id === job.id && (r.status === 'success' || r.status === 'partial')).at(-1);
+  if (!run) fail('the job has no successful backup yet');
+  const sv = find(db.servers, job.server_id, 'server');
+  const dbs = run.databases.filter((x) => !d.databases.length || d.databases.includes(x.name));
+  if (!dbs.length) fail("none of the drill's databases is in this backup");
+  const id = nextId(db.drillRuns);
+  const start = now();
+  const x = {
+    id, drill_id: d.id, drill_name: d.name, job_id: job.id, job_name: job.name, run_id: run.id, run_dir: run.dir_name, target_server_id: d.target_server_id, target_server_name: d.target_server_name,
+    status: 'running', trigger, triggered_by: trigger === 'manual' ? 'demo' : 'scheduler', started_at: iso(start), finished_at: null, restore_ms: 0, check_ms: 0,
+    databases: dbs.map((m) => ({ name: m.name, temp: `${m.name}__drill_${id}`, tables: 0, rows: 0 })), checks: [], summary: '', error: '', leftover: [], log: [],
+  };
+  db.drillRuns.push(x);
+  const log = (s) => x.log.push(`${stamp(now())} ${s}`);
+  log(`DumpCat ${VERSION} — RESTORE DRILL "${d.name}": backup #${run.id} "${run.job_name}" ${run.dir_name} (${run.method}) → sandbox ${d.target_server_name}`);
+  log('Waiting for an execution slot...');
+  if (job.server_id === d.target_server_id) log("The sandbox is the backup's own source server: the copies get temporary names that cannot collide with its databases, and nothing is written to its binary log");
+  for (const m of x.databases) log(`  ${m.name} → ${m.temp}`);
+  const est = dbs.reduce((a, m) => a + m.size_bytes, 0);
+  const phases = [['prepare', 0.08, 'Sandbox: checking that no temporary name exists there...'], ['restore', 0.62, '=== RESTORE ==='], ['check', 0.24, '=== CHECKS ==='], ['cleanup', 0.06, 'Dropping the temporary databases...']];
+  const total = 11000;
+  let pi = -1;
+  let phaseStart = start;
+  let restoreStart = start;
+  const t = {
+    key: `drill:${id}`, kind: 'drill', id, drill_id: d.id, job_id: job.id, title: `${d.name}: ${job.name} ${run.dir_name} → ${d.target_server_name}`, phase: 'queued', started_at: iso(start),
+    raw_bytes: 0, out_bytes: 0, estimate_bytes: est, rate: est / 7, upload_pct: 0, last: start,
+    step(at) {
+      const cur = phases[pi];
+      if (pi < 0 || at - phaseStart > total * cur[1]) {
+        if (cur && cur[0] === 'restore') {
+          x.restore_ms = at - restoreStart;
+          log(`Restored in ${hdur(x.restore_ms)}`);
+        }
+        if (cur && cur[0] === 'check') this.checks(at);
+        pi++;
+        phaseStart = at;
+        if (pi >= phases.length) return this.finish(at);
+        this.phase = phases[pi][0];
+        if (this.phase === 'restore') restoreStart = at;
+        log(phases[pi][2]);
+        if (this.phase === 'restore') for (const m of x.databases) log(`Restore ${m.name} → ${m.temp}`);
+      }
+      if (this.phase === 'restore') this.raw_bytes = Math.min(est, (est * (at - restoreStart)) / (total * 0.62));
+    },
+    checks(at) {
+      const rto = hdur(x.restore_ms);
+      x.checks.push({ kind: 'restore', name: 'Restore', status: 'ok', actual: rto, message: `${x.databases.length} database(s) restored in ${rto}` });
+      if (d.options.max_rto_minutes) x.checks.push({ kind: 'rto', name: 'Restore time (RTO)', status: 'ok', expected: `≤ ${d.options.max_rto_minutes} min`, actual: rto });
+      for (const m of x.databases) {
+        const src = dbs.find((y) => y.name === m.name);
+        m.tables = src.tables;
+        m.rows = src.rows || Math.round(src.size_bytes / 210);
+        x.checks.push({ kind: 'tables', database: m.name, name: 'Tables', status: 'ok', expected: String(m.tables), actual: String(m.tables) });
+        x.checks.push({ kind: 'rows', database: m.name, name: 'Row counts', status: 'ok', expected: m.rows.toLocaleString('en-US'), actual: m.rows.toLocaleString('en-US'), message: `${m.tables} table(s), every row count matches the backup` });
+        log(`${m.name}: ${m.tables} tables ✓, ${m.rows.toLocaleString('en-US')} rows ✓`);
+      }
+      for (const a of d.assertions) {
+        x.checks.push({ kind: 'sql', database: a.database, name: a.name, status: 'ok', expected: 'true', actual: '1', message: 'the first column is true' });
+        log(`Assertion "${a.name}": ✓ the first column is true`);
+      }
+      x.check_ms = at - phaseStart;
+    },
+    finish(at) {
+      for (const m of x.databases) log(`DROP DATABASE IF EXISTS \`${m.temp}\``);
+      log('Temporary databases dropped');
+      const passed = x.checks.filter((c) => c.status === 'ok').length;
+      x.status = 'passed';
+      x.finished_at = iso(at);
+      x.summary = `${x.databases.length} database(s) · ${x.databases.reduce((a, m) => a + m.tables, 0)} tables · ${x.databases.reduce((a, m) => a + m.rows, 0).toLocaleString('en-US')} rows · restored in ${hdur(x.restore_ms)} · ${passed}/${x.checks.length} checks passed`;
+      log(`DRILL PASSED in ${Math.round((at - start) / 1000)}s — ${x.summary}`);
+      run.drill_status = 'passed';
+      run.drilled_at = x.finished_at;
+      run.drill_msg = x.summary;
+      tasks.delete(this.key);
+      audit('drill_finish', `drill:${d.name}`, 'passed');
+    },
+  };
+  tasks.set(t.key, t);
+  audit('drill_run', `drill:${d.name}`, `run:${run.id}`);
+  return x;
+}
+
 // ---------- routes ----------
 const routes = [];
 const route = (method, pattern, fn) => routes.push([method, new RegExp('^' + pattern.replace(/:(\w+)/g, '(?<$1>[^/]+)') + '$'), fn]);
@@ -460,6 +600,10 @@ route('GET', '/dashboard', () => {
   const warnings = [];
   const st = db.storages.find((s) => s.last_test_ok === false);
   if (st) warnings.push(`Storage "${st.name}" failed its last test: ${st.last_test_msg}`);
+  for (const d of db.drills) {
+    const x = db.drillRuns.filter((y) => y.drill_id === d.id).at(-1);
+    if (x && x.status === 'failed') warnings.push(`Restore drill "${d.name}": the last run FAILED — ${x.error.split('\n')[0]}`);
+  }
   return {
     stats: { jobs: db.jobs.length, jobs_enabled: db.jobs.filter((j) => j.enabled).length, servers: db.servers.length, storages: db.storages.length, runs_24h: r24.length,
       success_24h: r24.filter((r) => r.status === 'success').length, failed_24h: r24.filter((r) => r.status === 'failed').length, backups: ok.length,
@@ -551,6 +695,8 @@ route('GET', '/runs/:id', ({ p }) => {
   const out = { run: runView(r), dependents: db.runs.filter((x) => x.parent_id === r.id && x.status !== 'deleted').map((x) => x.id) };
   const t = tasks.get(`backup:${r.id}`) || tasks.get(`verify:${r.id}`);
   if (t) out.task = taskInfo(t);
+  out.drill_runs = db.drillRuns.filter((x) => x.run_id === r.id).slice(-20).reverse().map(drillRunView);
+  out.drills = db.drills.filter((d) => d.job_id === r.job_id).map((d) => ({ id: d.id, name: d.name, target_server_name: d.target_server_name, running: drillRunning(d.id) }));
   if (r.type === 'incremental') {
     const chain = [];
     let cur = r;
@@ -638,6 +784,52 @@ route('POST', '/restores/:id/cancel', ({ p }) => {
   return { ok: true };
 });
 
+// restore drills
+route('GET', '/drills', ({ q }) => db.drills.filter((d) => !+q.get('job_id') || d.job_id === +q.get('job_id')).map(drillView));
+route('GET', '/drills/:id', ({ p }) => drillView(find(db.drills, p.id, 'drill')));
+route('POST', '/drills', ({ body }) => {
+  const d = { id: nextId(db.drills), created_at: iso(now()) };
+  applyDrill(d, body);
+  db.drills.push(d);
+  audit('drill_create', `drill:${d.name}`);
+  return drillView(d);
+});
+route('PUT', '/drills/:id', ({ p, body }) => { const d = find(db.drills, p.id, 'drill'); applyDrill(d, body); audit('drill_update', `drill:${d.name}`); return drillView(d); });
+route('DELETE', '/drills/:id', ({ p }) => {
+  const d = find(db.drills, p.id, 'drill');
+  if (drillRunning(d.id)) fail('the drill is running — cancel it first');
+  db.drills = db.drills.filter((x) => x.id !== d.id);
+  for (const x of db.drillRuns) if (x.drill_id === d.id) x.drill_id = null;
+  return { ok: true };
+});
+route('POST', '/drills/:id/run', ({ p, body }) => drillRunView(startDrill(find(db.drills, p.id, 'drill'), +body.run_id || 0)));
+route('GET', '/drill-runs', ({ q }) => {
+  let list = db.drillRuns.slice().reverse();
+  for (const k of ['drill_id', 'job_id', 'run_id']) if (+q.get(k)) list = list.filter((x) => x[k] === +q.get(k));
+  const limit = +q.get('limit') || 50;
+  const off = +q.get('offset') || 0;
+  return { items: list.slice(off, off + limit).map(drillRunView), total: list.length };
+});
+route('GET', '/drill-runs/:id', ({ p }) => {
+  const x = find(db.drillRuns, p.id, 'drill run');
+  const out = { drill_run: drillRunView(x) };
+  const t = tasks.get(`drill:${x.id}`);
+  if (t) out.task = taskInfo(t);
+  return out;
+});
+route('GET', '/drill-runs/:id/log', ({ p, q }) => logPage(drillLog(find(db.drillRuns, p.id, 'drill run')), q));
+route('POST', '/drill-runs/:id/cancel', ({ p }) => {
+  const x = find(db.drillRuns, p.id, 'drill run');
+  if (tasks.delete(`drill:${x.id}`)) {
+    x.status = 'canceled';
+    x.error = 'Canceled';
+    x.finished_at = iso(now());
+    x.log.push(`${stamp(now())} DROP DATABASE IF EXISTS of the temporary copies`);
+    x.log.push(`${stamp(now())} DRILL CANCELED`);
+  }
+  return { ok: true };
+});
+
 // servers
 route('GET', '/servers', () => db.servers.map(serverView));
 route('GET', '/servers/:id', ({ p }) => serverView(find(db.servers, p.id, 'server')));
@@ -671,6 +863,8 @@ route('DELETE', '/servers/:id', ({ p }) => {
   const s = find(db.servers, p.id, 'server');
   const used = db.jobs.filter((j) => j.server_id === s.id);
   if (used.length) fail(`the server is used by job(s): ${used.map((j) => j.name).join(', ')}`);
+  const sandbox = db.drills.filter((d) => d.target_server_id === s.id);
+  if (sandbox.length) fail(`server is the sandbox of ${sandbox.length} restore drill(s) — change or delete them first`);
   db.servers = db.servers.filter((x) => x.id !== s.id);
   return { ok: true };
 });

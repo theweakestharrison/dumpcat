@@ -13,6 +13,7 @@ const NAV = [
     { path: '/jobs', label: 'Backup jobs', icon: 'clock' },
     { path: '/runs', label: 'Backups', icon: 'archive' },
     { path: '/restores', label: 'Restores', icon: 'restore' },
+    { path: '/drills', label: 'Restore drills', icon: 'flask' },
     { path: '/binlogs', label: 'Binlog & PITR', icon: 'layers' },
   ] },
   { group: 'Configuration', items: [
@@ -40,6 +41,10 @@ const ROUTES = [
   ['/runs/:id/restore', 'restore'],
   ['/restores', 'restores'],
   ['/restores/:id', 'restoredetail'],
+  ['/drills', 'drills'],
+  ['/drills/new', 'drilledit'],
+  ['/drills/:id/edit', 'drilledit'],
+  ['/drill-runs/:id', 'drillrun'],
   ['/binlogs', 'binlogs'],
   ['/pitr', 'pitr'],
   ['/servers', 'servers'],

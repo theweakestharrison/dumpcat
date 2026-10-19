@@ -1,7 +1,7 @@
 import { get, post } from '../api.js';
-import { html, setHTML, patch, icon, on, fmtBytes, fmtDate, fmtDur, runDuration, statusBadge, verifyBadge, toast, toastErr, confirmBox, modal, copyText } from '../ui.js';
+import { html, setHTML, patch, icon, on, fmtBytes, fmtDate, fmtDur, runDuration, statusBadge, verifyBadge, toast, toastErr, confirmBox, modal, copyText, dropdown } from '../ui.js';
 import { poll, canOperate, navigate, setTitle } from '../app.js';
-import { methodBadge, taskList, attachLog, backBtn } from '../components.js';
+import { methodBadge, taskList, attachLog, backBtn, drillBadge, drillRunsTable } from '../components.js';
 
 export const title = 'Backup details';
 
@@ -17,6 +17,7 @@ export async function render(ctx) {
   const id = +params.id;
   let data = await get(`/runs/${id}`);
   const live = () => data.run.status === 'running' || data.run.status === 'queued' || data.run.verify_status === 'running' || !!data.task;
+  const drilling = () => (data.drill_runs || []).some((x) => x.status === 'running');
   setTitle([{ label: 'Backups', href: '#/runs' }, `${data.run.job_name} #${id}`]);
 
   const draw = () => {
@@ -50,6 +51,7 @@ export async function render(ctx) {
           <div>Compression / encryption</div><div>${r.compression}${r.encrypted ? html` · <span class="badge info">${icon('lock')}age</span>${!r.has_passphrase ? html` <span class="badge warn">passphrase not stored</span>` : ''}` : ' · not encrypted'}</div>
           <div>Triggered by</div><div>${r.trigger === 'schedule' ? 'Schedule' : r.trigger === 'import' ? 'Imported from storage' : 'Manual'} ${r.triggered_by && r.trigger !== 'schedule' ? '· ' + r.triggered_by : ''}</div>
           <div>Integrity</div><div>${restorable ? verifyBadge(r.verify_status, r.verify_msg) : '—'} ${r.verified_at ? html`<span class="muted small">${fmtDate(r.verified_at)}</span>` : ''}${r.verify_msg && r.verify_status === 'failed' ? html`<div class="small" style="color:var(--critical-ink)">${r.verify_msg}</div>` : ''}</div>
+          ${restorable && r.method !== 'physical' ? html`<div>Restore test</div><div>${drillBadge(r.drill_status, r.drill_msg) || html`<span class="muted small">not drilled</span>`} ${r.drilled_at ? html`<span class="muted small">${fmtDate(r.drilled_at)}</span>` : ''}</div>` : ''}
           <div>UUID</div><div class="mono small">${r.uuid}</div>
         </div></div></div>
         <div class="card"><div class="card-head"><h2>Storage locations</h2></div>
@@ -65,10 +67,16 @@ export async function render(ctx) {
           ${dependents.length ? html`<div class="card-body" style="border-top:1px solid var(--border)"><span class="muted small">${dependents.length} incremental backup(s) depend on this one.</span></div>` : ''}
         </div>
       </div>`);
+    const drillRuns = data.drill_runs || [];
+    const drills = data.drills || [];
     patch(el.querySelector('#detail-bottom'), html`
+      ${restorable && r.method !== 'physical' && (drillRuns.length || canOperate()) ? html`<div class="card"><div class="card-head"><h2>Restore drills</h2>
+        ${canOperate() ? (drills.length ? html`<span class="dropdown"><button class="btn btn-sm" id="run-drill" ${drilling() ? 'disabled' : ''}>${icon('flask')}Drill this backup</button></span>`
+          : r.job_id ? html`<a class="btn btn-sm" href="#/drills/new?job=${r.job_id}">${icon('plus')}Set up a restore drill</a>` : '') : ''}</div>
+        ${drillRuns.length ? drillRunsTable(drillRuns, { backup: false }) : html`<div class="card-body muted small">Not drilled yet: a restore drill restores this backup into a sandbox server under temporary names, compares every table and its rows with the backup and drops the copies.</div>`}</div>` : ''}
       ${r.databases.length ? html`<div class="card"><div class="card-head"><h2>Database (${r.databases.length})</h2></div><div class="table-wrap"><table class="table">
-        <thead><tr><th>Database</th><th>Charset / collation</th><th class="right">Raw size</th><th class="right">Tables</th><th>File</th></tr></thead>
-        <tbody>${r.databases.map((d) => html`<tr><td><b>${d.name}</b></td><td class="small">${d.charset} / ${d.collation}</td><td class="right num">${fmtBytes(d.size_bytes)}</td><td class="right num">${d.tables}</td><td class="mono small">${d.file || ''}</td></tr>`)}</tbody></table></div></div>` : ''}
+        <thead><tr><th>Database</th><th>Charset / collation</th><th class="right">Raw size</th><th class="right">Tables</th><th class="right hide-sm">Rows</th><th>File</th></tr></thead>
+        <tbody>${r.databases.map((d) => html`<tr><td><b>${d.name}</b></td><td class="small">${d.charset} / ${d.collation}</td><td class="right num">${fmtBytes(d.size_bytes)}</td><td class="right num">${d.tables}</td><td class="right num hide-sm">${d.rows ? d.rows.toLocaleString('en-US') : '—'}</td><td class="mono small">${d.file || ''}</td></tr>`)}</tbody></table></div></div>` : ''}
       ${r.files.length ? html`<div class="card"><div class="card-head"><h2>Files (${r.files.length})</h2></div><div class="table-wrap"><table class="table">
         <thead><tr><th>File name</th><th class="right">Size</th><th class="hide-sm">SHA-256</th><th></th></tr></thead>
         <tbody>${r.files.map((f) => html`<tr><td class="mono small">${f.name}<div class="sub">${f.kind}${f.database ? ' · ' + f.database : ''}</div></td>
@@ -107,7 +115,20 @@ export async function render(ctx) {
       toast(st === 'success' ? `Backup #${id} finished successfully` : `Backup #${id} ended: ${st}`, st === 'success' ? 'good' : st === 'partial' ? 'warn' : 'bad');
     }
   };
-  poll(ctx, async () => { if (live()) await refresh(); }, 3000);
+  poll(ctx, async () => { if (live() || drilling()) await refresh(); }, 3000);
+  on(el, 'click', '#run-drill', (e, b) => {
+    e.stopPropagation();
+    const start = async (d) => {
+      try {
+        const x = await post(`/drills/${d.id}/run`, { run_id: id });
+        toast(`Drill started — #${x.id}`);
+        navigate(`/drill-runs/${x.id}`);
+      } catch (er) { toastErr(er); }
+    };
+    const list = data.drills || [];
+    if (list.length === 1) { start(list[0]); return; }
+    dropdown(b, list.map((d) => ({ label: `${d.name} → ${d.target_server_name}`, icon: 'flask', onClick: () => start(d) })));
+  });
 
   on(el, 'click', '#cancel', async () => {
     if (!(await confirmBox({ title: 'Cancel task', message: 'Stop the running task? Partial data will be deleted.', danger: true, okText: 'Cancel task' }))) return;

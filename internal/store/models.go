@@ -376,6 +376,8 @@ type DBEntry struct {
 	// binlog position of this database's own snapshot (per-database dumps)
 	BinlogFile string `json:"binlog_file,omitempty"`
 	BinlogPos  int64  `json:"binlog_pos,omitempty"`
+	// rows in the dump, counted while it was written (logical backups)
+	Rows int64 `json:"rows,omitempty"`
 }
 
 type Run struct {
@@ -411,6 +413,9 @@ type Run struct {
 	VerifyStatus  string         `json:"verify_status"`
 	VerifiedAt    *time.Time     `json:"verified_at"`
 	VerifyMsg     string         `json:"verify_msg"`
+	DrillStatus   string         `json:"drill_status"` // last restore drill: passed, failed
+	DrilledAt     *time.Time     `json:"drilled_at"`
+	DrillMsg      string         `json:"drill_msg"`
 	Locations     []RunLocation  `json:"locations"`
 	HasPassphrase bool           `json:"has_passphrase"`
 }
@@ -567,6 +572,7 @@ type Manifest struct {
 	RawBytes    int64          `json:"raw_bytes"`
 	SizeBytes   int64          `json:"size_bytes"`
 	Meta        map[string]any `json:"meta"`
+	Tables      TableStats     `json:"tables,omitempty"` // rows per table (logical backups)
 }
 
 type ManifestServer struct {

@@ -56,6 +56,7 @@ type Scheduler struct {
 	cron    *cron.Cron
 	loc     *time.Location
 	entries map[int64][]entryRef
+	drills  map[int64]cron.EntryID // restore drills (drills.go)
 }
 
 type entryRef struct {
@@ -86,6 +87,7 @@ func (s *Scheduler) Reload() {
 	s.loc = s.location()
 	s.cron = cron.New(cron.WithParser(parser), cron.WithLocation(s.loc))
 	s.entries = map[int64][]entryRef{}
+	s.drills = map[int64]cron.EntryID{}
 	jobs, err := s.store.ListJobs()
 	if err != nil {
 		log.Printf("scheduler: %v", err)
@@ -100,6 +102,7 @@ func (s *Scheduler) Reload() {
 			s.add(j.ID, j.IncrSchedule, store.TypeIncremental, j.Schedule)
 		}
 	}
+	s.addDrills()
 	// housekeeping every hour
 	s.cron.AddFunc("17 * * * *", func() { s.runner.Housekeeping() })
 	s.cron.Start()

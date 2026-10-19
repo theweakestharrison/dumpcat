@@ -51,6 +51,8 @@ type Runner struct {
 	archivers map[int64]*archiver // binlog archivers per job
 	binlogUse map[int64]int       // archived binlogs read by PITR restores
 
+	drills map[int64]bool // restore drills running, per drill
+
 	draining bool       // an update is being installed: no new tasks
 	starting int        // tasks between their start checks and addTask
 	deferred []Deferred // scheduled backups rejected while draining
@@ -60,7 +62,8 @@ func New(st *store.Store, sm *storage.Manager, tools *engine.Tools, n *notify.No
 	ctx, cancel := context.WithCancel(context.Background())
 	r := &Runner{Store: st, Storage: sm, Tools: tools, Notifier: n, DataDir: dataDir, AppVersion: version,
 		tasks: map[string]*Task{}, jobRunning: map[int64]bool{}, ctx: ctx, cancel: cancel,
-		inUse: map[int64]int{}, fast: map[int64]*fastOrig{}, archivers: map[int64]*archiver{}, binlogUse: map[int64]int{}}
+		inUse: map[int64]int{}, fast: map[int64]*fastOrig{}, archivers: map[int64]*archiver{}, binlogUse: map[int64]int{},
+		drills: map[int64]bool{}}
 	r.BaseURL = func() string { return "" }
 	return r
 }
@@ -396,6 +399,7 @@ func humanDuration(d time.Duration) string {
 // incomplete data they were writing (in the background).
 func (r *Runner) RecoverInterrupted() {
 	partial := r.Store.MarkInterrupted()
+	r.recoverDrills()
 	if len(partial) == 0 {
 		return
 	}

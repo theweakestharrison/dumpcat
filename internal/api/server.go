@@ -456,6 +456,17 @@ func (s *Server) routes(mux *http.ServeMux) {
 	s.route(mux, "POST /api/jobs/{id}/binlog/rotate", op, s.jobBinlogRotate)
 	s.route(mux, "POST /api/jobs/{id}/binlog/restart", op, s.jobBinlogRestart)
 	s.route(mux, "POST /api/pitr/plan", op, s.pitrPlan)
+	// restore drills: backups restored into a sandbox and checked
+	s.route(mux, "GET /api/drills", vw, s.drillsList)
+	s.route(mux, "POST /api/drills", op, s.drillCreate)
+	s.route(mux, "GET /api/drills/{id}", vw, s.drillGet)
+	s.route(mux, "PUT /api/drills/{id}", op, s.drillUpdate)
+	s.route(mux, "DELETE /api/drills/{id}", op, s.drillDelete)
+	s.route(mux, "POST /api/drills/{id}/run", op, s.drillRun)
+	s.route(mux, "GET /api/drill-runs", vw, s.drillRunsList)
+	s.route(mux, "GET /api/drill-runs/{id}", vw, s.drillRunGet)
+	s.route(mux, "GET /api/drill-runs/{id}/log", vw, s.drillRunLog)
+	s.route(mux, "POST /api/drill-runs/{id}/cancel", op, s.drillRunCancel)
 	// activity & dashboard
 	s.route(mux, "GET /api/activity", vw, s.activity)
 	s.route(mux, "GET /api/dashboard", vw, s.dashboard)

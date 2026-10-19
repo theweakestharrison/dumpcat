@@ -46,6 +46,9 @@ single Go binary with the UI built in.
 - **Encrypted and verified.** zstd compression, [age](https://age-encryption.org) encryption before anything leaves the
   server, SHA-256 for every file, and every backup read back right after it is written: decrypted, decompressed and
   checked, so a broken copy shows up at once instead of at restore time.
+- **Restore drills.** On a schedule, DumpCat restores the newest backup into a sandbox server under temporary names,
+  compares every table and its row count with what the backup recorded, runs your SQL assertions, records how long the
+  restore took (RTO) and drops the copies. Backups that passed are marked **Restore-tested**; a failed drill alerts you.
 - **Careful restores.** Restore under new database names or onto another instance or version (with `DEFINER`,
   collation and `GTID_PURGED` rewrites), test-decrypt every file before anything is dropped, fast load mode, and
   automatic rollback when a physical restore replaces the datadir.

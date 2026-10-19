@@ -24,7 +24,7 @@ export async function render(ctx) {
         <td>${x.target_server_name || '—'}</td><td class="hide-sm">${x.username}</td>
         <td class="right num hide-sm">${fmtDur(runDuration(x))}</td>
         <td>${statusBadge(x.status)}${x.error ? html`<div class="sub" style="max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${x.error}">${x.error}</div>` : ''}</td></tr>`)}</tbody></table></div>${pager(res.total, f.limit, f.offset)}`
-      : empty('No restores yet. Test your backups regularly: restore one into a new database name and check the data.', 'restore'));
+      : empty('No restores yet. Test your backups regularly — a restore drill restores one into a sandbox on a schedule and checks it.', 'restore', canOperate() ? { label: 'Set up a restore drill', href: '#/drills/new', icon: 'flask' } : null));
   };
   await load();
   on(el, 'click', '[data-page]', (e, b) => { f.offset = Math.max(0, +b.dataset.page); load(); });

@@ -7,23 +7,25 @@ import (
 )
 
 const runCols = `id,uuid,job_id,job_name,job_uuid,job_slug,server_id,server_name,method,type,parent_id,base_id,parent_uuid,base_uuid,status,trigger,triggered_by,
-started_at,finished_at,size_bytes,raw_bytes,files,databases,meta,error,compression,encrypted,passphrase,dir_name,verify_status,verified_at,verify_msg`
+started_at,finished_at,size_bytes,raw_bytes,files,databases,meta,error,compression,encrypted,passphrase,dir_name,verify_status,verified_at,verify_msg,
+drill_status,drilled_at,drill_msg`
 
 func (s *Store) scanRun(row interface{ Scan(...any) error }) (*Run, error) {
 	var r Run
-	var jid, sid, pid, bid, fin, ver sql.NullInt64
+	var jid, sid, pid, bid, fin, ver, dr sql.NullInt64
 	var st int64
 	var files, dbs, meta, pass string
 	var enc int
 	if err := row.Scan(&r.ID, &r.UUID, &jid, &r.JobName, &r.JobUUID, &r.JobSlug, &sid, &r.ServerName, &r.Method, &r.Type, &pid, &bid, &r.ParentUUID, &r.BaseUUID,
 		&r.Status, &r.Trigger, &r.TriggeredBy, &st, &fin, &r.SizeBytes, &r.RawBytes, &files, &dbs, &meta, &r.Error, &r.Compression, &enc, &pass,
-		&r.DirName, &r.VerifyStatus, &ver, &r.VerifyMsg); err != nil {
+		&r.DirName, &r.VerifyStatus, &ver, &r.VerifyMsg, &r.DrillStatus, &dr, &r.DrillMsg); err != nil {
 		return nil, notFound(err)
 	}
 	r.JobID, r.ServerID, r.ParentID, r.BaseID = fromNullID(jid), fromNullID(sid), fromNullID(pid), fromNullID(bid)
 	r.StartedAt = fromTS(st)
 	r.FinishedAt = fromNullTS(fin)
 	r.VerifiedAt = fromNullTS(ver)
+	r.DrilledAt = fromNullTS(dr)
 	fromJSON(files, &r.Files)
 	fromJSON(dbs, &r.Databases)
 	fromJSON(meta, &r.Meta)
@@ -83,6 +85,36 @@ func (s *Store) SetRunStatus(id int64, status, errMsg string) {
 
 func (s *Store) SetRunVerify(id int64, status, msg string) {
 	_, _ = s.db.Exec(`UPDATE runs SET verify_status=?, verify_msg=?, verified_at=? WHERE id=?`, status, msg, now(), id)
+}
+
+// SetRunDrill records the result of the last restore drill of a backup.
+func (s *Store) SetRunDrill(id int64, status, msg string) {
+	_, _ = s.db.Exec(`UPDATE runs SET drill_status=?, drill_msg=?, drilled_at=? WHERE id=?`, status, msg, now(), id)
+}
+
+// SetRunTables stores the rows per table counted in a logical backup. They
+// are kept apart from the run so that lists of backups stay small.
+func (s *Store) SetRunTables(id int64, t TableStats) error {
+	v := ""
+	if t != nil {
+		v = toJSON(t)
+	}
+	_, err := s.db.Exec(`UPDATE runs SET table_stats=? WHERE id=?`, v, id)
+	return err
+}
+
+// RunTables returns the rows per table of a backup (nil: not recorded).
+func (s *Store) RunTables(id int64) (TableStats, error) {
+	var v string
+	if err := s.db.QueryRow(`SELECT table_stats FROM runs WHERE id=?`, id).Scan(&v); err != nil {
+		return nil, notFound(err)
+	}
+	if v == "" {
+		return nil, nil
+	}
+	var t TableStats
+	fromJSON(v, &t)
+	return t, nil
 }
 
 func (s *Store) loadLocations(runs []*Run) error {

@@ -8,10 +8,12 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"dumpcat/internal/dbconn"
 	"dumpcat/internal/execx"
+	"dumpcat/internal/store"
 )
 
 var (
@@ -92,6 +94,9 @@ func Mysqldump(env *Env, spec *BackupSpec, sink Sink) (*Result, error) {
 		return nil, errors.New("no databases to back up")
 	}
 
+	// every dump is counted as it is written: rows per table (restore drills)
+	var countMu sync.Mutex
+	counted := store.TableStats{}
 	// The binlog coordinates are printed right after the snapshot is taken:
 	// the moment they appear is an upper bound of the snapshot time, which
 	// point-in-time recovery uses to pick a base backup.
@@ -107,8 +112,9 @@ func Mysqldump(env *Env, spec *BackupSpec, sink Sink) (*Result, error) {
 		}
 		hd := &head{max: 64 * 1024, mark: []byte("_LOG_POS=")}
 		tl := newTail(512)
+		rc := NewRowCounter(dbName)
 		cmd := env.command(tool.Path, args, extraEnv)
-		cmd.Stdout = io.MultiWriter(w, hd, tl)
+		cmd.Stdout = io.MultiWriter(w, hd, tl, rc)
 		runErr := env.runCmd(cmd, "["+toolName+"] ")
 		if runErr == nil && !strings.Contains(tl.String(), "Dump completed") {
 			runErr = fmt.Errorf("dump %s did not complete (missing 'Dump completed' line)", fileName)
@@ -116,6 +122,11 @@ func Mysqldump(env *Env, spec *BackupSpec, sink Sink) (*Result, error) {
 		if err := finish(w, runErr); err != nil {
 			return nil, err
 		}
+		countMu.Lock()
+		for d, ts := range rc.Tables() {
+			counted[d] = ts
+		}
+		countMu.Unlock()
 		return hd, nil
 	}
 
@@ -214,6 +225,7 @@ func Mysqldump(env *Env, spec *BackupSpec, sink Sink) (*Result, error) {
 		}
 	}
 
+	res.setRows(counted)
 	if o.IncludeUsers {
 		if err := dumpUsers(env, spec, sink); err != nil {
 			env.Log.Printf("WARNING: could not dump users/grants: %v", err)

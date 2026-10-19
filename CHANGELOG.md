@@ -20,6 +20,22 @@ web UI and by `dumpcat update` (see `build.sh`). Newest version first.
   agents keep working and report no physical capability.
 - Physical restores still run where DumpCat runs: backups taken through an agent are prepared there, and the restore
   log shows how to copy the prepared directory to the database host.
+- Restore drills: on a schedule (cron, like jobs) or on demand, DumpCat restores the newest backup of a job (or one
+  you pick) into a sandbox server under temporary names (`<database>__drill_<id>`), checks the copy and drops it. The
+  checks: the restore succeeds, every table of the backup exists in the copy, each table holds exactly the rows the
+  backup recorded, optional SQL assertions (one read-only `SELECT` each, passing when its first column is true) and an
+  optional maximum restore time. Every run records the restore time (RTO), its checks and a log.
+- New **Restore drills** page and editor, a result page with live progress, a **Restore drills** card on the backup page
+  (**Drill this backup**) and in the job editor, **Restore-tested** / **Drill failed** badges on backups and jobs, and
+  dashboard warnings. Failed drills (and copies that could not be dropped) notify the channels as event kind `drill`.
+- Safety: a drill refuses to run when a temporary name already exists on the sandbox and only ever drops databases it
+  created; their names are recorded first, so the copies of a drill interrupted by a restart are dropped at the next
+  start. Drills never restore users and grants or change global settings; on the backup's own source server they stay
+  out of its binary log. Supported: mysqldump with one file per database, and mydumper.
+- Logical backups count the rows of every table while the dump is written (mysqldump, mydumper) and keep them in the
+  catalog and in `manifest.json`; the backup page shows the rows per database.
+- Fix: a restore under a new database name no longer creates triggers, routines or events in the original database
+  when their definitions name it (`CREATE TRIGGER shop.t ... ON shop.items`); such names now point at the new database.
 
 ## 1.3.1
 

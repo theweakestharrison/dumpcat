@@ -620,7 +620,9 @@ func (r *Runner) restoreMysqldump(ctx context.Context, task *Task, env *engine.E
 			}
 			e2 := *env
 			e2.Ctx = ctx
-			err = engine.RestoreSQL(&e2, target, flavor, engine.PortableSQL(rd, req.portable()), engine.SQLRestoreOpts{Database: name, NoBinlog: req.NoBinlog})
+			popts := req.portable()
+			popts.RenameFrom, popts.RenameTo = d.Name, name // definitions naming the source database follow the rename
+			err = engine.RestoreSQL(&e2, target, flavor, engine.PortableSQL(rd, popts), engine.SQLRestoreOpts{Database: name, NoBinlog: req.NoBinlog})
 			if derr := done(err == nil); err == nil && derr != nil {
 				env.Log.Printf("%v", derr)
 			}
@@ -707,6 +709,11 @@ func (r *Runner) restoreMydumper(ctx context.Context, task *Task, env *engine.En
 			return fmt.Errorf("rewriting the schema files: %w", err)
 		}
 		env.Log.Printf("Rewrote %d schema file(s) for the target (%s)", n, strings.Join(o.Labels(), ", "))
+	}
+	if n, err := engine.RenameMydumperSchemas(dir, req.Rename); err != nil {
+		return fmt.Errorf("rewriting the schema files: %w", err)
+	} else if n > 0 {
+		env.Log.Printf("Pointed %d schema file(s) at the renamed database(s)", n)
 	}
 	if req.FastMode {
 		defer r.enableFastMode(ctx, target, env.Log)()

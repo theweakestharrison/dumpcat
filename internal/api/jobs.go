@@ -175,6 +175,10 @@ func (s *Server) jobView(j *store.Job) map[string]any {
 	if t, typ := s.Sched.NextRun(j.ID); !t.IsZero() {
 		v["next_run"] = map[string]any{"at": t, "type": typ}
 	}
+	if list, n, err := s.Store.ListDrillRuns(store.DrillRunFilter{JobID: j.ID, Limit: 1}); err == nil && n > 0 {
+		x := list[0]
+		v["last_drill"] = map[string]any{"id": x.ID, "status": x.Status, "started_at": x.StartedAt, "summary": x.Summary, "error": x.Error}
+	}
 	return v
 }
 

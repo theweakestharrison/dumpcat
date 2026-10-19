@@ -13,8 +13,8 @@ export async function render(ctx) {
         ${canOperate() ? html`<a class="btn btn-primary" href="#/jobs/new">${icon('plus')}New job</a>` : ''}</div>
       <div class="card"><div class="table-wrap">${list.length ? html`<table class="table">
         <thead><tr><th>Job name</th><th class="hide-sm">Server</th><th class="hide-sm">Method</th><th class="hide-sm">Schedule</th><th class="hide-md">Stored at</th><th>Last run</th><th class="hide-sm">Next run</th><th><span class="sr-only">Actions</span></th></tr></thead>
-        <tbody>${list.map(({ job: j, last_run: lr, next_run: nr, running }) => html`<tr>
-          <td style="min-width:170px"><a href="#/jobs/${j.id}/edit"><b>${j.name}</b></a>${!j.enabled ? html` <span class="badge">${icon('stop')}Disabled</span>` : ''}${j.options.binlog_archive ? html` <a class="badge info" href="#/binlogs" title="Continuous binlog archiving: point-in-time recovery">${icon('layers')}PITR</a>` : ''}
+        <tbody>${list.map(({ job: j, last_run: lr, next_run: nr, running, last_drill: ld }) => html`<tr>
+          <td style="min-width:170px"><a href="#/jobs/${j.id}/edit"><b>${j.name}</b></a>${!j.enabled ? html` <span class="badge">${icon('stop')}Disabled</span>` : ''}${j.options.binlog_archive ? html` <a class="badge info" href="#/binlogs" title="Continuous binlog archiving: point-in-time recovery">${icon('layers')}PITR</a>` : ''}${ld && (ld.status === 'passed' || ld.status === 'failed') ? html` <a class="badge ${ld.status === 'passed' ? 'good' : 'bad'}" href="#/drill-runs/${ld.id}" title="Last restore drill: ${ld.status}${ld.summary ? ' — ' + ld.summary : ''}">${icon('flask')}${ld.status === 'passed' ? 'Restore-tested' : 'Drill failed'}</a>` : ''}
             <div class="sub">${j.encrypt ? html`${icon('lock')} encrypted · ` : ''}${j.compression}${j.retention.keep_last ? ` · keep ${j.retention.keep_last}` : ''}${j.retention.keep_days ? ` · ${j.retention.keep_days} days` : ''}</div></td>
           <td class="hide-sm">${j.server_name}</td>
           <td class="hide-sm">${methodBadge(j.method)}</td>
@@ -59,6 +59,7 @@ export async function render(ctx) {
       { label: 'Edit', icon: 'edit', onClick: () => navigate(`/jobs/${j.id}/edit`) },
       { label: 'Duplicate', icon: 'copy', onClick: () => navigate(`/jobs/new?clone=${j.id}`) },
       { label: 'View backups', icon: 'archive', onClick: () => navigate(`/runs?job_id=${j.id}`) },
+      { label: 'Restore drills', icon: 'flask', onClick: () => navigate(`/drills?job_id=${j.id}`) },
       { label: j.enabled ? 'Pause schedule' : 'Enable schedule', icon: j.enabled ? 'stop' : 'play', onClick: async () => {
         try { await post(`/jobs/${j.id}/toggle`); toast(j.enabled ? 'Schedule paused' : 'Schedule enabled'); list = await get('/jobs'); draw(list); } catch (er) { toastErr(er); }
       } },

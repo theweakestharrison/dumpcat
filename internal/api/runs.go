@@ -56,6 +56,18 @@ func (s *Server) runGet(w http.ResponseWriter, r *http.Request) error {
 	} else if t, ok := s.Runner.Task(fmt.Sprintf("copy:%d", id)); ok {
 		out["task"] = t
 	}
+	if drills, _, err := s.Store.ListDrillRuns(store.DrillRunFilter{RunID: id, Limit: 20}); err == nil {
+		out["drill_runs"] = drills
+	}
+	if run.JobID != nil {
+		if list, err := s.Store.ListDrills(*run.JobID); err == nil {
+			defs := []map[string]any{}
+			for _, d := range list {
+				defs = append(defs, map[string]any{"id": d.ID, "name": d.Name, "target_server_name": d.TargetServerName, "running": s.Runner.DrillRunning(d.ID)})
+			}
+			out["drills"] = defs
+		}
+	}
 	if deps, err := s.Store.Dependents(id); err == nil {
 		ids := []int64{}
 		for _, d := range deps {
@@ -417,6 +429,19 @@ func (s *Server) dashboard(w http.ResponseWriter, r *http.Request) error {
 			warnings = append(warnings, fmt.Sprintf("Job \"%s\": binlog upload is failing — %s", a.JobName, a.UploadError))
 		case a.Pending > 5:
 			warnings = append(warnings, fmt.Sprintf("Job \"%s\": %d binlog files are waiting for upload", a.JobName, a.Pending))
+		}
+	}
+	if drills, err := s.Store.ListDrills(0); err == nil {
+		for _, d := range drills {
+			x := s.Store.LastDrillRun(d.ID)
+			switch {
+			case x == nil:
+			case x.Status == store.DrillFailed:
+				msg, _, _ := strings.Cut(x.Error, "\n")
+				warnings = append(warnings, fmt.Sprintf("Restore drill \"%s\": the last run FAILED — %s", d.Name, msg))
+			case len(x.Leftover) > 0 && x.Status != store.StatusRunning:
+				warnings = append(warnings, fmt.Sprintf("Restore drill \"%s\": temporary databases left on %s: %s", d.Name, x.TargetServerName, strings.Join(x.Leftover, ", ")))
+			}
 		}
 	}
 	if warnings == nil {

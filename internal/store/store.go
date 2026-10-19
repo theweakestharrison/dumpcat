@@ -315,6 +315,54 @@ CREATE TABLE wg_peers (
 );
 ALTER TABLE servers ADD COLUMN wg_peer_id INTEGER REFERENCES wg_peers(id) ON DELETE RESTRICT;
 `,
+	// 6: restore drills — backups restored into a sandbox and checked on a schedule
+	`
+CREATE TABLE drills (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	job_id INTEGER NOT NULL REFERENCES jobs(id) ON DELETE CASCADE,
+	name TEXT NOT NULL DEFAULT '',
+	target_server_id INTEGER NOT NULL REFERENCES servers(id) ON DELETE RESTRICT,
+	schedule TEXT NOT NULL DEFAULT '',
+	enabled INTEGER NOT NULL DEFAULT 1,
+	databases TEXT NOT NULL DEFAULT '[]',
+	assertions TEXT NOT NULL DEFAULT '[]',
+	options TEXT NOT NULL DEFAULT '{}',
+	notify_success INTEGER NOT NULL DEFAULT 0,
+	notify_failure INTEGER NOT NULL DEFAULT 1,
+	created_at INTEGER NOT NULL,
+	updated_at INTEGER NOT NULL
+);
+CREATE INDEX drills_job ON drills(job_id);
+CREATE TABLE drill_runs (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	drill_id INTEGER REFERENCES drills(id) ON DELETE SET NULL,
+	drill_name TEXT NOT NULL DEFAULT '',
+	job_id INTEGER REFERENCES jobs(id) ON DELETE SET NULL,
+	job_name TEXT NOT NULL DEFAULT '',
+	run_id INTEGER REFERENCES runs(id) ON DELETE SET NULL,
+	run_dir TEXT NOT NULL DEFAULT '',
+	target_server_id INTEGER REFERENCES servers(id) ON DELETE SET NULL,
+	target_server_name TEXT NOT NULL DEFAULT '',
+	status TEXT NOT NULL,
+	trigger TEXT NOT NULL DEFAULT '',
+	triggered_by TEXT NOT NULL DEFAULT '',
+	started_at INTEGER NOT NULL,
+	finished_at INTEGER,
+	restore_ms INTEGER NOT NULL DEFAULT 0,
+	check_ms INTEGER NOT NULL DEFAULT 0,
+	databases TEXT NOT NULL DEFAULT '[]',
+	checks TEXT NOT NULL DEFAULT '[]',
+	summary TEXT NOT NULL DEFAULT '',
+	error TEXT NOT NULL DEFAULT '',
+	leftover TEXT NOT NULL DEFAULT '[]'
+);
+CREATE INDEX drill_runs_drill ON drill_runs(drill_id, id);
+CREATE INDEX drill_runs_run ON drill_runs(run_id, id);
+ALTER TABLE runs ADD COLUMN table_stats TEXT NOT NULL DEFAULT '';
+ALTER TABLE runs ADD COLUMN drill_status TEXT NOT NULL DEFAULT '';
+ALTER TABLE runs ADD COLUMN drilled_at INTEGER;
+ALTER TABLE runs ADD COLUMN drill_msg TEXT NOT NULL DEFAULT '';
+`,
 }
 
 func (s *Store) migrate() error {

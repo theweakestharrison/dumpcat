@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strings"
 
 	"dumpcat/internal/pipeline"
@@ -18,9 +19,20 @@ type PortableOpts struct {
 	StripDefiner      bool `json:"strip_definer"`      // drop DEFINER=user@host from views, routines, triggers and events
 	ConvertCollations bool `json:"convert_collations"` // MySQL 8 *_0900_* / MariaDB *_uca1400_* / utf8mb3_* → collations every target knows
 	SkipGTIDPurged    bool `json:"skip_gtid_purged"`   // drop SET @@GLOBAL.GTID_PURGED (and the SQL_LOG_BIN juggling around it)
+	// A database restored under another name: definitions that name the
+	// source database (TRIGGER shop.t ... ON shop.items, `shop`.`p`) are
+	// pointed at the new one, so nothing is created in the original database.
+	RenameFrom string `json:"-"`
+	RenameTo   string `json:"-"`
 }
 
-func (o PortableOpts) Any() bool { return o.StripDefiner || o.ConvertCollations || o.SkipGTIDPurged }
+func (o PortableOpts) renames() bool {
+	return o.RenameFrom != "" && o.RenameTo != "" && o.RenameFrom != o.RenameTo
+}
+
+func (o PortableOpts) Any() bool {
+	return o.StripDefiner || o.ConvertCollations || o.SkipGTIDPurged || o.renames()
+}
 
 // Labels lists the enabled rewrites, for the restore log.
 func (o PortableOpts) Labels() []string {
@@ -34,7 +46,38 @@ func (o PortableOpts) Labels() []string {
 	if o.SkipGTIDPurged {
 		out = append(out, "skip GTID_PURGED")
 	}
+	if o.renames() {
+		out = append(out, "names of "+o.RenameFrom+" → "+o.RenameTo)
+	}
 	return out
+}
+
+var reBareName = regexp.MustCompile(`^[0-9A-Za-z_$]+$`)
+
+// schemaRenamer returns the rewrite of qualified names of database from (nil: none).
+func schemaRenamer(from, to string) func([]byte) []byte {
+	if from == "" || to == "" || from == to {
+		return nil
+	}
+	newName := []byte("`" + strings.ReplaceAll(to, "`", "``") + "`.")
+	quoted := regexp.MustCompile(regexp.QuoteMeta("`"+strings.ReplaceAll(from, "`", "``")+"`") + `\.`)
+	var bare *regexp.Regexp
+	if reBareName.MatchString(from) {
+		bare = regexp.MustCompile("(^|[^0-9A-Za-z_$.`'\"@])" + regexp.QuoteMeta(from) + `\.`)
+	}
+	return func(line []byte) []byte {
+		if !bytes.Contains(line, []byte(from)) {
+			return line
+		}
+		line = quoted.ReplaceAllLiteral(line, newName)
+		if bare != nil {
+			line = bare.ReplaceAllFunc(line, func(m []byte) []byte {
+				out := append([]byte(nil), m[:len(m)-len(from)-1]...)
+				return append(out, newName...)
+			})
+		}
+		return line
+	}
 }
 
 var (
@@ -79,7 +122,7 @@ func PortableSQL(r io.Reader, o PortableOpts) io.Reader {
 	if !o.Any() {
 		return r
 	}
-	return &portableReader{br: bufio.NewReaderSize(r, 64*1024), o: o}
+	return &portableReader{br: bufio.NewReaderSize(r, 64*1024), o: o, rename: schemaRenamer(o.RenameFrom, o.RenameTo)}
 }
 
 // a non-data line longer than this is passed through unchanged
@@ -92,6 +135,8 @@ type portableReader struct {
 	pass bool   // inside a line copied verbatim
 	skip bool   // inside a dropped multi-line statement
 	err  error
+
+	rename func([]byte) []byte
 }
 
 func (p *portableReader) Read(b []byte) (int, error) {
@@ -173,7 +218,48 @@ func (p *portableReader) rewrite(line []byte) []byte {
 	if p.o.ConvertCollations {
 		line = convertCollations(line)
 	}
+	if p.rename != nil {
+		line = p.rename(line)
+	}
 	return line
+}
+
+// RenameMydumperSchemas points the definitions of each renamed database of
+// an extracted mydumper directory (its table, view, trigger and routine
+// files) at the new name. It returns the number of files rewritten.
+func RenameMydumperSchemas(dir string, rename map[string]string) (int, error) {
+	var dbs []string
+	for from, to := range rename {
+		if to != "" && to != from {
+			dbs = append(dbs, from)
+		}
+	}
+	if len(dbs) == 0 {
+		return 0, nil
+	}
+	sort.Slice(dbs, func(i, j int) bool { return len(dbs[i]) > len(dbs[j]) })
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return 0, err
+	}
+	n := 0
+	for _, e := range entries {
+		name := e.Name()
+		plain := pipeline.StripExt(name)
+		if e.IsDir() || !reMydumperSchema.MatchString(plain) || strings.HasSuffix(plain, "-schema-create.sql") {
+			continue
+		}
+		for _, db := range dbs {
+			if strings.HasPrefix(plain, db+".") || plain == db+"-schema-post.sql" {
+				if err := rewriteFile(filepath.Join(dir, name), filepath.Join(dir, plain), PortableOpts{RenameFrom: db, RenameTo: rename[db]}); err != nil {
+					return n, err
+				}
+				n++
+				break
+			}
+		}
+	}
+	return n, nil
 }
 
 // RewriteMydumperSchemas applies o to the schema files of an extracted

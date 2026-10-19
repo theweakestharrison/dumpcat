@@ -1,7 +1,7 @@
 import { get, qs } from '../api.js';
 import { html, setHTML, patch, icon, on, fmtBytes, fmtDate, fmtDur, runDuration, statusBadge, verifyBadge, empty, pager, debounce } from '../ui.js';
 import { poll } from '../app.js';
-import { methodBadge, locationChips } from '../components.js';
+import { methodBadge, locationChips, drillBadge } from '../components.js';
 
 export const title = 'Backups';
 
@@ -39,7 +39,7 @@ export async function render(ctx) {
         <td class="right num hide-lg">${fmtDur(runDuration(r))}</td>
         <td>${statusBadge(r.status)}${r.error && r.status !== 'success' ? html`<span class="sub cell-ellipsis" title="${r.error}">${r.error}</span>` : ''}</td>
         <td class="hide-md">${locationChips(r.locations)}</td>
-        <td class="hide-sm">${r.status === 'success' || r.status === 'partial' ? verifyBadge(r.verify_status, r.verify_msg) : ''}</td>
+        <td class="hide-sm">${r.status === 'success' || r.status === 'partial' ? html`${verifyBadge(r.verify_status, r.verify_msg)} ${drillBadge(r.drill_status, r.drill_msg)}` : ''}</td>
       </tr>`)}</tbody></table></div>${pager(res.total, f.limit, f.offset)}`
       : filtered ? empty('No backups match the filters') : empty('No backups yet — run a backup job to create one.', 'archive', { label: 'Go to backup jobs', href: '#/jobs', icon: 'clock' }));
   };

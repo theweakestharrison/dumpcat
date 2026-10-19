@@ -6,10 +6,12 @@ export const PHASE = {
   retention: 'Pruning old backups', verify: 'Verifying', download: 'Downloading & decompressing', restore: 'Restoring',
   prepare_physical: 'Prepare', apply: 'Applying to datadir',
   binlog_download: 'Fetching binlogs', binlog_apply: 'Replaying binlogs',
+  check: 'Checking the restored copy', cleanup: 'Dropping the temporary databases',
 };
 
 export function taskLink(t) {
   if (t.kind === 'restore') return `#/restores/${t.id}`;
+  if (t.kind === 'drill') return `#/drill-runs/${t.id}`;
   return `#/runs/${t.id}`;
 }
 
@@ -18,7 +20,7 @@ export function taskList(tasks) {
   return tasks.map((t) => {
     const pct = Math.max(0, Math.min(100, t.percent || 0));
     const indet = !(pct > 0);
-    const kind = { backup: 'Backup', restore: 'Restore', verify: 'Verify', copy: 'Copy' }[t.kind] || t.kind;
+    const kind = { backup: 'Backup', restore: 'Restore', verify: 'Verify', copy: 'Copy', drill: 'Drill' }[t.kind] || t.kind;
     const elapsed = (Date.now() - toDate(t.started_at).getTime()) / 1000;
     return html`<div class="task">
       <div class="task-top">
@@ -47,9 +49,29 @@ export function locationChips(locs) {
   })}</span>`;
 }
 
+/** Result of the last restore drill of a backup (lists of backups). */
+export function drillBadge(st, msg) {
+  if (st === 'passed') return html`<span class="badge good" title="${msg || 'A restore drill restored this backup and its checks passed'}">${icon('flask')}Restore-tested</span>`;
+  if (st === 'failed') return html`<span class="badge bad" title="${msg || ''}">${icon('flask')}Drill failed</span>`;
+  return '';
+}
+
 export function methodBadge(m, type) {
   const label = m === 'physical' ? 'Physical' : m;
   return html`<span class="badge outline">${label}</span>${type === 'incremental' ? html` <span class="badge info">incr</span>` : ''}`;
+}
+
+// What an online agent reported about physical backups on its host:
+// { ok, short, detail } (null while it is offline).
+export function agentPhysical(st) {
+  if (!st || !st.online) return null;
+  const p = st.caps && st.caps.physical;
+  if (!p) return { ok: false, short: 'Update the agent', detail: `DumpCat ${st.version} on the agent cannot run physical backups` };
+  if (!p.allowed) return { ok: false, off: true, short: 'Off', detail: 'Start the agent with --allow-physical to run mariabackup/xtrabackup on this host' };
+  const tools = (p.tools || []).filter((t) => t.found).map((t) => `${t.name} ${(/\d+\.\d+\.\d+/.exec(t.version) || [''])[0]}`.trim());
+  if (!tools.length) return { ok: false, short: 'No backup tool', detail: `Install mariabackup (MariaDB) or Percona XtraBackup (MySQL) on ${st.hostname || 'the database host'}` };
+  if (p.datadir_error) return { ok: false, short: 'Datadir not readable', detail: p.datadir_error };
+  return { ok: true, short: tools.join(', '), detail: [p.user && `runs as ${p.user}`, p.datadir && `datadir ${p.datadir} readable`].filter(Boolean).join(' · ') };
 }
 
 export function storageIcon(type) {
@@ -318,4 +340,25 @@ export function topology(kind) {
   const n = ++topoSeq;
   return raw(`<figure class="topo-canvas">${topoWide(t, `tp-brick-h${n}`)}${topoTall(t, `tp-brick-v${n}`)}
     <figcaption class="tp-legend"><span><i class="out"></i>The database host opens the tunnel</span><span><i class="in"></i>DumpCat's database traffic flows back inside it</span></figcaption></figure>`);
+}
+
+// ---------- restore drills ----------
+
+/** Restore time (RTO) of a drill run. */
+export function fmtRTO(x) {
+  return x.restore_ms > 0 ? fmtDur(x.restore_ms / 1000) : '—';
+}
+
+/** Table of drill runs; cols picks the optional columns: drill, backup, sandbox. */
+export function drillRunsTable(items, cols = {}) {
+  const c = { drill: true, backup: true, sandbox: true, ...cols };
+  return html`<div class="table-wrap"><table class="table"><thead><tr><th>Result</th>${c.drill ? html`<th>Drill</th>` : ''}${c.backup ? html`<th class="hide-sm">Backup</th>` : ''}${c.sandbox ? html`<th class="hide-md">Sandbox</th>` : ''}
+    <th class="right hide-sm">Restore time</th><th>Status</th></tr></thead>
+    <tbody>${items.map((x) => html`<tr class="clickable">
+      <td class="nowrap"><a class="row-link" href="#/drill-runs/${x.id}"><span class="muted num">#${x.id}</span> ${fmtDate(x.started_at)}</a><div class="sub">${x.trigger === 'schedule' ? 'scheduled' : x.triggered_by || x.trigger}</div></td>
+      ${c.drill ? html`<td><b>${x.drill_name}</b><div class="sub">${x.job_name}</div></td>` : ''}
+      ${c.backup ? html`<td class="hide-sm nowrap">${x.run_id ? html`<a href="#/runs/${x.run_id}">#${x.run_id}</a> <span class="muted small">${x.run_dir}</span>` : html`<span class="muted">${x.run_dir || '—'}</span>`}</td>` : ''}
+      ${c.sandbox ? html`<td class="hide-md">${x.target_server_name}</td>` : ''}
+      <td class="right num hide-sm">${fmtRTO(x)}</td>
+      <td>${statusBadge(x.status)}${x.error || x.summary ? html`<span class="sub cell-ellipsis" title="${x.error || x.summary}">${(x.error || x.summary).split('\n')[0]}</span>` : ''}</td></tr>`)}</tbody></table></div>`;
 }

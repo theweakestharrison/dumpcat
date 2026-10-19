@@ -192,6 +192,13 @@ func Mydumper(env *Env, spec *BackupSpec, sink Sink) (*Result, error) {
 	for i := range res.Databases {
 		res.Databases[i].File = "mydumper.tar"
 	}
+	if stats, err := MydumperTableStats(outDir, names); err != nil {
+		env.Log.Printf("WARNING: could not count the rows of the dump: %v", err)
+	} else if stats == nil {
+		env.Log.Printf("Rows not counted: the dump holds no plain INSERT statements (or unexpected file names)")
+	} else {
+		res.setRows(stats)
+	}
 	env.Log.Printf("Packing the dump directory into mydumper.tar")
 	w, err := sink.Create("mydumper.tar", FileOpts{Kind: "tar", Compress: false})
 	if err != nil {

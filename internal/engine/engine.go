@@ -74,6 +74,31 @@ type BackupSpec struct {
 type Result struct {
 	Meta      map[string]any
 	Databases []store.DBEntry
+	Tables    store.TableStats // rows per table, counted from the dump (nil: unknown)
+}
+
+// setRows records the counted tables and the rows of each database (only for
+// databases where the dump held something the counter understood).
+func (res *Result) setRows(t store.TableStats) {
+	if t == nil {
+		return
+	}
+	res.Tables = store.TableStats{}
+	for i := range res.Databases {
+		d := &res.Databases[i]
+		ts, ok := t[d.Name]
+		if !ok && d.Tables > 0 {
+			continue // nothing recognized: leave this database uncounted
+		}
+		if ts == nil {
+			ts = map[string]int64{}
+		}
+		res.Tables[d.Name] = ts
+		d.Rows = 0
+		for _, n := range ts {
+			d.Rows += n
+		}
+	}
 }
 
 func (e *Env) command(name string, args []string, extraEnv []string) *exec.Cmd {

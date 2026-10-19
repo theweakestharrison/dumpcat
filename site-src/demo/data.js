@@ -132,7 +132,7 @@ export function seed(now) {
       id: ++rid, uuid: uuid(r), job_id: job.id, job_name: job.name, job_uuid: job.uuid, job_slug: `${job.name}-${job.id}`, server_id: sv.id, server_name: sv.name,
       method: job.method, type, parent_id: opt.parent || null, base_id: opt.base || null, parent_uuid: '', base_uuid: '', status, trigger: opt.trigger || 'schedule', triggered_by: opt.by || '',
       started_at: iso(start), finished_at: iso(start + dur), size_bytes: size, raw_bytes: status === 'failed' ? 0 : raw, files,
-      databases: status === 'failed' || job.method === 'physical' ? [] : dbs.map(([n, s, t]) => ({ name: n, charset: 'utf8mb4', collation: sv.flavorName === 'mariadb' ? 'utf8mb4_uca1400_ai_ci' : 'utf8mb4_0900_ai_ci', size_bytes: Math.round(s * growth(daysAgo)), file: `${n}.sql`, tables: t, binlog_file: binlog.file, binlog_pos: binlog.pos })),
+      databases: status === 'failed' || job.method === 'physical' ? [] : dbs.map(([n, s, t]) => ({ name: n, charset: 'utf8mb4', collation: sv.flavorName === 'mariadb' ? 'utf8mb4_uca1400_ai_ci' : 'utf8mb4_0900_ai_ci', size_bytes: Math.round(s * growth(daysAgo)), file: `${n}.sql`, tables: t, rows: Math.round(s * growth(daysAgo) / 210), binlog_file: binlog.file, binlog_pos: binlog.pos })),
       meta: { flavor: sv.flavorName, server_version: sv.version, server_host: sv.name, tool: job.method === 'physical' ? 'xtrabackup version 8.0.35-31' : job.method === 'mydumper' ? 'mydumper v0.16.9-1' : 'mysqldump  Ver 8.0.39 for Linux on x86_64', consistent_at: Math.floor(start / 1000) + 2, ...(job.options.record_binlog ? { binlog_file: binlog.file, binlog_pos: binlog.pos, gtid: `3e11fa47-71ca-11e1-9e33-c80aa9429562:1-${48000000 + rid * 7311}` } : {}) },
       error: opt.error || '', compression: job.compression, encrypted: job.encrypt, dir_name: status === 'failed' ? '' : dir,
       verify_status: status === 'success' && job.options.verify_mode !== 'off' ? (opt.verify || 'ok') : '', verified_at: status === 'success' ? iso(start + dur + 40e3) : null,
@@ -141,7 +141,7 @@ export function seed(now) {
         const st = opt.failTarget === t.storage_id ? 'failed' : 'ok';
         return { id: rid * 10 + i, run_id: rid, storage_id: t.storage_id, storage_name: t.storage_name, storage_type: t.storage_type, path: `${job.name}-${job.id}/${dir}`, status: st, error: st === 'failed' ? opt.locError : '', size_bytes: size, created_at: iso(start + dur), updated_at: iso(start + dur) };
       }),
-      has_passphrase: job.has_passphrase, log: opt.log || null,
+      has_passphrase: job.has_passphrase, log: opt.log || null, drill_status: '', drilled_at: null, drill_msg: '',
     };
     if (opt.status === 'partial') run.verify_status = '';
     runs.push(run);
@@ -222,6 +222,65 @@ export function seed(now) {
     status: x.status, started_at: iso(x.started), finished_at: iso(x.started + x.dur), error: x.error || '', user_id: x.user === 'demo' ? 1 : 2, username: x.user,
   }));
 
+  // ---------- restore drills: weekly for the shop, daily for the CRM ----------
+  const drills = [
+    { id: 1, job_id: 1, name: 'shop weekly drill', target_server_id: 4, schedule: '0 5 * * 0', databases: [], options: { threads: 2, no_binlog: false, max_rto_minutes: 45 },
+      assertions: [
+        { name: 'orders of the last two days', database: 'shop', sql: 'SELECT COUNT(*) > 0 FROM orders WHERE created_at > NOW() - INTERVAL 2 DAY' },
+        { name: 'ledger balances', database: 'payments', sql: 'SELECT SUM(amount) = 0 FROM ledger_entries' },
+      ], notify_success: false },
+    { id: 2, job_id: 2, name: 'crm daily drill', target_server_id: 4, schedule: '30 4 * * *', databases: ['crm'], options: { threads: 2, no_binlog: false, max_rto_minutes: 0 },
+      assertions: [{ name: 'fresh tickets', database: 'crm', sql: 'SELECT MAX(created_at) > NOW() - INTERVAL 1 DAY FROM tickets' }], notify_success: false },
+  ].map((d) => ({ ...d, job_name: jobs[d.job_id - 1].name, target_server_name: servers[d.target_server_id - 1].name, enabled: true, notify_failure: true, created_at: iso(now - 30 * D), updated_at: iso(now - 30 * D) }));
+  const drillRuns = [];
+  const hdur = (ms) => { const s = Math.round(ms / 1000); return s >= 60 ? `${Math.floor(s / 60)}m${String(s % 60).padStart(2, '0')}s` : `${s}s`; };
+  function addDrillRun(d, start, opt = {}) {
+    const job = jobs[d.job_id - 1];
+    const run = runs.filter((x) => x.job_id === job.id && x.status === 'success' && x.finished_at < iso(start)).at(-1);
+    if (!run) return;
+    const id = drillRuns.length + 1;
+    const sv = servers[job.server_id - 1];
+    const dbs = run.databases.filter((x) => !d.databases.length || d.databases.includes(x.name));
+    const restoreMs = Math.round(dbs.reduce((a, x) => a + x.size_bytes, 0) / (job.method === 'mydumper' ? 95 * MiB : 38 * MiB) * 1000 * (0.9 + r() * 0.2));
+    const databases = dbs.map((x) => {
+      const tables = (sv.dbs.find(([n]) => n === x.name) || [0, 0, 0])[2];
+      return { name: x.name, temp: `${x.name}__drill_${id}`, tables, rows: Math.round(x.size_bytes / 210) };
+    });
+    const checks = [{ kind: 'restore', name: 'Restore', status: 'ok', actual: hdur(restoreMs), message: `${dbs.length} database(s) restored in ${hdur(restoreMs)}` }];
+    if (d.options.max_rto_minutes) checks.push({ kind: 'rto', name: 'Restore time (RTO)', status: 'ok', expected: `≤ ${d.options.max_rto_minutes} min`, actual: checks[0].actual });
+    for (const m of databases) {
+      checks.push({ kind: 'tables', database: m.name, name: 'Tables', status: 'ok', expected: String(m.tables), actual: String(m.tables) });
+      checks.push({ kind: 'rows', database: m.name, name: 'Row counts', status: 'ok', expected: m.rows.toLocaleString('en-US'), actual: m.rows.toLocaleString('en-US'), message: `${m.tables} table(s), every row count matches the backup` });
+    }
+    for (const a of d.assertions) {
+      const bad = opt.failAssert === a.name;
+      checks.push({ kind: 'sql', database: a.database, name: a.name, status: bad ? 'failed' : 'ok', expected: 'true', actual: bad ? '0' : '1', message: bad ? 'the first column is 0, not true' : 'the first column is true' });
+    }
+    const passed = checks.filter((c) => c.status === 'ok').length;
+    const failed = checks.filter((c) => c.status === 'failed');
+    const checkMs = 20e3 + Math.round(r() * 30e3);
+    const x = {
+      id, drill_id: d.id, drill_name: d.name, job_id: job.id, job_name: job.name, run_id: run.id, run_dir: run.dir_name, target_server_id: d.target_server_id, target_server_name: d.target_server_name,
+      status: failed.length ? 'failed' : 'passed', trigger: opt.trigger || 'schedule', triggered_by: opt.by || 'scheduler', started_at: iso(start), finished_at: iso(start + restoreMs + checkMs + 4e3),
+      restore_ms: restoreMs, check_ms: checkMs, databases, checks,
+      summary: `${databases.length} database(s) · ${databases.reduce((a, m) => a + m.tables, 0)} tables · ${databases.reduce((a, m) => a + m.rows, 0).toLocaleString('en-US')} rows · restored in ${checks[0].actual} · ${passed}/${checks.length} checks passed`,
+      error: failed.map((c) => `${c.name} — ${c.message}`).join('\n'), leftover: [],
+    };
+    drillRuns.push(x);
+    run.drill_status = x.status;
+    run.drilled_at = x.finished_at;
+    run.drill_msg = x.summary;
+  }
+  for (let dd = 13; dd >= 0; dd--) {
+    const dt = new Date(now - dd * D);
+    if (dt.getDay() === 0 && day(dd, 5) < now) addDrillRun(drills[0], day(dd, 5));
+    if (day(dd, 4, 30) < now) addDrillRun(drills[1], day(dd, 4, 30), dd === 2 ? { failAssert: 'fresh tickets' } : {});
+  }
+  drillRuns.sort((a, b) => a.started_at.localeCompare(b.started_at)).forEach((x, i) => {
+    x.id = i + 1;
+    for (const m of x.databases) m.temp = `${m.name}__drill_${x.id}`;
+  });
+
   const channels = [
     { id: 1, name: 'Ops email', type: 'email', enabled: true, on_success: false, on_failure: true, config: { host: 'smtp.example.com', port: '587', security: 'starttls', username: 'alerts@example.com', password: '__SECRET_UNCHANGED__', from: 'DumpCat <alerts@example.com>', to: 'ops@example.com, dba@example.com', insecure: 'false' } },
     { id: 2, name: '#db-alerts', type: 'slack', enabled: true, on_success: true, on_failure: true, config: { webhook_url: '__SECRET_UNCHANGED__' } },
@@ -237,7 +296,7 @@ export function seed(now) {
     audit.push({ id: 42 - i, ts: iso(now - i * 5.5 * H - r() * H), user_id: i % 3 === 0 ? 1 : 2, username: i % 3 === 0 ? 'demo' : 'anna', action, target, details, ip: i % 3 === 0 ? '192.0.2.10' : '192.0.2.33' });
   }
 
-  return { users, agents, wireguard, servers, storages, jobs, runs, binlogs, restores, channels, audit, tokens: [
+  return { users, agents, wireguard, servers, storages, jobs, runs, binlogs, restores, drills, drillRuns, channels, audit, tokens: [
     { id: 1, user_id: 1, name: 'monitoring', prefix: 'mv_Mon1tor9', created_at: iso(now - 60 * D), last_used_at: iso(now - 25 * MIN), expires_at: null },
     { id: 2, user_id: 1, name: 'ci-restore-test', prefix: 'mv_C1rEst0r', created_at: iso(now - 14 * D), last_used_at: iso(now - 2 * D), expires_at: iso(now + 76 * D) },
   ], settings: { timezone: 'Asia/Ho_Chi_Minh', max_concurrent: 2, staging_dir: '/var/lib/dumpcat/staging', history_days: 90, base_url: 'https://backup.example.com', tool_paths: {}, session_hours: 12,

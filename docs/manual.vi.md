@@ -36,6 +36,7 @@ Hướng dẫn đầy đủ để cài đặt, cấu hình và vận hành DumpC
 | Lịch | Cron (`0 2 * * *`, `@daily`, `@every 6h`), lịch riêng cho incremental, múi giờ cấu hình được, xem trước 5 lần chạy kế tiếp |
 | Retention | Giữ N bản gần nhất / N ngày / bản cuối mỗi ngày-tuần-tháng (GFS), **riêng cho từng storage** (vd: local giữ 3 bản, S3 giữ 30 ngày), tôn trọng chuỗi incremental |
 | Restore | Restore vào server bất kỳ (**instance, máy hoặc phiên bản khác**, tự gỡ DEFINER / đổi collation / bỏ GTID), **đổi tên database**, restore một phần, xóa DB đích trước, không ghi binlog, chế độ nhanh, restore users; vật lý: tải chuỗi full+incremental → prepare → (tùy chọn) **tự thay datadir** với rollback |
+| Diễn tập restore | Theo lịch, bản backup mới nhất được **restore vào sandbox** dưới tên tạm, so từng bảng và **số dòng** với backup, chạy assertion SQL tùy chọn, ghi lại thời gian restore (**RTO**) rồi xóa bản sao; backup đạt được đánh dấu **Restore-tested** |
 | Khôi phục theo thời điểm (PITR) | **Lưu trữ binlog liên tục** (`mysqlbinlog --raw --stop-never`, nén/mã hóa như backup, upload lên mọi storage của job), khôi phục đến **một thời điểm / vị trí binlog / ngay trước một GTID** — tự chọn bản backup nền mới nhất, tải & kiểm tra mọi binlog trước khi thay đổi dữ liệu; retention binlog theo bản backup cũ nhất còn giữ |
 | Kết nối | Trực tiếp, qua **agent** (server database chủ động kết nối ra bằng HTTPS; với `--allow-physical` agent còn chạy backup vật lý ngay trên máy đó) hoặc qua **WireGuard tích hợp** — không cần mở port vào server database ([3.7](#37-server-database-không-cho-kết-nối-vào-agent), [3.8](#38-wireguard-tích-hợp)) |
 | Vận hành | Tiến độ realtime (bytes, tốc độ, %), log trực tiếp, hủy tác vụ, giới hạn số job chạy đồng thời, ưu tiên thấp (nice/ionice), pre/post command, timeout |
@@ -562,6 +563,49 @@ cài DumpCat trên máy đó, thêm cùng storage rồi dùng **Import backup ca
 
 Thời gian restore vật lý ≈ thời gian giải nén + prepare + copy (không phải nạp lại từng câu SQL) → thường nhanh hơn restore logic hàng chục lần với DB lớn.
 
+### Diễn tập restore (restore drill theo lịch)
+
+Một bản backup chưa từng được restore chỉ là hy vọng. **Diễn tập restore** chứng minh theo lịch rằng backup của
+một job restore được thật: DumpCat lấy bản backup thành công mới nhất của job, restore vào một **server sandbox**
+dưới tên tạm, kiểm tra bản sao rồi xóa đi. Mở **Restore drills** → **New drill** (hoặc **Set up a restore drill**
+trên trang backup, hoặc **Restore drills** trong menu của job).
+
+1. **Restore gì, vào đâu**: job backup, server sandbox (bất kỳ server nào trong **Database servers**; DumpCat kết
+   nối bằng tài khoản restore của nó), tùy chọn một phần các database. Tốt nhất là server staging hoặc server dự phòng.
+2. **Lịch**: cron giống job (vd. `0 5 * * 0`, sáng Chủ nhật hằng tuần) — chọn giờ vắng sau giờ backup; mỗi lần diễn
+   tập chiếm một lượt chạy như backup. Để trống = chỉ chạy tay (**Run**, hoặc **Drill this backup** trên trang
+   backup để thử đúng bản backup đó).
+3. **Kiểm tra** — luôn có: restore thành công; mọi bảng của backup có trong bản sao (và không thừa bảng); mỗi bảng có
+   **đúng số dòng backup đã ghi nhận**. DumpCat đếm số dòng từng bảng ngay khi ghi dump (mysqldump và mydumper dạng
+   INSERT), lưu trong catalog và trong `manifest.json` (`tables`), và hiện tổng theo database trên trang backup. Tùy
+   chọn thêm **assertion**: mỗi assertion là một câu `SELECT`, chạy trong phiên chỉ đọc bên trong bản sao của database
+   đã chọn; đạt khi cột đầu của dòng đầu là đúng (không NULL, 0 hay rỗng), vd.
+   `SELECT MAX(created_at) > NOW() - INTERVAL 1 DAY FROM orders`.
+4. **Thời gian restore tối đa**: mục tiêu thời gian khôi phục (RTO) — diễn tập thất bại khi tải và nạp backup lâu hơn.
+   Mỗi kết quả ghi lại thời gian restore (**RTO**) và thời gian kiểm tra.
+
+Mỗi lần chạy có trang riêng với tiến độ, các kiểm tra (kỳ vọng / thực tế, các bảng lệch số dòng) và log. Diễn tập đạt
+sẽ đánh dấu backup **Restore-tested** trong danh sách backup (thất bại: **Drill failed**); danh sách job và trang
+backup hiện kết quả gần nhất; diễn tập thất bại hiện cảnh báo trên dashboard và, khi bật *Notify when a drill fails*,
+được gửi qua các kênh thông báo (loại sự kiện `drill`; trạng thái `partial` khi bản sao đạt nhưng không xóa được).
+
+**An toàn**
+
+- Bản sao mang tên `<database>__drill_<id lần chạy>` (cắt còn 64 ký tự). Trước khi tạo gì, diễn tập kiểm tra không tên
+  nào trong số đó đã có trên sandbox, nếu có thì từ chối chạy: **diễn tập chỉ xóa những database do chính nó tạo**.
+  Các tên được ghi lại trước, nên bản sao của lần diễn tập bị gián đoạn do khởi động lại sẽ được xóa khi DumpCat chạy lại.
+- Các định nghĩa ghi tên database nguồn (`TRIGGER shop.t … ON shop.items`, `` `shop`.`p` ``) được trỏ sang bản sao,
+  nên không có gì được tạo trong database gốc (áp dụng cho mọi lần restore dưới tên mới).
+- Diễn tập không bao giờ restore users & grants, không đổi cấu hình toàn cục (không dùng chế độ nhanh) và không replay
+  binlog. Các tùy chọn tương thích (DEFINER, collation, GTID_PURGED) được áp dụng như gợi ý khi restore vào sandbox đó.
+- Sandbox có thể chính là **server nguồn của job**: bản sao không thể trùng tên database của nó, và không có gì được ghi
+  vào binary log (replica và kho binlog giữ sạch; tài khoản restore cần `SUPER` / `BINLOG ADMIN`). Dù vậy restore vẫn
+  tạo tải lên server production — một sandbox riêng an toàn hơn. *Keep the drill out of the sandbox's binary log* làm
+  điều tương tự với sandbox khác.
+- Hỗ trợ: backup logic — mysqldump một file mỗi database, và mydumper. mysqldump dạng một file chỉ restore được dưới tên
+  gốc nên không diễn tập được; backup vật lý chưa được hỗ trợ. Backup tạo trước khi DumpCat đếm dòng được so với số bảng
+  và view mà server liệt kê lúc backup (lệch thì chỉ cảnh báo) và bỏ qua kiểm tra số dòng.
+
 ## 8. Lưu trữ binlog & khôi phục theo thời điểm (PITR)
 
 Bản backup chỉ cho quay về đúng lúc backup chạy. Bật **lưu trữ binlog liên tục** cho job để khôi phục đến *bất kỳ thời điểm nào*
@@ -732,6 +776,9 @@ curl -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/jso
 curl -H "Authorization: Bearer $TOKEN" https://backup.example.com/api/runs/42
 # danh sách backup thành công của job 1
 curl -H "Authorization: Bearer $TOKEN" "https://backup.example.com/api/runs?job_id=1&status=success"
+# chạy ngay diễn tập restore số 3 (tùy chọn trên một backup: {"run_id":42}), rồi đọc kết quả
+curl -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" -d '{}' https://backup.example.com/api/drills/3/run
+curl -H "Authorization: Bearer $TOKEN" https://backup.example.com/api/drill-runs/7
 ```
 
 Webhook thông báo gửi JSON `{kind, status, title, fields, error, url, time}` kèm header

@@ -132,7 +132,7 @@ export async function render(ctx) {
       <div class="card" style="margin-top:16px"><div class="card-head"><h2>Settings</h2></div><div class="card-body">${settingsView(d)}</div></div>
       <div class="card"><div class="card-head"><h2>Peers</h2></div><div class="table-wrap" id="wg-peers">${peersView(d)}</div></div>
       ${d.peers.length ? HOW : ''}
-      <div class="alert info" style="margin-top:16px">${icon('info')}<div><b>Agent or WireGuard?</b> Both work when the database host accepts no inbound connections. The <a href="#/agents">agent</a> needs nothing but outbound HTTPS and reaches MySQL on 127.0.0.1. WireGuard uses the standard tools already trusted by many teams; the database host must reach this server on UDP and MySQL must listen on the WireGuard address. Physical backups need DumpCat on the database host either way.</div></div>`);
+      <div class="alert info" style="margin-top:16px">${icon('info')}<div><b>Agent or WireGuard?</b> Both work when the database host accepts no inbound connections. The <a href="#/agents">agent</a> needs nothing but outbound HTTPS and reaches MySQL on 127.0.0.1. WireGuard uses the standard tools already trusted by many teams; the database host must reach this server on UDP and MySQL must listen on the WireGuard address. Physical backups work through an agent started with --allow-physical, not through WireGuard.</div></div>`);
     bindSettings();
   };
   const refresh = () => { patch(el.querySelector('#wg-state'), stateView(d)); patch(el.querySelector('#wg-peers'), peersView(d)); };

@@ -1,6 +1,7 @@
 import { get, post, put, del } from '../api.js';
 import { html, setHTML, icon, on, fmtBytes, fmtDur, toast, toastErr, confirmBox, modal, busy, empty, formData, copyText, bindModalForm } from '../ui.js';
 import { canOperate } from '../app.js';
+import { agentPhysical } from '../components.js';
 
 export const title = 'Database servers';
 
@@ -45,7 +46,7 @@ function infoView(res) {
       <div>Uptime</div><div>${fmtDur(i.uptime)}</div>
       <div>Total data</div><div>${fmtBytes(i.total_bytes)} · ${user.length} database(s)</div>
     </div>
-    ${res.support ? html`<div class="section-title">Backup methods available on the DumpCat host</div>
+    ${res.support ? html`<div class="section-title">Backup methods</div>
       ${res.support.map((s) => html`<div class="alert ${s.ok ? 'good' : 'warn'}">${icon(s.ok ? 'check' : 'alert')}<div><b>${s.method === 'physical' ? 'Physical (xtrabackup/mariabackup)' : s.method}</b> — ${s.message}</div></div>`)}` : ''}
     ${i.warnings && i.warnings.length ? html`<div class="section-title" style="margin-top:14px">Notes</div>${i.warnings.map((w) => html`<div class="alert warn">${icon('alert')}<div>${w}</div></div>`)}` : ''}
     ${user.length ? html`<div class="section-title" style="margin-top:14px">Databases</div><div class="table-wrap" style="max-height:300px;overflow:auto"><table class="table"><thead><tr><th>Name</th><th class="right">Size</th><th class="right">Tables</th><th>Charset</th></tr></thead><tbody>
@@ -74,8 +75,10 @@ function connectHelp(rt, wgOn) {
       <div style="margin-top:6px">${!wgOn ? html`<span class="badge warn">${icon('alert')}WireGuard is off</span> turn it on on the <a href="#/wireguard">WireGuard</a> page` : st.online ? html`<span class="badge good">${icon('check')}Connected</span> ${st.endpoint ? `from ${st.endpoint}` : ''}` : html`<span class="badge warn">${icon('alert')}Not connected</span> start WireGuard on the database host`}</div>`;
   }
   const st = rt.a.status;
-  return html`The agent opens the connection: enter the address <b>as seen from the agent host</b>, usually 127.0.0.1 port 3306 or a socket. Physical backups are not available through an agent.
-    <div style="margin-top:6px">${st.online ? html`<span class="badge good">${icon('check')}Online</span>${st.hostname ? ` on ${st.hostname}` : ''} — may connect to <span class="mono">${st.allow.join(', ')}</span>` : html`<span class="badge warn">${icon('alert')}Offline</span> start the agent on the database host`}</div>`;
+  const ph = agentPhysical(st);
+  return html`The agent opens the connection: enter the address <b>as seen from the agent host</b>, usually 127.0.0.1 port 3306 or a socket. Physical backups run on that host when the agent is started with <span class="mono">--allow-physical</span>.
+    <div style="margin-top:6px">${st.online ? html`<span class="badge good">${icon('check')}Online</span>${st.hostname ? ` on ${st.hostname}` : ''} — may connect to <span class="mono">${st.allow.join(', ')}</span>` : html`<span class="badge warn">${icon('alert')}Offline</span> start the agent on the database host`}</div>
+    ${ph ? html`<div style="margin-top:6px">Physical backups: <span class="badge ${ph.ok ? 'good' : ph.off ? '' : 'warn'}">${ph.short}</span> <span class="muted">${ph.detail}</span></div>` : ''}`;
 }
 
 function serverForm(s = {}, routes = { agents: [], peers: [], wgOn: false }) {
@@ -107,11 +110,11 @@ function serverForm(s = {}, routes = { agents: [], peers: [], wgOn: false }) {
       <div class="field"><label>Restore user</label><input type="text" name="restore_username" value="${v('restore_username')}" autocomplete="off"></div>
       <div class="field"><label>Restore password</label><input type="password" name="restore_password" placeholder="${s.has_restore_password ? '•••••• saved — leave blank to keep' : ''}" autocomplete="new-password"></div>
     </div></details>
-  <details class="adv ${rt ? 'hidden' : ''}" id="physical-box" style="margin-top:14px"><summary>For physical backup/restore (only when DumpCat runs on the database server itself)</summary>
+  <details class="adv ${rt && rt.kind === 'wg' ? 'hidden' : ''}" id="physical-box" style="margin-top:14px"><summary>For physical backup/restore (DumpCat on the database server itself, or an agent with --allow-physical)</summary>
     <div class="form-grid">
       <div class="field"><label>Datadir</label><input type="text" name="datadir" value="${v('datadir')}" placeholder="auto-detected from @@datadir"></div>
-      <div class="field"><label>systemd service name</label><input type="text" name="service_name" value="${v('service_name')}" placeholder="mysql / mariadb / mysqld"></div>
-      <div class="field"><label>OS user that owns the datadir</label><input type="text" name="os_user" value="${v('os_user')}" placeholder="mysql"></div>
+      <div class="field ${rt ? 'hidden' : ''}" data-local><label>systemd service name</label><input type="text" name="service_name" value="${v('service_name')}" placeholder="mysql / mariadb / mysqld"></div>
+      <div class="field ${rt ? 'hidden' : ''}" data-local><label>OS user that owns the datadir</label><input type="text" name="os_user" value="${v('os_user')}" placeholder="mysql"></div>
     </div></details>
   <div class="field" style="margin-top:14px"><label>Notes</label><input type="text" name="notes" value="${v('notes')}"></div>
   <div id="test-result" style="margin-top:14px"></div>
@@ -142,7 +145,10 @@ export async function openServerForm(s, onSaved) {
   form.connect.addEventListener('change', () => {
     const rt = findRoute(routes, form.connect.value);
     setHTML(m.el.querySelector('#connect-help'), connectHelp(rt, routes.wgOn));
-    m.el.querySelector('#physical-box').classList.toggle('hidden', !!rt);
+    // through an agent the backup tool runs on the database host; replacing
+    // its datadir (service, owner) only works where DumpCat runs
+    m.el.querySelector('#physical-box').classList.toggle('hidden', !!rt && rt.kind === 'wg');
+    m.el.querySelectorAll('[data-local]').forEach((f) => f.classList.toggle('hidden', !!rt));
     // through WireGuard the host is the peer's VPN address, not localhost
     if (rt && rt.kind === 'wg' && ['', '127.0.0.1', 'localhost', '::1'].includes(form.host.value.trim())) form.host.value = rt.p.peer.address;
   });

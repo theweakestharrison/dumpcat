@@ -392,10 +392,23 @@ func (r *Runner) execBackup(ctx context.Context, task *Task, run *store.Run, job
 		run.RawBytes = task.Raw.N()
 	}
 	lg.Printf("Dump finished in %s: data %s → stored %s (%d files)", humanDuration(dumpDur), humanBytes(run.RawBytes), humanBytes(run.SizeBytes), len(run.Files))
+	if res.Tables != nil {
+		var tables int
+		var rows int64
+		for _, ts := range res.Tables {
+			for _, n := range ts {
+				tables++
+				rows += n
+			}
+		}
+		lg.Printf("Counted %d rows in %d tables (checked by restore drills)", rows, tables)
+		_ = r.Store.SetRunTables(run.ID, res.Tables)
+	}
 
 	// manifest
 	fin := time.Now()
 	man := r.manifest(run, server, flavor, fin)
+	man.Tables = res.Tables
 	manData, _ := json.MarshalIndent(man, "", "  ")
 	if primaryDir != "" {
 		if err := os.WriteFile(filepath.Join(primaryDir, "manifest.json"), manData, 0o640); err != nil {

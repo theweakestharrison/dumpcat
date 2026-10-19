@@ -119,6 +119,9 @@ func (r *Runner) ImportFromStorage(ctx context.Context, storageID int64) (*Impor
 			res.Errors = append(res.Errors, fmt.Sprintf("%s: %v", e.Path, err))
 			continue
 		}
+		if m.Tables != nil {
+			_ = r.Store.SetRunTables(run.ID, m.Tables)
+		}
 		sid := st.ID
 		loc := &store.RunLocation{RunID: run.ID, StorageID: &sid, StorageName: st.Name, StorageType: st.Type, Path: dir, Status: store.LocOK, SizeBytes: m.SizeBytes}
 		_ = r.Store.AddLocation(loc)
@@ -193,6 +196,11 @@ func (r *Runner) Housekeeping() {
 				}
 				os.Remove(r.RunLogPath(id))
 				_ = r.Store.DeleteRunRow(id)
+			}
+		}
+		if ids, err := r.Store.PurgeDrillRuns(before); err == nil {
+			for _, id := range ids {
+				os.Remove(r.DrillLogPath(id))
 			}
 		}
 		r.Store.PurgeAudit(time.Now().AddDate(-1, 0, 0))

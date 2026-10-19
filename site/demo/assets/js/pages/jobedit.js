@@ -1,5 +1,5 @@
 import { get, post, put } from '../api.js';
-import { html, setHTML, icon, on, $, $$, fmtBytes, fmtDate, toast, busy, debounce, describeCron, validate, formError } from '../ui.js';
+import { html, setHTML, icon, on, $, $$, fmtBytes, fmtDate, toast, busy, debounce, describeCron, validate, formError, statusBadge } from '../ui.js';
 import { navigate, isAdmin, canOperate, setTitle, setLeaveGuard } from '../app.js';
 import { backBtn } from '../components.js';
 
@@ -28,7 +28,7 @@ const INCR_PRESETS = [['', '— presets —'], ['0 * * * *', 'Every hour'], ['0 
 const METHODS = [
   { id: 'mysqldump', title: 'mysqldump / mariadb-dump', icon: 'file', desc: 'Single-threaded logical backup with --single-transaction (no InnoDB locking). Most flexible: restore individual databases, rename them, move across versions. Best for databases under ~50 GB.' },
   { id: 'mydumper', title: 'mydumper / myloader', icon: 'zap', desc: 'Multi-threaded logical backup that splits large tables into chunks; parallel restore is many times faster. Best for large databases that still need logical restores.' },
-  { id: 'physical', title: 'Physical (XtraBackup / MariaBackup)', icon: 'hdd', desc: 'Copies data files while the database is running (hot backup, no InnoDB locking), with incremental support. Fastest for very large databases (100 GB–TB); restore is a file copy. Must run on the database server itself.' },
+  { id: 'physical', title: 'Physical (XtraBackup / MariaBackup)', icon: 'hdd', desc: 'Copies data files while the database is running (hot backup, no InnoDB locking), with incremental support. Fastest for very large databases (100 GB–TB); restore is a file copy. Runs on the database server: DumpCat installed there, or an agent started with --allow-physical.' },
 ];
 
 export async function render(ctx) {
@@ -219,6 +219,9 @@ export async function render(ctx) {
         <div class="help" style="margin-top:8px">Notification channels (Email, Telegram, Slack...) are configured on the <a href="#/notifications">Notifications</a> page.</div>
       </div></div>
 
+      ${editing ? html`<div class="card" id="sec-drills"><div class="card-head"><h2>Restore drills</h2><a class="btn btn-sm" href="#/drills/new?job=${editing}">${icon('plus')}New drill</a></div>
+        <div id="drill-list"><div class="card-body muted small">Loading…</div></div></div>` : ''}
+
       <div class="sticky-actions">
         <span class="dirty-note" id="dirty-note" aria-live="polite"></span>
         <a class="btn" href="#/jobs">Cancel</a>
@@ -343,6 +346,14 @@ export async function render(ctx) {
   updateVisibility();
   renderDBs(null);
   loadInfo(false);
+  if (editing) {
+    get(`/drills?job_id=${editing}`).then((list) => {
+      setHTML($('#drill-list', el), list.length ? html`<div class="table-wrap"><table class="table"><tbody>${list.map(({ drill: d, last_run: lr }) => html`<tr>
+          <td><a href="#/drills/${d.id}/edit"><b>${d.name}</b></a><div class="sub">→ ${d.target_server_name} · ${describeCron(d.schedule)}</div></td>
+          <td>${lr ? html`<a href="#/drill-runs/${lr.id}">${statusBadge(lr.status)}</a> <span class="muted small">${fmtDate(lr.started_at)}</span>` : html`<span class="muted small">never run</span>`}</td></tr>`)}</tbody></table></div>`
+        : html`<div class="card-body help">No drill tests this job's backups yet. A restore drill restores the newest backup into a sandbox server on a schedule, compares every table and its rows with the backup, runs your checks and drops the copies.</div>`);
+    }).catch(() => {});
+  }
 
   const collect = () => {
     const f = form;

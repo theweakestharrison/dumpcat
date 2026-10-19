@@ -36,6 +36,7 @@ The complete guide to installing, configuring and operating DumpCat. For an over
 | Scheduling | Cron (`0 2 * * *`, `@daily`, `@every 6h`), a separate schedule for incrementals, configurable time zone, preview of the next 5 runs |
 | Retention | Keep the last N backups / N days / the last backup of each day, week and month (GFS), **per storage** (e.g. local keeps 3 backups, S3 keeps 30 days), incremental chains respected |
 | Restore | Restore to any server (**another instance, host or version**, with DEFINER / collation / GTID rewrites), **restore under new names**, partial restore, drop target databases first, no binlog, Fast mode, restore users; physical: download the full + incremental chain → prepare → (optionally) **replace the datadir automatically** with rollback |
+| Restore drills | On a schedule, the newest backup is **restored into a sandbox** under temporary names, every table and its **row count** compared with the backup, custom SQL assertions run, the restore time (**RTO**) recorded and the copies dropped; backups that passed are marked **Restore-tested** |
 | Point-in-time recovery | **Continuous binlog archiving** (`mysqlbinlog --raw --stop-never`, compressed/encrypted like backups, uploaded to every storage of the job), recovery to **a point in time / a binlog position / just before a GTID** — picks the newest base backup automatically, downloads and checks every binlog before changing any data; binlog retention follows the oldest kept backup |
 | Connectivity | Directly, through the **agent** (the database host connects out over HTTPS; with `--allow-physical` it also runs physical backups there) or through the **built-in WireGuard** — no inbound port on the database host ([3.7](#37-database-hosts-that-accept-no-inbound-connections-agent), [3.8](#38-built-in-wireguard)) |
 | Operations | Real-time progress (bytes, speed, %), live logs, task cancellation, limit on concurrent jobs, low priority (nice/ionice), pre/post commands, timeouts |
@@ -567,6 +568,52 @@ To restore a physical backup on **another machine**, install DumpCat there, add 
 
 A physical restore takes about as long as decompression + prepare + copy (no SQL is replayed statement by statement) → usually tens of times faster than a logical restore for large databases.
 
+### Restore drills (scheduled restore tests)
+
+A backup that was never restored is a hope, not a backup. A **restore drill** proves on a schedule that a job's
+backups really restore: DumpCat takes the newest successful backup of the job, restores it into a **sandbox server**
+under temporary names, checks the copy and drops it again. Open **Restore drills** → **New drill** (or **Set up a
+restore drill** on a backup, or **Restore drills** in a job's menu).
+
+1. **What and where**: the backup job, the sandbox server (any server in **Database servers**; DumpCat connects with
+   its restore account), optionally a subset of the databases. A staging or spare server is best.
+2. **Schedule**: cron like jobs (e.g. `0 5 * * 0`, weekly on Sunday morning) — pick a quiet time after the backup; a
+   drill takes one execution slot, like a backup. Empty = on demand only (**Run**, or **Drill this backup** on the
+   backup page to test one particular backup).
+3. **Checks** — always: the restore succeeds; every table of the backup exists in the copy (and no other); each table
+   holds **exactly the rows the backup recorded**. DumpCat counts the rows of every table while it writes a dump
+   (mysqldump and mydumper with INSERT statements), keeps them in the catalog and in `manifest.json`
+   (`tables`), and shows the total per database on the backup page. Optionally, **assertions**: one `SELECT` each, run
+   in a read-only session inside the copy of the chosen database; it passes when the first column of the first row is
+   true (not NULL, 0 or empty), e.g. `SELECT MAX(created_at) > NOW() - INTERVAL 1 DAY FROM orders`.
+4. **Maximum restore time**: your recovery time objective — the drill fails when downloading and loading the
+   backup takes longer. Every result records the restore time (**RTO**) and the time the checks took.
+
+Each run has its own page with progress, the checks (expected / actual, the tables whose rows differ) and the log.
+A passed drill marks the backup **Restore-tested** in the backup list (a failed one **Drill failed**); the job list and
+the backup page show the last result; a failing drill is reported on the dashboard and, with *Notify when a drill
+fails*, through the notification channels (event kind `drill`; status `partial` when the copy passed but could not be
+dropped).
+
+**Safety**
+
+- The copies are named `<database>__drill_<run id>` (cut to 64 characters). Before creating anything the drill checks
+  that none of these names exists on the sandbox and refuses to run otherwise: **a drill only ever drops the
+  databases it created**. The names are recorded first, so the copies of a drill interrupted by a restart are dropped
+  when DumpCat starts again.
+- Definitions that name the source database (`TRIGGER shop.t … ON shop.items`, `` `shop`.`p` ``) are pointed at the
+  copy, so nothing is created in the original database (this applies to every restore under a new name).
+- The drill never restores users and grants, never changes global settings (no fast mode) and never replays binlogs.
+  Portability rewrites (DEFINER, collations, GTID_PURGED) are applied as a restore onto that sandbox would suggest.
+- The sandbox may be the job's **own source server**: the copies cannot collide with its databases, and nothing is
+  written to its binary log (replicas and the binlog archive stay clean; the restore account needs `SUPER` /
+  `BINLOG ADMIN`). The restore still loads the production server — a separate sandbox is safer. *Keep the drill out
+  of the sandbox's binary log* does the same on any other sandbox.
+- Supported: logical backups — mysqldump with one file per database, and mydumper. A single-file mysqldump restores
+  under the original database names only and cannot be drilled; physical backups are not supported yet. Backups made
+  before DumpCat counted rows are checked against the number of tables and views the server listed at backup time
+  (a difference is a warning) and their row check is skipped.
+
 ## 8. Binlog archiving & point-in-time recovery (PITR)
 
 A backup only takes you back to the moment it ran. Turn on **continuous binlog archiving** for a job to recover to *any moment*
@@ -745,6 +792,9 @@ curl -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/jso
 curl -H "Authorization: Bearer $TOKEN" https://backup.example.com/api/runs/42
 # successful backups of job 1
 curl -H "Authorization: Bearer $TOKEN" "https://backup.example.com/api/runs?job_id=1&status=success"
+# run restore drill 3 now (optionally on one backup: {"run_id":42}), then read its result
+curl -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" -d '{}' https://backup.example.com/api/drills/3/run
+curl -H "Authorization: Bearer $TOKEN" https://backup.example.com/api/drill-runs/7
 ```
 
 Webhook notifications send the JSON `{kind, status, title, fields, error, url, time}` with the header
