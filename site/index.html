@@ -66,6 +66,7 @@
       <nav class="nav" aria-label="Sections">
         <a href="#methods" data-i18n="nav-methods">Phương thức</a>
         <a href="#storage" data-i18n="nav-storage">Lưu trữ</a>
+        <a href="#connect" data-i18n="nav-connect">Kết nối</a>
         <a href="#ops" data-i18n="nav-ops">Vận hành</a>
         <a href="#download" data-i18n="nav-download">Tải về</a>
         <a href="#install" data-i18n="nav-install">Cài đặt</a>
@@ -204,6 +205,31 @@
           <p data-i18n="s-aside-text">Mất máy chạy DumpCat? Cài bản mới, thêm lại nơi lưu, bấm <em>Import backup catalog</em> là thấy lại toàn bộ backup. Không có DumpCat vẫn restore được bằng <code>age</code>, <code>zstd</code> và <code>mysql</code>.</p>
         </div>
       </div>
+    </div>
+  </section>
+
+  <section class="section" id="connect" aria-labelledby="connect-title">
+    <div class="wrap">
+      <div class="head">
+        <div>
+          <p class="label" data-i18n="c-label">Kết nối</p>
+          <h2 id="connect-title" data-i18n="c-title">Database không mở port? Vẫn backup được</h2>
+        </div>
+        <p class="intro" data-i18n="c-intro">Khi server backup không kết nối thẳng được tới MySQL, vì firewall, NAT hay MySQL chỉ nghe trên 127.0.0.1, hãy để chính server database kết nối ra DumpCat. Có hai cách, cả hai đều không cần mở port nào trên server database. Backup, restore và khôi phục theo thời điểm chạy y như kết nối trực tiếp.</p>
+      </div>
+      <div class="section-body connect-grid">
+        <article class="conn">
+          <h3><span data-i18n="c-agent-title">Agent</span> <span class="conn-tag">HTTPS</span></h3>
+          <figure class="topo" data-i18n="c-agent-fig"><div class="topo-node"><div class="topo-title">DumpCat <span>server backup</span></div><div class="topo-box"><b>mysqldump · mydumper</b><small>nối tới 127.0.0.1:&lt;port&gt;</small></div><div class="topo-box accent"><b>Cổng cho agent</b><small>/api/agent/ trên port web</small></div></div><div class="topo-link" aria-hidden="true"><div class="topo-lane ok"><span class="topo-line"></span><span class="topo-label"><b>HTTPS · WebSocket</b>server database mở ra</span></div><div class="topo-wall"><span>firewall / NAT</span></div><div class="topo-lane no"><span class="topo-line"></span><span class="topo-label"><b>3306 chiều vào</b>bị chặn, và không cần</span></div></div><div class="topo-node"><div class="topo-title">Server database <span>không mở port</span></div><div class="topo-box accent"><b>dumpcat agent</b><small>chỉ tới 127.0.0.1:3306</small></div><div class="topo-step">↓ 127.0.0.1:3306</div><div class="topo-box"><b>MySQL / MariaDB</b><small>giữ nguyên, kể cả chỉ nghe 127.0.0.1</small></div></div></figure>
+          <dl class="conn-facts" data-i18n="c-agent-facts"><div><dt>Server database cần</dt><dd>Đi ra được DumpCat qua HTTPS</dd></div><div><dt>MySQL</dt><dd>Không đổi gì, kể cả khi chỉ nghe trên 127.0.0.1</dd></div><div><dt>Cài</dt><dd><code>sudo ./install.sh --agent --server … --key …</code></dd></div><div><dt>Hợp khi</dt><dd>Không muốn đụng tới mạng hay cấu hình MySQL</dd></div></dl>
+        </article>
+        <article class="conn">
+          <h3><span data-i18n="c-wg-title">WireGuard tích hợp</span> <span class="conn-tag" data-i18n="c-wg-tag">UDP · tắt mặc định</span></h3>
+          <figure class="topo" data-i18n="c-wg-fig"><div class="topo-node"><div class="topo-title">DumpCat <span>server backup</span></div><div class="topo-box"><b>mysqldump · mydumper</b><small>nối tới 127.0.0.1:&lt;port&gt;</small></div><div class="topo-box accent"><b>WireGuard tích hợp</b><small>10.66.0.1 · không tạo interface</small></div></div><div class="topo-link" aria-hidden="true"><div class="topo-lane ok"><span class="topo-line"></span><span class="topo-label"><b>WireGuard · UDP 51820</b>server database mở ra</span></div><div class="topo-wall"><span>firewall / NAT</span></div><div class="topo-lane no"><span class="topo-line"></span><span class="topo-label"><b>3306 chiều vào</b>bị chặn, và không cần</span></div></div><div class="topo-node"><div class="topo-title">Server database <span>không mở port</span></div><div class="topo-box accent"><b>wg-quick@dumpcat</b><small>10.66.0.2 · keepalive 25 giây</small></div><div class="topo-step">↓ 10.66.0.2:3306</div><div class="topo-box"><b>MySQL / MariaDB</b><small>nghe trên 10.66.0.2</small></div></div></figure>
+          <dl class="conn-facts" data-i18n="c-wg-facts"><div><dt>Server database cần</dt><dd>WireGuard chuẩn, đi ra được DumpCat qua UDP 51820</dd></div><div><dt>MySQL</dt><dd>Nghe trên địa chỉ VPN, user cho phép từ 10.66.0.1</dd></div><div><dt>Cài</dt><dd>Bật trên trang WireGuard, chép <code>dumpcat.conf</code>, <code>systemctl enable --now wg-quick@dumpcat</code></dd></div><div><dt>Hợp khi</dt><dd>Đội đã quen WireGuard, hoặc một gateway dẫn tới cả mạng database</dd></div></dl>
+        </article>
+      </div>
+      <p class="conn-note" data-i18n="c-note">Đường kết nối do server database mở ra; dữ liệu đi hai chiều bên trong nó. Backup vật lý (XtraBackup / MariaBackup) chép datadir nên vẫn cần cài DumpCat ngay trên server database.</p>
     </div>
   </section>
 

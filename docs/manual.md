@@ -281,6 +281,18 @@ to DumpCat over HTTPS (a WebSocket on the port of the web UI) and carries the da
 Nothing has to be opened on the database host; it only has to reach DumpCat. If you prefer a VPN, see
 [3.8 Built-in WireGuard](#38-built-in-wireguard).
 
+```mermaid
+flowchart LR
+  subgraph D["Database host"]
+    mysql[("MySQL / MariaDB")] <-- "127.0.0.1:3306" --> agent["dumpcat agent"]
+  end
+  agent == "HTTPS / WebSocket<br/>opened by the agent, outbound" ==> fw{{"firewall / NAT<br/>no inbound port"}}
+  fw ==> dc["DumpCat on the backup server<br/>mysqldump · mydumper · mysqlbinlog"]
+```
+
+The agent opens the connection, so the firewall or NAT in front of the database host lets it out; the database traffic
+then flows both ways inside it. DumpCat's tools connect to local ports on the backup server.
+
 1. **Agents → Add agent** in the web UI (admins). DumpCat shows the agent key — once — and the install commands.
 2. On the database host, as root:
 
@@ -333,6 +345,17 @@ An alternative to the agent: DumpCat can run a **WireGuard** endpoint itself, an
 standard WireGuard tools. It is **off by default** and nothing is installed for it: WireGuard runs inside DumpCat in
 userspace, without a network interface, route or firewall rule on the DumpCat host — only DumpCat can reach the peers,
 and only the database addresses of the servers you add.
+
+```mermaid
+flowchart LR
+  subgraph D["Database host"]
+    mysql[("MySQL / MariaDB<br/>listens on 10.66.0.2")] <-- "10.66.0.2:3306" --> wgq["wg-quick@dumpcat<br/>10.66.0.2"]
+  end
+  wgq == "WireGuard, UDP 51820<br/>opened by the database host" ==> fw{{"firewall / NAT<br/>no inbound port"}}
+  fw ==> dc["DumpCat on the backup server<br/>built-in WireGuard 10.66.0.1"]
+```
+
+The database host opens the tunnel and keeps it alive; DumpCat then reaches `10.66.0.2:3306` inside it.
 
 1. **WireGuard** page (admins): tick **Turn on WireGuard**, keep or change the UDP port (`51820`) and DumpCat's VPN
    address (`10.66.0.1/24`), and set the **Endpoint for the peers** — the public name or IP the database hosts reach this

@@ -6,6 +6,14 @@ import { storageIcon } from '../components.js';
 export const title = 'Storage';
 
 const OAUTH_NAME = { gdrive: 'Google', onedrive: 'Microsoft', dropbox: 'Dropbox' };
+// the storage type picker, by kind of storage
+const TYPE_GROUPS = [
+  ['On this server', ['local']],
+  ['Object storage', ['s3', 'b2', 'azureblob']],
+  ['Cloud drives', ['gdrive', 'onedrive', 'dropbox']],
+  ['File servers', ['sftp', 'ftp', 'webdav']],
+  ['Other', ['rclone']],
+];
 const RCLONE_NAME = { gdrive: 'drive', onedrive: 'onedrive', dropbox: 'dropbox' };
 
 export async function render(ctx) {
@@ -38,10 +46,16 @@ export async function render(ctx) {
   // ---------- form ----------
   const openForm = (existing) => {
     if (!existing) {
+      const allowed = types.filter((t) => isAdmin() || (t.type !== 'local' && t.type !== 'rclone'));
+      const grouped = new Set(TYPE_GROUPS.flatMap(([, ids]) => ids));
+      const groups = TYPE_GROUPS.map(([name, ids]) => [name, ids.map((id) => allowed.find((t) => t.type === id)).filter(Boolean)]);
+      groups[groups.length - 1][1].push(...allowed.filter((t) => !grouped.has(t.type)));
       const pick = modal({
         title: 'Choose storage type', size: 'lg',
-        body: html`${!isAdmin() ? html`<div class="alert info" style="margin-bottom:12px">${icon('info')}<div>Only admins can configure local directories and custom rclone remotes.</div></div>` : ''}
-          <div class="type-pick">${types.filter((t) => isAdmin() || (t.type !== 'local' && t.type !== 'rclone')).map((t) => html`<button data-type="${t.type}"><b>${t.label}</b><span>${t.description}</span></button>`)}</div>`,
+        body: html`${!isAdmin() ? html`<div class="alert info" style="margin-bottom:14px">${icon('info')}<div>Only admins can configure local directories and custom rclone remotes.</div></div>` : ''}
+          <div class="type-pick">${groups.filter(([, list]) => list.length).map(([name, list]) => html`<section><div class="type-group-title">${name}</div>
+            <div class="type-grid">${list.map((t) => html`<button type="button" class="type-card" data-type="${t.type}">
+              <span class="type-icon">${icon(storageIcon(t.type))}</span><span class="type-text"><b>${t.label}</b><span>${t.description}</span></span></button>`)}</div></section>`)}</div>`,
       });
       on(pick.el, 'click', '[data-type]', (e, b) => { pick.close(); showForm({ type: b.dataset.type, name: '', config: {} }); });
       pick.el.querySelector('[data-type]')?.focus();

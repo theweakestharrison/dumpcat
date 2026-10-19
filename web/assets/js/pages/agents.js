@@ -1,6 +1,7 @@
 import { get, post, put, del } from '../api.js';
 import { html, setHTML, icon, on, fmtAgo, toast, toastErr, confirmBox, modal, empty, formData, copyText, bindModalForm, dropdown, patch } from '../ui.js';
 import { isAdmin, poll } from '../app.js';
+import { topology } from '../components.js';
 
 export const title = 'Agents';
 
@@ -63,12 +64,23 @@ function statusCell(a, st) {
     <div class="sub">${a.last_seen_at ? `last seen ${fmtAgo(a.last_seen_at)}` : 'never connected'}</div>`;
 }
 
+const HOW = html`<div class="card"><div class="card-head"><h2>How it works</h2></div><div class="card-body">
+  ${topology('agent')}
+  <ol class="topo-steps">
+    <li><span><b>Add an agent</b> here: DumpCat shows its key and the install command.</span></li>
+    <li><span><b>Install it on the database host.</b> It connects out to DumpCat over HTTPS and stays connected.</span></li>
+    <li><span><b>Add the server</b> with <i>Connect: Through agent</i> and the address as seen from that host, e.g. 127.0.0.1:3306.</span></li>
+  </ol>
+  <div class="help">mysqldump, mydumper, restores, binlog archiving and point-in-time recovery work as with a direct connection. Physical backups need DumpCat installed on the database host itself. Prefer a VPN? Use the built-in <a href="#/wireguard">WireGuard</a>.</div>
+</div></div>`;
+
 export async function render(ctx) {
   const { el } = ctx;
   let data = await get('/agents');
   const view = () => html`
     <div class="page-head"><div><h1>Agents</h1><div class="sub">Database hosts that accept no inbound connections: the agent connects out to DumpCat and carries the database connections</div></div>
       ${isAdmin() ? html`<button class="btn btn-primary" id="add">${icon('plus')}Add agent</button>` : ''}</div>
+    ${data.items.length ? '' : HOW}
     <div class="card"><div class="table-wrap">${data.items.length ? html`<table class="table"><thead><tr><th>Agent</th><th>Status</th><th class="hide-sm">Host</th><th class="hide-md">Connected from</th><th class="hide-md">May connect to</th><th>Servers</th><th></th></tr></thead><tbody>
       ${data.items.map(({ agent: a, status: st, servers }) => html`<tr>
         <td><b>${a.name}</b><div class="sub mono">${a.key_prefix}…</div></td>
@@ -79,8 +91,7 @@ export async function render(ctx) {
         <td>${servers.length ? html`<span class="chips">${servers.map((s) => html`<span class="badge outline">${s}</span>`)}</span>` : html`<span class="muted">—</span>`}</td>
         <td class="actions">${isAdmin() ? html`<span class="dropdown"><button class="btn btn-sm btn-ghost btn-icon" data-more="${a.id}" title="More">${icon('dots')}</button></span>` : ''}</td></tr>`)}
     </tbody></table>` : empty('No agents yet. Add one for a database host that DumpCat cannot connect to directly.', 'link')}</div></div>
-    <div class="alert info" style="margin-top:16px">${icon('info')}<div><b>How it works:</b> the agent runs on the database host and keeps an outgoing connection to DumpCat. When a backup, restore or binlog archive needs the database, DumpCat opens the connection through the agent — mysqldump, mydumper and point-in-time recovery work as with a direct connection. Physical backups need DumpCat installed on the database host itself.
-      Then add the database under <a href="#/servers">Database servers</a> with <b>Connect: through agent</b> and its address as seen from the agent host.</div></div>`;
+    ${data.items.length ? HOW : ''}`;
   const draw = () => setHTML(el, view());
   draw();
   const reload = async () => { data = await get('/agents'); draw(); };

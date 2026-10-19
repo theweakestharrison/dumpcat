@@ -281,6 +281,18 @@ HTTPS (WebSocket trên cùng port của giao diện web) và mang các kết n�
 server database, chỉ cần server đó đi ra được tới DumpCat. Nếu thích dùng VPN, xem
 [3.8 WireGuard tích hợp](#38-wireguard-tích-hợp).
 
+```mermaid
+flowchart LR
+  subgraph D["Server database"]
+    mysql[("MySQL / MariaDB")] <-- "127.0.0.1:3306" --> agent["dumpcat agent"]
+  end
+  agent == "HTTPS / WebSocket<br/>do agent mở ra, chiều đi ra" ==> fw{{"firewall / NAT<br/>không mở port vào"}}
+  fw ==> dc["DumpCat trên server backup<br/>mysqldump · mydumper · mysqlbinlog"]
+```
+
+Agent là bên mở kết nối, nên firewall hoặc NAT trước server database vẫn cho đi ra; dữ liệu database sau đó đi hai chiều
+bên trong kết nối này. Các công cụ của DumpCat kết nối tới port local trên server backup.
+
 1. Trên giao diện web: **Agents → Add agent** (admin). DumpCat hiện khóa của agent — chỉ một lần — cùng các lệnh cài.
 2. Trên server database, bằng root:
 
@@ -332,6 +344,17 @@ Một cách khác thay cho agent: DumpCat tự chạy một endpoint **WireGuard
 WireGuard chuẩn. Tính năng này **tắt mặc định** và không cần cài thêm gì: WireGuard chạy bên trong DumpCat (userspace),
 không tạo network interface, route hay luật firewall nào trên máy chạy DumpCat — chỉ DumpCat vào được các peer, và chỉ
 tới đúng địa chỉ database của các server bạn khai báo.
+
+```mermaid
+flowchart LR
+  subgraph D["Server database"]
+    mysql[("MySQL / MariaDB<br/>nghe trên 10.66.0.2")] <-- "10.66.0.2:3306" --> wgq["wg-quick@dumpcat<br/>10.66.0.2"]
+  end
+  wgq == "WireGuard, UDP 51820<br/>do server database mở ra" ==> fw{{"firewall / NAT<br/>không mở port vào"}}
+  fw ==> dc["DumpCat trên server backup<br/>WireGuard tích hợp 10.66.0.1"]
+```
+
+Server database mở tunnel và giữ cho nó sống; DumpCat vào `10.66.0.2:3306` bên trong tunnel đó.
 
 1. Trang **WireGuard** (admin): tích **Turn on WireGuard**, giữ hoặc đổi port UDP (`51820`) và địa chỉ VPN của DumpCat
    (`10.66.0.1/24`), điền **Endpoint for the peers** — tên hoặc IP công khai mà server database dùng để tới máy này (để

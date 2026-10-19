@@ -53,7 +53,7 @@ export function methodBadge(m, type) {
 }
 
 export function storageIcon(type) {
-  return { local: 'hdd', s3: 'cloud', gdrive: 'cloud', onedrive: 'cloud', ftp: 'server', sftp: 'server', webdav: 'cloud', b2: 'cloud', azureblob: 'cloud', dropbox: 'cloud', rclone: 'layers' }[type] || 'cloud';
+  return { local: 'hdd', s3: 'archive', gdrive: 'folder', onedrive: 'folder', ftp: 'server', sftp: 'lock', webdav: 'link', b2: 'archive', azureblob: 'archive', dropbox: 'folder', rclone: 'layers' }[type] || 'cloud';
 }
 
 // Loose ASCII patterns for the status markers in logs written by older, Vietnamese-language versions.
@@ -183,3 +183,39 @@ export function pitrPlanView(p, runId) {
 }
 
 export { statusBadge };
+
+/**
+ * How DumpCat reaches a database host that accepts no inbound connections:
+ * kind 'agent' or 'wireguard'. The connection is opened by the database host;
+ * the database traffic then flows inside it.
+ */
+export function topology(kind) {
+  const wgKind = kind === 'wireguard';
+  const left = wgKind
+    ? html`<div class="topo-box accent"><b>WireGuard, built in</b><small>10.66.0.1 · no network interface</small></div>`
+    : html`<div class="topo-box accent"><b>Agent endpoint</b><small>/api/agent/ on the web UI port</small></div>`;
+  const right = wgKind
+    ? html`<div class="topo-box accent"><b>wg-quick@dumpcat</b><small>10.66.0.2 · keepalive 25 s</small></div>`
+    : html`<div class="topo-box accent"><b>dumpcat agent</b><small>allow list: 127.0.0.1:3306</small></div>`;
+  const toDb = wgKind ? '10.66.0.2:3306' : '127.0.0.1:3306';
+  return html`<figure class="topo" aria-label="${wgKind ? 'WireGuard' : 'Agent'} connection diagram">
+    <div class="topo-node">
+      <div class="topo-title">${icon('server')}DumpCat <span>backup server</span></div>
+      <div class="topo-box"><b>mysqldump · mydumper · mysqlbinlog</b><small>connect to 127.0.0.1:&lt;local port&gt;</small></div>
+      <div class="topo-step">↓ tunnel</div>
+      ${left}
+      <div class="topo-open">Reachable from the database host: ${wgKind ? 'UDP 51820' : 'HTTPS'}</div>
+    </div>
+    <div class="topo-link">
+      <div class="topo-lane ok"><span class="topo-line"></span><span class="topo-label"><b>${wgKind ? 'WireGuard · UDP 51820' : 'HTTPS · WebSocket'}</b>opened by the database host, outbound</span></div>
+      <div class="topo-wall"><span>firewall / NAT</span></div>
+      <div class="topo-lane no"><span class="topo-line"></span><span class="topo-label"><b>3306 inbound</b>blocked, and not needed</span></div>
+    </div>
+    <div class="topo-node">
+      <div class="topo-title">${icon('database')}Database host <span>no inbound port</span></div>
+      ${right}
+      <div class="topo-step">↓ ${toDb}</div>
+      <div class="topo-box"><b>MySQL / MariaDB</b><small>${wgKind ? 'listens on 10.66.0.2 (bind-address)' : 'unchanged, may listen on 127.0.0.1 only'}</small></div>
+    </div>
+  </figure>`;
+}

@@ -1,11 +1,22 @@
 import { get, post, put, del } from '../api.js';
 import { html, setHTML, icon, on, fmtAgo, fmtBytes, toast, toastErr, confirmBox, modal, empty, formData, copyText, bindModalForm, dropdown, patch } from '../ui.js';
 import { isAdmin, poll } from '../app.js';
+import { topology } from '../components.js';
 
 export const title = 'WireGuard';
 
 const seen = (t) => t && !String(t).startsWith('0001-');
 const isLocal = (ep) => /^(localhost|127\.|\[::1\]|::1)/i.test(ep || '');
+
+const HOW = html`<div class="card"><div class="card-head"><h2>How it works</h2></div><div class="card-body">
+  ${topology('wireguard')}
+  <ol class="topo-steps">
+    <li><span><b>Turn on WireGuard</b> below and open its UDP port (51820) in the firewall of this server.</span></li>
+    <li><span><b>Add a peer</b> and install its <span class="mono">dumpcat.conf</span> on the database host with the standard WireGuard tools.</span></li>
+    <li><span><b>Let MySQL listen</b> on the peer's address, then add the server with <i>Connect: Through WireGuard</i>.</span></li>
+  </ol>
+  <div class="help">The database host opens the tunnel and keeps it alive, so it can stay behind NAT and accept no inbound connections. Only DumpCat's address goes through the tunnel; nothing else changes on either machine.</div>
+</div></div>`;
 
 function stateView(d) {
   const st = d.state;
@@ -117,8 +128,10 @@ export async function render(ctx) {
       <div class="page-head"><div><h1>WireGuard</h1><div class="sub">Built-in VPN: database hosts that accept no inbound connections join with standard WireGuard, and DumpCat reaches their databases through it</div></div>
         ${isAdmin() ? html`<button class="btn btn-primary" id="add">${icon('plus')}Add peer</button>` : ''}</div>
       <div id="wg-state">${stateView(d)}</div>
+      ${d.peers.length ? '' : html`<div style="margin-top:16px">${HOW}</div>`}
       <div class="card" style="margin-top:16px"><div class="card-head"><h2>Settings</h2></div><div class="card-body">${settingsView(d)}</div></div>
       <div class="card"><div class="card-head"><h2>Peers</h2></div><div class="table-wrap" id="wg-peers">${peersView(d)}</div></div>
+      ${d.peers.length ? HOW : ''}
       <div class="alert info" style="margin-top:16px">${icon('info')}<div><b>Agent or WireGuard?</b> Both work when the database host accepts no inbound connections. The <a href="#/agents">agent</a> needs nothing but outbound HTTPS and reaches MySQL on 127.0.0.1. WireGuard uses the standard tools already trusted by many teams; the database host must reach this server on UDP and MySQL must listen on the WireGuard address. Physical backups need DumpCat on the database host either way.</div></div>`);
     bindSettings();
   };
