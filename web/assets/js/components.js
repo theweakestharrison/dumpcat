@@ -185,37 +185,137 @@ export function pitrPlanView(p, runId) {
 export { statusBadge };
 
 /**
- * How DumpCat reaches a database host that accepts no inbound connections:
- * kind 'agent' or 'wireguard'. The connection is opened by the database host;
- * the database traffic then flows inside it.
+ * How DumpCat reaches a database host that accepts no inbound connections
+ * (kind 'agent' or 'wireguard'): an illustration of the two machines, the
+ * firewall between them and the tunnel the database host opens. A wide and a
+ * tall drawing; CSS shows the one that fits the card.
  */
+let topoSeq = 0;
+const TOPO = {
+  agent: {
+    name: 'Agent',
+    endpoint: ['Agent endpoint', 'HTTPS · web UI port', 'link'],
+    client: ['dumpcat agent', 'Allow list 127.0.0.1:3306', 'link'],
+    local: '127.0.0.1:3306',
+    db: 'Unchanged · 127.0.0.1 only',
+    pipe: 'HTTPS · opened by the database host',
+    pipeShort: ['HTTPS', 'opened by the database host'],
+    reach: 'Reachable over HTTPS',
+  },
+  wireguard: {
+    name: 'WireGuard',
+    endpoint: ['WireGuard, built in', '10.66.0.1 · UDP 51820', 'shield'],
+    client: ['wg-quick@dumpcat', '10.66.0.2 · keepalive 25 s', 'shield'],
+    local: '10.66.0.2:3306',
+    db: 'Listens on 10.66.0.2',
+    pipe: 'WireGuard UDP · opened by the database host',
+    pipeShort: ['WireGuard UDP', 'opened by the database host'],
+    reach: 'UDP 51820 open',
+  },
+};
+
+// an icon of the UI set, placed in an SVG drawing
+const svgIcon = (name, x, y, size) => String(icon(name, 'tp-ico')).replace('width="16" height="16"', `x="${x}" y="${y}" width="${size}" height="${size}"`);
+
+function topoChip(x, y, w, title, sub, ic, accent) {
+  return `<rect class="tp-chip${accent ? ' accent' : ''}" x="${x}" y="${y}" width="${w}" height="54" rx="12"/>
+    <rect class="tp-ico-bg" x="${x + 10}" y="${y + 12}" width="30" height="30" rx="8"/>${svgIcon(ic, x + 16, y + 18, 18)}
+    <text class="tp-chip-t" x="${x + 50}" y="${y + 23}">${esc(title)}</text><text class="tp-chip-s" x="${x + 50}" y="${y + 40}">${esc(sub)}</text>`;
+}
+
+function topoDb(x, y, w, sub) {
+  return `<rect class="tp-chip" x="${x}" y="${y}" width="${w}" height="54" rx="12"/>
+    <g class="tp-cyl"><path d="M${x + 12} ${y + 15}v22c0 3.3 5.8 6 13 6s13-2.7 13-6v-22"/><ellipse cx="${x + 25}" cy="${y + 15}" rx="13" ry="5"/><path d="M${x + 12} ${y + 26}c0 3.3 5.8 6 13 6s13-2.7 13-6"/></g>
+    <text class="tp-chip-t" x="${x + 50}" y="${y + 23}">MySQL / MariaDB</text><text class="tp-chip-s" x="${x + 50}" y="${y + 40}">${esc(sub)}</text>`;
+}
+
+const brick = (id) => `<pattern id="${id}" width="24" height="14" patternUnits="userSpaceOnUse">
+  <rect class="tp-brick-bg" width="24" height="14"/><path class="tp-brick-line" d="M0 .7H24M0 7.7H24M6 .7V7.7M18 7.7V14"/></pattern>`;
+
+// packets moving through the tunnel: green = the database host's side, blue = DumpCat's
+function topoDots(from, to) {
+  // until its animation begins a dot waits, hidden, at the start of its way
+  const at = (p) => { const [x, y] = p.split(' '); return `cx="${x}" cy="${y}"`; };
+  let out = '';
+  for (let i = 0; i < 3; i++) {
+    const b1 = `${(i * 0.9).toFixed(1)}s`;
+    const b2 = `${(i * 0.9 + 0.45).toFixed(2)}s`;
+    out += `<circle class="tp-dot out" r="4" ${at(from)} opacity="0"><set attributeName="opacity" to="1" begin="${b1}"/><animateMotion dur="2.7s" begin="${b1}" repeatCount="indefinite" path="M0 0L${to.split(' ')[0] - from.split(' ')[0]} ${to.split(' ')[1] - from.split(' ')[1]}"/></circle>`;
+    out += `<circle class="tp-dot in" r="3" ${at(to)} opacity="0"><set attributeName="opacity" to="1" begin="${b2}"/><animateMotion dur="2.7s" begin="${b2}" repeatCount="indefinite" path="M0 0L${from.split(' ')[0] - to.split(' ')[0]} ${from.split(' ')[1] - to.split(' ')[1]}"/></circle>`;
+  }
+  return `<g class="tp-dots">${out}</g>`;
+}
+
+function topoWide(t, id) {
+  return `<svg class="tp tp-h" viewBox="0 0 760 300" role="img" aria-label="${esc(t.name)}: the database host opens the connection to DumpCat through its firewall">
+  <defs>${brick(id)}</defs>
+  <rect class="tp-panel" x="12" y="24" width="228" height="252" rx="18"/>
+  <image href="/assets/favicon.svg" x="28" y="40" width="34" height="34"/>
+  <text class="tp-title" x="74" y="55">DumpCat</text><text class="tp-sub" x="74" y="71">Backup server</text>
+  ${topoChip(28, 92, 196, 'Backup & restore', 'mysqldump · mydumper', 'archive', false)}
+  <path class="tp-conn" d="M126 146V168"/><text class="tp-mono" x="134" y="161">127.0.0.1:port</text>
+  ${topoChip(28, 168, 196, t.endpoint[0], t.endpoint[1], t.endpoint[2], true)}
+  <circle class="tp-ok-dot" cx="33" cy="252" r="3.5"/><text class="tp-foot" x="43" y="256">${esc(t.reach)}</text>
+
+  <rect class="tp-panel" x="520" y="24" width="228" height="252" rx="18"/>
+  <rect class="tp-ico-bg big" x="536" y="40" width="34" height="34" rx="9"/>${svgIcon('server', 544, 48, 18)}
+  <text class="tp-title" x="582" y="55">Database host</text><text class="tp-sub" x="582" y="71">No inbound port</text>
+  ${topoDb(536, 92, 196, t.db)}
+  <path class="tp-conn" d="M634 146V168"/><text class="tp-mono" x="642" y="161">${esc(t.local)}</text>
+  ${topoChip(536, 168, 196, t.client[0], t.client[1], t.client[2], true)}
+  ${svgIcon('lock', 536, 245, 14)}<text class="tp-foot" x="556" y="256">Nothing opened on this host</text>
+
+  <text class="tp-wall-t" x="380" y="30" text-anchor="middle">Firewall / NAT</text>
+  <rect class="tp-wall" x="362" y="38" width="36" height="226" rx="6" fill="url(#${id})"/>
+  <rect class="tp-pipe" x="222" y="185" width="316" height="20" rx="10"/>
+  <rect class="tp-rim" x="357" y="180" width="7" height="30" rx="3.5"/><rect class="tp-rim" x="396" y="180" width="7" height="30" rx="3.5"/>
+  ${topoDots('530 195', '230 195')}
+  <rect class="tp-pill" x="252" y="148" width="256" height="24" rx="12"/>
+  <text class="tp-pill-t" x="380" y="164" text-anchor="middle">← ${esc(t.pipe)}</text>
+
+  <path class="tp-block" d="M240 244H346"/>
+  <circle class="tp-x-bg" cx="356" cy="244" r="10"/><path class="tp-x" d="M352 240l8 8M360 240l-8 8"/>
+  <text class="tp-block-t" x="293" y="236" text-anchor="middle">3306 inbound</text>
+  <text class="tp-block-s" x="293" y="262" text-anchor="middle">blocked, not needed</text>
+</svg>`;
+}
+
+function topoTall(t, id) {
+  return `<svg class="tp tp-v" viewBox="0 0 340 640" role="img" aria-label="${esc(t.name)}: the database host opens the connection to DumpCat through its firewall">
+  <defs>${brick(id)}</defs>
+  <rect class="tp-panel" x="10" y="10" width="320" height="240" rx="18"/>
+  <image href="/assets/favicon.svg" x="26" y="26" width="34" height="34"/>
+  <text class="tp-title" x="72" y="41">DumpCat</text><text class="tp-sub" x="72" y="57">Backup server</text>
+  ${topoChip(26, 78, 288, 'Backup & restore', 'mysqldump · mydumper', 'archive', false)}
+  <path class="tp-conn" d="M120 132V154"/><text class="tp-mono" x="128" y="147">127.0.0.1:port</text>
+  ${topoChip(26, 154, 288, t.endpoint[0], t.endpoint[1], t.endpoint[2], true)}
+  <circle class="tp-ok-dot" cx="31" cy="232" r="3.5"/><text class="tp-foot" x="41" y="236">${esc(t.reach)}</text>
+
+  <text class="tp-wall-t" x="318" y="350" text-anchor="end">Firewall / NAT</text>
+  <rect class="tp-wall" x="20" y="298" width="300" height="32" rx="6" fill="url(#${id})"/>
+  <rect class="tp-pipe" x="160" y="204" width="20" height="248" rx="10"/>
+  <rect class="tp-rim" x="155" y="293" width="30" height="7" rx="3.5"/><rect class="tp-rim" x="155" y="328" width="30" height="7" rx="3.5"/>
+  ${topoDots('170 446', '170 212')}
+  <rect class="tp-pill" x="72" y="256" width="196" height="34" rx="12"/>
+  <text class="tp-pill-t" x="170" y="270" text-anchor="middle">↑ ${esc(t.pipeShort[0])}</text>
+  <text class="tp-pill-s" x="170" y="284" text-anchor="middle">${esc(t.pipeShort[1])}</text>
+  <path class="tp-block" d="M44 250V288"/>
+  <circle class="tp-x-bg" cx="44" cy="298" r="10"/><path class="tp-x" d="M40 294l8 8M48 294l-8 8"/>
+  <text class="tp-block-t" x="24" y="352">3306 inbound</text><text class="tp-block-s" x="24" y="367">blocked, not needed</text>
+
+  <rect class="tp-panel" x="10" y="380" width="320" height="250" rx="18"/>
+  <rect class="tp-ico-bg big" x="26" y="396" width="34" height="34" rx="9"/>${svgIcon('server', 34, 404, 18)}
+  <text class="tp-title" x="72" y="411">Database host</text><text class="tp-sub" x="72" y="427">No inbound port</text>
+  ${topoChip(26, 448, 288, t.client[0], t.client[1], t.client[2], true)}
+  <path class="tp-conn" d="M120 502V524"/><text class="tp-mono" x="128" y="517">${esc(t.local)}</text>
+  ${topoDb(26, 524, 288, t.db)}
+  ${svgIcon('lock', 26, 599, 14)}<text class="tp-foot" x="46" y="610">Nothing opened on this host</text>
+</svg>`;
+}
+
 export function topology(kind) {
-  const wgKind = kind === 'wireguard';
-  const left = wgKind
-    ? html`<div class="topo-box accent"><b>WireGuard, built in</b><small>10.66.0.1 · no network interface</small></div>`
-    : html`<div class="topo-box accent"><b>Agent endpoint</b><small>/api/agent/ on the web UI port</small></div>`;
-  const right = wgKind
-    ? html`<div class="topo-box accent"><b>wg-quick@dumpcat</b><small>10.66.0.2 · keepalive 25 s</small></div>`
-    : html`<div class="topo-box accent"><b>dumpcat agent</b><small>allow list: 127.0.0.1:3306</small></div>`;
-  const toDb = wgKind ? '10.66.0.2:3306' : '127.0.0.1:3306';
-  return html`<figure class="topo" aria-label="${wgKind ? 'WireGuard' : 'Agent'} connection diagram">
-    <div class="topo-node">
-      <div class="topo-title">${icon('server')}DumpCat <span>backup server</span></div>
-      <div class="topo-box"><b>mysqldump · mydumper · mysqlbinlog</b><small>connect to 127.0.0.1:&lt;local port&gt;</small></div>
-      <div class="topo-step">↓ tunnel</div>
-      ${left}
-      <div class="topo-open">Reachable from the database host: ${wgKind ? 'UDP 51820' : 'HTTPS'}</div>
-    </div>
-    <div class="topo-link">
-      <div class="topo-lane ok"><span class="topo-line"></span><span class="topo-label"><b>${wgKind ? 'WireGuard · UDP 51820' : 'HTTPS · WebSocket'}</b>opened by the database host, outbound</span></div>
-      <div class="topo-wall"><span>firewall / NAT</span></div>
-      <div class="topo-lane no"><span class="topo-line"></span><span class="topo-label"><b>3306 inbound</b>blocked, and not needed</span></div>
-    </div>
-    <div class="topo-node">
-      <div class="topo-title">${icon('database')}Database host <span>no inbound port</span></div>
-      ${right}
-      <div class="topo-step">↓ ${toDb}</div>
-      <div class="topo-box"><b>MySQL / MariaDB</b><small>${wgKind ? 'listens on 10.66.0.2 (bind-address)' : 'unchanged, may listen on 127.0.0.1 only'}</small></div>
-    </div>
-  </figure>`;
+  const t = TOPO[kind] || TOPO.agent;
+  const n = ++topoSeq;
+  return raw(`<figure class="topo-canvas">${topoWide(t, `tp-brick-h${n}`)}${topoTall(t, `tp-brick-v${n}`)}
+    <figcaption class="tp-legend"><span><i class="out"></i>The database host opens the tunnel</span><span><i class="in"></i>DumpCat's database traffic flows back inside it</span></figcaption></figure>`);
 }

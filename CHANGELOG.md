@@ -19,8 +19,9 @@ web UI and by `dumpcat update` (see `build.sh`). Newest version first.
 - Clear errors through WireGuard: peer not connected yet, no answer, or nothing listening on the database address.
 - New API endpoints: `GET/PUT /api/wireguard`, `POST /api/wireguard/peers`, `PUT/DELETE /api/wireguard/peers/{id}`,
   `POST /api/wireguard/peers/{id}/rotate`; servers have a `wg_peer_id` field.
-- Connection diagrams on the Agents and WireGuard pages (and in the manual) show who opens the connection, which port
-  each side needs and what changes on the database host — shown first until the first agent or peer exists.
+- Connection illustrations on the Agents and WireGuard pages (and diagrams in the manual): both machines, the firewall
+  between them and the tunnel the database host opens, with the ports each side needs — shown first until the first
+  agent or peer exists; a tall version on narrow screens.
 - The **Choose storage type** dialog is redesigned: storage types are grouped (on this server, object storage, cloud
   drives, file servers, other) as cards with an icon and a short description.
 

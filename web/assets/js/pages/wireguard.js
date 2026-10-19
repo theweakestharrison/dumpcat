@@ -11,9 +11,9 @@ const isLocal = (ep) => /^(localhost|127\.|\[::1\]|::1)/i.test(ep || '');
 const HOW = html`<div class="card"><div class="card-head"><h2>How it works</h2></div><div class="card-body">
   ${topology('wireguard')}
   <ol class="topo-steps">
-    <li><span><b>Turn on WireGuard</b> below and open its UDP port (51820) in the firewall of this server.</span></li>
-    <li><span><b>Add a peer</b> and install its <span class="mono">dumpcat.conf</span> on the database host with the standard WireGuard tools.</span></li>
-    <li><span><b>Let MySQL listen</b> on the peer's address, then add the server with <i>Connect: Through WireGuard</i>.</span></li>
+    <li><span><b>Turn on WireGuard</b>Below, then open UDP 51820 in the firewall of this server.</span></li>
+    <li><span><b>Add a peer</b>Install its <span class="mono">dumpcat.conf</span> on the database host with the standard WireGuard tools.</span></li>
+    <li><span><b>Let MySQL listen on the peer's address</b>Then add the server with <i>Connect: Through WireGuard</i>.</span></li>
   </ol>
   <div class="help">The database host opens the tunnel and keeps it alive, so it can stay behind NAT and accept no inbound connections. Only DumpCat's address goes through the tunnel; nothing else changes on either machine.</div>
 </div></div>`;

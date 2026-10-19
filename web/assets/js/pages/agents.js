@@ -67,9 +67,9 @@ function statusCell(a, st) {
 const HOW = html`<div class="card"><div class="card-head"><h2>How it works</h2></div><div class="card-body">
   ${topology('agent')}
   <ol class="topo-steps">
-    <li><span><b>Add an agent</b> here: DumpCat shows its key and the install command.</span></li>
-    <li><span><b>Install it on the database host.</b> It connects out to DumpCat over HTTPS and stays connected.</span></li>
-    <li><span><b>Add the server</b> with <i>Connect: Through agent</i> and the address as seen from that host, e.g. 127.0.0.1:3306.</span></li>
+    <li><span><b>Add an agent</b>DumpCat shows its key and the one-line install command.</span></li>
+    <li><span><b>Install it on the database host</b>It connects out to DumpCat over HTTPS and stays connected.</span></li>
+    <li><span><b>Add the server</b><i>Connect: Through agent</i>, with the address as seen from that host, e.g. 127.0.0.1:3306.</span></li>
   </ol>
   <div class="help">mysqldump, mydumper, restores, binlog archiving and point-in-time recovery work as with a direct connection. Physical backups need DumpCat installed on the database host itself. Prefer a VPN? Use the built-in <a href="#/wireguard">WireGuard</a>.</div>
 </div></div>`;
@@ -77,11 +77,7 @@ const HOW = html`<div class="card"><div class="card-head"><h2>How it works</h2><
 export async function render(ctx) {
   const { el } = ctx;
   let data = await get('/agents');
-  const view = () => html`
-    <div class="page-head"><div><h1>Agents</h1><div class="sub">Database hosts that accept no inbound connections: the agent connects out to DumpCat and carries the database connections</div></div>
-      ${isAdmin() ? html`<button class="btn btn-primary" id="add">${icon('plus')}Add agent</button>` : ''}</div>
-    ${data.items.length ? '' : HOW}
-    <div class="card"><div class="table-wrap">${data.items.length ? html`<table class="table"><thead><tr><th>Agent</th><th>Status</th><th class="hide-sm">Host</th><th class="hide-md">Connected from</th><th class="hide-md">May connect to</th><th>Servers</th><th></th></tr></thead><tbody>
+  const tableView = () => html`${data.items.length ? html`<table class="table"><thead><tr><th>Agent</th><th>Status</th><th class="hide-sm">Host</th><th class="hide-md">Connected from</th><th class="hide-md">May connect to</th><th>Servers</th><th></th></tr></thead><tbody>
       ${data.items.map(({ agent: a, status: st, servers }) => html`<tr>
         <td><b>${a.name}</b><div class="sub mono">${a.key_prefix}…</div></td>
         <td>${statusCell(a, st)}</td>
@@ -90,15 +86,22 @@ export async function render(ctx) {
         <td class="hide-md mono small">${st.online ? st.allow.join(', ') : html`<span class="muted">—</span>`}</td>
         <td>${servers.length ? html`<span class="chips">${servers.map((s) => html`<span class="badge outline">${s}</span>`)}</span>` : html`<span class="muted">—</span>`}</td>
         <td class="actions">${isAdmin() ? html`<span class="dropdown"><button class="btn btn-sm btn-ghost btn-icon" data-more="${a.id}" title="More">${icon('dots')}</button></span>` : ''}</td></tr>`)}
-    </tbody></table>` : empty('No agents yet. Add one for a database host that DumpCat cannot connect to directly.', 'link')}</div></div>
+    </tbody></table>` : empty('No agents yet. Add one for a database host that DumpCat cannot connect to directly.', 'link')}`;
+  const view = () => html`
+    <div class="page-head"><div><h1>Agents</h1><div class="sub">Database hosts that accept no inbound connections: the agent connects out to DumpCat and carries the database connections</div></div>
+      ${isAdmin() ? html`<button class="btn btn-primary" id="add">${icon('plus')}Add agent</button>` : ''}</div>
+    ${data.items.length ? '' : HOW}
+    <div class="card"><div class="table-wrap" id="agents-table">${tableView()}</div></div>
     ${data.items.length ? HOW : ''}`;
   const draw = () => setHTML(el, view());
   draw();
   const reload = async () => { data = await get('/agents'); draw(); };
-  // keep the online status current (patch leaves an open menu or a selection alone)
+  // keep the online status current (patch leaves an open menu or a selection
+  // alone); only the table, so the diagram keeps animating
   poll(ctx, async () => {
     data = await get('/agents');
-    patch(el, view());
+    const box = el.querySelector('#agents-table');
+    if (box) patch(box, tableView());
   }, 10000);
 
   const find = (id) => data.items.find((x) => x.agent.id === +id);
