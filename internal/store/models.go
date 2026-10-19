@@ -280,6 +280,8 @@ type JobOptions struct {
 	// continuous binlog archiving (point-in-time recovery)
 	BinlogArchive       bool `json:"binlog_archive"`
 	BinlogRotateMinutes int  `json:"binlog_rotate_minutes"` // FLUSH BINARY LOGS after N minutes (0 = never)
+	// monitoring
+	MaxAgeHours int `json:"max_age_hours"` // alert when the newest successful backup is older (0 = from the schedule)
 }
 
 const (
@@ -535,16 +537,34 @@ type Settings struct {
 	Require2FAAdmins bool              `json:"require_2fa_admins"`
 	UpdateURL        string            `json:"update_url"`        // release server (overrides DUMPCAT_UPDATE_URL)
 	UpdateAutoCheck  bool              `json:"update_auto_check"` // look for a new version once a day
+	// monitoring
+	FreshnessAlerts   bool   `json:"freshness_alerts"`    // alert when a job has no recent successful backup
+	StaleGraceMinutes int    `json:"stale_grace_minutes"` // added to the window expected from a job's schedule
+	BinlogLagMinutes  int    `json:"binlog_lag_minutes"`  // alert when binlog archiving lags this much (0 = never)
+	MetricsAccess     string `json:"metrics_access"`      // GET /metrics: "" (off), "token" or "localhost"
+	DigestWeekday     int    `json:"digest_weekday"`      // weekly digest: day (0 = Sunday)
+	DigestHour        int    `json:"digest_hour"`         // and hour, in the time zone above
 }
+
+const (
+	MetricsOff       = ""
+	MetricsToken     = "token"
+	MetricsLocalhost = "localhost"
+)
 
 func DefaultSettings() Settings {
 	return Settings{
-		MaxConcurrent:   2,
-		HistoryDays:     90,
-		SessionHours:    12,
-		DefaultThreads:  4,
-		ToolPaths:       map[string]string{},
-		UpdateAutoCheck: true,
+		MaxConcurrent:     2,
+		HistoryDays:       90,
+		SessionHours:      12,
+		DefaultThreads:    4,
+		ToolPaths:         map[string]string{},
+		UpdateAutoCheck:   true,
+		FreshnessAlerts:   true,
+		StaleGraceMinutes: 60,
+		BinlogLagMinutes:  30,
+		DigestWeekday:     1,
+		DigestHour:        8,
 	}
 }
 

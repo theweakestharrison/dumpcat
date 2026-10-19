@@ -36,6 +36,26 @@ web UI and by `dumpcat update` (see `build.sh`). Newest version first.
   catalog and in `manifest.json`; the backup page shows the rows per database.
 - Fix: a restore under a new database name no longer creates triggers, routines or events in the original database
   when their definitions name it (`CREATE TRIGGER shop.t ... ON shop.items`); such names now point at the new database.
+- Freshness alerts: every minute DumpCat checks each job against its own schedule. When the newest successful backup
+  is older than 1.5 × the time between two scheduled runs plus a grace period (60 minutes, **Settings → Monitoring**),
+  or than the job's new **Max age of the newest backup**, an alert goes once to the channels that send failures, and a
+  second message follows when a backup succeeds again. A max age also watches jobs without a schedule (backups started
+  through the API). Open alerts survive a restart.
+- Binlog lag alerts: when binlog archiving has been behind the server for more than 30 minutes (configurable, 0 = off)
+  — the stream is down or closed binlogs wait for upload — once per incident, with a message when it catches up. The
+  archiver status has a new `archive_lag_seconds`.
+- The dashboard's fixed "no successful backup in more than 8 days" warning uses the same per-job rule, and overdue jobs
+  get an *overdue* badge.
+- Prometheus metrics at `GET /metrics`, off by default: last success, status, duration and size per job, integrity
+  checks, freshness, binlog lag, storage use, agents and WireGuard peers online, version. Access with a bearer token
+  (shown once, stored hashed) or only from the DumpCat host (not through a reverse proxy).
+- Weekly digest by email, opt-in per email channel: backups per job, sizes and growth, integrity checks, overdue jobs
+  and storage use over the last 7 days, in the design of the other emails with a plain-text version. Day and hour in
+  Settings, with **Preview**; **Send digest now** on the channel.
+- Webhooks: new `kind` values `stale` and `binlog_lag`, new `status` `recovered`.
+- API: `POST /api/settings/metrics-token`, `POST /api/notifications/digest`, `GET /api/digest/preview`; settings
+  `freshness_alerts`, `stale_grace_minutes`, `binlog_lag_minutes`, `metrics_access`, `digest_weekday`, `digest_hour`;
+  job option `max_age_hours`. `PUT /api/settings` keeps the fields a request leaves out.
 
 ## 1.3.1
 

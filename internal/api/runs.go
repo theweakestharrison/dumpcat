@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"dumpcat/internal/monitor"
 	"dumpcat/internal/pipeline"
 	"dumpcat/internal/runner"
 	"dumpcat/internal/store"
@@ -384,6 +385,8 @@ func (s *Server) dashboard(w http.ResponseWriter, r *http.Request) error {
 	jobs, _ := s.Store.ListJobs()
 	var health []map[string]any
 	var warnings []string
+	now, loc, set := time.Now(), s.Runner.Location(), s.Store.GetSettings()
+	grace := time.Duration(set.StaleGraceMinutes) * time.Minute
 	for i := range jobs {
 		j := &jobs[i]
 		h := map[string]any{"id": j.ID, "name": j.Name, "method": j.Method, "enabled": j.Enabled, "server_name": j.ServerName, "running": s.Runner.IsJobRunning(j.ID)}
@@ -397,10 +400,21 @@ func (s *Server) dashboard(w http.ResponseWriter, r *http.Request) error {
 		} else if j.Enabled {
 			h["last_status"] = ""
 		}
+		var last *time.Time
 		if ls := s.Store.LastSuccessfulRun(j.ID, j.Method); ls != nil {
 			h["last_success_at"] = ls.StartedAt
-			if j.Enabled && j.Schedule != "" && time.Since(ls.StartedAt) > 8*24*time.Hour {
-				warnings = append(warnings, fmt.Sprintf("Job \"%s\": no successful backup in more than 8 days", j.Name))
+			last = &ls.StartedAt
+		}
+		// the same rule as the freshness alerts
+		if f := monitor.Check(j, last, now, loc, grace); f.Monitored {
+			h["due_at"] = f.Due
+			h["stale"] = f.Stale
+			if f.Stale {
+				since := "yet"
+				if last != nil {
+					since = "since " + last.In(loc).Format("2 Jan 15:04")
+				}
+				warnings = append(warnings, fmt.Sprintf("Job \"%s\": no successful backup %s — one was due by %s", j.Name, since, f.Due.In(loc).Format("2 Jan 15:04")))
 			}
 		}
 		if t, typ := s.Sched.NextRun(j.ID); !t.IsZero() {
@@ -429,6 +443,8 @@ func (s *Server) dashboard(w http.ResponseWriter, r *http.Request) error {
 			warnings = append(warnings, fmt.Sprintf("Job \"%s\": binlog upload is failing — %s", a.JobName, a.UploadError))
 		case a.Pending > 5:
 			warnings = append(warnings, fmt.Sprintf("Job \"%s\": %d binlog files are waiting for upload", a.JobName, a.Pending))
+		case set.BinlogLagMinutes > 0 && a.ArchiveLag > int64(set.BinlogLagMinutes)*60:
+			warnings = append(warnings, fmt.Sprintf("Job \"%s\": the binlog archive is %s behind the server", a.JobName, monitor.Duration(time.Duration(a.ArchiveLag)*time.Second)))
 		}
 	}
 	if drills, err := s.Store.ListDrills(0); err == nil {

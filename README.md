@@ -46,6 +46,9 @@ single Go binary with the UI built in.
 - **Encrypted and verified.** zstd compression, [age](https://age-encryption.org) encryption before anything leaves the
   server, SHA-256 for every file, and every backup read back right after it is written: decrypted, decompressed and
   checked, so a broken copy shows up at once instead of at restore time.
+- **Knows when backups stop.** Every job is checked against its own schedule: when no backup has succeeded in time, or
+  binlog archiving falls behind, DumpCat alerts you once and again when it recovers. A weekly email digest sums up the
+  week, and a Prometheus `/metrics` endpoint (off by default) feeds your dashboards and alert rules.
 - **Restore drills.** On a schedule, DumpCat restores the newest backup into a sandbox server under temporary names,
   compares every table and its row count with what the backup recorded, runs your SQL assertions, records how long the
   restore took (RTO) and drops the copies. Backups that passed are marked **Restore-tested**; a failed drill alerts you.

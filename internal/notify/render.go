@@ -35,6 +35,7 @@ type look struct {
 func (e *Event) look() look {
 	l := look{Kind: map[string]string{
 		"backup": "Backup", "restore": "Restore", "verify": "Integrity check", "binlog": "Binlog archiving", "test": "Test notification", "drill": "Restore drill",
+		"stale": "Backup freshness", "binlog_lag": "Binlog archiving lag", "digest": "Weekly digest",
 	}[e.Kind]}
 	if l.Kind == "" {
 		l.Kind = strings.ToUpper(e.Kind[:min(1, len(e.Kind))]) + e.Kind[min(1, len(e.Kind)):]
@@ -42,12 +43,31 @@ func (e *Event) look() look {
 	switch e.Status {
 	case "success":
 		l.Status, l.Icon, l.Color, l.Tint, l.Line, l.Slack, l.Discord = "Succeeded", "✅", "#1a7f37", "#eefaf1", "#c4e8cf", "#1a7f37", 0x1a7f37
+	case StatusRecovered:
+		l.Status, l.Icon, l.Color, l.Tint, l.Line, l.Slack, l.Discord = "Recovered", "✅", "#1a7f37", "#eefaf1", "#c4e8cf", "#1a7f37", 0x1a7f37
 	case "partial":
 		l.Status, l.Icon, l.Color, l.Tint, l.Line, l.Slack, l.Discord = "Partially completed", "⚠️", "#9a6700", "#fff8e5", "#f1dda2", "#d4a72c", 0xd4a72c
 	default:
 		l.Status, l.Icon, l.Color, l.Tint, l.Line, l.Slack, l.Discord = "Failed", "❌", "#cf222e", "#fff1f0", "#f4c7c3", "#cf222e", 0xcf222e
+		switch e.Kind {
+		case "stale":
+			l.Status, l.Icon = "Overdue", "⏰"
+		case "binlog_lag":
+			l.Status, l.Icon = "Behind", "⏳"
+		}
 	}
 	return l
+}
+
+// mark is the symbol in the status circle of an email.
+func (e *Event) mark() string {
+	switch e.Status {
+	case "success", StatusRecovered:
+		return "✓"
+	case "partial":
+		return "!"
+	}
+	return "✕"
 }
 
 func trunc(s string, n int) string {
@@ -119,7 +139,9 @@ func (e *Event) text(host string) string {
 
 // ---------- email ----------
 
-var emailTpl = template.Must(template.New("email").Parse(`<!doctype html>
+// emailShell is the frame of every email: logo, card with a status band, an
+// optional button and the footer. A "content" template fills the card.
+var emailShell = template.Must(template.New("email").Parse(`<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="color-scheme" content="light dark"><meta name="supported-color-schemes" content="light dark"><title>{{.Title}}</title>
 <style>
@@ -128,8 +150,9 @@ var emailTpl = template.Must(template.New("email").Parse(`<!doctype html>
   .ink { color: #eef0f3 !important; } .muted { color: #9aa0a8 !important; } .cell { border-color: #2b2e34 !important; }
   .band { background: #1d2026 !important; border-color: #2b2e34 !important; } .chip { background: #23262c !important; border-color: #33373e !important; }
   .err { background: #2a1717 !important; border-color: #5c2a2a !important; } .errt { color: #f5b4b4 !important; } .errh { color: #ff8f8f !important; }
+  .warn { background: #2a2312 !important; border-color: #5c4a1c !important; } .warnt { color: #f2d38a !important; }
 }
-@media (max-width: 620px) { .px { padding-left: 20px !important; padding-right: 20px !important; } .k { width: 38% !important; } }
+@media (max-width: 620px) { .px { padding-left: 20px !important; padding-right: 20px !important; } .k { width: 38% !important; } .hs { display: none !important; } }
 </style></head>
 <body class="bg" style="margin:0;padding:0;background:#f6f6f3;-webkit-text-size-adjust:100%">
 <div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent">{{.Preheader}}</div>
@@ -148,25 +171,12 @@ var emailTpl = template.Must(template.New("email").Parse(`<!doctype html>
         <table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>
           <td style="vertical-align:top;padding-right:12px"><div style="width:30px;height:30px;line-height:30px;border-radius:15px;background:{{.L.Color}};color:#ffffff;text-align:center;font-size:16px;font-weight:700">{{.Mark}}</div></td>
           <td style="vertical-align:top">
-            <div style="font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:{{.L.Color}}">{{.L.Kind}} · {{.L.Status}}</div>
+            <div style="font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:{{.L.Color}}">{{.Label}}</div>
             <div class="ink" style="margin-top:6px;font-size:20px;font-weight:700;line-height:1.3;color:#0e1116">{{.Title}}</div>
           </td>
         </tr></table>
       </td></tr>
-      {{if .Rows}}<tr><td class="px" style="padding:8px 28px 4px">
-        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
-        {{range $i, $r := .Rows}}<tr>
-          <td class="k muted cell" style="width:32%;padding:11px 12px 11px 0;{{if $i}}border-top:1px solid #eeede8;{{end}}font-size:13px;color:#6b6963;vertical-align:top">{{$r.K}}</td>
-          <td class="ink cell" style="padding:11px 0;{{if $i}}border-top:1px solid #eeede8;{{end}}font-size:14px;font-weight:600;color:#0e1116;vertical-align:top;word-break:break-word">{{if $r.Chips}}{{range $r.Chips}}<span class="chip" style="display:inline-block;margin:0 6px 4px 0;padding:3px 9px;border:1px solid #e3e2dd;border-radius:999px;background:#f6f6f3;font-size:12.5px;font-weight:600;white-space:nowrap">{{.Name}} <span style="color:{{.Color}}">{{.Status}}</span></span>{{end}}{{else}}{{$r.V}}{{end}}</td>
-        </tr>{{end}}
-        </table>
-      </td></tr>{{end}}
-      {{if .Error}}<tr><td class="px" style="padding:10px 28px 6px">
-        <div class="err" style="border:1px solid #f4c7c3;background:#fff6f5;border-radius:10px;padding:14px 16px">
-          <div class="errh" style="font-size:12px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#a32424">Error</div>
-          <pre class="errt" style="margin:8px 0 0;white-space:pre-wrap;word-break:break-word;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12.5px;line-height:1.55;color:#5c1a1a">{{.Error}}</pre>
-        </div>
-      </td></tr>{{end}}
+      {{template "content" .}}
       {{if .URL}}<tr><td class="px" style="padding:18px 28px 26px">
         <table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr><td style="border-radius:8px;background:#2368c4">
           <a href="{{.URL}}" style="display:inline-block;padding:11px 20px;border-radius:8px;font-size:14px;font-weight:600;color:#ffffff;text-decoration:none">Open in DumpCat →</a>
@@ -182,6 +192,27 @@ var emailTpl = template.Must(template.New("email").Parse(`<!doctype html>
 </body></html>
 `))
 
+// emailContent is the shell with src as its content.
+func emailContent(src string) *template.Template {
+	return template.Must(template.Must(emailShell.Clone()).Parse(`{{define "content"}}` + src + `{{end}}`))
+}
+
+// emailTpl is the email of one event: its fields and error.
+var emailTpl = emailContent(`{{if .Rows}}<tr><td class="px" style="padding:8px 28px 4px">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+        {{range $i, $r := .Rows}}<tr>
+          <td class="k muted cell" style="width:32%;padding:11px 12px 11px 0;{{if $i}}border-top:1px solid #eeede8;{{end}}font-size:13px;color:#6b6963;vertical-align:top">{{$r.K}}</td>
+          <td class="ink cell" style="padding:11px 0;{{if $i}}border-top:1px solid #eeede8;{{end}}font-size:14px;font-weight:600;color:#0e1116;vertical-align:top;word-break:break-word">{{if $r.Chips}}{{range $r.Chips}}<span class="chip" style="display:inline-block;margin:0 6px 4px 0;padding:3px 9px;border:1px solid #e3e2dd;border-radius:999px;background:#f6f6f3;font-size:12.5px;font-weight:600;white-space:nowrap">{{.Name}} <span style="color:{{.Color}}">{{.Status}}</span></span>{{end}}{{else}}{{$r.V}}{{end}}</td>
+        </tr>{{end}}
+        </table>
+      </td></tr>{{end}}
+      {{if .Error}}<tr><td class="px" style="padding:10px 28px 6px">
+        <div class="err" style="border:1px solid #f4c7c3;background:#fff6f5;border-radius:10px;padding:14px 16px">
+          <div class="errh" style="font-size:12px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#a32424">Error</div>
+          <pre class="errt" style="margin:8px 0 0;white-space:pre-wrap;word-break:break-word;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12.5px;line-height:1.55;color:#5c1a1a">{{.Error}}</pre>
+        </div>
+      </td></tr>{{end}}`)
+
 type emailRow struct {
 	K, V  string
 	Chips []chip
@@ -189,10 +220,6 @@ type emailRow struct {
 
 func (e *Event) emailHTML(host string) (string, error) {
 	l := e.look()
-	mark := map[string]string{"success": "✓", "partial": "!"}[e.Status]
-	if mark == "" {
-		mark = "✕"
-	}
 	var rows []emailRow
 	var pre []string
 	for _, k := range e.Order {
@@ -203,7 +230,7 @@ func (e *Event) emailHTML(host string) (string, error) {
 		}
 	}
 	data := map[string]any{
-		"Title": e.Title, "L": l, "Mark": mark, "Rows": rows, "Error": trunc(strings.TrimSpace(e.Error), 4000),
+		"Title": e.Title, "L": l, "Label": l.Kind + " · " + l.Status, "Mark": e.mark(), "Rows": rows, "Error": trunc(strings.TrimSpace(e.Error), 4000),
 		"Host": host, "When": e.when(), "Preheader": strings.Join(pre, " · "), "Manage": template.URL(e.manageURL()),
 	}
 	if strings.HasPrefix(e.URL, "http") {
@@ -216,13 +243,19 @@ func (e *Event) emailHTML(host string) (string, error) {
 	return b.String(), nil
 }
 
-// emailMessage is the whole message: a text and an HTML version, the HTML
-// with the logo attached inline.
+// emailMessage is the whole message of an event.
 func (e *Event) emailMessage(from string, to []string, host string) ([]byte, error) {
 	htmlBody, err := e.emailHTML(host)
 	if err != nil {
 		return nil, err
 	}
+	l := e.look()
+	return mimeMessage(from, to, strings.TrimSpace(l.Icon+" "+e.Title), e.Time, e.text(host), htmlBody)
+}
+
+// mimeMessage builds an email with a text and an HTML version, the HTML with
+// the logo attached inline.
+func mimeMessage(from string, to []string, subject string, date time.Time, textBody, htmlBody string) ([]byte, error) {
 	var body bytes.Buffer
 	alt := multipart.NewWriter(&body)
 	part := func(w *multipart.Writer, h textproto.MIMEHeader, content []byte, b64 bool) error {
@@ -246,7 +279,7 @@ func (e *Event) emailMessage(from string, to []string, host string) ([]byte, err
 		return qp.Close()
 	}
 	if err := part(alt, textproto.MIMEHeader{"Content-Type": {"text/plain; charset=UTF-8"}, "Content-Transfer-Encoding": {"quoted-printable"}},
-		[]byte(e.text(host)), false); err != nil {
+		[]byte(textBody), false); err != nil {
 		return nil, err
 	}
 	var related bytes.Buffer
@@ -273,13 +306,12 @@ func (e *Event) emailMessage(from string, to []string, host string) ([]byte, err
 		return nil, err
 	}
 
-	l := e.look()
 	var msg bytes.Buffer
 	hdr := func(k, v string) { fmt.Fprintf(&msg, "%s: %s\r\n", k, v) }
 	hdr("From", from)
 	hdr("To", strings.Join(to, ", "))
-	hdr("Subject", mime.QEncoding.Encode("utf-8", strings.TrimSpace(l.Icon+" "+e.Title)))
-	hdr("Date", e.Time.Format(time.RFC1123Z))
+	hdr("Subject", mime.QEncoding.Encode("utf-8", subject))
+	hdr("Date", date.Format(time.RFC1123Z))
 	hdr("Message-ID", "<"+auth.RandomToken(12)+"@dumpcat>")
 	hdr("Auto-Submitted", "auto-generated")
 	hdr("MIME-Version", "1.0")

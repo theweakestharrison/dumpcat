@@ -79,6 +79,14 @@
      "type": "bool",
      "required": false,
      "secret": false
+    },
+    {
+     "key": "digest",
+     "label": "Send the weekly digest",
+     "type": "bool",
+     "required": false,
+     "help": "A summary of the last 7 days: backups per job, sizes and growth, integrity checks, overdue jobs and storage use (day and hour in Settings).",
+     "secret": false
     }
    ]
   },

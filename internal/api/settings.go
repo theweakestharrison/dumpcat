@@ -181,12 +181,25 @@ func (s *Server) channelTestUnsaved(w http.ResponseWriter, r *http.Request) erro
 
 // ---- settings ----
 
+// settingsView adds what is not stored in the settings themselves.
+type settingsView struct {
+	store.Settings
+	MetricsTokenPrefix string `json:"metrics_token_prefix"` // "" = no token yet
+}
+
+func (s *Server) settingsView(st store.Settings) settingsView {
+	prefix, _ := s.Store.GetKV(metricsTokenPrefixKey)
+	return settingsView{Settings: st, MetricsTokenPrefix: prefix}
+}
+
 func (s *Server) settingsGet(w http.ResponseWriter, r *http.Request) error {
-	return ok(w, s.Store.GetSettings())
+	return ok(w, s.settingsView(s.Store.GetSettings()))
 }
 
 func (s *Server) settingsPut(w http.ResponseWriter, r *http.Request) error {
-	var in store.Settings
+	// fields a client does not send keep their value
+	in := s.Store.GetSettings()
+	in.ToolPaths = nil
 	if err := readJSON(r, &in); err != nil {
 		return err
 	}
@@ -200,6 +213,20 @@ func (s *Server) settingsPut(w http.ResponseWriter, r *http.Request) error {
 	}
 	if in.SessionHours <= 0 || in.SessionHours > 720 {
 		return badRequest("session timeout must be 1-720 hours")
+	}
+	switch in.MetricsAccess {
+	case store.MetricsOff, store.MetricsToken, store.MetricsLocalhost:
+	default:
+		return badRequest("metrics access must be off, token or localhost")
+	}
+	if in.StaleGraceMinutes < 0 || in.StaleGraceMinutes > 10080 {
+		return badRequest("the grace period must be 0-10080 minutes")
+	}
+	if in.BinlogLagMinutes < 0 || in.BinlogLagMinutes > 10080 {
+		return badRequest("the binlog lag threshold must be 0-10080 minutes")
+	}
+	if in.DigestWeekday < 0 || in.DigestWeekday > 6 || in.DigestHour < 0 || in.DigestHour > 23 {
+		return badRequest("invalid day or hour for the weekly digest")
 	}
 	in.BaseURL = strings.TrimRight(strings.TrimSpace(in.BaseURL), "/")
 	in.UpdateURL = strings.TrimSpace(in.UpdateURL)
@@ -237,7 +264,7 @@ func (s *Server) settingsPut(w http.ResponseWriter, r *http.Request) error {
 		s.Sched.Reload()
 	}
 	s.audit(r, "settings_update", "settings", "")
-	return ok(w, in)
+	return ok(w, s.settingsView(in))
 }
 
 // ---- system ----

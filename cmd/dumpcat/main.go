@@ -27,6 +27,7 @@ import (
 	"dumpcat/internal/config"
 	"dumpcat/internal/engine"
 	"dumpcat/internal/execx"
+	"dumpcat/internal/monitor"
 	"dumpcat/internal/notify"
 	"dumpcat/internal/pipeline"
 	"dumpcat/internal/runner"
@@ -34,6 +35,7 @@ import (
 	"dumpcat/internal/secret"
 	"dumpcat/internal/storage"
 	"dumpcat/internal/store"
+	"dumpcat/internal/sysinfo"
 	"dumpcat/internal/update"
 	"dumpcat/internal/wg"
 	"dumpcat/web"
@@ -366,7 +368,10 @@ func serve(cfg *config.Config, stop <-chan struct{}, boot *update.Boot, exe stri
 
 	srv := &api.Server{Cfg: cfg, Store: st, Runner: run, Sched: sched, Storage: sm, OAuth: storage.NewOAuthManager(),
 		Tools: tools, Notifier: notifier, Limiter: auth.NewLimiter(), IPLimit: ipLimiter(), Version: version, WebFS: web.FS(),
-		Agents: agents, WG: wgm}
+		Agents: agents, WG: wgm, Started: time.Now()}
+	// freshness and binlog lag alerts, the weekly digest and /metrics
+	srv.Monitor = &monitor.Checker{Store: st, Runner: run, Send: notifier.Send, Digest: notifier.SendDigestAll,
+		BaseURL: run.BaseURL, Disk: sysinfo.DiskUsage}
 	if d := os.Getenv("DUMPCAT_WEB_DIR"); d != "" {
 		srv.WebFS = os.DirFS(d) // development: edit UI without rebuilding
 	}
@@ -390,6 +395,7 @@ func serve(cfg *config.Config, stop <-chan struct{}, boot *update.Boot, exe stri
 	bgCtx, bgCancel := context.WithCancel(context.Background())
 	defer bgCancel()
 	go upd.AutoCheck(bgCtx, func() bool { return st.GetSettings().UpdateAutoCheck })
+	go srv.Monitor.Run(bgCtx)
 
 	// while no account exists, creating the first admin requires a one-time token
 	setupTok, err := srv.PrepareSetup(cfg.Path(api.SetupTokenFile))

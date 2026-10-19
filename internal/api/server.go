@@ -21,6 +21,7 @@ import (
 	"dumpcat/internal/auth"
 	"dumpcat/internal/config"
 	"dumpcat/internal/engine"
+	"dumpcat/internal/monitor"
 	"dumpcat/internal/notify"
 	"dumpcat/internal/runner"
 	"dumpcat/internal/scheduler"
@@ -44,10 +45,12 @@ type Server struct {
 	Version  string
 	WebFS    fs.FS
 	Updater  *update.Manager
-	Agents   *agent.Manager // database hosts that connect out (nil = disabled)
-	WG       *wg.Manager    // built-in WireGuard (nil = not available)
-	wgMu     sync.Mutex     // serializes WireGuard configuration changes
-	build    string         // hash of the web UI files (static.go)
+	Agents   *agent.Manager   // database hosts that connect out (nil = disabled)
+	WG       *wg.Manager      // built-in WireGuard (nil = not available)
+	Monitor  *monitor.Checker // freshness alerts, weekly digest, metrics (nil = not running)
+	Started  time.Time
+	wgMu     sync.Mutex // serializes WireGuard configuration changes
+	build    string     // hash of the web UI files (static.go)
 	// ControlToken authenticates "dumpcat update" on the same machine (read from DATA_DIR/control.token).
 	ControlToken string
 
@@ -478,9 +481,14 @@ func (s *Server) routes(mux *http.ServeMux) {
 	s.route(mux, "DELETE /api/notifications/{id}", adm, s.channelDelete)
 	s.route(mux, "POST /api/notifications/{id}/test", adm, s.channelTest)
 	s.route(mux, "POST /api/notifications/test", adm, s.channelTestUnsaved)
+	s.route(mux, "POST /api/notifications/digest", adm, s.channelDigest)
+	s.route(mux, "GET /api/digest/preview", adm, s.digestPreview)
 	// settings & system
 	s.route(mux, "GET /api/settings", adm, s.settingsGet)
 	s.route(mux, "PUT /api/settings", adm, s.settingsPut)
+	s.route(mux, "POST /api/settings/metrics-token", adm, s.metricsTokenCreate)
+	// Prometheus metrics: off until enabled in Settings (bearer token or this machine only)
+	mux.HandleFunc("GET /metrics", s.metricsEndpoint)
 	s.route(mux, "GET /api/system", vw, s.system)
 	s.route(mux, "GET /api/update", adm, s.updateStatus)
 	s.route(mux, "POST /api/update/check", adm, s.updateCheck)

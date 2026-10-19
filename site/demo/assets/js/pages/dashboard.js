@@ -119,7 +119,7 @@ export async function render(ctx) {
       <div class="card stat"><div class="label">${icon('shield')}Last success</div><div class="value" style="font-size:18px;margin-top:8px">${lastOk ? fmtAgo(lastOk) : '—'}</div><div class="hint">${lastOk ? fmtDate(lastOk) : 'none yet'}</div></div>`);
     patch(el.querySelector('#d-jobs'), d.jobs.length ? html`<table class="table"><thead><tr><th>Job</th><th class="hide-sm">Server</th><th class="hide-sm">Method</th><th>Last run</th><th class="hide-sm">Last success</th><th>Next run</th></tr></thead><tbody>
       ${d.jobs.map((j) => html`<tr class="clickable">
-        <td class="nowrap"><a class="row-link" href="#/runs?job_id=${j.id}"><b>${j.name}</b></a>${!j.enabled ? html` <span class="badge">disabled</span>` : ''}</td>
+        <td class="nowrap"><a class="row-link" href="#/runs?job_id=${j.id}"><b>${j.name}</b></a>${!j.enabled ? html` <span class="badge">disabled</span>` : ''}${j.stale ? html` <span class="badge warn" title="No successful backup within the expected window — one was due by ${fmtDate(j.due_at)}">${icon('alert')}overdue</span>` : ''}</td>
         <td class="hide-sm">${j.server_name}</td>
         <td class="hide-sm">${methodBadge(j.method)}</td>
         <td>${j.running ? statusBadge('running') : j.last_status ? html`${statusBadge(j.last_status)} <span class="sub">${fmtAgo(j.last_at)}</span>` : html`<span class="muted">never run</span>`}</td>

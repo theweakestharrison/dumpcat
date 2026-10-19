@@ -27,8 +27,8 @@ import (
 )
 
 type Event struct {
-	Kind   string            `json:"kind"`   // backup, restore, verify, test
-	Status string            `json:"status"` // success, failed, partial
+	Kind   string            `json:"kind"`   // backup, restore, verify, binlog, stale, binlog_lag, test
+	Status string            `json:"status"` // success, failed, partial, recovered
 	Title  string            `json:"title"`
 	Fields map[string]string `json:"fields"`
 	Order  []string          `json:"-"`
@@ -36,6 +36,10 @@ type Event struct {
 	URL    string            `json:"url,omitempty"`
 	Time   time.Time         `json:"time"`
 }
+
+// StatusRecovered ends an alert (stale, binlog_lag): it goes to the channels
+// that got the alert, i.e. those that send failures.
+const StatusRecovered = "recovered"
 
 func (e *Event) Add(k, v string) {
 	if e.Fields == nil {
@@ -60,6 +64,7 @@ var Types = []TypeDef{
 		{Key: "from", Label: "From", Type: "text", Required: true, Placeholder: "backup@example.com"},
 		{Key: "to", Label: "To (comma-separated)", Type: "text", Required: true},
 		{Key: "insecure", Label: "Skip TLS certificate verification", Type: "bool"},
+		{Key: "digest", Label: "Send the weekly digest", Type: "bool", Help: "A summary of the last 7 days: backups per job, sizes and growth, integrity checks, overdue jobs and storage use (day and hour in Settings)."},
 	}},
 	{Type: "telegram", Label: "Telegram", Description: "Send through a Telegram bot (create one with @BotFather).", Fields: []Field{
 		{Key: "bot_token", Label: "Bot token", Type: "password", Secret: true, Required: true},
@@ -132,7 +137,7 @@ func (n *Notifier) Send(ev Event) {
 		if ev.Status == "success" && !ch.OnSuccess {
 			continue
 		}
-		if ev.Status != "success" && !ch.OnFailure {
+		if ev.Status != "success" && !ch.OnFailure { // failures, and the end of an alert
 			continue
 		}
 		go func(ch store.NotifyChannel) {
@@ -158,7 +163,7 @@ func (n *Notifier) deliver(ctx context.Context, ch *store.NotifyChannel, ev *Eve
 	c := ch.Config
 	switch ch.Type {
 	case "email":
-		return sendEmail(ctx, c, ev, n.Host)
+		return sendEmail(ctx, c, func(from string, to []string) ([]byte, error) { return ev.emailMessage(from, to, n.Host) })
 	case "telegram":
 		body := map[string]any{"chat_id": c["chat_id"], "text": ev.telegram(), "parse_mode": "HTML", "disable_web_page_preview": true}
 		if t := strings.TrimSpace(c["thread_id"]); t != "" {
@@ -219,7 +224,41 @@ func (n *Notifier) postJSON(ctx context.Context, url string, v any, headers map[
 	return nil
 }
 
-func sendEmail(ctx context.Context, c map[string]string, ev *Event, machine string) error {
+// SendDigest emails the weekly digest through an email channel.
+func (n *Notifier) SendDigest(ctx context.Context, ch *store.NotifyChannel, d *Digest) error {
+	if ch.Type != "email" {
+		return errors.New("the weekly digest is sent by email only")
+	}
+	return sendEmail(ctx, ch.Config, func(from string, to []string) ([]byte, error) { return d.emailMessage(from, to, n.Host) })
+}
+
+// SendDigestAll emails the weekly digest to every channel that opted in.
+func (n *Notifier) SendDigestAll(ctx context.Context, d *Digest) {
+	for _, ch := range n.DigestChannels() {
+		cctx, cancel := context.WithTimeout(ctx, 60*time.Second)
+		if err := n.SendDigest(cctx, &ch, d); err != nil {
+			log.Printf("weekly digest to %s: %v", ch.Name, err)
+		}
+		cancel()
+	}
+}
+
+// DigestChannels returns the enabled email channels that send the weekly digest.
+func (n *Notifier) DigestChannels() []store.NotifyChannel {
+	chans, err := n.Store.ListChannels()
+	if err != nil {
+		return nil
+	}
+	var out []store.NotifyChannel
+	for _, ch := range chans {
+		if ch.Enabled && ch.Type == "email" && ch.Config["digest"] == "true" {
+			out = append(out, ch)
+		}
+	}
+	return out
+}
+
+func sendEmail(ctx context.Context, c map[string]string, message func(from string, to []string) ([]byte, error)) error {
 	host := strings.TrimSpace(c["host"])
 	port := strings.TrimSpace(c["port"])
 	if port == "" {
@@ -283,7 +322,7 @@ func sendEmail(ctx context.Context, c map[string]string, ev *Event, machine stri
 	if err != nil {
 		return err
 	}
-	msg, merr := ev.emailMessage(from, to, machine)
+	msg, merr := message(from, to)
 	if merr != nil {
 		return merr
 	}

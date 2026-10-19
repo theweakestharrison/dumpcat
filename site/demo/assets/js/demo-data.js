@@ -72,6 +72,8 @@ export function seed(now) {
       notes: 'Data warehouse, reached through WireGuard', restore_username: '', agent_id: null, wg_peer_id: 1, flavorName: 'percona', comment: 'Percona Server (GPL), Release 28', dbs: [['warehouse', 38 * GiB, 214], ['events', 12.5 * GiB, 9]] },
     { id: 4, name: 'staging-db', host: '10.0.9.5', port: 3306, socket: '', username: 'dumpcat', tls_mode: '', ca_cert: '', flavor: 'auto', version: '8.4.3', datadir: '/var/lib/mysql/', service_name: 'mysql', os_user: 'mysql',
       notes: 'Restore target for tests', restore_username: 'root_restore', agent_id: null, wg_peer_id: null, flavorName: 'mysql', comment: 'MySQL Community Server - GPL', dbs: [['shop_staging', 5.9 * GiB, 148]] },
+    { id: 5, name: 'erp-db', host: '127.0.0.1', port: 3306, socket: '', username: 'dumpcat', tls_mode: '', ca_cert: '', flavor: 'auto', version: '5.7.44', datadir: '/var/lib/mysql/', service_name: 'mysqld', os_user: 'mysql',
+      notes: 'Old ERP, reached through the legacy-erp agent', restore_username: '', agent_id: 2, wg_peer_id: null, flavorName: 'mysql', comment: 'MySQL Community Server (GPL)', dbs: [['erp', 1.9 * GiB, 120]] },
   ].map((s) => ({ ...s, created_at: created, updated_at: created, has_password: true, has_restore_password: !!s.restore_username }));
 
   const storages = [
@@ -101,6 +103,7 @@ export function seed(now) {
       exclude_tables: ['events.raw_clicks'], targets: [tgt(2), tgt(3)], notify_success: true }),
     jobBase({ id: 4, name: 'prod-physical', server_id: 1, method: 'physical', db_mode: 'all', databases: [], schedule: '30 0 * * 6', incr_schedule: '30 0 * * 0-5', threads: 4,
       options: { verify_mode: 'all' }, targets: [tgt(1), tgt(4)] }),
+    jobBase({ id: 5, name: 'erp-nightly', server_id: 5, method: 'mysqldump', databases: ['erp'], schedule: '30 1 * * *', targets: [tgt(1), tgt(2)] }),
   ].map((j) => ({ ...j, server_name: servers[j.server_id - 1].name }));
 
   // ---------- backup history ----------
@@ -161,6 +164,13 @@ export function seed(now) {
       if (d === 2 && h === 12) addRun(jobs[1], s, { status: 'failed', dur: 2400, error: 'could not connect to MySQL: server crm-mariadb: agent crm-host is offline — start it on the database host (see the Agents page)' });
       else addRun(jobs[1], s);
     }
+  }
+  // ERP nightly through the legacy-erp agent, which went offline two days ago: overdue now
+  for (let d = 13; d >= 0; d--) {
+    const t = day(d, 1, 30);
+    if (t >= now) continue;
+    if (now - t < 2 * D - 5 * H) addRun(jobs[4], t, { status: 'failed', dur: 1500, error: 'could not connect to MySQL: server erp-db: agent legacy-erp is offline — start it on the database host (see the Agents page)' });
+    else addRun(jobs[4], t);
   }
   // warehouse on Sundays (through WireGuard), physical full on Saturday + daily incrementals
   for (let d = 13; d >= 0; d--) {
@@ -282,7 +292,7 @@ export function seed(now) {
   });
 
   const channels = [
-    { id: 1, name: 'Ops email', type: 'email', enabled: true, on_success: false, on_failure: true, config: { host: 'smtp.example.com', port: '587', security: 'starttls', username: 'alerts@example.com', password: '__SECRET_UNCHANGED__', from: 'DumpCat <alerts@example.com>', to: 'ops@example.com, dba@example.com', insecure: 'false' } },
+    { id: 1, name: 'Ops email', type: 'email', enabled: true, on_success: false, on_failure: true, config: { host: 'smtp.example.com', port: '587', security: 'starttls', username: 'alerts@example.com', password: '__SECRET_UNCHANGED__', from: 'DumpCat <alerts@example.com>', to: 'ops@example.com, dba@example.com', insecure: 'false', digest: 'true' } },
     { id: 2, name: '#db-alerts', type: 'slack', enabled: true, on_success: true, on_failure: true, config: { webhook_url: '__SECRET_UNCHANGED__' } },
     { id: 3, name: 'On-call', type: 'telegram', enabled: false, on_success: false, on_failure: true, config: { bot_token: '__SECRET_UNCHANGED__', chat_id: '-1001234567890', thread_id: '' } },
   ].map((c) => ({ ...c, created_at: created, updated_at: created }));
@@ -300,5 +310,6 @@ export function seed(now) {
     { id: 1, user_id: 1, name: 'monitoring', prefix: 'mv_Mon1tor9', created_at: iso(now - 60 * D), last_used_at: iso(now - 25 * MIN), expires_at: null },
     { id: 2, user_id: 1, name: 'ci-restore-test', prefix: 'mv_C1rEst0r', created_at: iso(now - 14 * D), last_used_at: iso(now - 2 * D), expires_at: iso(now + 76 * D) },
   ], settings: { timezone: 'Asia/Ho_Chi_Minh', max_concurrent: 2, staging_dir: '/var/lib/dumpcat/staging', history_days: 90, base_url: 'https://backup.example.com', tool_paths: {}, session_hours: 12,
-    rclone_flags: '--transfers 8', default_threads: 4, require_2fa_admins: true, update_url: '', update_auto_check: true } };
+    rclone_flags: '--transfers 8', default_threads: 4, require_2fa_admins: true, update_url: '', update_auto_check: true,
+    freshness_alerts: true, stale_grace_minutes: 60, binlog_lag_minutes: 30, metrics_access: 'token', digest_weekday: 1, digest_hour: 8, metrics_token_prefix: 'dcm_Pr0m3t' } };
 }

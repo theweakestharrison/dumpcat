@@ -41,6 +41,7 @@ Hướng dẫn đầy đủ để cài đặt, cấu hình và vận hành DumpC
 | Kết nối | Trực tiếp, qua **agent** (server database chủ động kết nối ra bằng HTTPS; với `--allow-physical` agent còn chạy backup vật lý ngay trên máy đó) hoặc qua **WireGuard tích hợp** — không cần mở port vào server database ([3.7](#37-server-database-không-cho-kết-nối-vào-agent), [3.8](#38-wireguard-tích-hợp)) |
 | Vận hành | Tiến độ realtime (bytes, tốc độ, %), log trực tiếp, hủy tác vụ, giới hạn số job chạy đồng thời, ưu tiên thấp (nice/ionice), pre/post command, timeout |
 | Thông báo | Email (SMTP, HTML kèm bản text), Telegram, Slack, Discord, Webhook (ký HMAC) — khi lỗi và/hoặc thành công |
+| Giám sát | **Cảnh báo backup quá hạn** cho từng job (theo lịch chạy, hoặc tuổi tối đa) và **cảnh báo binlog chậm**, mỗi sự cố báo một lần và báo lại khi đã hết; **báo cáo tuần** qua email; Prometheus **`/metrics`** (bearer token hoặc chỉ máy này) |
 | Bảo mật | Mật khẩu bcrypt, phiên HttpOnly + CSRF, khóa đăng nhập sai nhiều lần, 2FA TOTP, API token, vai trò, audit log, mọi mật khẩu/khóa cloud mã hóa AES-256-GCM khi lưu, mật khẩu DB không bao giờ nằm trên dòng lệnh |
 | Phục hồi thảm họa | Mỗi bản backup có `manifest.json` → cài DumpCat mới, thêm storage, bấm **Nhập danh mục** là thấy lại toàn bộ backup. File backup là định dạng chuẩn (zstd/gzip/age/xbstream) — restore được cả khi không có DumpCat |
 
@@ -340,8 +341,6 @@ server database: agent khởi động với `--allow-physical` làm việc đó 
   bằng cách chạy bộ cài của phiên bản mới.
 - **Gỡ cài đặt**: `sudo ./install.sh --agent --uninstall [--purge]`, Windows: `.\install.ps1 -Agent -Uninstall [-Purge]`.
 
-### 3.8 WireGuard tích hợp
-
 #### Backup vật lý qua agent
 
 Backup vật lý đọc trực tiếp các file của database, nên XtraBackup / MariaBackup phải chạy trên chính server database. Bật
@@ -378,6 +377,8 @@ XtraBackup khớp với MySQL — rồi chọn phương thức **Physical** cho 
 - **Restore** thực hiện ở máy chạy DumpCat (xem [7. Restore](#7-restore)): DumpCat tải và prepare bản backup; chép thư mục
   đã prepare sang server database rồi chạy `--copy-back` ở đó (log restore ghi sẵn các lệnh), hoặc restore vào một instance
   trên máy chạy DumpCat. *Apply right away* không dùng được qua agent.
+
+### 3.8 WireGuard tích hợp
 
 Một cách khác thay cho agent: DumpCat tự chạy một endpoint **WireGuard**, và các server database tham gia bằng công cụ
 WireGuard chuẩn. Tính năng này **tắt mặc định** và không cần cài thêm gì: WireGuard chạy bên trong DumpCat (userspace),
@@ -493,6 +494,32 @@ Token OAuth được rclone tự làm mới và DumpCat lưu lại token mới (
 - **Chạy đồng thời**: mặc định tối đa 2 job (Cài đặt). Một job không chạy chồng lên chính nó (lần lịch trùng sẽ bị bỏ qua).
 - **Giảm tải server**: *Ưu tiên thấp* (nice + ionice), giới hạn băng thông upload, chọn số luồng, backup từ replica.
 - **pre/post command** (chỉ admin): ví dụ tạm dừng cron ứng dụng; post-command nhận biến `DUMPCAT_STATUS`, `DUMPCAT_RUN_ID`, `DUMPCAT_JOB`, `DUMPCAT_DIR`, `DUMPCAT_METHOD`, `DUMPCAT_TYPE`.
+
+### Giám sát: backup quá hạn, binlog chậm, báo cáo tuần
+
+Bản backup lỗi tự gửi thông báo, nhưng một bản backup không hề chạy — DumpCat bị dừng, lịch bị tạm dừng nhầm, một lần
+chạy bị treo — thì không gửi gì cả. Vì vậy mỗi phút DumpCat kiểm tra xem mọi job đều có bản backup gần đây.
+
+- **Job quá hạn.** Một job quá hạn khi bản backup thành công mới nhất cũ hơn 1,5 × khoảng cách giữa hai lần chạy theo
+  lịch cộng thời gian ân hạn (**Settings → Monitoring**, mặc định 60 phút): job hằng ngày `0 2 * * *` quá hạn sau 37 giờ
+  kể từ bản tốt cuối cùng, job mỗi giờ sau 2,5 giờ. Chính xác hơn: bản tiếp theo phải có trước mốc nửa chu kỳ cộng ân
+  hạn tính từ lần chạy đầu tiên theo lịch sau bản tốt cuối, nên các khoảng trống trong lịch được tính đúng — với
+  `0 2 * * 1-5`, bản của thứ Hai phải có trước 14:00 thứ Hai + ân hạn, không phải thứ Ba. Job vật lý có incremental dùng
+  lịch dày hơn. **Max age of the newest backup** trong job (*9. Notifications & status*) thay quy tắc này bằng một số giờ
+  cố định, và theo dõi được cả job không có lịch (backup chạy qua API). Trang sửa job hiện khoảng thời gian đang áp dụng.
+- **Binlog chậm.** Với job lưu trữ binlog, cảnh báo được gửi khi bản lưu trữ chậm hơn server quá ngưỡng (mặc định 30
+  phút, 0 = không cảnh báo): luồng binlog bị ngắt hoặc không theo kịp, hoặc các binlog đã đóng đang chờ upload.
+- **Mỗi sự cố một lần.** Cảnh báo được gửi một lần tới các kênh nhận thông báo lỗi (với job bật *Notify on failure*),
+  kèm bản backup tốt cuối, hạn của bản tiếp theo và lỗi của lần chạy gần nhất; khi hết sự cố sẽ có tin *Backups are
+  fresh again* hoặc *Binlog archiving caught up*. Sự cố đang mở vẫn được nhớ sau khi khởi động lại. Webhook nhận `kind`
+  là `stale` hoặc `binlog_lag`, `status` là `failed` rồi `recovered`.
+- **Dashboard.** Trang tổng quan dùng cùng quy tắc: nhãn *overdue* trên job và một cảnh báo ghi thời điểm lẽ ra phải có
+  bản backup.
+- **Báo cáo tuần.** Tích **Send the weekly digest** trên một kênh email (**Notifications**) để nhận, vào ngày và giờ đặt ở
+  **Settings → Monitoring** (mặc định thứ Hai 08:00), bản tóm tắt 7 ngày qua: số bản backup của từng job (thành công /
+  lỗi), dung lượng bản mới nhất và mức tăng trong tuần, các lần kiểm tra toàn vẹn, job quá hạn, dung lượng trên từng
+  storage và chỗ trống của storage local. **Preview** trong Settings hiện báo cáo với dữ liệu thật; **Send digest now**
+  trên kênh gửi ngay.
 
 ### Cấu trúc thư mục trên storage
 
@@ -782,7 +809,67 @@ curl -H "Authorization: Bearer $TOKEN" https://backup.example.com/api/drill-runs
 ```
 
 Webhook thông báo gửi JSON `{kind, status, title, fields, error, url, time}` kèm header
-`X-DumpCat-Signature: sha256=<HMAC>` nếu đặt secret.
+`X-DumpCat-Signature: sha256=<HMAC>` nếu đặt secret. `kind` là `backup`, `restore`, `verify`, `binlog`, `stale`,
+`binlog_lag` hoặc `test`; `status` là `success`, `failed`, `partial` hoặc `recovered` (cảnh báo đã hết).
+
+### Prometheus metrics
+
+`GET /metrics` trả metrics theo định dạng text của Prometheus. Mặc định tắt; bật ở **Settings → Monitoring → Serve
+/metrics**:
+
+- **With a bearer token**: **Create token** hiện token một lần và lưu dạng hash như API token (**Replace token** làm token
+  cũ hết hiệu lực). Prometheus gửi token trong header `Authorization`:
+
+```yaml
+scrape_configs:
+  - job_name: dumpcat
+    scheme: https
+    authorization:
+      credentials: dcm_xxxxxxxx
+    static_configs:
+      - targets: ['backup.example.com']
+```
+
+- **Only to this machine**: chỉ trả lời request từ 127.0.0.1 / ::1 không mang header `X-Forwarded-For`, `X-Real-IP` hay
+  `Forwarded` (để reverse proxy trên cùng máy không vô tình mở cho mọi người) — dành cho Prometheus hoặc agent của nó chạy
+  trên máy DumpCat.
+
+| Metric | Label | Giá trị |
+|---|---|---|
+| `dumpcat_build_info` | `version`, `goversion`, `os`, `arch` | luôn là 1 |
+| `dumpcat_start_time_seconds` | | thời điểm DumpCat khởi động |
+| `dumpcat_job_enabled`, `dumpcat_job_running` | `job`, `server`, `method` | 1 hoặc 0 |
+| `dumpcat_job_last_success_timestamp_seconds` | `job`, `server`, `method` | lúc bắt đầu bản backup thành công mới nhất |
+| `dumpcat_job_last_run_timestamp_seconds`, `dumpcat_job_last_run_duration_seconds` | `job`, `server`, `method` | bản backup đã kết thúc mới nhất |
+| `dumpcat_job_last_run_success` | `job`, `server`, `method` | 1 khi bản backup kết thúc gần nhất thành công |
+| `dumpcat_job_last_run_status` | `job`, `server`, `method`, `status` | 1 cho trạng thái của bản backup kết thúc gần nhất |
+| `dumpcat_job_last_backup_size_bytes`, `dumpcat_job_last_backup_raw_bytes` | `job`, `server`, `method` | dung lượng lưu trữ và dung lượng gốc của bản backup thành công mới nhất |
+| `dumpcat_job_last_verify_success`, `dumpcat_job_last_verify_timestamp_seconds` | `job`, `server`, `method` | lần kiểm tra toàn vẹn gần nhất |
+| `dumpcat_job_stale`, `dumpcat_job_backup_due_timestamp_seconds`, `dumpcat_job_max_age_seconds` | `job`, `server`, `method` | quy tắc kiểm tra độ mới ([6](#giám-sát-backup-quá-hạn-binlog-chậm-báo-cáo-tuần)) |
+| `dumpcat_binlog_archive_lag_seconds`, `dumpcat_binlog_streaming`, `dumpcat_binlog_pending_files`, `dumpcat_binlog_archived_until_timestamp_seconds` | `job`, `server` | lưu trữ binlog |
+| `dumpcat_storage_used_bytes`, `dumpcat_storage_binlog_bytes`, `dumpcat_storage_backups` | `storage`, `type` | những gì catalog ghi nhận trên từng storage |
+| `dumpcat_storage_free_bytes`, `dumpcat_storage_size_bytes` | `storage`, `type` | ổ đĩa của storage local |
+| `dumpcat_data_dir_free_bytes`, `dumpcat_data_dir_size_bytes` | | ổ đĩa chứa thư mục dữ liệu |
+| `dumpcat_agent_online`, `dumpcat_agent_last_seen_timestamp_seconds` | `agent` | |
+| `dumpcat_wireguard_up`, `dumpcat_wireguard_peer_online`, `dumpcat_wireguard_peer_last_handshake_timestamp_seconds` | `peer` | |
+| `dumpcat_catalog_backups` / `dumpcat_tasks_running` / `dumpcat_alerts_open` | `status` / `kind` / `kind` | số bản backup trong catalog, tác vụ đang chạy, cảnh báo đang mở |
+
+Thời gian tính bằng giây Unix. Ví dụ luật cảnh báo:
+
+```yaml
+groups:
+  - name: dumpcat
+    rules:
+      - alert: DumpCatBackupOverdue
+        expr: dumpcat_job_stale == 1
+      - alert: DumpCatBackupFailed
+        expr: dumpcat_job_last_run_success == 0
+      - alert: DumpCatBinlogLag
+        expr: dumpcat_binlog_archive_lag_seconds > 1800
+      - alert: DumpCatAgentOffline
+        expr: dumpcat_agent_online == 0
+        for: 10m
+```
 
 ## 13. Cấu hình hệ thống
 
@@ -842,6 +929,8 @@ Dữ liệu nội bộ: `/var/lib/dumpcat/dumpcat.db` (SQLite), `master.key`, `l
 | Agent: *agent … is offline* | Khởi động agent trên server database (`systemctl status dumpcat-agent`, `journalctl -u dumpcat-agent`). Log agent báo *the server refused the agent*: sai khóa hoặc khóa đã rotate, hoặc URL không phải DumpCat. Đặt sau nginx thì dùng khối `/api/agent/` của cấu hình mẫu |
 | WireGuard: *peer … has not connected yet* / *no answer from …* / *nothing listens on …* | Xem [3.8](#38-wireguard-tích-hợp): khởi động `wg-quick@dumpcat` trên server database và mở port UDP trên máy chạy DumpCat; cho interface WireGuard vào trên server database; cho MySQL nghe trên địa chỉ WireGuard |
 | Agent: *… is not on this agent's allow list* | Khởi động agent với `--allow host:port` cho địa chỉ đó, hoặc nhập địa chỉ mà agent cho phép (xem [3.7](#37-server-database-không-cho-kết-nối-vào-agent)) |
+| Job quá hạn mà không có cảnh báo | Bật **Alert when a job has no recent successful backup** ở **Settings → Monitoring**, *Notify on failure* trong job, và có kênh nhận thông báo lỗi |
+| `/metrics` trả 404 / 401 / 403 | 404: đang tắt (**Settings → Monitoring**). 401: tạo token và gửi dạng `Authorization: Bearer …`. 403: chế độ *Only to this machine* mà request đến từ máy khác hoặc qua reverse proxy |
 | Xem log dịch vụ | `journalctl -u dumpcat -f`; log từng tác vụ ở trang chi tiết hoặc `/var/lib/dumpcat/logs/` |
 
 ## 15. Phát triển
@@ -867,7 +956,8 @@ internal/storage   local + rclone (S3, Drive, OneDrive, FTP, SFTP...), OAuth
 internal/pipeline  nén zstd/gzip + mã hóa age + sha256 dạng stream
 internal/store     SQLite: người dùng, server, storage, job, bản backup, audit
 internal/scheduler cron
-internal/notify    Email, Telegram, Slack, Discord, Webhook
+internal/notify    Email, Telegram, Slack, Discord, Webhook, báo cáo tuần
+internal/monitor   cảnh báo backup quá hạn và binlog chậm, lịch báo cáo tuần, Prometheus metrics
 internal/update    tự cập nhật: manifest bản phát hành, chữ ký, cài đặt & rollback
 internal/agent     agent: tunnel ngược từ server database (WebSocket), danh sách cho phép
 internal/wg        WireGuard tích hợp (wireguard-go + netstack gVisor, không tạo interface)

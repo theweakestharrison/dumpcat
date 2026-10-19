@@ -393,6 +393,7 @@ body.modal-open { overflow: hidden; }
 .copy-box { display: flex; gap: 8px; align-items: stretch; }
 .copy-box code { flex: 1; background: var(--surface-2); border: 1px solid var(--border); padding: 8px 10px; border-radius: var(--radius-sm); overflow-x: auto; white-space: nowrap; }
 pre.code { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 10px 12px; overflow-x: auto; margin: 6px 0 0; }
+.digest-frame { display: block; width: 100%; height: min(70vh, 900px); border: 1px solid var(--border); border-radius: var(--radius-sm); background: #f6f6f3; }
 .pagination { display: flex; align-items: center; gap: 10px; justify-content: flex-end; padding: 12px 14px; border-top: 1px solid var(--border); font-size: 13px; color: var(--muted); }
 .filters { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; padding: 12px 14px; border-bottom: 1px solid var(--border); }
 .filters select, .filters input { width: auto; min-width: 160px; height: 32px; }

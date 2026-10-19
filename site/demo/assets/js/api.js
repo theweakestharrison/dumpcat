@@ -4,6 +4,7 @@
 // progress and logs. Nothing is sent anywhere; reloading the page resets it.
 import { seed, iso, dirStamp, VERSION } from './demo-data.js';
 import TYPES from './demo-types.js';
+import DIGEST from './demo-digest.js';
 
 const MIN = 60e3;
 const H = 60 * MIN;
@@ -112,6 +113,25 @@ function jobNext(j) {
   try { if (j.incr_schedule) cand.push([cronNext(j.incr_schedule, 1)[0], 'incremental']); } catch { /* invalid */ }
   cand.sort((a, b) => a[0].localeCompare(b[0]));
   return cand.length && cand[0][0] ? { at: cand[0][0], type: cand[0][1] } : null;
+}
+// the freshness rule of internal/monitor: the next successful backup is due half an interval plus the grace period
+// after the first run scheduled after the last good one (or after the job's max age)
+function freshness(j) {
+  if (!j.enabled) return null;
+  const ls = db.runs.filter((r) => r.job_id === j.id && (r.status === 'success' || r.status === 'partial')).at(-1);
+  const ref = new Date(ls ? ls.started_at : j.created_at).getTime();
+  let due = 0;
+  if (j.options.max_age_hours > 0) due = ref + j.options.max_age_hours * H;
+  else {
+    for (const e of [j.schedule, j.method === 'physical' ? j.incr_schedule : ''].filter(Boolean)) {
+      try {
+        const [n1, n2] = cronNext(e, 2, ref + MIN).map((t) => new Date(t).getTime());
+        const d = n1 + (n2 - n1) / 2 + (db.settings.stale_grace_minutes || 0) * MIN;
+        if (!due || d < due) due = d;
+      } catch { /* invalid */ }
+    }
+  }
+  return due ? { due, stale: now() > due, last: ls } : null;
 }
 function lastRun(jobId) {
   const list = db.runs.filter((r) => r.job_id === jobId && r.status !== 'deleted');
@@ -600,6 +620,11 @@ route('GET', '/dashboard', () => {
   const warnings = [];
   const st = db.storages.find((s) => s.last_test_ok === false);
   if (st) warnings.push(`Storage "${st.name}" failed its last test: ${st.last_test_msg}`);
+  const hm = (t) => new Date(t).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }).replace(',', '');
+  for (const j of db.jobs) {
+    const f = freshness(j);
+    if (f && f.stale) warnings.push(`Job "${j.name}": no successful backup ${f.last ? 'since ' + hm(f.last.started_at) : 'yet'} — one was due by ${hm(f.due)}`);
+  }
   for (const d of db.drills) {
     const x = db.drillRuns.filter((y) => y.drill_id === d.id).at(-1);
     if (x && x.status === 'failed') warnings.push(`Restore drill "${d.name}": the last run FAILED — ${x.error.split('\n')[0]}`);
@@ -613,8 +638,9 @@ route('GET', '/dashboard', () => {
       const lr = lastRun(j.id);
       const ls = db.runs.filter((r) => r.job_id === j.id && r.status === 'success').at(-1);
       const nx = jobNext(j);
+      const f = freshness(j);
       return { id: j.id, name: j.name, method: j.method, enabled: j.enabled, server_name: j.server_name, running: isJobRunning(j.id), last_status: lr ? lr.status : '', last_at: lr && lr.started_at,
-        last_size: lr ? lr.size_bytes : 0, last_success_at: ls && ls.started_at, ...(nx ? { next_at: nx.at, next_type: nx.type } : {}) };
+        last_size: lr ? lr.size_bytes : 0, last_success_at: ls && ls.started_at, ...(nx ? { next_at: nx.at, next_type: nx.type } : {}), ...(f ? { due_at: iso(f.due), stale: f.stale } : {}) };
     }),
     tasks: taskList(), warnings, daily,
   };
@@ -674,7 +700,11 @@ route('POST', '/jobs/:id/binlog/rotate', () => ({ ok: true }));
 route('POST', '/jobs/:id/binlog/restart', () => ({ ok: true }));
 route('POST', '/cron/preview', ({ body }) => {
   if (!String(body.expr || '').trim()) return { valid: true, next: [] };
-  try { return { valid: true, next: cronNext(body.expr, 5) }; } catch (e) { return { valid: false, error: e.message }; }
+  try {
+    const next = cronNext(body.expr, 5);
+    const grace = (db.settings.stale_grace_minutes || 0) * 60;
+    return { valid: true, next, max_age_seconds: Math.round((new Date(next[1]) - new Date(next[0])) / 1000 * 1.5) + grace, grace_seconds: grace };
+  } catch (e) { return { valid: false, error: e.message }; }
 });
 
 // runs
@@ -1008,7 +1038,8 @@ route('GET', '/binlog', () => db.jobs.filter((j) => j.options.binlog_archive).ma
     status: { job_id: j.id, job_name: j.name, server_name: j.server_name, state: 'streaming', error: '', error_at: null, next_try: null, since: iso(now() - 4 * 24 * H), restarts: 0,
       current_file: `mysql-bin.${String((last ? last.seq : 900) + 1).padStart(6, '0')}`, received_bytes: Math.round(3.2 * MiB + (now() % 600000) * 20), received_at: iso(now() - 2000),
       server_file: `mysql-bin.${String((last ? last.seq : 900) + 1).padStart(6, '0')}`, server_pos: Math.round(3.2 * MiB + (now() % 600000) * 20), checked_at: iso(now() - 3000),
-      lag_bytes: 0, lag_seconds: 0, pending_files: 0, pending_bytes: 0, upload_error: '', last_archived: last && last.file_name, archived_at: last && last.created_at, archived_until: last && last.last_ts, rotated_at: last && last.last_ts },
+      lag_bytes: 0, lag_seconds: 0, pending_files: 0, pending_bytes: 0, upload_error: '', last_archived: last && last.file_name, archived_at: last && last.created_at, archived_until: last && last.last_ts, rotated_at: last && last.last_ts,
+      started_at: iso(now() - 4 * 24 * H), caught_up_at: iso(now() - 3000), pending_since: null, archive_lag_seconds: 0 },
   };
 }));
 
@@ -1026,6 +1057,8 @@ route('PUT', '/notifications/:id', ({ p, body }) => { const c = find(db.channels
 route('DELETE', '/notifications/:id', ({ p }) => { db.channels = db.channels.filter((x) => x.id !== +p.id); return { ok: true }; });
 route('POST', '/notifications/test', () => ({ ok: false, error: 'The demo sends nothing: install DumpCat to get real notifications.' }));
 route('POST', '/notifications/:id/test', () => ({ ok: false, error: 'The demo sends nothing: install DumpCat to get real notifications.' }));
+route('POST', '/notifications/digest', () => ({ ok: false, error: 'The demo sends nothing: use Settings → Monitoring → Preview to see the weekly digest.' }));
+route('GET', '/digest/preview', () => ({ html: DIGEST }));
 
 // users, settings, system, updates, audit
 route('GET', '/users', () => db.users);
@@ -1041,6 +1074,11 @@ route('DELETE', '/users/:id', ({ p }) => { if (+p.id === 1) fail('you cannot del
 route('POST', '/users/:id/reset-2fa', ({ p }) => { find(db.users, p.id, 'user').totp_enabled = false; return { ok: true }; });
 route('GET', '/settings', () => db.settings);
 route('PUT', '/settings', ({ body }) => { Object.assign(db.settings, body); audit('settings_update', 'settings'); return db.settings; });
+route('POST', '/settings/metrics-token', () => {
+  db.settings.metrics_token_prefix = 'dcm_' + Math.random().toString(36).slice(2, 8);
+  audit('metrics_token', 'settings');
+  return { token: db.settings.metrics_token_prefix + 'DemoTokenNotUsable000000000', prefix: db.settings.metrics_token_prefix };
+});
 const TOOL = (name, purpose, version, found = true, mariadb = false) => ({ name, path: found ? `/usr/bin/${name}` : '', version: found ? version : '', found, mariadb, purpose, hint: found ? '' : `apt install ${name}` });
 route('GET', '/system', () => ({
   base_url: db.settings.base_url, cpus: 8, data_dir: '/var/lib/dumpcat', data_disk: { free: 412 * 1024 ** 3, total: 980 * 1024 ** 3 }, go: 'go1.26.2', hostname: 'backup-01', listen: ':6369', os: 'linux/amd64',

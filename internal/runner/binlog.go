@@ -72,6 +72,29 @@ type ArchiverStatus struct {
 	ArchivedAt    *time.Time `json:"archived_at"`
 	ArchivedUntil *time.Time `json:"archived_until"` // last event of the newest archived file
 	RotatedAt     *time.Time `json:"rotated_at"`
+	StartedAt     time.Time  `json:"started_at"`
+	CaughtUpAt    *time.Time `json:"caught_up_at"`        // the stream was last level with the server
+	PendingSince  *time.Time `json:"pending_since"`       // the oldest closed binlog waiting for upload
+	ArchiveLag    int64      `json:"archive_lag_seconds"` // how long the archive has been behind the server
+}
+
+// archiveLag is how long the archive has been behind the server: since the
+// stream was last level with it (or started), or since the oldest binlog
+// waiting for upload was closed, whichever is longer.
+func (st *ArchiverStatus) archiveLag(now time.Time) time.Duration {
+	var lag time.Duration
+	level := st.State == "streaming" && st.LagBytes == 0 && st.CheckedAt != nil && now.Sub(*st.CheckedAt) < 2*time.Minute
+	if !level {
+		ref := st.StartedAt
+		if st.CaughtUpAt != nil && st.CaughtUpAt.After(ref) {
+			ref = *st.CaughtUpAt
+		}
+		lag = now.Sub(ref)
+	}
+	if st.Pending > 0 && st.PendingSince != nil {
+		lag = max(lag, now.Sub(*st.PendingSince))
+	}
+	return max(lag, 0)
 }
 
 type archiver struct {
@@ -171,7 +194,7 @@ func (r *Runner) startArchiver(j *store.Job) *archiver {
 	a := &archiver{r: r, jobID: j.ID, serverID: j.ServerID, dir: r.binlogStageDir(j.ID), cancel: cancel, done: make(chan struct{}),
 		kick: make(chan struct{}, 1), rotate: make(chan struct{}, 1), restart: make(chan struct{}, 1),
 		orphans: map[string]bool{}, srvSizes: map[string]int64{}, nextTry: map[string]time.Time{}, attempts: map[string]int{}, refetched: map[string]bool{}}
-	a.st = ArchiverStatus{JobID: j.ID, JobName: j.Name, ServerName: j.ServerName, State: "starting"}
+	a.st = ArchiverStatus{JobID: j.ID, JobName: j.Name, ServerName: j.ServerName, State: "starting", StartedAt: time.Now()}
 	if last := r.Store.LastBinlogFile(j.UUID); last != nil {
 		a.st.LastArchived = last.FileName
 		ca, lt := last.CreatedAt, last.LastTS
@@ -253,7 +276,9 @@ func (r *Runner) RestartArchiver(jobID int64) error {
 func (a *archiver) status() ArchiverStatus {
 	a.mu.Lock()
 	defer a.mu.Unlock()
-	return a.st
+	st := a.st
+	st.ArchiveLag = int64(st.archiveLag(time.Now()).Seconds())
+	return st
 }
 
 func (a *archiver) set(fn func(st *ArchiverStatus)) {
@@ -730,6 +755,9 @@ func (a *archiver) monitor(ctx context.Context, db *sql.DB) error {
 	if serr == nil {
 		st.ServerFile, st.ServerPos, st.CheckedAt, st.LagBytes = sfile, spos, &now, lag
 		st.LagSeconds = 0
+		if lag == 0 {
+			st.CaughtUpAt = &now
+		}
 		if lag > 0 && st.ReceivedAt != nil {
 			st.LagSeconds = int64(now.Sub(*st.ReceivedAt).Seconds())
 		}
@@ -775,13 +803,10 @@ func (a *archiver) uploader(ctx context.Context) {
 
 func (a *archiver) uploadPending(ctx context.Context) {
 	closed := a.closedFiles()
-	var pendingBytes int64
-	for _, f := range closed {
-		if st, err := os.Stat(filepath.Join(a.dir, f)); err == nil {
-			pendingBytes += st.Size()
-		}
-	}
-	a.set(func(st *ArchiverStatus) { st.Pending, st.PendingBytes = len(closed), pendingBytes })
+	pendingBytes, since := a.pendingInfo(closed)
+	a.set(func(st *ArchiverStatus) {
+		st.Pending, st.PendingBytes, st.PendingSince = len(closed), pendingBytes, since
+	})
 	if len(closed) == 0 {
 		return
 	}
@@ -813,12 +838,31 @@ func (a *archiver) uploadPending(ctx context.Context) {
 		delete(a.refetched, name)
 	}
 	left := a.closedFiles()
+	leftBytes, since := a.pendingInfo(left)
 	a.set(func(st *ArchiverStatus) {
-		st.Pending = len(left)
+		st.Pending, st.PendingBytes, st.PendingSince = len(left), leftBytes, since
 		if len(left) == 0 {
 			st.UploadError = ""
 		}
 	})
+}
+
+// pendingInfo returns the size of the staged closed binlogs and when the
+// oldest of them was closed (its last write).
+func (a *archiver) pendingInfo(files []string) (int64, *time.Time) {
+	var n int64
+	var oldest *time.Time
+	for _, f := range files {
+		st, err := os.Stat(filepath.Join(a.dir, f))
+		if err != nil {
+			continue
+		}
+		n += st.Size()
+		if t := st.ModTime(); oldest == nil || t.Before(*oldest) {
+			oldest = &t
+		}
+	}
+	return n, oldest
 }
 
 type binlogTarget struct {

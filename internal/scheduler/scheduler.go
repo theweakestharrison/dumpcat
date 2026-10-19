@@ -28,6 +28,18 @@ func Validate(expr string) error {
 	return nil
 }
 
+// Parse parses a cron expression or descriptor; nil when expr is empty or invalid.
+func Parse(expr string) cron.Schedule {
+	if strings.TrimSpace(expr) == "" {
+		return nil
+	}
+	s, err := parser.Parse(expr)
+	if err != nil {
+		return nil
+	}
+	return s
+}
+
 // Next returns the next n activation times of expr.
 func Next(expr string, n int, loc *time.Location) []time.Time {
 	s, err := parser.Parse(expr)

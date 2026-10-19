@@ -14,13 +14,13 @@ export async function render(ctx) {
         <button class="btn btn-primary" id="add">${icon('plus')}Add channel</button></div>
       <div class="card"><div class="table-wrap">${list.length ? html`<table class="table"><thead><tr><th>Name</th><th>Type</th><th>Send on</th><th>Status</th><th></th></tr></thead><tbody>
         ${list.map((c) => html`<tr><td><b>${c.name}</b></td><td>${typeDef(c.type)?.label || c.type}</td>
-          <td><span class="chips">${c.on_failure ? html`<span class="badge outline">${icon('alert')}Failure</span>` : ''}${c.on_success ? html`<span class="badge outline">${icon('check')}Success</span>` : ''}${!c.on_failure && !c.on_success ? html`<span class="muted">nothing</span>` : ''}</span></td>
+          <td><span class="chips">${c.on_failure ? html`<span class="badge outline">${icon('alert')}Failure</span>` : ''}${c.on_success ? html`<span class="badge outline">${icon('check')}Success</span>` : ''}${c.config?.digest === 'true' ? html`<span class="badge outline">${icon('list')}Weekly digest</span>` : ''}${!c.on_failure && !c.on_success && c.config?.digest !== 'true' ? html`<span class="muted">nothing</span>` : ''}</span></td>
           <td>${c.enabled ? html`<span class="badge good">${icon('check')}Enabled</span>` : html`<span class="badge">${icon('stop')}Disabled</span>`}</td>
           <td class="actions"><button class="btn btn-sm" data-test="${c.id}">${icon('zap')}Send test</button>
             <button class="btn btn-sm btn-ghost btn-icon" data-edit="${c.id}" title="Edit">${icon('edit')}</button>
             <button class="btn btn-sm btn-ghost btn-icon" data-del="${c.id}" title="Delete">${icon('trash')}</button></td></tr>`)}
       </tbody></table>` : empty('No notification channels yet', 'bell')}</div></div>
-      <div class="alert info" style="margin-top:16px">${icon('info')}<div>Each job has its own "notify on failure / on success" options. An event is sent to every enabled channel whose conditions match.</div></div>`);
+      <div class="alert info" style="margin-top:16px">${icon('info')}<div>Each job has its own "notify on failure / on success" options. An event is sent to every enabled channel whose conditions match. Alerts about overdue backups and binlog archiving lag go to the channels that send failures, followed by a message when they clear. Email channels can also send a weekly digest (day and hour in <a href="#/settings">Settings</a>).</div></div>`);
   };
   draw();
   const reload = async () => { list = await get('/notifications'); draw(); };
@@ -34,11 +34,11 @@ export async function render(ctx) {
         <p class="muted small" style="margin-top:0">${td.description}</p>
         <div class="form-grid">${fieldsHTML(td.fields, c.config || {})}</div>
         <div class="checks" style="margin-top:14px">
-          <label class="check"><input type="checkbox" name="__fail" ${c.on_failure !== false ? 'checked' : ''}><span>Send on failure / partial</span></label>
+          <label class="check"><input type="checkbox" name="__fail" ${c.on_failure !== false ? 'checked' : ''}><span>Send on failure / partial, and alerts</span></label>
           <label class="check"><input type="checkbox" name="__ok" ${c.on_success ? 'checked' : ''}><span>Send on success</span></label>
           <label class="check"><input type="checkbox" name="__en" ${c.enabled !== false ? 'checked' : ''}><span>Channel enabled</span></label>
         </div></form>`,
-      footer: html`<button class="btn" id="test">${icon('zap')}Send test</button><span style="flex:1"></span><button class="btn" data-close>Cancel</button><button class="btn btn-primary" id="save">${icon('check')}Save</button>`,
+      footer: html`<button class="btn" id="test">${icon('zap')}Send test</button>${c.type === 'email' ? html`<button class="btn" id="digest" title="Email the digest of the last 7 days now">${icon('list')}Send digest now</button>` : ''}<span style="flex:1"></span><button class="btn" data-close>Cancel</button><button class="btn btn-primary" id="save">${icon('check')}Save</button>`,
     });
     const form = m.el.querySelector('#ch-form');
     bindShowIf(form, td.fields);
@@ -46,6 +46,9 @@ export async function render(ctx) {
     m.el.querySelector('#test').onclick = (e) => busy(e.currentTarget, async () => {
       try { const r = await post('/notifications/test', payload()); if (r.ok) toast('Test notification sent'); else toast(r.error, 'bad', 9000); } catch (er) { toastErr(er); }
     });
+    m.el.querySelector('#digest')?.addEventListener('click', (e) => busy(e.currentTarget, async () => {
+      try { const r = await post('/notifications/digest', payload()); if (r.ok) toast('Weekly digest sent'); else toast(r.error, 'bad', 9000); } catch (er) { toastErr(er); }
+    }));
     bindModalForm(form, m.el.querySelector('#save'), async () => {
       if (c.id) await put(`/notifications/${c.id}`, payload()); else await post('/notifications', payload());
       m.close();

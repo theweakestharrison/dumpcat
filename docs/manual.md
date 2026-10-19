@@ -41,6 +41,7 @@ The complete guide to installing, configuring and operating DumpCat. For an over
 | Connectivity | Directly, through the **agent** (the database host connects out over HTTPS; with `--allow-physical` it also runs physical backups there) or through the **built-in WireGuard** — no inbound port on the database host ([3.7](#37-database-hosts-that-accept-no-inbound-connections-agent), [3.8](#38-built-in-wireguard)) |
 | Operations | Real-time progress (bytes, speed, %), live logs, task cancellation, limit on concurrent jobs, low priority (nice/ionice), pre/post commands, timeouts |
 | Notifications | Email (SMTP, HTML with a plain-text version), Telegram, Slack, Discord, Webhook (HMAC-signed) — on failure and/or success |
+| Monitoring | **Overdue-backup alerts** per job (from its schedule, or a max age) and **binlog lag** alerts, once per incident with a message when it clears; a **weekly digest** by email; Prometheus **`/metrics`** (bearer token or this machine only) |
 | Security | bcrypt passwords, HttpOnly sessions + CSRF, lockout after repeated failed logins, TOTP 2FA, API tokens, roles, audit log, every password/cloud key encrypted at rest with AES-256-GCM, database passwords never on the command line |
 | Disaster recovery | Every backup carries a `manifest.json` → install a fresh DumpCat, add the storage, click **Import backup catalog** and every backup is listed again. Backup files use standard formats (zstd/gzip/age/xbstream) — they can be restored even without DumpCat |
 
@@ -341,8 +342,6 @@ run on the database host: an agent started with `--allow-physical` does that (be
   version of each agent; upgrade it by running the installer of the new version.
 - **Uninstall**: `sudo ./install.sh --agent --uninstall [--purge]`, Windows: `.\install.ps1 -Agent -Uninstall [-Purge]`.
 
-### 3.8 Built-in WireGuard
-
 #### Physical backups through the agent
 
 Physical backups read the database's files, so XtraBackup / MariaBackup has to run on the database host. Allow it on the
@@ -380,6 +379,8 @@ Percona XtraBackup series matching MySQL — and choose the **Physical** method 
 - **Restore** happens where DumpCat runs (see [7. Restore](#7-restore)): DumpCat downloads and prepares the backup; copy the
   prepared directory to the database host and run `--copy-back` there (the restore log lists the commands), or restore
   onto an instance on the DumpCat host. *Apply right away* is not available through an agent.
+
+### 3.8 Built-in WireGuard
 
 An alternative to the agent: DumpCat can run a **WireGuard** endpoint itself, and the database hosts join it with the
 standard WireGuard tools. It is **off by default** and nothing is installed for it: WireGuard runs inside DumpCat in
@@ -496,6 +497,34 @@ rclone refreshes OAuth tokens automatically, and DumpCat saves the new token (en
 - **Concurrency**: at most 2 jobs at a time by default (**Settings**). A job never overlaps itself (a scheduled run that would overlap is skipped).
 - **Reducing server load**: *Low priority* (nice + ionice), upload bandwidth limit, number of threads, backing up from a replica.
 - **Pre/post command** (admin only): e.g. pause the application's cron jobs; the post-command receives the variables `DUMPCAT_STATUS`, `DUMPCAT_RUN_ID`, `DUMPCAT_JOB`, `DUMPCAT_DIR`, `DUMPCAT_METHOD`, `DUMPCAT_TYPE`.
+
+### Monitoring: overdue backups, binlog lag, weekly digest
+
+A failed backup sends its own notification, but a backup that never runs — DumpCat stopped, a schedule paused by
+mistake, a run that hangs — sends nothing. So DumpCat checks every minute that every job has a recent backup.
+
+- **Overdue jobs.** A job is overdue when its newest successful backup is older than 1.5 × the time between two of its
+  scheduled runs plus a grace period (**Settings → Monitoring**, 60 minutes by default): a daily `0 2 * * *` job 37 hours
+  after its last good backup, an hourly one after 2.5 hours. Exactly: the next backup is due half an interval plus the
+  grace after the first run scheduled after the last good one, so gaps in a schedule count — with `0 2 * * 1-5`,
+  Monday's backup is due on Monday at 14:00 + grace, not on Tuesday. Physical jobs with incrementals use the more
+  frequent schedule. **Max age of the newest backup** on the job (*9. Notifications & status*) replaces the rule with a
+  fixed number of hours, and also watches jobs without a schedule (backups started through the API). The job editor
+  shows the window that applies.
+- **Binlog lag.** For jobs with binlog archiving, an alert is raised when the archive has been behind the server for
+  longer than the threshold (30 minutes by default, 0 = no alerts): the stream is down or not keeping up, or closed
+  binlogs are waiting for upload.
+- **Once per incident.** The alert goes once to the channels that send failures (for jobs with *Notify on failure*),
+  with the last good backup, when the next one was due and the error of the last run; *Backups are fresh again* or
+  *Binlog archiving caught up* follows when it clears. Open incidents survive a restart. Webhooks receive `kind`
+  `stale` or `binlog_lag`, with `status` `failed` and then `recovered`.
+- **Dashboard.** The overview uses the same rule: an *overdue* badge on the job and a warning with the time the backup
+  was due.
+- **Weekly digest.** Tick **Send the weekly digest** on an email channel (**Notifications**) to receive, at the day and
+  hour set in **Settings → Monitoring** (Monday 08:00 by default), a summary of the last 7 days: backups per job
+  (succeeded / failed), the size of the newest backup and its growth over the week, integrity checks, overdue jobs, what
+  every storage holds and the free space of local storages. **Preview** in Settings shows it with your data; **Send
+  digest now** on the channel sends it at once.
 
 ### Directory layout on the storage
 
@@ -798,7 +827,67 @@ curl -H "Authorization: Bearer $TOKEN" https://backup.example.com/api/drill-runs
 ```
 
 Webhook notifications send the JSON `{kind, status, title, fields, error, url, time}` with the header
-`X-DumpCat-Signature: sha256=<HMAC>` when a secret is set.
+`X-DumpCat-Signature: sha256=<HMAC>` when a secret is set. `kind` is `backup`, `restore`, `verify`, `binlog`, `stale`,
+`binlog_lag` or `test`; `status` is `success`, `failed`, `partial` or `recovered` (an alert has cleared).
+
+### Prometheus metrics
+
+`GET /metrics` serves metrics in the Prometheus text format. It is off by default; **Settings → Monitoring → Serve
+/metrics**:
+
+- **With a bearer token**: **Create token** shows the token once and stores it as a hash, like API tokens (**Replace
+  token** invalidates the old one). Prometheus sends it in the `Authorization` header:
+
+```yaml
+scrape_configs:
+  - job_name: dumpcat
+    scheme: https
+    authorization:
+      credentials: dcm_xxxxxxxx
+    static_configs:
+      - targets: ['backup.example.com']
+```
+
+- **Only to this machine**: answers requests from 127.0.0.1 / ::1 that carry no `X-Forwarded-For`, `X-Real-IP` or
+  `Forwarded` header (so a reverse proxy on the same host does not open it to everyone) — for Prometheus or its agent
+  running on the DumpCat host.
+
+| Metric | Labels | Value |
+|---|---|---|
+| `dumpcat_build_info` | `version`, `goversion`, `os`, `arch` | always 1 |
+| `dumpcat_start_time_seconds` | | when DumpCat started |
+| `dumpcat_job_enabled`, `dumpcat_job_running` | `job`, `server`, `method` | 1 or 0 |
+| `dumpcat_job_last_success_timestamp_seconds` | `job`, `server`, `method` | start of the newest successful backup |
+| `dumpcat_job_last_run_timestamp_seconds`, `dumpcat_job_last_run_duration_seconds` | `job`, `server`, `method` | newest finished backup |
+| `dumpcat_job_last_run_success` | `job`, `server`, `method` | 1 when the newest finished backup succeeded |
+| `dumpcat_job_last_run_status` | `job`, `server`, `method`, `status` | 1 for the status of the newest finished backup |
+| `dumpcat_job_last_backup_size_bytes`, `dumpcat_job_last_backup_raw_bytes` | `job`, `server`, `method` | stored and uncompressed size of the newest successful backup |
+| `dumpcat_job_last_verify_success`, `dumpcat_job_last_verify_timestamp_seconds` | `job`, `server`, `method` | the last integrity check |
+| `dumpcat_job_stale`, `dumpcat_job_backup_due_timestamp_seconds`, `dumpcat_job_max_age_seconds` | `job`, `server`, `method` | the freshness rule ([6](#monitoring-overdue-backups-binlog-lag-weekly-digest)) |
+| `dumpcat_binlog_archive_lag_seconds`, `dumpcat_binlog_streaming`, `dumpcat_binlog_pending_files`, `dumpcat_binlog_archived_until_timestamp_seconds` | `job`, `server` | binlog archiving |
+| `dumpcat_storage_used_bytes`, `dumpcat_storage_binlog_bytes`, `dumpcat_storage_backups` | `storage`, `type` | what the catalog records on each storage |
+| `dumpcat_storage_free_bytes`, `dumpcat_storage_size_bytes` | `storage`, `type` | file system of a local storage |
+| `dumpcat_data_dir_free_bytes`, `dumpcat_data_dir_size_bytes` | | file system of the data directory |
+| `dumpcat_agent_online`, `dumpcat_agent_last_seen_timestamp_seconds` | `agent` | |
+| `dumpcat_wireguard_up`, `dumpcat_wireguard_peer_online`, `dumpcat_wireguard_peer_last_handshake_timestamp_seconds` | `peer` | |
+| `dumpcat_catalog_backups` / `dumpcat_tasks_running` / `dumpcat_alerts_open` | `status` / `kind` / `kind` | backups in the catalog, running tasks, open alerts |
+
+Timestamps are Unix seconds. Example alerting rules:
+
+```yaml
+groups:
+  - name: dumpcat
+    rules:
+      - alert: DumpCatBackupOverdue
+        expr: dumpcat_job_stale == 1
+      - alert: DumpCatBackupFailed
+        expr: dumpcat_job_last_run_success == 0
+      - alert: DumpCatBinlogLag
+        expr: dumpcat_binlog_archive_lag_seconds > 1800
+      - alert: DumpCatAgentOffline
+        expr: dumpcat_agent_online == 0
+        for: 10m
+```
 
 ## 13. System configuration
 
@@ -858,6 +947,8 @@ Internal data: `/var/lib/dumpcat/dumpcat.db` (SQLite), `master.key`, `logs/`, `s
 | Agent: *agent … is offline* | Start the agent on the database host (`systemctl status dumpcat-agent`, `journalctl -u dumpcat-agent`). *the server refused the agent* in its log: wrong or rotated key, or the URL is not DumpCat. Behind nginx, use the `/api/agent/` block of the sample configuration |
 | WireGuard: *peer … has not connected yet* / *no answer from …* / *nothing listens on …* | See [3.8](#38-built-in-wireguard): start `wg-quick@dumpcat` on the database host and open the UDP port on the DumpCat host; let the WireGuard interface in on the database host; make MySQL listen on the WireGuard address |
 | Agent: *… is not on this agent's allow list* | Start the agent with `--allow host:port` for that address, or enter the address the agent allows (see [3.7](#37-database-hosts-that-accept-no-inbound-connections-agent)) |
+| No alert for an overdue job | **Alert when a job has no recent successful backup** in **Settings → Monitoring**, *Notify on failure* on the job, and a channel that sends failures |
+| `/metrics` answers 404 / 401 / 403 | 404: turned off (**Settings → Monitoring**). 401: create a token and send it as `Authorization: Bearer …`. 403: *Only to this machine* and the request came from another host or through a reverse proxy |
 | Service logs | `journalctl -u dumpcat -f`; per-task logs on the detail page or in `/var/lib/dumpcat/logs/` |
 
 ## 15. Development
@@ -883,7 +974,8 @@ internal/storage   local + rclone (S3, Drive, OneDrive, FTP, SFTP...), OAuth
 internal/pipeline  streaming zstd/gzip compression + age encryption + sha256
 internal/store     SQLite: users, servers, storages, jobs, backups, audit
 internal/scheduler cron
-internal/notify    Email, Telegram, Slack, Discord, Webhook
+internal/notify    Email, Telegram, Slack, Discord, Webhook, the weekly digest
+internal/monitor   overdue-backup and binlog lag alerts, weekly digest schedule, Prometheus metrics
 internal/update    self-update: release manifest, signatures, install & rollback
 internal/agent     agents: reverse tunnel from database hosts (WebSocket), allow lists
 internal/wg        built-in WireGuard (wireguard-go + gVisor netstack, no OS interface)

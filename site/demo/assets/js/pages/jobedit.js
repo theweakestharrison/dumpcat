@@ -1,5 +1,5 @@
 import { get, post, put } from '../api.js';
-import { html, setHTML, icon, on, $, $$, fmtBytes, fmtDate, toast, busy, debounce, describeCron, validate, formError, statusBadge } from '../ui.js';
+import { html, setHTML, icon, on, $, $$, fmtBytes, fmtDate, fmtDur, toast, busy, debounce, describeCron, validate, formError, statusBadge } from '../ui.js';
 import { navigate, isAdmin, canOperate, setTitle, setLeaveGuard } from '../app.js';
 import { backBtn } from '../components.js';
 
@@ -13,7 +13,7 @@ const DEFAULT_JOB = {
     single_file: false, routines: true, triggers: true, events: true, include_users: true, record_binlog: false, gtid_purged: 'OFF',
     chunk_rows: 500000, long_query_guard: 60, lock_mode: '', ftwrl_wait_timeout: 60, slave_info: false, safe_slave_backup: false,
     low_priority: true, stream_upload: false, verify_after: true, verify_mode: 'one', bwlimit: '', extra_args: '', pre_command: '', post_command: '',
-    binlog_archive: false, binlog_rotate_minutes: 15,
+    binlog_archive: false, binlog_rotate_minutes: 15, max_age_hours: 0,
   },
   retention: { keep_last: 7, keep_days: 0, keep_daily: 0, keep_weekly: 0, keep_monthly: 0 },
   targets: [], enabled: true, notify_success: false, notify_failure: true, timeout_minutes: 0,
@@ -216,6 +216,10 @@ export async function render(ctx) {
           ${chk('notify_success', job.notify_success, 'Notify on success')}
           ${chk('enabled', job.enabled, 'Enable scheduled runs')}
         </div>
+        <div class="form-grid" style="margin-top:14px">
+          <div class="field"><label for="max_age_hours">Max age of the newest backup (hours)</label>${num('max_age_hours', o.max_age_hours || 0, 'id="max_age_hours" min="0" max="8784"')}
+            <div class="help" id="max-age-help">0 = automatic from the schedule.</div></div>
+        </div>
         <div class="help" style="margin-top:8px">Notification channels (Email, Telegram, Slack...) are configured on the <a href="#/notifications">Notifications</a> page.</div>
       </div></div>
 
@@ -286,14 +290,22 @@ export async function render(ctx) {
     renderDBs(i);
   };
 
+  // what "0" means for the freshness alert of this job
+  const maxAgeHelp = (r) => {
+    const box = $('#max-age-help', el);
+    if (!r) box.textContent = 'This job has no schedule: set a max age to be alerted when no backup arrives (e.g. backups started through the API). 0 = no alert.';
+    else if (r.max_age_seconds) box.textContent = `0 = automatic: ${fmtDur(r.max_age_seconds)} with this schedule (1.5 × the time between two runs + ${fmtDur(r.grace_seconds)} grace from Settings). Overdue jobs alert the channels that send failures.`;
+    else box.textContent = '0 = automatic from the schedule.';
+  };
   const cronPreview = async (input, descEl, nextEl) => {
     const v = input.value.trim();
     descEl.textContent = describeCron(v);
-    if (!v) { nextEl.textContent = ''; return; }
+    if (!v) { nextEl.textContent = ''; if (input === form.schedule) maxAgeHelp(null); return; }
     try {
       const r = await post('/cron/preview', { expr: v });
       if (!r.valid) setHTML(nextEl, html`<span style="color:var(--critical-ink)">${r.error}</span>`);
       else nextEl.textContent = 'Next runs: ' + r.next.slice(0, 3).map((t) => fmtDate(t)).join(' · ');
+      if (input === form.schedule) maxAgeHelp(r.valid ? r : {});
     } catch { /* ignore */ }
   };
   const pv1 = debounce(() => cronPreview(form.schedule, $('#cron-desc', el), $('#cron-next', el)), 300);
@@ -378,7 +390,7 @@ export async function render(ctx) {
         slave_info: f.slave_info.checked, safe_slave_backup: f.safe_slave_backup.checked, low_priority: f.low_priority.checked,
         stream_upload: f.stream_upload.checked, verify_mode: f.verify_mode.value, verify_after: f.verify_mode.value !== 'off', bwlimit: f.bwlimit.value.trim(),
         extra_args: f.extra_args.value.trim(), pre_command: f.pre_command.value.trim(), post_command: f.post_command.value.trim(),
-        binlog_archive: f.binlog_archive.checked, binlog_rotate_minutes: +f.binlog_rotate_minutes.value,
+        binlog_archive: f.binlog_archive.checked, binlog_rotate_minutes: +f.binlog_rotate_minutes.value, max_age_hours: +f.max_age_hours.value || 0,
       },
       retention: { keep_last: +f.keep_last.value, keep_days: +f.keep_days.value, keep_daily: +f.keep_daily.value, keep_weekly: +f.keep_weekly.value, keep_monthly: +f.keep_monthly.value },
       targets, enabled: f.enabled.checked, notify_success: f.notify_success.checked, notify_failure: f.notify_failure.checked,

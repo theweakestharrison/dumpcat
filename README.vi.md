@@ -46,6 +46,9 @@ binary Go có sẵn giao diện.
 - **Mã hóa và kiểm tra.** Nén zstd, mã hóa bằng [age](https://age-encryption.org) trước khi dữ liệu rời khỏi server,
   SHA-256 cho từng file, và mỗi bản backup được đọc lại ngay sau khi ghi: giải mã, giải nén, kiểm tra, nên bản hỏng lộ
   ra ngay chứ không đợi tới lúc restore.
+- **Biết ngay khi backup ngừng chạy.** Mỗi job được đối chiếu với lịch chạy của chính nó: quá hạn mà chưa có bản backup
+  thành công, hoặc việc lưu binlog bị chậm, DumpCat báo một lần và báo lại khi đã ổn. Báo cáo tuần qua email tóm tắt cả
+  tuần, và endpoint Prometheus `/metrics` (tắt mặc định) cấp số liệu cho dashboard và luật cảnh báo của bạn.
 - **Diễn tập restore.** Theo lịch, DumpCat restore bản backup mới nhất vào một server sandbox dưới tên tạm, so từng bảng
   và số dòng với những gì backup đã ghi nhận, chạy các assertion SQL của bạn, ghi lại thời gian restore (RTO) rồi xóa
   bản sao. Backup đạt được đánh dấu **Restore-tested**; diễn tập thất bại sẽ gửi cảnh báo.

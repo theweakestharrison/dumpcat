@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"dumpcat/internal/monitor"
 	"dumpcat/internal/pipeline"
 	"dumpcat/internal/runner"
 	"dumpcat/internal/scheduler"
@@ -140,6 +141,7 @@ func (s *Server) applyJob(in *jobInput, j *store.Job, isAdmin bool) error {
 		j.Options.RecordBinlog = true // PITR replays from the position of every dump
 	}
 	j.Options.BinlogRotateMinutes = max(0, min(j.Options.BinlogRotateMinutes, 1440))
+	j.Options.MaxAgeHours = max(0, min(j.Options.MaxAgeHours, 24*366))
 	j.Retention = in.Retention
 	if len(in.Targets) == 0 {
 		return badRequest("select at least one target storage")
@@ -359,5 +361,9 @@ func (s *Server) cronPreview(w http.ResponseWriter, r *http.Request) error {
 	if err := scheduler.Validate(in.Expr); err != nil {
 		return ok(w, map[string]any{"valid": false, "error": err.Error()})
 	}
-	return ok(w, map[string]any{"valid": true, "next": scheduler.Next(in.Expr, 5, s.Runner.Location())})
+	// the newest successful backup may be this old before a freshness alert (no max age on the job)
+	grace := time.Duration(s.Store.GetSettings().StaleGraceMinutes) * time.Minute
+	window := monitor.AutoWindow(in.Expr, time.Now(), s.Runner.Location(), grace)
+	return ok(w, map[string]any{"valid": true, "next": scheduler.Next(in.Expr, 5, s.Runner.Location()),
+		"max_age_seconds": int64(window.Seconds()), "grace_seconds": int64(grace.Seconds())})
 }
