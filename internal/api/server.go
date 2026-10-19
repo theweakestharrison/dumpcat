@@ -47,6 +47,7 @@ type Server struct {
 	Agents   *agent.Manager // database hosts that connect out (nil = disabled)
 	WG       *wg.Manager    // built-in WireGuard (nil = not available)
 	wgMu     sync.Mutex     // serializes WireGuard configuration changes
+	build    string         // hash of the web UI files (static.go)
 	// ControlToken authenticates "dumpcat update" on the same machine (read from DATA_DIR/control.token).
 	ControlToken string
 
@@ -342,42 +343,19 @@ func accessLog(next http.Handler) http.Handler {
 func (s *Server) Handler() http.Handler {
 	mux := http.NewServeMux()
 	s.routes(mux)
-	// static UI: content-hash ETags + no-cache so upgrades never serve stale JS
-	fileServer := http.FileServer(http.FS(s.WebFS))
-	etags := map[string]string{}
-	_ = fs.WalkDir(s.WebFS, ".", func(p string, d fs.DirEntry, err error) error {
-		if err == nil && !d.IsDir() {
-			if b, err := fs.ReadFile(s.WebFS, p); err == nil {
-				etags[p] = `"` + auth.SHA256Hex(string(b))[:20] + `"`
-			}
+	// static UI with versioned asset URLs (see static.go)
+	ui := newStaticUI(s.WebFS, os.Getenv("DUMPCAT_WEB_DIR") != "")
+	s.build = ui.build
+	mux.Handle("/", ui)
+	// every API answer tells the page which UI build the server has: an open
+	// tab of an older version offers to reload (api.js)
+	withBuild := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasPrefix(r.URL.Path, "/api/") {
+			w.Header().Set("X-DumpCat-Build", s.build)
 		}
-		return nil
+		mux.ServeHTTP(w, r)
 	})
-	dev := os.Getenv("DUMPCAT_WEB_DIR") != ""
-	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodGet && r.Method != http.MethodHead {
-			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
-			return
-		}
-		p := strings.TrimPrefix(r.URL.Path, "/")
-		if p == "" {
-			p = "index.html"
-		}
-		if _, err := fs.Stat(s.WebFS, p); err != nil {
-			p = "index.html"
-			r.URL.Path = "/"
-		}
-		w.Header().Set("Cache-Control", "no-cache")
-		if et, ok := etags[p]; ok && !dev {
-			w.Header().Set("ETag", et)
-			if r.Header.Get("If-None-Match") == et {
-				w.WriteHeader(http.StatusNotModified)
-				return
-			}
-		}
-		fileServer.ServeHTTP(w, r)
-	})
-	return accessLog(securityHeaders(mux))
+	return accessLog(securityHeaders(withBuild))
 }
 
 func (s *Server) routes(mux *http.ServeMux) {

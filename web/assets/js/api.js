@@ -1,9 +1,14 @@
 // Thin JSON API client with CSRF handling.
 let csrf = '';
 let onUnauthorized = () => {};
+let onNewBuild = () => {};
+// the UI build this page was loaded with; the server reports its own with every answer
+const PAGE_BUILD = document.querySelector('meta[name="dumpcat-build"]')?.content || '';
 
 export function setCsrf(t) { csrf = t || ''; }
 export function setUnauthorizedHandler(fn) { onUnauthorized = fn; }
+/** Called once the server runs another version of the UI than this page (DumpCat was updated). */
+export function setNewBuildHandler(fn) { onNewBuild = fn; }
 
 export class ApiError extends Error {
   constructor(message, status, data) {
@@ -26,6 +31,8 @@ export async function api(method, path, body) {
   } catch (e) {
     throw new ApiError('Cannot connect to the DumpCat server', 0);
   }
+  const build = res.headers.get('X-DumpCat-Build');
+  if (PAGE_BUILD && build && build !== PAGE_BUILD) onNewBuild(build);
   let data = null;
   const text = await res.text();
   if (text) {

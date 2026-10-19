@@ -3,6 +3,19 @@
 The section of the version being built becomes the release notes shown in the
 web UI and by `dumpcat update` (see `build.sh`). Newest version first.
 
+## 1.3.1
+
+- Backups are verified after every run: new jobs read one copy back (the cheapest, a local directory first),
+  decrypt and decompress it and check its SHA-256. The job's **Verify integrity after each backup** setting offers
+  one copy, every copy or off; existing jobs keep their setting. The notification of a backup includes the result.
+- Notifications are redesigned: emails are HTML (with a plain-text version) with the DumpCat logo, a status band,
+  the details as a table, storage copies as badges, the error in its own box and an **Open in DumpCat** button; they
+  follow the dark mode of mail apps. Slack gets a colored card with the fields and a button, Discord an embed,
+  Telegram a cleaner message. The webhook JSON is unchanged. Every message names the machine DumpCat runs on.
+- No stale web UI after an update: asset URLs carry a hash of the UI files (`/assets/<build>/…`) and are cached
+  for a year, while the page itself is checked on every load. A browser tab opened before the update offers to
+  reload and reloads on its next navigation, instead of running old and new code together.
+
 ## 1.3.0
 
 - Built-in WireGuard, off by default: database hosts that accept no inbound connections can join DumpCat's VPN with the

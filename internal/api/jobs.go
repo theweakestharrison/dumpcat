@@ -126,6 +126,16 @@ func (s *Server) applyJob(in *jobInput, j *store.Job, isAdmin bool) error {
 		return errf(403, "only admins can set pre/post commands and extra tool arguments")
 	}
 	j.Options = in.Options
+	switch j.Options.VerifyMode {
+	case "", store.VerifyOff, store.VerifyOne, store.VerifyAll:
+	default:
+		return badRequest("invalid verify mode (off, one or all)")
+	}
+	if j.ID == 0 && j.Options.VerifyMode == "" && !j.Options.VerifyAfter {
+		j.Options.VerifyMode = store.VerifyOne // new jobs check one copy after every backup
+	}
+	j.Options.VerifyMode = j.Options.Verify()
+	j.Options.VerifyAfter = j.Options.VerifyMode != store.VerifyOff
 	if j.Options.BinlogArchive && j.Method == store.MethodMysqldump {
 		j.Options.RecordBinlog = true // PITR replays from the position of every dump
 	}

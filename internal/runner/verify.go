@@ -90,6 +90,28 @@ func (r *Runner) StartVerify(runID, locationID int64) error {
 	return nil
 }
 
+// cheapestCopy picks the copy of a backup that costs least to read back: a
+// local directory first, else the first storage of the job (0: none).
+func (r *Runner) cheapestCopy(runID int64) int64 {
+	run, err := r.Store.GetRun(runID)
+	if err != nil {
+		return 0
+	}
+	var first int64
+	for _, l := range run.Locations {
+		if l.Status != store.LocOK || l.StorageID == nil {
+			continue
+		}
+		if first == 0 {
+			first = l.ID
+		}
+		if st, err := r.Store.GetStorage(*l.StorageID); err == nil && st.Type == "local" {
+			return l.ID
+		}
+	}
+	return first
+}
+
 func (r *Runner) verifyRun(ctx context.Context, task *Task, runID, locationID int64, lg *tasklog.Logger) bool {
 	run, err := r.Store.GetRun(runID)
 	if err != nil {
@@ -115,8 +137,7 @@ func (r *Runner) verifyRun(ctx context.Context, task *Task, runID, locationID in
 	}
 	task.SetEstimate(total * int64(len(targets)))
 	start := time.Now()
-	var problems []string
-	checked := 0
+	var problems, checked []string
 	for i := range targets {
 		loc := &targets[i]
 		st, err := r.Store.GetStorage(*loc.StorageID)
@@ -141,7 +162,7 @@ func (r *Runner) verifyRun(ctx context.Context, task *Task, runID, locationID in
 				lg.Printf("  ✓ %s (%s) sha256 OK", f.Name, humanBytes(f.Size))
 			}
 		}
-		checked++
+		checked = append(checked, loc.StorageName)
 	}
 	if len(problems) > 0 {
 		msg := strings.Join(problems, "; ")
@@ -154,7 +175,14 @@ func (r *Runner) verifyRun(ctx context.Context, task *Task, runID, locationID in
 		}
 		return false
 	}
-	r.Store.SetRunVerify(runID, "ok", fmt.Sprintf("%d files OK on %d storage(s), %s", len(run.Files), checked, humanDuration(time.Since(start))))
+	where := fmt.Sprintf("%d storages", len(checked))
+	if len(checked) == 1 {
+		where = checked[0]
+	}
+	if n := len(run.Locations); len(checked) < n && locationID != 0 {
+		where += fmt.Sprintf(" (1 of %d copies)", n)
+	}
+	r.Store.SetRunVerify(runID, "ok", fmt.Sprintf("%d files OK on %s, %s", len(run.Files), where, humanDuration(time.Since(start))))
 	lg.Printf("Verify OK in %s", humanDuration(time.Since(start)))
 	return true
 }

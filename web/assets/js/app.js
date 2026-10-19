@@ -1,4 +1,4 @@
-import { get, post, setCsrf, setUnauthorizedHandler } from './api.js';
+import { get, post, setCsrf, setUnauthorizedHandler, setNewBuildHandler } from './api.js';
 import { html, setHTML, icon, on, toast, toastErr, busy, formData, closeDropdowns, dropdown, linkLabels } from './ui.js';
 
 export const app = { user: null, version: '', csrf: '' };
@@ -127,8 +127,43 @@ export function setTitle(t) {
 
 let setNav = () => {};
 
+// ---------- a new version of DumpCat ----------
+// The server reports its UI build with every API answer. A page loaded before
+// an update shows a banner and reloads on its next navigation (after the
+// unsaved-changes guard), so it never runs old and new modules together.
+let newBuild = false;
+function reloadPage() {
+  const msg = leaveGuard && leaveGuard();
+  if (msg && !window.confirm(msg)) return;
+  leaveGuard = null;
+  location.reload();
+}
+function showNewBuild() {
+  if (newBuild) return;
+  newBuild = true;
+  const bar = document.createElement('div');
+  bar.className = 'update-banner';
+  bar.setAttribute('role', 'status');
+  setHTML(bar, html`${icon('refresh')}<span><b>DumpCat was updated.</b> Reload to use the new version.</span><button type="button" class="btn btn-sm btn-primary">Reload</button>`);
+  bar.querySelector('button').onclick = reloadPage;
+  document.body.appendChild(bar);
+}
+setNewBuildHandler(showNewBuild);
+// a page module of another build could not be loaded: reload once
+function moduleGone(e) {
+  if (!/dynamically imported module|module script failed|error loading dynamically/i.test(String(e && e.message))) return false;
+  try {
+    const last = +sessionStorage.getItem('dumpcat-reloaded') || 0;
+    if (Date.now() - last < 60000) return false;
+    sessionStorage.setItem('dumpcat-reloaded', String(Date.now()));
+  } catch { /* storage blocked: reload anyway */ }
+  location.reload();
+  return true;
+}
+
 async function route() {
   if (!app.user) return;
+  if (newBuild) { leaveGuard = null; location.reload(); return; } // the guard already ran (onHashChange)
   closeDropdowns();
   setNav(false);
   const { path, query } = parseHash();
@@ -169,6 +204,7 @@ async function route() {
     window.scrollTo(0, 0);
   } catch (e) {
     if (seq !== routeSeq) return;
+    if (moduleGone(e)) return;
     console.error(e);
     setHTML(content, html`<div class="alert bad">${icon('alert')}<div>${e.message || String(e)}</div></div>`);
   }

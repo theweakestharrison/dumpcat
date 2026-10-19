@@ -572,3 +572,10 @@ details.adv-card > summary h2 { flex: none; }
   border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); font-size: 13px; color: var(--text-2); line-height: 1.45; }
 .topo-steps li::before { content: counter(ts); width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; background: var(--accent); color: #fff; font-weight: 700; font-size: 12.5px; }
 .topo-steps b { display: block; color: var(--text); font-weight: 650; margin-bottom: 2px; }
+
+/* shown when the server runs a newer UI than this page */
+.update-banner { position: fixed; left: 50%; bottom: 18px; transform: translateX(-50%); z-index: 250; display: flex; align-items: center; gap: 12px;
+  max-width: calc(100vw - 32px); padding: 10px 12px 10px 14px; background: var(--surface); border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent);
+  border-radius: var(--radius); box-shadow: var(--shadow-lg); font-size: 13.5px; animation: tin 0.2s ease; }
+.update-banner > svg { width: 18px; height: 18px; color: var(--accent-ink); flex: none; }
+.update-banner .btn { flex: none; }

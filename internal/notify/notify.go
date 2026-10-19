@@ -12,18 +12,16 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"html"
 	"io"
 	"log"
-	"mime"
 	"net"
 	"net/http"
 	"net/smtp"
+	"os"
 	"strconv"
 	"strings"
 	"time"
 
-	"dumpcat/internal/auth"
 	"dumpcat/internal/storage"
 	"dumpcat/internal/store"
 )
@@ -47,32 +45,6 @@ func (e *Event) Add(k, v string) {
 		e.Order = append(e.Order, k)
 	}
 	e.Fields[k] = v
-}
-
-func (e *Event) icon() string {
-	switch e.Status {
-	case "success":
-		return "✅"
-	case "partial":
-		return "⚠️"
-	default:
-		return "❌"
-	}
-}
-
-func (e *Event) plain() string {
-	var b strings.Builder
-	b.WriteString(e.icon() + " " + e.Title + "\n")
-	for _, k := range e.Order {
-		fmt.Fprintf(&b, "%s: %s\n", k, e.Fields[k])
-	}
-	if e.Error != "" {
-		b.WriteString("Error: " + e.Error + "\n")
-	}
-	if e.URL != "" {
-		b.WriteString(e.URL + "\n")
-	}
-	return b.String()
 }
 
 type TypeDef = storage.TypeDef
@@ -132,11 +104,16 @@ func SecretKeys(t string) map[string]bool {
 
 type Notifier struct {
 	Store  *store.Store
+	Host   string // the machine DumpCat runs on, shown in every message
 	client *http.Client
 }
 
 func New(st *store.Store) *Notifier {
-	return &Notifier{Store: st, client: &http.Client{Timeout: 20 * time.Second}}
+	host, _ := os.Hostname()
+	if host == "" {
+		host = "unknown host"
+	}
+	return &Notifier{Store: st, Host: host, client: &http.Client{Timeout: 20 * time.Second}}
 }
 
 // Send delivers the event asynchronously to matching enabled channels.
@@ -170,8 +147,9 @@ func (n *Notifier) Send(ev Event) {
 
 // Test sends a test message synchronously.
 func (n *Notifier) Test(ctx context.Context, ch *store.NotifyChannel) error {
-	ev := Event{Kind: "test", Status: "success", Title: "DumpCat — test notification", Time: time.Now()}
+	ev := Event{Kind: "test", Status: "success", Title: "Notifications work", Time: time.Now()}
 	ev.Add("Channel", ch.Name)
+	ev.Add("Sent from", n.Host)
 	ev.Add("Time", ev.Time.Format("2006-01-02 15:04:05"))
 	return n.deliver(ctx, ch, &ev)
 }
@@ -180,24 +158,9 @@ func (n *Notifier) deliver(ctx context.Context, ch *store.NotifyChannel, ev *Eve
 	c := ch.Config
 	switch ch.Type {
 	case "email":
-		return sendEmail(ctx, c, ev)
+		return sendEmail(ctx, c, ev, n.Host)
 	case "telegram":
-		var b strings.Builder
-		b.WriteString(ev.icon() + " <b>" + html.EscapeString(ev.Title) + "</b>\n")
-		for _, k := range ev.Order {
-			b.WriteString("<b>" + html.EscapeString(k) + ":</b> " + html.EscapeString(ev.Fields[k]) + "\n")
-		}
-		if ev.Error != "" {
-			e := ev.Error
-			if len(e) > 1500 {
-				e = e[:1500] + "…"
-			}
-			b.WriteString("<b>Error:</b> <code>" + html.EscapeString(e) + "</code>\n")
-		}
-		if ev.URL != "" {
-			b.WriteString(html.EscapeString(ev.URL))
-		}
-		body := map[string]any{"chat_id": c["chat_id"], "text": b.String(), "parse_mode": "HTML", "disable_web_page_preview": true}
+		body := map[string]any{"chat_id": c["chat_id"], "text": ev.telegram(), "parse_mode": "HTML", "disable_web_page_preview": true}
 		if t := strings.TrimSpace(c["thread_id"]); t != "" {
 			if v, err := strconv.Atoi(t); err == nil {
 				body["message_thread_id"] = v
@@ -205,13 +168,9 @@ func (n *Notifier) deliver(ctx context.Context, ch *store.NotifyChannel, ev *Eve
 		}
 		return n.postJSON(ctx, "https://api.telegram.org/bot"+strings.TrimSpace(c["bot_token"])+"/sendMessage", body, nil, "")
 	case "slack":
-		return n.postJSON(ctx, c["webhook_url"], map[string]any{"text": ev.plain()}, nil, "")
+		return n.postJSON(ctx, c["webhook_url"], ev.slack(n.Host), nil, "")
 	case "discord":
-		txt := ev.plain()
-		if len(txt) > 1900 {
-			txt = txt[:1900] + "…"
-		}
-		return n.postJSON(ctx, c["webhook_url"], map[string]any{"content": txt}, nil, "")
+		return n.postJSON(ctx, c["webhook_url"], ev.discord(n.Host), nil, "")
 	case "webhook":
 		hdr := map[string]string{}
 		for _, ln := range strings.Split(c["headers"], "\n") {
@@ -260,7 +219,7 @@ func (n *Notifier) postJSON(ctx context.Context, url string, v any, headers map[
 	return nil
 }
 
-func sendEmail(ctx context.Context, c map[string]string, ev *Event) error {
+func sendEmail(ctx context.Context, c map[string]string, ev *Event, machine string) error {
 	host := strings.TrimSpace(c["host"])
 	port := strings.TrimSpace(c["port"])
 	if port == "" {
@@ -324,16 +283,11 @@ func sendEmail(ctx context.Context, c map[string]string, ev *Event) error {
 	if err != nil {
 		return err
 	}
-	subject := mime.QEncoding.Encode("utf-8", strings.TrimSpace(ev.icon()+" "+ev.Title))
-	var msg strings.Builder
-	msg.WriteString("From: " + from + "\r\n")
-	msg.WriteString("To: " + strings.Join(to, ", ") + "\r\n")
-	msg.WriteString("Subject: " + subject + "\r\n")
-	msg.WriteString("Date: " + time.Now().Format(time.RFC1123Z) + "\r\n")
-	msg.WriteString("Message-ID: <" + auth.RandomToken(12) + "@dumpcat>\r\n")
-	msg.WriteString("MIME-Version: 1.0\r\nContent-Type: text/plain; charset=UTF-8\r\nContent-Transfer-Encoding: 8bit\r\n\r\n")
-	msg.WriteString(strings.ReplaceAll(ev.plain(), "\n", "\r\n"))
-	if _, err := io.WriteString(w, msg.String()); err != nil {
+	msg, merr := ev.emailMessage(from, to, machine)
+	if merr != nil {
+		return merr
+	}
+	if _, err := w.Write(msg); err != nil {
 		return err
 	}
 	if err := w.Close(); err != nil {

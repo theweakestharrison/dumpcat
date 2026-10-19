@@ -271,7 +271,8 @@ type JobOptions struct {
 	// general
 	LowPriority  bool   `json:"low_priority"`
 	StreamUpload bool   `json:"stream_upload"`
-	VerifyAfter  bool   `json:"verify_after"`
+	VerifyAfter  bool   `json:"verify_after"` // kept in line with VerifyMode for older API clients
+	VerifyMode   string `json:"verify_mode"`  // after each backup: off, one (the cheapest copy), all
 	BwLimit      string `json:"bwlimit"`
 	ExtraArgs    string `json:"extra_args"`
 	PreCommand   string `json:"pre_command"`
@@ -279,6 +280,24 @@ type JobOptions struct {
 	// continuous binlog archiving (point-in-time recovery)
 	BinlogArchive       bool `json:"binlog_archive"`
 	BinlogRotateMinutes int  `json:"binlog_rotate_minutes"` // FLUSH BINARY LOGS after N minutes (0 = never)
+}
+
+const (
+	VerifyOff = "off"
+	VerifyOne = "one"
+	VerifyAll = "all"
+)
+
+// Verify tells how a job's backups are checked after they are written.
+func (o JobOptions) Verify() string {
+	switch o.VerifyMode {
+	case VerifyOff, VerifyOne, VerifyAll:
+		return o.VerifyMode
+	}
+	if o.VerifyAfter { // jobs from before verify_mode
+		return VerifyAll
+	}
+	return VerifyOff
 }
 
 type JobTarget struct {

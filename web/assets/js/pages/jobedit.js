@@ -12,7 +12,7 @@ const DEFAULT_JOB = {
   options: {
     single_file: false, routines: true, triggers: true, events: true, include_users: true, record_binlog: false, gtid_purged: 'OFF',
     chunk_rows: 500000, long_query_guard: 60, lock_mode: '', ftwrl_wait_timeout: 60, slave_info: false, safe_slave_backup: false,
-    low_priority: true, stream_upload: false, verify_after: false, bwlimit: '', extra_args: '', pre_command: '', post_command: '',
+    low_priority: true, stream_upload: false, verify_after: true, verify_mode: 'one', bwlimit: '', extra_args: '', pre_command: '', post_command: '',
     binlog_archive: false, binlog_rotate_minutes: 15,
   },
   retention: { keep_last: 7, keep_days: 0, keep_daily: 0, keep_weekly: 0, keep_monthly: 0 },
@@ -54,6 +54,8 @@ export async function render(ctx) {
     ['sec-storage', 'Storage'], ['sec-retention', 'Retention'], ['sec-advanced', 'Advanced'], ['sec-binlog', 'Binlog & PITR'], ['sec-notify', 'Notifications']];
   const tgt = (id) => job.targets.find((t) => t.storage_id === id);
   const o = job.options;
+  // jobs saved before verify_mode only have verify_after (it checked every copy)
+  const verifyMode = ['off', 'one', 'all'].includes(o.verify_mode) ? o.verify_mode : (o.verify_after ? 'all' : 'off');
   const r = job.retention;
   const num = (name, value, attrs = '') => html`<input type="number" name="${name}" value="${value}" ${attrs}>`;
   const chk = (name, checked, label, help = '') => html`<label class="check"><input type="checkbox" name="${name}" ${checked ? 'checked' : ''}><span>${label}${help ? html`<span class="help">${help}</span>` : ''}</span></label>`;
@@ -183,7 +185,12 @@ export async function render(ctx) {
         <div style="margin-top:16px" class="section-title">General</div>
         <div class="checks">
           ${chk('low_priority', o.low_priority, 'Low priority (nice + ionice)', 'Reduces the impact on the running database.')}
-          ${chk('verify_after', o.verify_after, 'Verify integrity after backup', 'Re-reads the files, decrypts/decompresses them and checks SHA-256.')}
+        </div>
+        <div class="form-grid" style="margin-top:14px">
+          <div class="field full"><label>Verify integrity after each backup</label>
+            <select name="verify_mode">${[['one', 'One copy — the cheapest to read back (a local directory first)'], ['all', 'Every copy — reads each storage again (cloud download costs)'], ['off', 'Off — verify by hand from the backup page']]
+    .map(([v, l]) => html`<option value="${v}" ${verifyMode === v ? 'selected' : ''}>${l}</option>`)}</select>
+            <div class="help">Reads the files back from storage, decrypts and decompresses them and checks their SHA-256, so a broken or incomplete copy is reported right away instead of at restore time.</div></div>
         </div>
         <div class="form-grid" style="margin-top:14px">
           <div class="field full"><label>Extra arguments for the dump tool ${!isAdmin() ? html`<span class="muted">— admin only</span>` : ''}</label><input type="text" name="extra_args" value="${o.extra_args}" ${!isAdmin() ? 'disabled' : ''} placeholder="e.g. --skip-definer"><div class="help">Advanced — appended verbatim to the mysqldump/mydumper/xtrabackup command.</div></div>
@@ -358,7 +365,7 @@ export async function render(ctx) {
         include_users: f.include_users.checked, record_binlog: f.record_binlog.checked, gtid_purged: f.gtid_purged.value,
         chunk_rows: +f.chunk_rows.value, long_query_guard: +f.long_query_guard.value, lock_mode: f.lock_mode.value, ftwrl_wait_timeout: +f.ftwrl_wait_timeout.value,
         slave_info: f.slave_info.checked, safe_slave_backup: f.safe_slave_backup.checked, low_priority: f.low_priority.checked,
-        stream_upload: f.stream_upload.checked, verify_after: f.verify_after.checked, bwlimit: f.bwlimit.value.trim(),
+        stream_upload: f.stream_upload.checked, verify_mode: f.verify_mode.value, verify_after: f.verify_mode.value !== 'off', bwlimit: f.bwlimit.value.trim(),
         extra_args: f.extra_args.value.trim(), pre_command: f.pre_command.value.trim(), post_command: f.post_command.value.trim(),
         binlog_archive: f.binlog_archive.checked, binlog_rotate_minutes: +f.binlog_rotate_minutes.value,
       },

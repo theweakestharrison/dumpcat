@@ -501,9 +501,13 @@ func (r *Runner) execBackup(ctx context.Context, task *Task, run *store.Run, job
 		task.SetPhase("retention")
 		r.applyRetention(ctx, job, lg)
 		r.applyBinlogRetention(ctx, job, lg)
-		if job.Options.VerifyAfter {
+		switch job.Options.Verify() {
+		case store.VerifyAll:
 			task.SetPhase("verify")
 			r.verifyRun(ctx, task, run.ID, 0, lg)
+		case store.VerifyOne:
+			task.SetPhase("verify")
+			r.verifyRun(ctx, task, run.ID, r.cheapestCopy(run.ID), lg)
 		}
 	}
 	if (run.Status == store.StatusSuccess && job.NotifySuccess) || (run.Status != store.StatusSuccess && run.Status != store.StatusCanceled && job.NotifyFailure) {
@@ -649,18 +653,22 @@ func (r *Runner) notifyRun(run *store.Run, job *store.Job, dur time.Duration) {
 	if run.SizeBytes > 0 {
 		ev.Add("Size", humanBytes(run.SizeBytes))
 	}
-	var locs []string
-	for _, l := range run.Locations {
-		locs = append(locs, l.StorageName+"="+l.Status)
+	fresh, err := r.Store.GetRun(run.ID) // retention and verification ran since
+	if err != nil {
+		fresh = run
 	}
-	if fresh, err := r.Store.GetRun(run.ID); err == nil {
-		locs = locs[:0]
-		for _, l := range fresh.Locations {
-			locs = append(locs, l.StorageName+"="+l.Status)
-		}
+	var locs []string
+	for _, l := range fresh.Locations {
+		locs = append(locs, l.StorageName+"="+l.Status)
 	}
 	if len(locs) > 0 {
 		ev.Add("Storage", strings.Join(locs, ", "))
+	}
+	switch fresh.VerifyStatus {
+	case "ok":
+		ev.Add("Integrity", "Verified: "+fresh.VerifyMsg)
+	case "failed":
+		ev.Add("Integrity", "Verification FAILED: "+fresh.VerifyMsg)
 	}
 	r.Notifier.Send(ev)
 }

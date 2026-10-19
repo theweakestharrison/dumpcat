@@ -12,7 +12,7 @@
     "eyebrow": "Open source · Backup &amp; restore for MySQL and MariaDB",
     "h1": "Backups that never lock the database. <span class=\"soft\">Recovery to the exact second.</span>",
     "lead": "DumpCat is a single binary with a web UI. It schedules backups, compresses and encrypts them, ships copies to S3, Google Drive, OneDrive or SFTP, verifies them and brings your data back when you need it. Runs on Linux and Windows, fully offline.",
-    "cta-install": "Install <span data-version>1.3.0</span>",
+    "cta-install": "Install <span data-version>1.3.1</span>",
     "cta-features": "See features",
     "cta-github": "Source on GitHub",
     "pitr-title": "Point-in-time recovery",

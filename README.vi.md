@@ -93,9 +93,9 @@ Phiên bản mới nhất, ghi chú phát hành và mã kiểm tra có trên **[
 **Linux**, với quyền root:
 
 ```bash
-curl -fLO https://downloads.dumpcat.cc/1.3.0/dumpcat-1.3.0-linux.tar.gz
-tar xzf dumpcat-1.3.0-linux.tar.gz
-cd dumpcat-1.3.0-linux
+curl -fLO https://downloads.dumpcat.cc/1.3.1/dumpcat-1.3.1-linux.tar.gz
+tar xzf dumpcat-1.3.1-linux.tar.gz
+cd dumpcat-1.3.1-linux
 sudo ./install.sh
 ```
 
@@ -106,13 +106,13 @@ Tùy chọn: `--port 9090`, `--listen 127.0.0.1`, `--tls-auto`, `--no-deps`, `--
 **Windows**, trong PowerShell chạy bằng quyền Administrator:
 
 ```powershell
-Invoke-WebRequest https://downloads.dumpcat.cc/1.3.0/dumpcat-1.3.0-windows-amd64.zip -OutFile dumpcat-1.3.0-windows-amd64.zip
-Expand-Archive dumpcat-1.3.0-windows-amd64.zip -DestinationPath .
-cd dumpcat-1.3.0-windows-amd64
+Invoke-WebRequest https://downloads.dumpcat.cc/1.3.1/dumpcat-1.3.1-windows-amd64.zip -OutFile dumpcat-1.3.1-windows-amd64.zip
+Expand-Archive dumpcat-1.3.1-windows-amd64.zip -DestinationPath .
+cd dumpcat-1.3.1-windows-amd64
 powershell -ExecutionPolicy Bypass -File .\install.ps1
 ```
 
-Kiểm tra file tải về bằng [SHA256SUMS](https://downloads.dumpcat.cc/1.3.0/SHA256SUMS) (`sha256sum -c --ignore-missing SHA256SUMS`,
+Kiểm tra file tải về bằng [SHA256SUMS](https://downloads.dumpcat.cc/1.3.1/SHA256SUMS) (`sha256sum -c --ignore-missing SHA256SUMS`,
 hoặc `Get-FileHash` trên Windows). Muốn tự build gói cài đặt, xem [Build từ mã nguồn](#build-từ-mã-nguồn).
 
 ### 2. Chạy bản backup đầu tiên
