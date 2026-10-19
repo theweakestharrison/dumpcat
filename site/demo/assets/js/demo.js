@@ -1,6 +1,6 @@
-// The DumpCat UI preview on dumpcat.cc/demo/: a welcome card that says what this is (the interface
-// DumpCat gives you on your own server, with sample data), a ribbon that keeps saying it, and the
-// download links (which need a real server) replaced by a message.
+// The DumpCat UI preview on dumpcat.cc/demo/: a short card that says what this is (DumpCat is not an
+// online service; this is sample data showing its features), closed only with its button; a ribbon that
+// keeps saying it; and the download links (which need a real server) replaced by a message.
 import { toast } from './ui.js';
 
 let lang = 'en';
@@ -9,67 +9,54 @@ const vi = lang === 'vi';
 const install = vi ? '/vi/install/' : '/install/';
 const T = vi ? {
   badge: 'Bản xem trước',
-  ribbon: 'Giao diện DumpCat trên server của bạn, với dữ liệu mẫu',
+  ribbon: 'Dữ liệu mẫu, không phải dịch vụ online',
   what: 'Đây là gì?', reset: 'Làm lại', get: 'Cài DumpCat',
-  title: 'Đây là giao diện DumpCat sau khi bạn cài',
-  lead: 'DumpCat không phải dịch vụ online. Bạn cài nó lên server của mình, và giao diện web này chạy ngay trên server đó: dữ liệu không đi qua ai khác. Bản xem trước này dùng dữ liệu mẫu, chạy hoàn toàn trong trình duyệt và không kết nối tới database nào.',
-  steps: ['<b>Cài DumpCat</b> lên server của bạn, Linux hoặc Windows, bằng một lệnh', '<b>Mở</b> <code>http://&lt;ip-server&gt;:6369</code> trên trình duyệt', '<b>Bạn có giao diện này</b>, với database và nơi lưu của chính bạn'],
-  you: 'Sau khi cài, bạn có',
-  features: [
-    ['#/dashboard', 'Dashboard', 'Mọi job, bản backup và cảnh báo trên một màn hình'],
-    ['#/jobs', 'Backup jobs', 'Lịch chạy, mysqldump, mydumper hoặc XtraBackup, mã hóa, nhiều nơi lưu'],
-    ['#/binlogs', 'Khôi phục theo thời điểm', 'Khôi phục một bản backup, hoặc tới đúng giây trước sự cố'],
-    ['#/drills', 'Diễn tập restore', 'Định kỳ chứng minh bản backup restore được thật'],
-    ['#/storages', 'Nơi lưu', 'Ổ local, S3, Google Drive, OneDrive, SFTP và hơn 70 nơi khác'],
-    ['#/agents', 'Agent và WireGuard', 'Backup cả database nằm sau firewall'],
-    ['#/notifications', 'Thông báo và giám sát', 'Email, Slack, Telegram, Discord, báo cáo tuần, Prometheus'],
+  title: 'DumpCat không phải dịch vụ online',
+  points: [
+    ['lock', 'Bạn cài DumpCat lên server của mình. <b>Dữ liệu không đi qua đâu cả.</b>'],
+    ['eye', 'Đây là <b>dữ liệu mẫu</b>, để bạn xem DumpCat có những tính năng gì.'],
   ],
-  explore: 'Xem giao diện mẫu', installGuide: 'Cách cài DumpCat →',
+  features: ['Dashboard', 'Backup jobs', 'Khôi phục theo thời điểm', 'Diễn tập restore', 'S3, Google Drive, SFTP…', 'Agent và WireGuard', 'Cảnh báo và giám sát'],
+  explore: 'Xem các tính năng',
   download: 'Bản xem trước không có file thật để tải về. Cài DumpCat để tải bản backup của bạn.',
 } : {
   badge: 'Preview',
-  ribbon: 'The DumpCat interface on your own server, with sample data',
+  ribbon: 'Sample data, not an online service',
   what: 'What is this?', reset: 'Reset', get: 'Get DumpCat',
-  title: 'This is DumpCat after you install it',
-  lead: 'DumpCat is not an online service. You install it on your own server, and this web interface runs right there: your data goes through no one else. This preview uses sample data, runs entirely in your browser and connects to no database.',
-  steps: ['<b>Install DumpCat</b> on your server, Linux or Windows, with one command', '<b>Open</b> <code>http://&lt;server-ip&gt;:6369</code> in your browser', '<b>You get this interface</b>, with your own databases and storage'],
-  you: 'After installing, you get',
-  features: [
-    ['#/dashboard', 'Dashboard', 'Every job, backup and warning on one screen'],
-    ['#/jobs', 'Backup jobs', 'Schedules, mysqldump, mydumper or XtraBackup, encryption, several storages'],
-    ['#/binlogs', 'Point-in-time recovery', 'Restore a backup, or to the second before an incident'],
-    ['#/drills', 'Restore drills', 'Prove on a schedule that backups really restore'],
-    ['#/storages', 'Storage', 'Local disk, S3, Google Drive, OneDrive, SFTP and 70+ more'],
-    ['#/agents', 'Agents and WireGuard', 'Back up databases behind a firewall'],
-    ['#/notifications', 'Alerts and monitoring', 'Email, Slack, Telegram, Discord, weekly digest, Prometheus'],
+  title: 'DumpCat is not an online service',
+  points: [
+    ['lock', 'You install DumpCat on your own server. <b>Your data goes nowhere else.</b>'],
+    ['eye', 'This is <b>sample data</b>, to show you what DumpCat can do.'],
   ],
-  explore: 'Explore the preview', installGuide: 'How to install DumpCat →',
+  features: ['Dashboard', 'Backup jobs', 'Point-in-time recovery', 'Restore drills', 'S3, Google Drive, SFTP…', 'Agents and WireGuard', 'Alerts and monitoring'],
+  explore: 'Explore the features',
   download: 'The preview has no real files to download. Install DumpCat to download your backups.',
 };
+const ICON = {
+  lock: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="10" width="16" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>',
+  eye: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>',
+};
 
-// ---- welcome card ----
+// ---- the card: only its button closes it ----
 const dlg = document.createElement('dialog');
 dlg.className = 'demo-intro';
 dlg.setAttribute('aria-labelledby', 'demo-intro-title');
-dlg.innerHTML = `<div class="di-head"><span class="di-badge">${T.badge}</span><button type="button" class="di-x" aria-label="Close">×</button></div>
+dlg.innerHTML = `<span class="di-badge">${T.badge}</span>
   <h2 id="demo-intro-title">${T.title}</h2>
-  <p class="di-lead">${T.lead}</p>
-  <ol class="di-steps">${T.steps.map((s) => `<li>${s}</li>`).join('')}</ol>
-  <p class="di-you">${T.you}</p>
-  <ul class="di-features">${T.features.map(([href, name, text]) => `<li><a href="${href}"><b>${name}</b><span>${text}</span></a></li>`).join('')}</ul>
-  <div class="di-actions"><button type="button" class="di-go">${T.explore}</button><a href="${install}">${T.installGuide}</a></div>`;
+  <ul class="di-points">${T.points.map(([i, s]) => `<li>${ICON[i]}<span>${s}</span></li>`).join('')}</ul>
+  <ul class="di-tags">${T.features.map((f) => `<li>${f}</li>`).join('')}</ul>
+  <button type="button" class="di-go">${T.explore}</button>`;
 document.body.appendChild(dlg);
-const close = () => {
+let leaving = false;
+const done = () => {
+  leaving = true;
   dlg.close();
   try { sessionStorage.setItem('dumpcat-demo-intro', '1'); } catch { /* storage blocked */ }
 };
-dlg.querySelector('.di-x').onclick = close;
-dlg.querySelector('.di-go').onclick = close;
-dlg.querySelectorAll('.di-features a').forEach((a) => a.addEventListener('click', close));
-dlg.addEventListener('click', (e) => { if (e.target === dlg) close(); }); // the backdrop
-dlg.addEventListener('cancel', () => { try { sessionStorage.setItem('dumpcat-demo-intro', '1'); } catch { /* storage blocked */ } });
-// on a phone the card scrolls: start at its title, not at the focused button
-const open = () => { if (!dlg.open) dlg.showModal(); dlg.querySelector('.di-go').focus({ preventScroll: true }); dlg.scrollTop = 0; };
+dlg.querySelector('.di-go').onclick = done;
+dlg.addEventListener('cancel', (e) => e.preventDefault()); // Esc
+dlg.addEventListener('close', () => { if (!leaving) dlg.showModal(); }); // a browser that closes it anyway
+const open = () => { leaving = false; if (!dlg.open) dlg.showModal(); dlg.querySelector('.di-go').focus({ preventScroll: true }); dlg.scrollTop = 0; };
 let seen = false;
 try { seen = sessionStorage.getItem('dumpcat-demo-intro') === '1'; } catch { /* storage blocked */ }
 if (!seen) open();
