@@ -9,7 +9,10 @@
   X-Frame-Options: DENY
 
 # one-line installers: curl | sh and irm | iex read them as text
+# and search engines keep them out of their results
 /install.sh
   Content-Type: text/plain; charset=utf-8
+  X-Robots-Tag: noindex
 /install.ps1
   Content-Type: text/plain; charset=utf-8
+  X-Robots-Tag: noindex

@@ -1,3 +1,5 @@
+# dumpcat.cc: every page may be crawled; the pages to index are listed in the sitemap.
+# The one-line installers (/install.sh, /install.ps1) are scripts: they are sent with X-Robots-Tag: noindex.
 User-agent: *
 Allow: /
 

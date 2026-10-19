@@ -16,6 +16,7 @@ import html
 import json
 import pathlib
 import re
+import subprocess
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 SRC = ROOT / "site-src" / "compare"
@@ -321,9 +322,11 @@ def guide_path(lang):
     return "/install/" if lang == "en" else "/vi/install/"
 
 
-def head(lang, title, desc, slug, crumbs, at=None, alternates=True):
+def head(lang, title, desc, slug, crumbs, at=None, alternates=True, canonical=True, robots=""):
     at = at or (lambda l: path(l, slug))
     url = BASE + at(lang)
+    meta = (f'<link rel="canonical" href="{url}">\n' if canonical else "") + \
+        (f'<meta name="robots" content="{robots}">\n' if robots else "")
     alt = "".join(f'<link rel="alternate" hreflang="{l}" href="{BASE + at(l)}">\n' for l in LANGS) + \
         f'<link rel="alternate" hreflang="x-default" href="{BASE + at("en")}">\n' if alternates else ""
     ld = {"@context": "https://schema.org", "@type": "BreadcrumbList",
@@ -336,8 +339,7 @@ def head(lang, title, desc, slug, crumbs, at=None, alternates=True):
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>{esc(title)}</title>
 <meta name="description" content="{esc(desc)}">
-<link rel="canonical" href="{url}">
-{alt}<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+{meta}{alt}<link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <meta property="og:type" content="article">
 <meta property="og:url" content="{url}">
 <meta property="og:site_name" content="DumpCat">
@@ -384,7 +386,7 @@ def header(lang, slug, crumbs, h1, lead, at=None, cta=None, langs=LANGS, eyebrow
         <a class="nav-gh" href="{REPO}" aria-label="GitHub" title="GitHub">{GH}</a>
       </nav>
       <a class="nav-cta" href="{guide_path(lang)}">{t['install']}</a>
-      <div class="lang" role="group" aria-label="Language">{lang_links}</div>
+      {f'<div class="lang" role="group" aria-label="Language">{lang_links}</div>' if langs else ''}
     </div>
     <div class="page-head">
       <nav class="crumbs" aria-label="Breadcrumb">{crumb_html}</nav>
@@ -698,6 +700,47 @@ def write(rel, text):
     f.write_text(text, encoding="utf-8", newline="\n")
 
 
+TODAY = datetime.date.today().isoformat()
+
+
+def git_date(*paths):
+    """When paths last changed: today if they have uncommitted changes (the build output is committed with
+    them), else the date of the last commit that touched them; today when git is not available."""
+    try:
+        run = lambda *a: subprocess.run(["git", *a, "--", *paths], cwd=ROOT, capture_output=True, text=True, check=True).stdout.strip()
+        if run("status", "--porcelain"):
+            return TODAY
+        return run("log", "-1", "--format=%cs") or TODAY
+    except (OSError, subprocess.CalledProcessError):
+        return TODAY
+
+
+def not_found_page():
+    """site/404.html: served with status 404 for any missing path (wrangler.jsonc: not_found_handling)."""
+    crumbs = [("Home", "/"), ("Not found", "/")]
+    cta = (f'<a class="btn btn-light" href="/">DumpCat home</a>'
+           f'<a class="btn btn-ghost" href="{guide_path("en")}">Install DumpCat</a>')
+    lead = "This page does not exist, or it moved. Không tìm thấy trang này."
+    links = "".join(f'<li><a href="{u}">{esc(n)}</a><span>{esc(d)}</span></li>' for n, u, d in [
+        ("Install DumpCat", guide_path("en"), "Step by step, on Linux or Windows"),
+        ("Compare", path("en"), "DumpCat next to other MySQL backup tools"),
+        ("What's new", cl_path(), "Every release"),
+        ("Preview the UI", "/demo/", "The interface you get after installing, with sample data"),
+    ])
+    return (head("en", "Page not found · DumpCat", "This page does not exist.", None, crumbs, at=lambda l: "/404.html",
+                 alternates=False, canonical=False, robots="noindex")
+            + header("en", None, crumbs, "Page not found", lead, at=lambda l: "/", cta=cta, langs=())
+            + f"""
+<main>
+  <section class="section">
+    <div class="wrap narrow">
+      <ul class="related">{links}</ul>
+    </div>
+  </section>
+</main>
+""" + footer("en"))
+
+
 def main():
     tools = [json.loads(p.read_text(encoding="utf-8")) for p in sorted(SRC.glob("*.json"))]
     tools.sort(key=lambda o: o.get("order", 100))
@@ -732,23 +775,33 @@ def main():
     page = page[:i] + "\n" + whatsnew_block(rels[0]) + "\n        " + page[j:]
     idx.write_text(page, encoding="utf-8", newline="\n")
 
-    newest = max([o["checked"] for o in tools] + [datetime.date.today().isoformat()])
-    guide_mod = datetime.date.fromtimestamp(max(p.stat().st_mtime for p in GUIDE.glob("*.html"))).isoformat()
-    urls = ([("/", None, newest), (None, lambda l: path(l), newest), (None, guide_path, guide_mod)]
-            + [(None, lambda l, s=o["slug"]: path(l, s), o["checked"]) for o in tools])
+    write("404.html", not_found_page())
+
+    # sitemap: every canonical page once, its language versions as hreflang alternates (x-default: English),
+    # and a lastmod that changes only when the page's content does
+    tool_dates = {o["slug"]: max(o["checked"], git_date(f"site-src/compare/{o['slug']}.json")) for o in tools}
+    urls = ([("/", None, git_date("site/index.html", "site/app.js")),
+             (None, lambda l: path(l), max(tool_dates.values())),
+             (None, guide_path, git_date("site-src/install")),
+             ("/demo/", None, git_date("web/index.html", "web/assets", "site-src/demo"))]
+            + [(None, lambda l, s=o["slug"]: path(l, s), tool_dates[o["slug"]]) for o in tools]
+            + [(cl_path(), None, rels[0]["date"] or git_date("CHANGELOG.md"))]
+            + [(cl_path(r["version"]), None, r["date"] or git_date("CHANGELOG.md")) for r in rels])
     items = []
-    urls += [(cl_path(), None, rels[0]["date"] or newest)] + [(cl_path(r["version"]), None, r["date"] or newest) for r in rels]
     for fixed, at, mod in urls:
         if fixed:
             items.append(f"  <url><loc>{BASE}{fixed}</loc><lastmod>{mod}</lastmod></url>")
             continue
         alts = "".join(f'<xhtml:link rel="alternate" hreflang="{l}" href="{BASE + at(l)}"/>' for l in LANGS)
+        alts += f'<xhtml:link rel="alternate" hreflang="x-default" href="{BASE + at("en")}"/>'
         for lang in LANGS:
             items.append(f"  <url><loc>{BASE + at(lang)}</loc><lastmod>{mod}</lastmod>{alts}</url>")
     write("sitemap.xml", '<?xml version="1.0" encoding="UTF-8"?>\n'
           '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">\n'
           + "\n".join(items) + "\n</urlset>\n")
-    write("robots.txt", f"User-agent: *\nAllow: /\n\nSitemap: {BASE}/sitemap.xml\n")
+    write("robots.txt", "# dumpcat.cc: every page may be crawled; the pages to index are listed in the sitemap.\n"
+          "# The one-line installers (/install.sh, /install.ps1) are scripts: they are sent with X-Robots-Tag: noindex.\n"
+          f"User-agent: *\nAllow: /\n\nSitemap: {BASE}/sitemap.xml\n")
     print(f"built {len(tools)} comparisons and the install guide x {len(LANGS)} languages, {len(rels)} release pages, "
           f"sitemap with {len(items)} URLs")
 

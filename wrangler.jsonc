@@ -4,7 +4,9 @@
   "name": "dumpcat-site",
   "compatibility_date": "2026-10-12",
   "assets": {
-    "directory": "./site"
+    "directory": "./site",
+    // a missing path gets site/404.html (written by scripts/build-site.py) with status 404
+    "not_found_handling": "404-page"
   },
   "routes": [
     { "pattern": "dumpcat.cc", "custom_domain": true }

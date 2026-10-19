@@ -223,6 +223,18 @@ Sửa hoặc thêm một công cụ:
 Nên kiểm tra lại giá và tính năng của các công cụ khoảng 6 tháng một lần. Sau lần deploy đầu, thêm `https://dumpcat.cc/sitemap.xml` vào
 Google Search Console và Bing Webmaster Tools.
 
+**SEO, do `build-site.py` sinh ra:**
+
+- `sitemap.xml` liệt kê mỗi trang một lần, đúng địa chỉ canonical của nó (có `/` ở cuối), kèm bản EN/VI bằng `hreflang` (và
+  `x-default` là bản tiếng Anh). `lastmod` chỉ đổi khi nội dung trang đổi: lấy ngày commit cuối của file nguồn (hoặc hôm nay nếu file
+  đó đang sửa dở), ngày kiểm tra của trang so sánh, ngày phát hành của trang **Có gì mới**. Vì vậy hãy commit cả file nguồn lẫn file
+  sinh ra trong cùng một commit.
+- `robots.txt` cho phép crawl mọi trang và chỉ tới sitemap. `install.sh` và `install.ps1` được gửi kèm `X-Robots-Tag: noindex`
+  (trong `_headers`), nên không hiện trong kết quả tìm kiếm.
+- `404.html` là trang báo không tìm thấy (`noindex`). `wrangler.jsonc` đặt `not_found_handling: "404-page"` nên mọi đường dẫn không
+  tồn tại nhận trang này với mã 404.
+- Bản demo (`/demo/`) được phép index và có canonical riêng; DumpCat cài trên server thì vẫn `noindex`.
+
 ---
 
 ## Phần 5 — Bản demo (dumpcat.cc/demo/)
