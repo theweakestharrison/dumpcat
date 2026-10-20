@@ -693,7 +693,9 @@ Mở **Bản backup** → chọn bản → **Restore**.
    đó (giữ `postgresql.auto.conf` của nguồn). Khi chạy bằng root, OS user phải vào được thư mục: chọn ví dụ
    `/srv/dumpcat-restore` (thư mục còn thiếu được tạo sao cho user đó vào được; thư mục mặc định nằm trong thư mục dữ
    liệu của DumpCat, user đó không vào được; `/tmp` và `/var/tmp` bị từ chối: đó là thư mục riêng của service, người
-   khác không thấy và bị xóa khi DumpCat dừng). Không có server
+   khác không thấy và bị xóa khi DumpCat dừng). Cluster để cấu hình ngoài thư mục dữ liệu (Debian/Ubuntu
+   `/etc/postgresql`) được ghi thêm `postgresql.conf`, `pg_hba.conf` (chỉ kết nối cục bộ) và `pg_ident.conf` tối
+   thiểu để tự khởi động được. Không có server
    PostgreSQL thì thư mục được để ở trạng thái **sẵn sàng khôi phục**: thiết lập khôi phục nằm trong
    `postgresql.auto.conf` và `recovery.signal`, WAL nằm trong `dumpcat_wal/`; chép nó sang máy database rồi khởi động
    PostgreSQL ở đó.

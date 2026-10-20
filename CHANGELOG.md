@@ -40,7 +40,9 @@ database engines.
   PostgreSQL server of the backup's version (its own configuration: a local port, no archiving); without the server
   binaries the directory is left ready to recover. Admins on Linux can replace a local cluster's data directory with it:
   recovered next to it, swapped in while the service is stopped, rolled back on any error. As root the recovery runs as
-  the OS user `postgres`, and the folders DumpCat creates for the directory let it in.
+  the OS user `postgres`, and the folders DumpCat creates for the directory let it in. A directory whose configuration
+  lived in `/etc/postgresql` (Debian/Ubuntu) gets a minimal `postgresql.conf`, `pg_hba.conf` and `pg_ident.conf`, so
+  that it starts on its own.
 
 ### Point-in-time recovery for PostgreSQL
 

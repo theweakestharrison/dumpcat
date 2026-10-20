@@ -134,6 +134,11 @@ func (Driver) RestorePhysical(env *engine.Env, src engine.RestoreSource, spec *e
 	if m, err := os.ReadFile(filepath.Join(dir, "tablespace_map")); err == nil && len(strings.TrimSpace(string(m))) > 0 {
 		return errors.New("the backup has tablespaces: they cannot be restored by DumpCat yet")
 	}
+	if spec.Apply == nil {
+		if err := addConfigFiles(dir, lg); err != nil {
+			return err
+		}
+	}
 	src.SetPhase("prepare")
 	var settings [][2]string
 	if rp != nil {
@@ -213,6 +218,39 @@ func mkdirFor(dir, asUser string) error {
 		return err
 	}
 	return os.Chmod(dir, 0o700)
+}
+
+// addConfigFiles writes the configuration files a prepared directory lacks:
+// the source kept them outside its data directory (Debian/Ubuntu:
+// /etc/postgresql/<version>/<cluster>/), and PostgreSQL does not start
+// without them. PostgreSQL's defaults, local connections only.
+func addConfigFiles(dir string, lg *tasklog.Logger) error {
+	hba := "# TYPE  DATABASE  USER  ADDRESS       METHOD\n"
+	if runtime.GOOS != "windows" {
+		hba += "local   all       all                 peer\n"
+	}
+	hba += "host    all       all   127.0.0.1/32  scram-sha-256\nhost    all       all   ::1/128       scram-sha-256\n"
+	files := [][2]string{
+		{"postgresql.conf", "# PostgreSQL's defaults apply; the source's ALTER SYSTEM settings are in postgresql.auto.conf.\n"},
+		{"pg_hba.conf", "# Local connections only.\n" + hba},
+		{"pg_ident.conf", ""},
+	}
+	var added []string
+	for _, f := range files {
+		p := filepath.Join(dir, f[0])
+		if _, err := os.Stat(p); err == nil {
+			continue
+		}
+		head := "# Written by DumpCat: the source kept its " + f[0] + " outside the data directory (Debian/Ubuntu: /etc/postgresql/<version>/<cluster>/).\n"
+		if err := os.WriteFile(p, []byte(head+f[1]), 0o600); err != nil {
+			return err
+		}
+		added = append(added, f[0])
+	}
+	if len(added) > 0 {
+		lg.Printf("The source kept its configuration outside the data directory (Debian/Ubuntu layout): wrote a minimal %s so that PostgreSQL starts on the directory (local connections only)", strings.Join(added, ", "))
+	}
+	return nil
 }
 
 // restoreCommand copies a fetched segment for the recovery; the path is
