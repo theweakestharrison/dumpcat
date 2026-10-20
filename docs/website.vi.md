@@ -239,7 +239,7 @@ Các trang `https://dumpcat.cc/compare/…` (tiếng Anh), `https://dumpcat.cc/v
 |---|---|
 | `site-src/compare/<slug>.json` | Một công cụ: tên, `grid` (bảng song song: mỗi dòng là `yes` / `paid` / `partial` / `no` / `unknown` kèm ghi chú ngắn EN/VI), giá trị chi tiết từng dòng, "chọn họ nếu" / "chọn DumpCat nếu", các bước chuyển, nguồn, ngày kiểm tra |
 | `site-src/install/en.html`, `vi.html` | Nội dung trang hướng dẫn cài đặt cho người mới |
-| `CHANGELOG.md` | Nguồn của các trang **Có gì mới** `/changelog/` và `/changelog/<phiên bản>/` (tiếng Anh) và thẻ **Có gì mới** trên landing page (chỗ `<!-- whatsnew (scripts/build-site.py) -->` trong `site-src/landing/index.html`) |
+| `CHANGELOG.md` | Nguồn của các trang **Có gì mới** `/changelog/` và `/changelog/<phiên bản>/` (tiếng Anh) và thẻ **Có gì mới** trên landing page (chỗ `<!-- whatsnew (scripts/build-site.py) -->` trong `site-src/landing/index.html`). Mục chưa có ngày (`## 1.7.0`, phiên bản chưa phát hành) bị bỏ qua, nên build lại site lúc nào cũng được |
 | `scripts/build-site.py` | Template; các dòng của bảng song song (`GRID`) và cột DumpCat (`US_GRID`); những dòng hiện trên landing page (`LANDING_ROWS`); sinh trang so sánh và trang hướng dẫn EN/VI, hai bản của landing page (Phần 3) với mục **So sánh** của nó (chỗ `<!-- compare (scripts/build-site.py) -->`), `404.html`, `sitemap.xml` và `robots.txt` |
 
 Sửa hoặc thêm một công cụ:
@@ -255,8 +255,10 @@ Google Search Console và Bing Webmaster Tools.
 
 **SEO, do `build-site.py` sinh ra:**
 
-- `sitemap.xml` liệt kê mỗi trang một lần, đúng địa chỉ canonical của nó (có `/` ở cuối), kèm bản EN/VI bằng `hreflang` (và
-  `x-default` là bản tiếng Anh). `lastmod` chỉ đổi khi nội dung trang đổi: lấy ngày commit cuối của file nguồn (hoặc hôm nay nếu file
+- `sitemap.xml` liệt kê mỗi trang một lần, đúng địa chỉ canonical của nó (có `/` ở cuối). Các bản ngôn ngữ khác của một
+  trang không ghi lại trong sitemap: chính trang đó đã khai báo chúng bằng `hreflang` trong `<head>`, công cụ tìm kiếm đọc
+  được ở đó. (Thẻ `xhtml:link` trong sitemap làm trình duyệt hiện sitemap thành một khối chữ dính liền thay vì cây XML.)
+  `lastmod` chỉ đổi khi nội dung trang đổi: lấy ngày commit cuối của file nguồn (hoặc hôm nay nếu file
   đó đang sửa dở), ngày kiểm tra của trang so sánh, ngày phát hành của trang **Có gì mới**. Với `/` và `/vi/` là ngày commit cuối của
   chính `site/index.html` / `site/vi/index.html` (và `site/app.js`), nên sửa chữ tiếng Anh chỉ đổi `lastmod` của `/`. Vì vậy hãy commit
   cả file nguồn lẫn file sinh ra trong cùng một commit.

@@ -606,11 +606,14 @@ def anchor(title):
 
 
 def releases():
-    """CHANGELOG.md sections: version, date, summary, groups of items ("### " titles; untitled when there are none)."""
+    """CHANGELOG.md sections: version, date, summary, groups of items ("### " titles; untitled when there are none).
+    A section without a date is a version not released yet: it is left out, so the site can be rebuilt any time."""
     out = []
     for block in re.split(r"(?m)^## ", CHANGELOG.read_text(encoding="utf-8"))[1:]:
         head, _, body = block.partition("\n")
         m = re.match(r"(\S+)(?: \((\d{4}-\d{2}-\d{2})\))?", head.strip())
+        if not m.group(2):
+            continue
         rel = {"version": m.group(1), "date": m.group(2), "lead": [], "groups": []}
         cur = None
         for line in body.splitlines():
@@ -977,8 +980,10 @@ def main():
 
     write("404.html", not_found_page())
 
-    # sitemap: every canonical page once, its language versions as hreflang alternates (x-default: English),
-    # and a lastmod that changes only when the page's content does
+    # sitemap: every canonical page once, with a lastmod that changes only when the page's content does. The
+    # language versions are not repeated here: each page names them in its <head> (hreflang), which search
+    # engines read as well, and xhtml:link elements made browsers render the sitemap as loose text
+    # instead of showing the XML
     tool_dates = {o["slug"]: max(o["checked"], git_date(f"site-src/compare/{o['slug']}.json")) for o in tools}
     # (a fixed URL, or a path per language; lastmod; the languages, when not LANGS)
     urls = ([(None, home_path, lambda l: git_date(f"site{home_path(l)}index.html", "site/app.js"), tuple(LANDING_LANGS)),
@@ -993,13 +998,10 @@ def main():
         if fixed:
             items.append(f"  <url><loc>{BASE}{fixed}</loc><lastmod>{mod}</lastmod></url>")
             continue
-        langs = langs[0] if langs else LANGS
-        alts = "".join(f'<xhtml:link rel="alternate" hreflang="{LANDING_LANGS[l][0]}" href="{BASE + at(l)}"/>' for l in langs)
-        alts += f'<xhtml:link rel="alternate" hreflang="x-default" href="{BASE + at("en")}"/>'
-        for lang in langs:
-            items.append(f"  <url><loc>{BASE + at(lang)}</loc><lastmod>{mod(lang) if callable(mod) else mod}</lastmod>{alts}</url>")
+        for lang in (langs[0] if langs else LANGS):
+            items.append(f"  <url><loc>{BASE + at(lang)}</loc><lastmod>{mod(lang) if callable(mod) else mod}</lastmod></url>")
     write("sitemap.xml", '<?xml version="1.0" encoding="UTF-8"?>\n'
-          '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">\n'
+          '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
           + "\n".join(items) + "\n</urlset>\n")
     write("robots.txt", "# dumpcat.cc: every page may be crawled; the pages to index are listed in the sitemap.\n"
           "# The one-line installers (/install.sh, /install.ps1) are scripts: they are sent with X-Robots-Tag: noindex.\n"
