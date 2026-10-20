@@ -5,7 +5,7 @@
 <h1 align="center">DumpCat</h1>
 
 <p align="center">
-  <strong>Backup, restore and point-in-time recovery for MySQL and MariaDB.</strong><br>
+  <strong>Backup, restore and point-in-time recovery for MySQL and MariaDB, and now PostgreSQL.</strong><br>
   One self-hosted binary with a web UI. No database locks, no runtime to install, works offline.
 </p>
 
@@ -14,6 +14,7 @@
   <img alt="Go 1.26 or newer" src="https://img.shields.io/badge/go-1.26%2B-00ADD8">
   <img alt="Runs on Linux and Windows" src="https://img.shields.io/badge/platform-Linux%20%7C%20Windows-555">
   <img alt="MySQL 5.7 to 8.4, MariaDB 10 and 11" src="https://img.shields.io/badge/MySQL%205.7--8.4%20%C2%B7%20MariaDB%2010--11-4479A1">
+  <img alt="PostgreSQL 10 and newer" src="https://img.shields.io/badge/PostgreSQL-10%2B-336791">
 </p>
 
 <p align="center">
@@ -25,7 +26,7 @@
 
 ---
 
-DumpCat takes care of the whole backup lifecycle of a MySQL or MariaDB server from your browser. It schedules backups,
+DumpCat takes care of the whole backup lifecycle of MySQL, MariaDB and PostgreSQL servers from your browser. It schedules backups,
 compresses and encrypts them, copies them to the storages you choose, checks that they can be read back, and restores
 them when you need to, down to the second with binlog archiving. It runs on Linux or Windows next to your database, as a
 single Go binary with the UI built in.
@@ -35,6 +36,9 @@ single Go binary with the UI built in.
 - **No locking.** InnoDB is backed up from a consistent snapshot while your application keeps reading and writing.
 - **Three backup engines.** `mysqldump` / `mariadb-dump`, parallel `mydumper` / `myloader`, and hot physical backups with
   Percona XtraBackup or MariaBackup, including incrementals.
+- **PostgreSQL too.** `pg_dump` in directory format with tables dumped and restored in parallel, roles from
+  `pg_dumpall --globals-only`, restores under new names or onto another server, and restore drills, with the client tools
+  of each server's major version picked automatically. Point-in-time recovery for PostgreSQL (WAL) comes next.
 - **Point-in-time recovery.** Continuous binlog archiving restores to a timestamp, a binlog position or the moment just
   before a GTID, for example just before an accidental `DROP TABLE`.
 - **Storage anywhere.** Local disk or NFS, S3 and compatibles (Cloudflare R2, MinIO, Wasabi…), Google Drive,
@@ -137,9 +141,9 @@ flowchart RL
 
 | | |
 |---|---|
-| **Databases** | MySQL 5.7, 8.0, 8.4 · Percona Server · MariaDB 10.x, 11.x |
+| **Databases** | MySQL 5.7, 8.0, 8.4 · Percona Server · MariaDB 10.x, 11.x · PostgreSQL 10 and newer |
 | **DumpCat host** | Linux amd64 / arm64 with systemd · Windows Server 2016+ / Windows 10+ 64-bit, as a Windows service |
-| **Backup tools** | mysqldump / mariadb-dump · mydumper / myloader · Percona XtraBackup · MariaBackup (the Linux installer picks the versions that match your server) |
+| **Backup tools** | mysqldump / mariadb-dump · mydumper / myloader · Percona XtraBackup · MariaBackup · pg_dump / pg_restore / pg_dumpall (the Linux installer picks the versions that match your server; `--postgres 16` adds the PostgreSQL 16 client) |
 | **Storage** | Local directories and NFS / SMB shares, plus everything [rclone](https://rclone.org) supports |
 | **Databases behind a firewall** | The agent (`dumpcat agent`) on Linux with systemd or on Windows, outbound HTTPS only · or standard WireGuard (`wg-quick`), outbound UDP |
 
@@ -209,6 +213,9 @@ and restrict who can reach it.
 | Incremental | No | No | Yes |
 | Restore one database or rename it | Yes | Yes | No, whole instance |
 | Good for | Under 20–50 GB | Large databases restored one at a time | 100 GB to several TB, low RTO |
+
+PostgreSQL servers are backed up with `pg_dump` (directory format, tables in parallel, no locking of writers): see
+[PostgreSQL](docs/manual.md#postgresql).
 
 More detail and recommendations: [Choosing a backup method](docs/manual.md#2-choosing-a-backup-method).
 

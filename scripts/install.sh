@@ -1,15 +1,16 @@
 #!/usr/bin/env bash
-# DumpCat installer — MySQL/MariaDB backup & restore manager
+# DumpCat installer — MySQL, MariaDB & PostgreSQL backup & restore manager
 #
 #   sudo ./install.sh                     # install binary + systemd + backup tools
 #   sudo ./install.sh --port 9090         # custom port
+#   sudo ./install.sh --postgres 16       # also the PostgreSQL 16 client tools (majors of your servers: 15,16)
 #   sudo ./install.sh --no-deps           # do not install backup tools
 #   sudo ./install.sh --tls-auto          # serve HTTPS with a self-signed certificate
 #   sudo ./install.sh --uninstall [--purge]
 #
 # Agent only, on a database host that accepts no inbound connections (it connects out to DumpCat):
 #   sudo ./install.sh --agent --server https://backup.example.com --key dca_...
-#        [--allow 127.0.0.1:3306,unix:/run/mysqld/mysqld.sock] [--insecure]
+#        [--allow 127.0.0.1:3306,unix:/run/mysqld/mysqld.sock] [--insecure]   # PostgreSQL: 127.0.0.1:5432
 #        [--allow-physical]   # also run physical backups (mariabackup/xtrabackup) here
 #   sudo ./install.sh --agent --uninstall [--purge]
 #
@@ -38,6 +39,7 @@ AGENT_KEY=""
 AGENT_ALLOW=""
 AGENT_INSECURE=0
 AGENT_PHYSICAL=0
+PG_MAJORS=""
 AGENT_UNIT=/etc/systemd/system/dumpcat-agent.service
 AGENT_DROPIN=/etc/systemd/system/dumpcat-agent.service.d/physical.conf
 AGENT_ENV=$CONF_DIR/agent.env
@@ -48,13 +50,14 @@ info()  { echo "${c_green}==>${c_off} $*"; }
 warn()  { echo "${c_yellow}!!${c_off} $*" >&2; }
 die()   { echo "${c_red}xx${c_off} $*" >&2; exit 1; }
 
-usage() { sed -n '2,16p' "$0" | sed 's/^# \{0,1\}//'; exit 0; }
+usage() { sed -n '2,17p' "$0" | sed 's/^# \{0,1\}//'; exit 0; }
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --port) PORT="$2"; shift 2 ;;
     --listen) LISTEN_ADDR="$2"; shift 2 ;;
     --no-deps) INSTALL_DEPS=0; shift ;;
+    --postgres) PG_MAJORS="$2"; shift 2 ;;
     --tls-auto) TLS_AUTO=1; shift ;;
     --binary) BINARY="$2"; shift 2 ;;
     --data-dir) DATA_DIR="$2"; shift 2 ;;
@@ -71,6 +74,7 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
+[[ -z $PG_MAJORS || $PG_MAJORS =~ ^[0-9]+(,[0-9]+)*$ ]] || die "--postgres takes major versions, e.g. --postgres 16 or --postgres 15,16"
 [[ $EUID -eq 0 ]] || die "please run as root (sudo)"
 command -v systemctl >/dev/null || die "systemd is required"
 
@@ -338,6 +342,42 @@ install_deps() {
     fi
   fi
   have zstd || pkg_install zstd 2>/dev/null || true
+
+  # PostgreSQL client tools: pg_dump must be at least as new as the server, so one
+  # set per major version (--postgres, and the majors of a server on this machine)
+  local majors="${PG_MAJORS//,/ }" d m
+  for d in /usr/lib/postgresql/*/bin /usr/pgsql-*/bin; do
+    [[ -x $d/postgres ]] || continue
+    m="$(basename "$(dirname "$d")")"; m="${m#pgsql-}"
+    [[ $m =~ ^[0-9]+$ && " $majors " != *" $m "* ]] && majors="$majors $m"
+  done
+  for m in $majors; do install_pg_client "$m"; done
+}
+
+# install_pg_client MAJOR installs pg_dump, pg_restore and pg_dumpall of that
+# major version from the PostgreSQL project's repository (the distribution only
+# has its own major).
+install_pg_client() {
+  local major="$1"
+  if [[ -x /usr/lib/postgresql/$major/bin/pg_dump || -x /usr/pgsql-$major/bin/pg_dump ]]; then
+    info "PostgreSQL $major client tools: already installed"
+    return 0
+  fi
+  info "Installing the PostgreSQL $major client tools (pg_dump, pg_restore, pg_dumpall)"
+  if [[ $FAMILY == debian ]]; then
+    if ! apt-cache show "postgresql-client-$major" >/dev/null 2>&1; then
+      pkg_install postgresql-common && /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y \
+        || warn "could not add the PostgreSQL repository (apt.postgresql.org)"
+    fi
+    pkg_install "postgresql-client-$major" || warn "could not install postgresql-client-$major"
+  else
+    if ! dnf -q list --available "postgresql$major" >/dev/null 2>&1; then
+      pkg_install "https://download.postgresql.org/pub/repos/yum/reporpms/EL-$(rpm -E %rhel)-$(uname -m)/pgdg-redhat-repo-latest.noarch.rpm" \
+        || warn "could not add the PostgreSQL repository (PGDG)"
+      dnf -qy module disable postgresql >/dev/null 2>&1 || true # RHEL 8: hide the distribution's own module
+    fi
+    pkg_install "postgresql$major" || warn "could not install postgresql$major"
+  fi
 }
 
 if [[ $INSTALL_DEPS -eq 1 ]]; then

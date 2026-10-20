@@ -5,7 +5,7 @@
 <h1 align="center">DumpCat</h1>
 
 <p align="center">
-  <strong>Backup, restore và khôi phục theo thời điểm cho MySQL và MariaDB.</strong><br>
+  <strong>Backup, restore và khôi phục theo thời điểm cho MySQL và MariaDB, và giờ có cả PostgreSQL.</strong><br>
   Một file chạy duy nhất, tự host, có giao diện web. Không khóa database, không cần cài runtime, chạy offline.
 </p>
 
@@ -25,7 +25,7 @@
 
 ---
 
-DumpCat quản lý toàn bộ vòng đời backup của một server MySQL hoặc MariaDB ngay trên trình duyệt. Nó lên lịch backup,
+DumpCat quản lý toàn bộ vòng đời backup của các server MySQL, MariaDB và PostgreSQL ngay trên trình duyệt. Nó lên lịch backup,
 nén và mã hóa, chép bản sao lên những nơi lưu trữ bạn chọn, kiểm tra xem bản backup có đọc lại được không, và restore khi
 cần, đến đúng từng giây nhờ lưu trữ binlog. DumpCat chạy trên Linux hoặc Windows ngay cạnh database, dưới dạng một file
 binary Go có sẵn giao diện.
@@ -35,6 +35,9 @@ binary Go có sẵn giao diện.
 - **Không khóa database.** InnoDB được backup từ một snapshot nhất quán trong khi ứng dụng vẫn đọc ghi bình thường.
 - **Ba công cụ backup.** `mysqldump` / `mariadb-dump`, `mydumper` / `myloader` chạy song song, và backup vật lý nóng bằng
   Percona XtraBackup hoặc MariaBackup, có cả incremental.
+- **Có cả PostgreSQL.** `pg_dump` định dạng thư mục, dump và restore các bảng song song, role lấy từ
+  `pg_dumpall --globals-only`, restore dưới tên mới hoặc sang server khác, diễn tập restore, tự chọn công cụ client cùng
+  major với từng server. Khôi phục theo thời điểm cho PostgreSQL (WAL) sẽ có ở bản sau.
 - **Khôi phục theo thời điểm.** Lưu binlog liên tục để restore về một mốc thời gian, một vị trí binlog hoặc ngay trước một
   GTID, ví dụ ngay trước một câu `DROP TABLE` lỡ tay.
 - **Lưu ở đâu cũng được.** Ổ local hoặc NFS, S3 và các dịch vụ tương thích (Cloudflare R2, MinIO, Wasabi…), Google Drive,
@@ -137,9 +140,9 @@ flowchart RL
 
 | | |
 |---|---|
-| **Database** | MySQL 5.7, 8.0, 8.4 · Percona Server · MariaDB 10.x, 11.x |
+| **Database** | MySQL 5.7, 8.0, 8.4 · Percona Server · MariaDB 10.x, 11.x · PostgreSQL 10 trở lên |
 | **Máy chạy DumpCat** | Linux amd64 / arm64 có systemd · Windows Server 2016+ / Windows 10+ 64-bit, chạy như Windows service |
-| **Công cụ backup** | mysqldump / mariadb-dump · mydumper / myloader · Percona XtraBackup · MariaBackup (bộ cài Linux tự chọn phiên bản khớp với server) |
+| **Công cụ backup** | mysqldump / mariadb-dump · mydumper / myloader · Percona XtraBackup · MariaBackup · pg_dump / pg_restore / pg_dumpall (bộ cài Linux tự chọn phiên bản khớp với server; `--postgres 16` cài thêm client PostgreSQL 16) |
 | **Lưu trữ** | Thư mục local và ổ chia sẻ NFS / SMB, cùng mọi thứ [rclone](https://rclone.org) hỗ trợ |
 | **Database sau firewall** | Agent (`dumpcat agent`) trên Linux có systemd hoặc Windows, chỉ cần HTTPS đi ra · hoặc WireGuard chuẩn (`wg-quick`), UDP đi ra |
 
@@ -206,6 +209,9 @@ và giới hạn ai được truy cập.
 | Incremental | Không | Không | Có |
 | Restore một database hoặc đổi tên | Có | Có | Không, cả instance |
 | Hợp với | Dưới 20–50 GB | Database lớn cần restore từng DB | 100 GB đến vài TB, cần RTO thấp |
+
+Server PostgreSQL được backup bằng `pg_dump` (định dạng thư mục, các bảng song song, không khóa ghi): xem
+[PostgreSQL](docs/manual.vi.md#postgresql).
 
 Chi tiết và khuyến nghị: [Chọn phương thức backup](docs/manual.vi.md#2-chọn-phương-thức-backup).
 

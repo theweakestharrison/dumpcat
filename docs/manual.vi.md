@@ -28,7 +28,8 @@ Hướng dẫn đầy đủ để cài đặt, cấu hình và vận hành DumpC
 
 | Nhóm | Chi tiết |
 |---|---|
-| Phương thức | `mysqldump`/`mariadb-dump` (logic), `mydumper`/`myloader` (logic song song), Percona XtraBackup / MariaBackup (vật lý, hot, **full + incremental**) |
+| Database | MySQL, MariaDB và Percona Server; **PostgreSQL** 10 trở lên ([PostgreSQL](#postgresql)) |
+| Phương thức | `mysqldump`/`mariadb-dump` (logic), `mydumper`/`myloader` (logic song song), Percona XtraBackup / MariaBackup (vật lý, hot, **full + incremental**); PostgreSQL: `pg_dump` (định dạng thư mục, các bảng song song) + `pg_dumpall --globals-only` |
 | Phạm vi | Tất cả DB, chỉ một số DB, tất cả trừ một số DB, loại trừ từng bảng; routines, triggers, events; **users & GRANT** (file `_users.sql` riêng) |
 | Nén / mã hóa | zstd (mặc định), gzip đa luồng, không nén · mã hóa **age** (ChaCha20-Poly1305 + scrypt) bằng passphrase |
 | Toàn vẹn | SHA-256 cho mọi file, kiểm tra kích thước sau upload, **verify** (đọc lại → giải mã → giải nén → kiểm tra dòng `Dump completed`/cấu trúc tar) thủ công hoặc tự động sau mỗi backup (job mới: kiểm một bản, bản rẻ nhất để đọc lại; hoặc mọi bản) |
@@ -36,7 +37,7 @@ Hướng dẫn đầy đủ để cài đặt, cấu hình và vận hành DumpC
 | Lịch | Cron (`0 2 * * *`, `@daily`, `@every 6h`), lịch riêng cho incremental, múi giờ cấu hình được, xem trước 5 lần chạy kế tiếp |
 | Retention | Giữ N bản gần nhất / N ngày / bản cuối mỗi ngày-tuần-tháng (GFS), **riêng cho từng storage** (vd: local giữ 3 bản, S3 giữ 30 ngày), tôn trọng chuỗi incremental |
 | Restore | Restore vào server bất kỳ (**instance, máy hoặc phiên bản khác**, tự gỡ DEFINER / đổi collation / bỏ GTID), **đổi tên database**, restore một phần, xóa DB đích trước, không ghi binlog, chế độ nhanh, restore users; vật lý: tải chuỗi full+incremental → prepare → (tùy chọn) **tự thay datadir** với rollback |
-| Diễn tập restore | Theo lịch, bản backup mới nhất được **restore vào sandbox** dưới tên tạm, so từng bảng và **số dòng** với backup, chạy assertion SQL tùy chọn, ghi lại thời gian restore (**RTO**) rồi xóa bản sao; backup đạt được đánh dấu **Restore-tested** |
+| Diễn tập restore | Theo lịch (MySQL, MariaDB và PostgreSQL), bản backup mới nhất được **restore vào sandbox** dưới tên tạm, so từng bảng và **số dòng** với backup, chạy assertion SQL tùy chọn, ghi lại thời gian restore (**RTO**) rồi xóa bản sao; backup đạt được đánh dấu **Restore-tested** |
 | Khôi phục theo thời điểm (PITR) | **Lưu trữ binlog liên tục** (`mysqlbinlog --raw --stop-never`, nén/mã hóa như backup, upload lên mọi storage của job), khôi phục đến **một thời điểm / vị trí binlog / ngay trước một GTID** — tự chọn bản backup nền mới nhất, tải & kiểm tra mọi binlog trước khi thay đổi dữ liệu; retention binlog theo bản backup cũ nhất còn giữ |
 | Kết nối | Trực tiếp, qua **agent** (server database chủ động kết nối ra bằng HTTPS; với `--allow-physical` agent còn chạy backup vật lý ngay trên máy đó) hoặc qua **WireGuard tích hợp** — không cần mở port vào server database ([3.7](#37-server-database-không-cho-kết-nối-vào-agent), [3.8](#38-wireguard-tích-hợp)) |
 | Vận hành | Tiến độ realtime (bytes, tốc độ, %), log trực tiếp, hủy tác vụ, giới hạn số job chạy đồng thời, ưu tiên thấp (nice/ionice), pre/post command, timeout |
@@ -64,6 +65,50 @@ Hướng dẫn đầy đủ để cài đặt, cấu hình và vận hành DumpC
 - DB rất lớn (100 GB – nhiều TB) hoặc cần RTO thấp: **vật lý** full hằng tuần + incremental mỗi giờ/ngày, cộng thêm 1 job `mysqldump`/`mydumper` hằng tuần để có bản logic linh hoạt.
 - Backup từ **replica** để không ảnh hưởng primary (bật `--slave-info` với backup vật lý).
 - Bảng MyISAM/Aria không được đảm bảo nhất quán khi backup logic không khóa — DumpCat cảnh báo khi phát hiện.
+
+### PostgreSQL
+
+Chọn **PostgreSQL** ở ô *Database engine* khi thêm server (cổng đổi thành 5432; ô unix socket nhận thư mục socket, ví dụ
+`/var/run/postgresql`). Mọi thứ khác dùng như với MySQL: storage, nén và mã hóa, lịch chạy, retention, kiểm tra toàn
+vẹn, thông báo, giám sát, agent (cho phép `127.0.0.1:5432`) và WireGuard, diễn tập restore. Phương thức là **`pg_dump`**:
+
+- Mỗi database được chọn được dump bằng `pg_dump --format=directory --jobs=<threads>`: các bảng của một database được
+  dump song song từ cùng một snapshot nhất quán, không khóa ghi. Thư mục dump nằm trong thư mục staging (cần chỗ trống
+  cỡ dung lượng dữ liệu, mỗi lần một database), rồi được lưu thành `<database>.pgdump.tar` qua quy trình nén, mã hóa và
+  SHA-256 như thường. DumpCat đếm số dòng từng bảng ngay từ bản dump (dùng cho diễn tập restore).
+- *Roles and tablespaces* (tùy chọn users của job) lưu `pg_dumpall --globals-only` thành `_globals.sql`: role, thuộc
+  tính và quan hệ thành viên. Mật khẩu chỉ có khi tài khoản backup là superuser (nếu không, DumpCat dùng
+  `--no-role-passwords` và role được restore không có mật khẩu).
+- *Exclude tables*: `database.table` (bảng nằm trong search path, thường là `public`) hoặc `database.schema.table`; mẫu
+  tên như `pg_dump --exclude-table`.
+- "All databases" bỏ qua các template (`template0`, `template1`) và database không nhận kết nối.
+- Chưa có: lưu trữ WAL / khôi phục theo thời điểm, backup vật lý (`pg_basebackup`), và thiết lập mức database
+  (`ALTER DATABASE … SET`, `GRANT … ON DATABASE`) — pg_dump chỉ ghi chúng khi dump với `--create`. Sau khi restore
+  sang server khác, đặt lại các thiết lập đó.
+
+**Tài khoản.** Một role đọc được tất cả, ví dụ trên PostgreSQL 14+:
+
+```sql
+CREATE ROLE dumpcat LOGIN PASSWORD 'a_strong_password';
+GRANT pg_read_all_data TO dumpcat;
+-- restore: tài khoản riêng được tạo database (và tạo role, để restore role)
+CREATE ROLE dumpcat_restore LOGIN CREATEDB CREATEROLE PASSWORD 'another_password';
+```
+
+PostgreSQL 13 trở xuống: dùng owner của các database, hoặc cấp `USAGE` trên mọi schema và `SELECT` trên mọi bảng,
+sequence. `pg_hba.conf` phải cho máy chạy DumpCat (hoặc máy có agent) kết nối, ví dụ
+`host all dumpcat,dumpcat_restore 10.0.0.5/32 scram-sha-256`. Nút **Check** của server liệt kê thuộc tính của role và
+những gì còn thiếu.
+
+**Công cụ client.** `pg_dump` từ chối server mới hơn nó, còn `pg_restore` đọc được archive của phiên bản nó và cũ hơn.
+DumpCat tìm mọi phiên bản đã cài (`/usr/lib/postgresql/<major>/bin`, `/usr/pgsql-<major>/bin`,
+`C:\Program Files\PostgreSQL\<major>\bin`, thư mục `tools`, hoặc đường dẫn đặt ở **Settings**) và dùng bản cùng
+major với server, hoặc bản mới hơn gần nhất. Cài công cụ client theo major của các server:
+`sudo ./install.sh --postgres 16` (nhiều bản: `--postgres 15,16`) hoặc xem [3.3](#33-công-cụ-backup-nếu-cài-thủ-công).
+
+**Mật khẩu và tên.** Mật khẩu được ghi vào một `PGPASSFILE` riêng (quyền 0600) trong thư mục của tác vụ, không bao giờ
+nằm trên dòng lệnh hay trong biến môi trường. DumpCat tự dựng chuỗi kết nối và đặt mọi giá trị trong nháy, nên tên
+database như `a=b` vẫn chỉ là tên (`pg_dump -d "a=b"` sẽ đọc nó thành tùy chọn kết nối).
 
 ## 3. Cài đặt
 
@@ -95,7 +140,8 @@ Script sẽ: cài binary vào `/opt/dumpcat/dumpcat` (có link `/usr/local/bin/d
 `rclone`, client MySQL/MariaDB, `mariadb-backup` (MariaDB) hoặc Percona XtraBackup đúng phiên bản (MySQL 5.7/8.0/8.4), `mydumper` (nếu có trong repo).
 Cuối cùng script in ra địa chỉ web và mã thiết lập dùng một lần để tạo tài khoản admin ([4. Bắt đầu sử dụng](#4-bắt-đầu-sử-dụng)).
 
-Tùy chọn: `--port 9090`, `--listen 127.0.0.1`, `--tls-auto` (HTTPS tự ký), `--no-deps`, `--uninstall [--purge]`.
+Tùy chọn: `--port 9090`, `--listen 127.0.0.1`, `--tls-auto` (HTTPS tự ký), `--postgres 16` (công cụ client PostgreSQL
+của major đó, từ kho của dự án PostgreSQL; nhiều bản: `--postgres 15,16`), `--no-deps`, `--uninstall [--purge]`.
 
 ### 3.2 Cài thủ công
 
@@ -119,7 +165,15 @@ curl https://rclone.org/install.sh | sudo bash     # cho S3/Drive/OneDrive/FTP..
 curl -O https://repo.percona.com/apt/percona-release_latest.generic_all.deb
 sudo apt install ./percona-release_latest.generic_all.deb
 sudo percona-release enable pxb-80 && sudo apt update && sudo apt install percona-xtrabackup-80
+# PostgreSQL: công cụ client cùng major với server (ở đây là 16), từ apt.postgresql.org
+sudo apt install postgresql-common && sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
+sudo apt install postgresql-client-16
+# RHEL/Rocky/Alma: thêm kho PGDG, rồi
+sudo dnf install postgresql16
 ```
+
+Trên Windows, cài PostgreSQL (hoặc chỉ phần command line tools) bằng bộ cài từ postgresql.org:
+`C:\Program Files\PostgreSQL\<major>\bin` được tìm tự động.
 
 Trang **Hệ thống** trong giao diện liệt kê công cụ nào đã có/thiếu, phiên bản và lệnh cài.
 
@@ -554,6 +608,9 @@ chạy bị treo — thì không gửi gì cả. Vì vậy mỗi phút DumpCat k
       mydumper.tar.age           # mydumper: thư mục dump đóng gói tar (file bên trong nén bởi mydumper)
     20261019-010000-incr/
       backup.xbstream.zst        # vật lý: xbstream
+    20261019-020000-full/
+      shop.pgdump.tar.zst.age    # pg_dump: mỗi database một archive định dạng thư mục, đóng gói tar
+      _globals.sql.zst.age       # role và tablespace (pg_dumpall --globals-only)
     binlog/                      # lưu trữ binlog liên tục (PITR), nén + mã hóa như backup
       20261019/
         mysql-bin.000123.zst.age
@@ -577,7 +634,23 @@ Mở **Bản backup** → chọn bản → **Restore**.
 2. Mặc định dừng ở đây; log in hướng dẫn copy-back thủ công.
 3. (Admin) *Áp dụng ngay*: dừng service → đổi tên datadir cũ thành `datadir.before-restore-<thời gian>` → `--copy-back`/`--move-back` → `chown` → khởi động. Lỗi bất kỳ bước nào sẽ **tự rollback** về datadir cũ.
 
-Muốn quay về **một thời điểm bất kỳ** (không chỉ thời điểm backup), dùng *Point-in-time recovery* — xem mục 8.
+**PostgreSQL (pg_dump)**
+- Mỗi database được tải về và giải nén vào thư mục staging, được tạo nếu chưa có (`TEMPLATE template0` với encoding và
+  locale của nguồn; bỏ locale nếu server đích không có) rồi nạp bằng `pg_restore --jobs=<threads> --exit-on-error`.
+  pg_restore được dùng luôn mới bằng hoặc hơn pg_dump đã ghi bản backup.
+- Database đã tồn tại thì giữ các đối tượng khác của nó: các đối tượng có trong backup được xóa và tạo lại
+  (`--clean --if-exists`), giống `DROP TABLE IF EXISTS` trong bản dump MySQL. *Drop target databases before restoring*
+  xóa cả database trước (có phiên đang kết nối vào database đó thì không xóa được).
+- *Restore roles* chạy `_globals.sql` trước, từng câu lệnh: role mà server đích chưa có được tạo kèm thuộc tính, quan hệ
+  thành viên và thiết lập; role đã có được giữ nguyên, và cả chính tài khoản restore lẫn các role `pg_*` cũng vậy.
+  Tablespace không được tạo.
+- *Skip ownership* (`--no-owner`) và *Skip privileges* (`--no-privileges`): cho server khác, nơi các role sở hữu đối tượng
+  (hoặc được nêu trong GRANT) không tồn tại. Hai tùy chọn được tự tích với mọi server không phải server nguồn; bỏ tích
+  khi bạn restore cả role.
+- Server đích phải là PostgreSQL; restore sang major cũ hơn có thể lỗi ở tính năng của bản mới (DumpCat cảnh báo).
+
+Muốn quay về **một thời điểm bất kỳ** (không chỉ thời điểm backup), dùng *Point-in-time recovery* — xem mục 8 (MySQL và
+MariaDB).
 
 ### Restore sang instance khác (nhân bản, chuyển server, staging)
 
@@ -637,7 +710,7 @@ backup hiện kết quả gần nhất; diễn tập thất bại hiện cảnh 
 
 **An toàn**
 
-- Bản sao mang tên `<database>__drill_<id lần chạy>` (cắt còn 64 ký tự). Trước khi tạo gì, diễn tập kiểm tra không tên
+- Bản sao mang tên `<database>__drill_<id lần chạy>` (cắt còn 64 ký tự; PostgreSQL: 63 byte). Trước khi tạo gì, diễn tập kiểm tra không tên
   nào trong số đó đã có trên sandbox, nếu có thì từ chối chạy: **diễn tập chỉ xóa những database do chính nó tạo**.
   Các tên được ghi lại trước, nên bản sao của lần diễn tập bị gián đoạn do khởi động lại sẽ được xóa khi DumpCat chạy lại.
 - Các định nghĩa ghi tên database nguồn (`TRIGGER shop.t … ON shop.items`, `` `shop`.`p` ``) được trỏ sang bản sao,
@@ -648,7 +721,12 @@ backup hiện kết quả gần nhất; diễn tập thất bại hiện cảnh 
   vào binary log (replica và kho binlog giữ sạch; tài khoản restore cần `SUPER` / `BINLOG ADMIN`). Dù vậy restore vẫn
   tạo tải lên server production — một sandbox riêng an toàn hơn. *Keep the drill out of the sandbox's binary log* làm
   điều tương tự với sandbox khác.
-- Hỗ trợ: backup logic — mysqldump một file mỗi database, và mydumper. mysqldump dạng một file chỉ restore được dưới tên
+- PostgreSQL: số dòng được đếm bằng `SELECT count(*) FROM ONLY <bảng>` (từng bảng riêng, đúng như pg_dump chép). Với bảng
+  rất lớn, chọn *Estimate after ANALYZE* trong diễn tập: DumpCat chạy `ANALYZE` trên bản sao rồi so `pg_class.reltuples`
+  (chính xác tới khoảng 30.000 dòng mỗi bảng, xấp xỉ khi lớn hơn); ước lượng lệch quá 10 % so với backup là cảnh báo,
+  thiếu bảng vẫn là lỗi. Bản sao được xóa bằng `WITH (FORCE)` (PostgreSQL 13+), ngắt các phiên còn kết nối vào nó.
+  PostgreSQL không có binary log cần tránh.
+- Hỗ trợ: backup logic — mysqldump một file mỗi database, mydumper và pg_dump. mysqldump dạng một file chỉ restore được dưới tên
   gốc nên không diễn tập được; backup vật lý chưa được hỗ trợ. Backup tạo trước khi DumpCat đếm dòng được so với số bảng
   và view mà server liệt kê lúc backup (lệch thì chỉ cảnh báo) và bỏ qua kiểm tra số dòng.
 
@@ -770,6 +848,11 @@ age -d shop.sql.zst.age | zstd -d | mysql shop
 # mydumper
 dumpcat decode -in mydumper.tar.age -out mydumper.tar && mkdir dump && tar xf mydumper.tar -C dump
 myloader --directory dump --threads 8 --drop-table
+
+# pg_dump (PostgreSQL): mỗi database một archive định dạng thư mục
+dumpcat decode -in shop.pgdump.tar.zst.age -out shop.pgdump.tar && mkdir shop.dump && tar xf shop.pgdump.tar -C shop.dump
+createdb -T template0 shop && pg_restore --jobs 4 --dbname shop shop.dump
+dumpcat decode -in _globals.sql.zst.age -out globals.sql        # role: đọc lại rồi chạy psql -f globals.sql
 
 # vật lý (full + incremental)
 dumpcat decode -in full/backup.xbstream.zst -out - | mbstream -x -C /restore/full      # MySQL: xbstream -x
@@ -953,6 +1036,11 @@ Dữ liệu nội bộ: `/var/lib/dumpcat/dumpcat.db` (SQLite), `master.key`, `l
 | Agent: *… is not on this agent's allow list* | Khởi động agent với `--allow host:port` cho địa chỉ đó, hoặc nhập địa chỉ mà agent cho phép (xem [3.7](#37-server-database-không-cho-kết-nối-vào-agent)) |
 | Job quá hạn mà không có cảnh báo | Bật **Alert when a job has no recent successful backup** ở **Settings → Monitoring**, *Notify on failure* trong job, và có kênh nhận thông báo lỗi |
 | `/metrics` trả 404 / 401 / 403 | 404: đang tắt (**Settings → Monitoring**). 401: tạo token và gửi dạng `Authorization: Bearer …`. 403: chế độ *Only to this machine* mà request đến từ máy khác hoặc qua reverse proxy |
+| PostgreSQL: *pg_dump N is older than PostgreSQL M* / *server version mismatch* | Cài công cụ client cùng major với server (`install.sh --postgres M`, `postgresql-client-M`); DumpCat tự chọn bản phù hợp |
+| PostgreSQL: *permission denied for table / schema / sequence* khi backup | Role backup không đọc được hết: `GRANT pg_read_all_data TO dumpcat` (PostgreSQL 14+), hoặc dùng owner của database |
+| PostgreSQL: *role "…" does not exist* khi restore | Tích *Restore roles*, hoặc *Skip ownership* và *Skip privileges* |
+| PostgreSQL: *database "…" is being accessed by other users* | *Drop target databases* không xóa được database đang có người kết nối: ngắt các kết nối đó, hoặc restore dưới tên mới |
+| PostgreSQL: *no pg_hba.conf entry for host …* | Thêm dòng `host … scram-sha-256` cho máy chạy DumpCat (hoặc máy có agent) vào `pg_hba.conf` rồi reload PostgreSQL |
 | Xem log dịch vụ | `journalctl -u dumpcat -f`; log từng tác vụ ở trang chi tiết hoặc `/var/lib/dumpcat/logs/` |
 
 ## 15. Phát triển

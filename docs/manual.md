@@ -28,7 +28,8 @@ The complete guide to installing, configuring and operating DumpCat. For an over
 
 | Area | Details |
 |---|---|
-| Methods | `mysqldump`/`mariadb-dump` (logical), `mydumper`/`myloader` (parallel logical), Percona XtraBackup / MariaBackup (physical, hot, **full + incremental**) |
+| Databases | MySQL, MariaDB and Percona Server; **PostgreSQL** 10 and newer ([PostgreSQL](#postgresql)) |
+| Methods | `mysqldump`/`mariadb-dump` (logical), `mydumper`/`myloader` (parallel logical), Percona XtraBackup / MariaBackup (physical, hot, **full + incremental**); PostgreSQL: `pg_dump` (directory format, tables in parallel) + `pg_dumpall --globals-only` |
 | Scope | All databases, selected databases, all except selected databases, per-table exclusions; routines, triggers, events; **users & grants** (separate `_users.sql` file) |
 | Compression / encryption | zstd (default), multi-threaded gzip, none · **age** encryption (ChaCha20-Poly1305 + scrypt) with a passphrase |
 | Integrity | SHA-256 for every file, size check after upload, **Verify integrity** (re-read → decrypt → decompress → check the `Dump completed` line / tar structure) on demand or automatically after every backup (new jobs: one copy, the cheapest to read back; or every copy) |
@@ -36,7 +37,7 @@ The complete guide to installing, configuring and operating DumpCat. For an over
 | Scheduling | Cron (`0 2 * * *`, `@daily`, `@every 6h`), a separate schedule for incrementals, configurable time zone, preview of the next 5 runs |
 | Retention | Keep the last N backups / N days / the last backup of each day, week and month (GFS), **per storage** (e.g. local keeps 3 backups, S3 keeps 30 days), incremental chains respected |
 | Restore | Restore to any server (**another instance, host or version**, with DEFINER / collation / GTID rewrites), **restore under new names**, partial restore, drop target databases first, no binlog, Fast mode, restore users; physical: download the full + incremental chain → prepare → (optionally) **replace the datadir automatically** with rollback |
-| Restore drills | On a schedule, the newest backup is **restored into a sandbox** under temporary names, every table and its **row count** compared with the backup, custom SQL assertions run, the restore time (**RTO**) recorded and the copies dropped; backups that passed are marked **Restore-tested** |
+| Restore drills | On a schedule (MySQL, MariaDB and PostgreSQL), the newest backup is **restored into a sandbox** under temporary names, every table and its **row count** compared with the backup, custom SQL assertions run, the restore time (**RTO**) recorded and the copies dropped; backups that passed are marked **Restore-tested** |
 | Point-in-time recovery | **Continuous binlog archiving** (`mysqlbinlog --raw --stop-never`, compressed/encrypted like backups, uploaded to every storage of the job), recovery to **a point in time / a binlog position / just before a GTID** — picks the newest base backup automatically, downloads and checks every binlog before changing any data; binlog retention follows the oldest kept backup |
 | Connectivity | Directly, through the **agent** (the database host connects out over HTTPS; with `--allow-physical` it also runs physical backups there) or through the **built-in WireGuard** — no inbound port on the database host ([3.7](#37-database-hosts-that-accept-no-inbound-connections-agent), [3.8](#38-built-in-wireguard)) |
 | Operations | Real-time progress (bytes, speed, %), live logs, task cancellation, limit on concurrent jobs, low priority (nice/ionice), pre/post commands, timeouts |
@@ -64,6 +65,52 @@ The complete guide to installing, configuring and operating DumpCat. For an over
 - Very large databases (100 GB to several TB) or a low RTO: weekly **physical** full + hourly/daily incrementals, plus a weekly `mysqldump`/`mydumper` job for a flexible logical copy.
 - Back up from a **replica** so the primary is not affected (enable `--slave-info` for physical backups).
 - MyISAM/Aria tables are not guaranteed to be consistent in a lock-free logical backup — DumpCat warns when it finds them.
+
+### PostgreSQL
+
+Choose **PostgreSQL** as the *Database engine* when you add the server (the port becomes 5432; the unix socket field
+takes the socket directory, e.g. `/var/run/postgresql`). Everything else works as for MySQL: storages, compression and
+encryption, schedules, retention, verification, notifications, monitoring, agents (allow `127.0.0.1:5432`) and
+WireGuard, restore drills. The method is **`pg_dump`**:
+
+- Each selected database is dumped with `pg_dump --format=directory --jobs=<threads>`: the tables of one database are
+  dumped in parallel from one consistent snapshot, without locking writers. The directory is written to the staging
+  directory (it needs about the size of the data, one database at a time), then stored as `<database>.pgdump.tar`
+  through the usual compression, encryption and SHA-256. DumpCat counts the rows of every table from the dump itself
+  (for restore drills).
+- *Roles and tablespaces* (the job's users option) saves `pg_dumpall --globals-only` as `_globals.sql`: roles, their
+  attributes and memberships. Passwords are included only when the backup account is a superuser (otherwise DumpCat
+  passes `--no-role-passwords` and the roles are restored without a password).
+- *Exclude tables*: `database.table` (a table in the search path, usually `public`) or `database.schema.table`; patterns
+  as in `pg_dump --exclude-table`.
+- "All databases" skips the templates (`template0`, `template1`) and databases that do not accept connections.
+- Not yet: WAL archiving / point-in-time recovery, physical backups (`pg_basebackup`), and database-level settings
+  (`ALTER DATABASE … SET`, `GRANT … ON DATABASE`), which pg_dump writes only for `--create` dumps. Set them again
+  after restoring a database onto another server.
+
+**Account.** A role that can read everything, e.g. on PostgreSQL 14+:
+
+```sql
+CREATE ROLE dumpcat LOGIN PASSWORD 'a_strong_password';
+GRANT pg_read_all_data TO dumpcat;
+-- restores: a separate account that may create databases (and roles, to restore them)
+CREATE ROLE dumpcat_restore LOGIN CREATEDB CREATEROLE PASSWORD 'another_password';
+```
+
+On PostgreSQL 13 and older, use the owner of the databases or grant `USAGE` on every schema and `SELECT` on every
+table and sequence. `pg_hba.conf` must let the DumpCat host (or the agent's host) connect, e.g.
+`host all dumpcat,dumpcat_restore 10.0.0.5/32 scram-sha-256`. The **Check** button of the server lists the role's
+attributes and what is missing.
+
+**Client tools.** `pg_dump` refuses a server newer than itself, and `pg_restore` reads archives of its own version and
+older ones. DumpCat finds every installed version (`/usr/lib/postgresql/<major>/bin`, `/usr/pgsql-<major>/bin`,
+`C:\Program Files\PostgreSQL\<major>\bin`, the `tools` folder, or a path set in **Settings**) and uses the one of the
+server's major version, or the nearest newer one. Install the client tools of your servers' major versions:
+`sudo ./install.sh --postgres 16` (several: `--postgres 15,16`) or see [3.3](#33-backup-tools-for-manual-installs).
+
+**Passwords and names.** The password is written to a private `PGPASSFILE` (mode 0600) in the task's directory, never
+on a command line or in the environment. DumpCat builds the connection string itself and quotes every value, so a
+database name such as `a=b` stays a name (`pg_dump -d "a=b"` would read it as connection options).
 
 ## 3. Installation
 
@@ -95,7 +142,9 @@ The script installs the binary to `/opt/dumpcat/dumpcat` (linked from `/usr/loca
 `rclone`, the MySQL/MariaDB client, `mariadb-backup` (MariaDB) or the matching Percona XtraBackup version (MySQL 5.7/8.0/8.4), and `mydumper` (if the repositories have it).
 At the end it prints the address of the web UI and the one-time setup token for creating the admin account ([4. Getting started](#4-getting-started)).
 
-Options: `--port 9090`, `--listen 127.0.0.1`, `--tls-auto` (self-signed HTTPS), `--no-deps`, `--uninstall [--purge]`.
+Options: `--port 9090`, `--listen 127.0.0.1`, `--tls-auto` (self-signed HTTPS), `--postgres 16` (the PostgreSQL client
+tools of that major version, from the PostgreSQL project's repository; several: `--postgres 15,16`), `--no-deps`,
+`--uninstall [--purge]`.
 
 ### 3.2 Manual install
 
@@ -119,7 +168,15 @@ curl https://rclone.org/install.sh | sudo bash     # for S3/Drive/OneDrive/FTP..
 curl -O https://repo.percona.com/apt/percona-release_latest.generic_all.deb
 sudo apt install ./percona-release_latest.generic_all.deb
 sudo percona-release enable pxb-80 && sudo apt update && sudo apt install percona-xtrabackup-80
+# PostgreSQL: the client tools of the server's major version (here 16), from apt.postgresql.org
+sudo apt install postgresql-common && sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
+sudo apt install postgresql-client-16
+# RHEL/Rocky/Alma: the PGDG repository, then
+sudo dnf install postgresql16
 ```
+
+On Windows, install PostgreSQL (or only its command line tools) with the installer from postgresql.org:
+`C:\Program Files\PostgreSQL\<major>\bin` is found automatically.
 
 The **System** page in the UI lists which tools are present or missing, their versions and the commands to install them.
 
@@ -560,6 +617,9 @@ mistake, a run that hangs — sends nothing. So DumpCat checks every minute that
       mydumper.tar.age           # mydumper: the dump directory packed as a tar (the files inside are compressed by mydumper)
     20261019-010000-incr/
       backup.xbstream.zst        # physical: xbstream
+    20261019-020000-full/
+      shop.pgdump.tar.zst.age    # pg_dump: one directory-format archive per database, as a tar
+      _globals.sql.zst.age       # roles and tablespaces (pg_dumpall --globals-only)
     binlog/                      # continuous binlog archive (PITR), compressed + encrypted like backups
       20261019/
         mysql-bin.000123.zst.age
@@ -583,7 +643,25 @@ and run `--copy-back` there):
 2. By default it stops here; the log prints instructions for a manual copy-back.
 3. (Admin) *Apply right away*: stop the service → rename the old datadir to `datadir.before-restore-<timestamp>` → `--copy-back`/`--move-back` → `chown` → start. If any step fails, it **rolls back automatically** to the old datadir.
 
-To go back to **any moment** (not only when a backup ran), use *Point-in-time recovery* — see section 8.
+**PostgreSQL (pg_dump)**
+- Each database is downloaded and extracted to the staging directory, created when it is missing (`TEMPLATE template0`
+  with the source's encoding and locale; without the locale when the target does not have it) and loaded with
+  `pg_restore --jobs=<threads> --exit-on-error`. The pg_restore used is at least as new as the pg_dump that wrote the
+  backup.
+- A database that already exists keeps its other objects: the objects in the backup are dropped and recreated
+  (`--clean --if-exists`), like `DROP TABLE IF EXISTS` in a MySQL dump. *Drop target databases before restoring* drops
+  the whole database first (sessions connected to it stop the drop).
+- *Restore roles* runs `_globals.sql` first, statement by statement: roles the target does not have yet are created
+  with their attributes, memberships and settings; roles that exist are left alone, and so are the restore account
+  itself and the `pg_*` roles. Tablespaces are not created.
+- *Skip ownership* (`--no-owner`) and *Skip privileges* (`--no-privileges`): for another server where the roles that own
+  the objects (or that GRANTs name) do not exist. Both are suggested automatically for any server other than the
+  source; leave them off when you restore the roles too.
+- The target must be a PostgreSQL server; restoring onto an older major version may fail on features of the newer one
+  (DumpCat warns).
+
+To go back to **any moment** (not only when a backup ran), use *Point-in-time recovery* — see section 8 (MySQL and
+MariaDB).
 
 ### Restoring to another instance (clone, migration, staging)
 
@@ -646,7 +724,7 @@ dropped).
 
 **Safety**
 
-- The copies are named `<database>__drill_<run id>` (cut to 64 characters). Before creating anything the drill checks
+- The copies are named `<database>__drill_<run id>` (cut to 64 characters; 63 bytes on PostgreSQL). Before creating anything the drill checks
   that none of these names exists on the sandbox and refuses to run otherwise: **a drill only ever drops the
   databases it created**. The names are recorded first, so the copies of a drill interrupted by a restart are dropped
   when DumpCat starts again.
@@ -658,7 +736,12 @@ dropped).
   written to its binary log (replicas and the binlog archive stay clean; the restore account needs `SUPER` /
   `BINLOG ADMIN`). The restore still loads the production server — a separate sandbox is safer. *Keep the drill out
   of the sandbox's binary log* does the same on any other sandbox.
-- Supported: logical backups — mysqldump with one file per database, and mydumper. A single-file mysqldump restores
+- PostgreSQL: rows are counted with `SELECT count(*) FROM ONLY <table>` (each table on its own, as pg_dump copies it).
+  For very large tables choose *Estimate after ANALYZE* in the drill: DumpCat runs `ANALYZE` on the copy and compares
+  `pg_class.reltuples` (exact up to about 30,000 rows per table, close beyond); an estimate more than 10 % away from
+  the backup is a warning, a missing table still fails. The copies are dropped `WITH (FORCE)` (PostgreSQL 13+), which
+  ends sessions still connected to them. There is no binary log to keep the drill out of.
+- Supported: logical backups — mysqldump with one file per database, mydumper and pg_dump. A single-file mysqldump restores
   under the original database names only and cannot be drilled; physical backups are not supported yet. Backups made
   before DumpCat counted rows are checked against the number of tables and views the server listed at backup time
   (a difference is a warning) and their row check is skipped.
@@ -789,6 +872,11 @@ age -d shop.sql.zst.age | zstd -d | mysql shop
 # mydumper
 dumpcat decode -in mydumper.tar.age -out mydumper.tar && mkdir dump && tar xf mydumper.tar -C dump
 myloader --directory dump --threads 8 --drop-table
+
+# pg_dump (PostgreSQL): one directory-format archive per database
+dumpcat decode -in shop.pgdump.tar.zst.age -out shop.pgdump.tar && mkdir shop.dump && tar xf shop.pgdump.tar -C shop.dump
+createdb -T template0 shop && pg_restore --jobs 4 --dbname shop shop.dump
+dumpcat decode -in _globals.sql.zst.age -out globals.sql        # roles: review it, then psql -f globals.sql
 
 # physical (full + incremental)
 dumpcat decode -in full/backup.xbstream.zst -out - | mbstream -x -C /restore/full      # MySQL: xbstream -x
@@ -972,6 +1060,11 @@ Internal data: `/var/lib/dumpcat/dumpcat.db` (SQLite), `master.key`, `logs/`, `s
 | Agent: *… is not on this agent's allow list* | Start the agent with `--allow host:port` for that address, or enter the address the agent allows (see [3.7](#37-database-hosts-that-accept-no-inbound-connections-agent)) |
 | No alert for an overdue job | **Alert when a job has no recent successful backup** in **Settings → Monitoring**, *Notify on failure* on the job, and a channel that sends failures |
 | `/metrics` answers 404 / 401 / 403 | 404: turned off (**Settings → Monitoring**). 401: create a token and send it as `Authorization: Bearer …`. 403: *Only to this machine* and the request came from another host or through a reverse proxy |
+| PostgreSQL: *pg_dump N is older than PostgreSQL M* / *server version mismatch* | Install the client tools of the server's major version (`install.sh --postgres M`, `postgresql-client-M`); DumpCat picks the matching one by itself |
+| PostgreSQL: *permission denied for table / schema / sequence* during a backup | The backup role cannot read everything: `GRANT pg_read_all_data TO dumpcat` (PostgreSQL 14+), or use the owner of the database |
+| PostgreSQL: *role "…" does not exist* during a restore | Tick *Restore roles*, or *Skip ownership* and *Skip privileges* |
+| PostgreSQL: *database "…" is being accessed by other users* | *Drop target databases* cannot drop a database others are connected to: disconnect them, or restore under a new name |
+| PostgreSQL: *no pg_hba.conf entry for host …* | Add a `host … scram-sha-256` line for the DumpCat host (or the agent's) to `pg_hba.conf` and reload PostgreSQL |
 | Service logs | `journalctl -u dumpcat -f`; per-task logs on the detail page or in `/var/lib/dumpcat/logs/` |
 
 ## 15. Development

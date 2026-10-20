@@ -6,6 +6,42 @@ page at dumpcat.cc/changelog/ (see `scripts/build-site.py`). Newest version
 first. Each section: `## <version> (<date>)`, a one-line summary, then `###`
 groups of bullets.
 
+## 1.5.0
+
+PostgreSQL: backups with pg_dump, restores under new names or onto another server, roles, and restore drills. MySQL
+and MariaDB work as before, now as one of several database engines.
+
+### PostgreSQL
+
+- Choose **PostgreSQL** as the database engine of a server (port 5432, or a socket directory). The server check shows
+  the version, WAL level, the backup role's attributes and what it is missing, and each database with its size,
+  tables, encoding and locale.
+- New backup method **pg_dump**: each database is dumped in directory format with its tables in parallel
+  (`--jobs`), from one consistent snapshot, then stored as one archive through the usual compression, encryption,
+  checksums, storages, retention and verification. *Roles and tablespaces* adds `pg_dumpall --globals-only`
+  (passwords when the backup account is a superuser). Tables can be excluded as `database.table` or
+  `database.schema.table`.
+- Restores with `pg_restore --jobs`, into the same database (the backup's objects are replaced, others stay), under a
+  new name, or onto another PostgreSQL server: the database is created with the source's encoding and locale, roles
+  the target lacks can be created from the backup, and *Skip ownership* / *Skip privileges* are suggested for another
+  server.
+- Restore drills for PostgreSQL backups: every table and its row count compared with the backup (`count(*)`, or the
+  server's estimates after `ANALYZE` for very large tables), SQL assertions in a read-only session.
+- DumpCat finds every installed version of the client tools and uses the server's major version (or the nearest
+  newer one); the Linux installer installs them with `--postgres 16` (several: `--postgres 15,16`).
+- Passwords go through a private password file, never the command line; database names are passed inside a quoted
+  connection string, so a name like `a=b` cannot become connection options.
+- Not yet: point-in-time recovery from archived WAL and physical backups (pg_basebackup).
+
+### Several database engines
+
+- Everything that is specific to a database engine (inspection, backup methods, restores, the queries of restore
+  drills) now sits behind one driver interface; jobs, schedules, storages, encryption, retention, verification,
+  notifications, monitoring, agents and WireGuard are shared. Backup methods and restore options shown in the UI come
+  from the driver. See `docs/design-multidb.md`.
+- Servers have an engine (existing ones are MySQL), `manifest.json` records it, and a job's method must belong to its
+  server's engine. Restoring a backup onto a server of another engine is refused.
+
 ## 1.4.2 (2026-10-20)
 
 Security fixes from an audit of DumpCat: stricter checks on everything that reaches the backup tools, encryption that
