@@ -554,13 +554,17 @@ func replaceCluster(env *engine.Env, prepared, datadir, service, asUser string) 
 	}
 	rollback := func(cause error) error {
 		lg.Printf("ERROR: %v — rolling back to the old data directory", cause)
-		_ = os.Rename(datadir, prepared+".failed")
+		kept := prepared
+		if err := os.Rename(datadir, prepared+".failed"); err == nil {
+			kept = prepared + ".failed"
+		}
 		if moved {
 			if err := os.Rename(oldDir, datadir); err != nil {
 				lg.Printf("Rollback failed: %v. Run it yourself: mv %s %s", err, oldDir, datadir)
 			}
 		}
 		_ = engine.RunSimple(context.Background(), lg, "systemctl", "start", "--", service)
+		lg.Printf("The restored directory is kept at %s — delete it once you have looked into the error.", kept)
 		return cause
 	}
 	if err := os.Rename(prepared, datadir); err != nil {
