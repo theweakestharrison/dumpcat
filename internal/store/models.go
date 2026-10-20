@@ -588,6 +588,8 @@ type Settings struct {
 	MetricsAccess     string `json:"metrics_access"`      // GET /metrics: "" (off), "token" or "localhost"
 	DigestWeekday     int    `json:"digest_weekday"`      // weekly digest: day (0 = Sunday)
 	DigestHour        int    `json:"digest_hour"`         // and hour, in the time zone above
+	// search engines may index the web UI (off: robots.txt, X-Robots-Tag and the page say noindex)
+	AllowIndexing bool `json:"allow_indexing"`
 }
 
 const (

@@ -259,6 +259,7 @@ func (s *Server) settingsPut(w http.ResponseWriter, r *http.Request) error {
 	if err := s.Store.SaveSettings(in); err != nil {
 		return err
 	}
+	s.allowIndexing.Store(in.AllowIndexing)
 	s.Tools.Refresh()
 	if old.Timezone != in.Timezone {
 		s.Sched.Reload()

@@ -25,6 +25,7 @@ type staticUI struct {
 	build string
 	etags map[string]string
 	files http.Handler
+	page  func([]byte) []byte // adapts index.html to the settings (nil: as is)
 }
 
 const buildLen = 12
@@ -120,7 +121,11 @@ func (u *staticUI) index() ([]byte, error) {
 	}
 	b = bytes.ReplaceAll(b, []byte(`="/assets/`), []byte(`="/assets/`+u.build+`/`))
 	meta := []byte(`<meta charset="utf-8">`)
-	return bytes.Replace(b, meta, append(meta, []byte("\n  <meta name=\"dumpcat-build\" content=\""+u.build+"\">")...), 1), nil
+	b = bytes.Replace(b, meta, append(meta, []byte("\n  <meta name=\"dumpcat-build\" content=\""+u.build+"\">")...), 1)
+	if u.page != nil {
+		b = u.page(b)
+	}
+	return b, nil
 }
 
 func (u *staticUI) serveIndex(w http.ResponseWriter, r *http.Request) {

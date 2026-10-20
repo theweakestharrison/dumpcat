@@ -15,6 +15,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"dumpcat/internal/agent"
@@ -60,6 +61,8 @@ type Server struct {
 	setupLimit     *auth.Limiter // per-IP wrong setup tokens
 
 	totp auth.TOTPGuard // a two-factor code signs in once
+
+	allowIndexing atomic.Bool // Settings: search engines may index the UI (robots.go)
 
 	api        http.Handler      // the API routes: MCP tools call them in-process (mcp.go)
 	routeRoles map[string]string // route pattern → minimum role
@@ -400,7 +403,9 @@ func (s *Server) Handler() http.Handler {
 	s.routes(mux)
 	// static UI with versioned asset URLs (see static.go)
 	ui := newStaticUI(s.WebFS, os.Getenv("DUMPCAT_WEB_DIR") != "")
+	ui.page = s.renderIndex
 	s.build = ui.build
+	s.allowIndexing.Store(s.Store.GetSettings().AllowIndexing)
 	mux.Handle("/", ui)
 	// every API answer tells the page which UI build the server has: an open
 	// tab of an older version offers to reload (api.js)
@@ -410,7 +415,7 @@ func (s *Server) Handler() http.Handler {
 		}
 		mux.ServeHTTP(w, r)
 	})
-	return accessLog(securityHeaders(withBuild))
+	return accessLog(securityHeaders(s.robotsHeader(withBuild)))
 }
 
 func (s *Server) routes(mux *http.ServeMux) {
@@ -543,6 +548,7 @@ func (s *Server) routes(mux *http.ServeMux) {
 	s.route(mux, "POST /api/settings/metrics-token", adm, s.metricsTokenCreate)
 	// Prometheus metrics: off until enabled in Settings (bearer token or this machine only)
 	mux.HandleFunc("GET /metrics", s.metricsEndpoint)
+	mux.HandleFunc("GET /robots.txt", s.robotsTxt)
 	s.route(mux, "GET /api/system", vw, s.system)
 	s.route(mux, "GET /api/update", adm, s.updateStatus)
 	s.route(mux, "POST /api/update/check", adm, s.updateCheck)

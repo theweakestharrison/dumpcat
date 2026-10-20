@@ -57,6 +57,7 @@ export async function render(ctx) {
     <div class="card"><div class="card-head"><h2>Security</h2></div><div class="card-body"><div class="form-grid">
       <div class="field"><label>Idle session timeout (hours)</label><input type="number" name="session_hours" value="${s.session_hours}" min="1" max="720"></div>
       <div class="field"><label class="check" style="margin-top:26px"><input type="checkbox" name="require_2fa_admins" ${s.require_2fa_admins ? 'checked' : ''}><span>Remind admins to enable two-factor authentication at sign-in</span></label></div>
+      <div class="field full"><label class="check"><input type="checkbox" name="allow_indexing" ${s.allow_indexing ? 'checked' : ''}><span>Let search engines index this instance<span class="help">Off (recommended): <code>/robots.txt</code> disallows everything, every answer carries <code>X-Robots-Tag: noindex, nofollow</code> and the page has a robots meta tag, so the sign-in page does not show up in search results. Turn on only for a public demo.</span></span></label></div>
     </div></div></div>
     <div class="card"><div class="card-head"><h2>Tool paths (optional)</h2></div><div class="card-body">
       <div class="help" style="margin-bottom:12px">Leave blank to search PATH. Set these when several versions are installed (e.g. xtrabackup 8.0 and 8.4).</div>
@@ -119,6 +120,7 @@ export async function render(ctx) {
         timezone: form.timezone.value.trim(), base_url: form.base_url.value.trim(), max_concurrent: +form.max_concurrent.value,
         default_threads: +form.default_threads.value, staging_dir: form.staging_dir.value.trim(), history_days: +form.history_days.value,
         rclone_flags: form.rclone_flags.value.trim(), session_hours: +form.session_hours.value, require_2fa_admins: form.require_2fa_admins.checked, tool_paths: tp,
+        allow_indexing: form.allow_indexing.checked,
         update_url: form.update_url.value.trim(), update_auto_check: form.update_auto_check.checked,
         freshness_alerts: form.freshness_alerts.checked, stale_grace_minutes: +form.stale_grace_minutes.value, binlog_lag_minutes: +form.binlog_lag_minutes.value,
         digest_weekday: +form.digest_weekday.value, digest_hour: +form.digest_hour.value, metrics_access: form.metrics_access.value,
