@@ -158,7 +158,11 @@ Decisions:
   that). Disabling the job, turning archiving off, deleting the job or moving it to another server drops the
   slot; stopping DumpCat does not. A slot left behind by a deleted DumpCat installation must be dropped by hand.
   When the slot lost WAL (`wal_status = lost`, `max_slot_wal_keep_size`), the gap is logged and streaming starts
-  again from the server's position: PITR cannot cross it, the next base backup starts a new chain.
+  again from the server's position: PITR cannot cross it, the next base backup starts a new chain. When the
+  server's timeline left the staged one before the staged WAL ends (`TIMELINE_HISTORY`: the cluster was restored
+  to an earlier point, e.g. by DumpCat's own *replace*, or a standby was promoted behind DumpCat),
+  `pg_receivewal` could never resume there ("not in this server's history"): the staged files are archived as
+  they are and streaming starts again from the slot on the new timeline, whose history file is archived too.
 - **Recovery** runs PostgreSQL itself on the prepared directory: base extracted, the fetched WAL in
   `<datadir>/dumpcat_wal`, `restore_command` relative to the data directory. When the PostgreSQL server
   binaries of the backup's major version are on the DumpCat host, DumpCat starts a temporary server (own config
@@ -166,13 +170,22 @@ Decisions:
   libraries; as the data directory's owner when DumpCat runs as root), waits until it has promoted, stops it and
   removes its own files: the directory is then a clean data directory at the target, on a new timeline. Without
   the binaries the directory is left ready to recover (settings in `postgresql.auto.conf`, `recovery.signal`)
-  and the log says how to start it. A target time after the last commit in the WAL, or an LSN at its very end,
+  and the log says how to start it. As root, the owner (the OS user, `postgres` by default; `execx.AsUser`) must
+  be able to enter the directory: the parents DumpCat creates get mode 0755 whatever the umask (the service's is
+  0027), `execx.Reachable` checks the others and otherwise leaves the directory ready to recover with a log line
+  (the default under `/var/lib/dumpcat/restore` is never reachable), and `/tmp` / `/var/tmp` are refused when
+  they are the service's private ones (`PrivateTmp=true` in `dumpcat.service`: invisible to other users, deleted
+  when DumpCat stops; `execx.PrivateTmp` reads `/proc/self/mountinfo`). A data directory without
+  `postgresql.conf` / `pg_hba.conf` / `pg_ident.conf` (Debian/Ubuntu keep them in `/etc/postgresql`) gets
+  minimal ones, local connections only, so that `pg_ctl -D` starts it. A target time after the last commit in the WAL, or an LSN at its very end,
   replays everything (PostgreSQL 13+ would otherwise stop with "recovery ended before the target was reached").
 - **Replacing a local data directory** (Linux, admins, the same checks as the MySQL datadir: `engine.CheckDatadir`
   with `PG_VERSION` as the marker, and the existing directory's version must match):
   the backup is prepared and recovered in a sibling `<datadir>.dumpcat-restore-<time>` (same filesystem), then
   the service is stopped, the old directory renamed to `<datadir>.before-restore-<time>`, the new one moved in
-  and the service started; any error moves the old one back.
+  and the service started; any error moves the old one back and keeps the restored one as `….failed`. The
+  service is detected as `postgresql@<major>-main` (Debian/Ubuntu, configuration in `/etc/postgresql`, which the
+  swap does not touch), `postgresql-<major>` (PGDG on RHEL) or `postgresql`.
 - Timeline history files are never removed by retention; a plan takes every archived segment of the chain's
   segment numbers on timelines ≥ the base's, so a promotion of the source after the base is followed.
 - **Not in phase 2**: incremental `pg_basebackup` (PostgreSQL 17), tablespaces, recovery on another host than
@@ -183,9 +196,23 @@ Verified (Windows dev box, PostgreSQL 16.15, MariaDB 11.4.13): `TestWALPITRE2E` 
 restarts the stream and DumpCat itself, and recovers to a time between two transactions, to a restore point, to an
 LSN, to the latest state (with rows written while DumpCat was down) and to the backup itself, also without the
 server binaries; `TestBinlogPITRE2E` does the same for MariaDB binlogs; unit tests cover the WAL reader (records
-across pages and segments, split headers, damaged records, switches) and the plans. Not verified: Linux (the recovery
-server running as the OS user, replacing a cluster with systemd, Debian `/etc/postgresql` layouts), PostgreSQL
-other than 16, standbys as the source.
+across pages and segments, split headers, damaged records, switches) and the plans.
+
+Verified on Linux (Ubuntu 22.04, systemd 249, PostgreSQL 16.15 from PGDG, DumpCat installed by `install.sh` as
+the root service): a pg_basebackup job with WAL archiving (the tar on a pipe straight into the storage, no staging
+folder; `pg_receivewal --slot=dumpcat_job<id>_<uuid>`); restores to a time and to a restore point recovered by a
+temporary server running as `postgres`, a refused default directory under `/var/lib/dumpcat` (logged, left ready to
+recover), new nested folders under `/srv`; replacing `/var/lib/postgresql/16/main` of `postgresql@16-main` to a
+restore point (checked with `systemctl` and `psql`) and the rollback when the service does not start with the
+restored data; archiving across that replace (timeline 1 → 2, forked before the archive's end) and a recovery to
+the latest state through both timelines. `TestWALPITRE2E` passes there as `postgres` and as root, and
+`TestPostgresE2E` as `postgres`, against a Debian cluster (`pg_createcluster`). Four bugs this found are fixed: the
+service's private `/tmp`, parents created 0700 under the umask, no configuration files in a Debian directory, and the
+archiver stuck after a timeline fork.
+
+Not verified: RHEL-family hosts (`postgresql-<major>` service, `/var/lib/pgsql/<major>/data`, SELinux and
+`restorecon`), PostgreSQL other than 16, standbys as the source, tablespaces (refused), incremental pg_basebackup
+(PostgreSQL 17).
 
 ## Later engines
 
