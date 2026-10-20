@@ -1,6 +1,8 @@
 // Package engine wraps the external backup/restore tools:
 // mysqldump/mariadb-dump + mysql client (logical), mydumper/myloader
-// (parallel logical) and Percona XtraBackup / MariaBackup (physical, hot).
+// (parallel logical) and Percona XtraBackup / MariaBackup (physical, hot),
+// and defines the Driver interface every database engine implements
+// (driver.go; MySQL in mysql*.go, PostgreSQL in internal/pgsql).
 package engine
 
 import (
@@ -61,21 +63,23 @@ var windowsHints = map[string]string{
 
 const windowsToolHint = `install MySQL or MariaDB for Windows (their bin folder is found automatically), or copy the .exe into the "tools" folder next to dumpcat.exe`
 
-var toolOrder = []string{"mysqldump", "mariadb-dump", "mysql", "mariadb", "mydumper", "myloader", "xtrabackup", "xbstream", "mariabackup", "mbstream", "mysqlbinlog", "mariadb-binlog", "rclone"}
+var toolOrder = []string{"mysqldump", "mariadb-dump", "mysql", "mariadb", "mydumper", "myloader", "xtrabackup", "xbstream", "mariabackup", "mbstream", "mysqlbinlog", "mariadb-binlog", "pg_dump", "pg_restore", "pg_dumpall", "rclone"}
 
 type Tools struct {
 	mu        sync.Mutex
 	overrides func() map[string]string
 	cache     map[string]*Tool
+	pg        map[string][]PGTool // PostgreSQL tools, every major version found
 }
 
 func NewTools(overrides func() map[string]string) *Tools {
-	return &Tools{overrides: overrides, cache: map[string]*Tool{}}
+	return &Tools{overrides: overrides, cache: map[string]*Tool{}, pg: map[string][]PGTool{}}
 }
 
 func (t *Tools) Refresh() {
 	t.mu.Lock()
 	t.cache = map[string]*Tool{}
+	t.pg = map[string][]PGTool{}
 	t.mu.Unlock()
 }
 
@@ -164,6 +168,13 @@ func (t *Tools) Get(name string) *Tool {
 		return tl
 	}
 	t.mu.Unlock()
+	if isPGTool(name) {
+		tl := t.pgTool(name)
+		t.mu.Lock()
+		t.cache[name] = tl
+		t.mu.Unlock()
+		return tl
+	}
 	def, ok := toolDefs[name]
 	tl := &Tool{Name: name}
 	if !ok {

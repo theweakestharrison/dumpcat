@@ -208,7 +208,8 @@ func readLicenses(root string, pkgDirs map[string]bool) ([]licenseText, error) {
 		}
 		for _, e := range entries {
 			// LICENSE-LOGO and the like cover a project logo, which is not compiled in
-			if e.Type().IsRegular() && licenseFile.MatchString(e.Name()) && !strings.Contains(strings.ToLower(e.Name()), "logo") {
+			// source files are code, not license texts (pgx's pgproto3/notice_response.go)
+			if e.Type().IsRegular() && licenseFile.MatchString(e.Name()) && !strings.Contains(strings.ToLower(e.Name()), "logo") && !strings.HasSuffix(e.Name(), ".go") {
 				names = append(names, strings.TrimPrefix(d+"/"+e.Name(), "./"))
 			}
 		}

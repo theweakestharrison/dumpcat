@@ -5,6 +5,7 @@ go 1.26.0
 require (
 	filippo.io/age v1.3.2
 	github.com/go-sql-driver/mysql v1.10.1
+	github.com/jackc/pgx/v5 v5.11.0
 	github.com/klauspost/compress v1.20.3
 	github.com/klauspost/pgzip v1.2.7
 	github.com/robfig/cron/v3 v3.0.1
@@ -24,9 +25,12 @@ require (
 	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/google/btree v1.1.2 // indirect
 	github.com/google/uuid v1.6.0 // indirect
+	github.com/jackc/pgpassfile v1.0.0 // indirect
+	github.com/jackc/pgservicefile v0.0.0-20240606120523-5a60cdf6a761 // indirect
 	github.com/mattn/go-isatty v0.0.24 // indirect
 	github.com/ncruces/go-strftime v1.0.0 // indirect
 	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
+	golang.org/x/text v0.43.0 // indirect
 	golang.org/x/time v0.7.0 // indirect
 	golang.zx2c4.com/wintun v0.0.0-20230126152724-0fa3db229ce2 // indirect
 	gvisor.dev/gvisor v0.0.0-20250503011706-39ed1f5ac29c // indirect
