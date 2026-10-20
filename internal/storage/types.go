@@ -256,6 +256,21 @@ func SecretKeys(t string) map[string]bool {
 	return out
 }
 
+// SecretFields returns the secret fields of type t that apply to cfg (their show_if holds).
+func SecretFields(t string, cfg map[string]string) []Field {
+	td, ok := GetType(t)
+	if !ok {
+		return nil
+	}
+	var out []Field
+	for _, f := range td.Fields {
+		if f.Secret && fieldVisible(f, cfg) {
+			out = append(out, f)
+		}
+	}
+	return out
+}
+
 // Masked returns a copy of cfg with secret values replaced by a marker.
 const SecretMask = "__SECRET_UNCHANGED__"
 

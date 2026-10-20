@@ -223,7 +223,7 @@ export async function openServerForm(s, onSaved, defaults = {}) {
 }
 
 export async function render(ctx) {
-  const { el } = ctx;
+  const { el, query } = ctx;
   let [list, routes] = await Promise.all([get('/servers'), loadRoutes()]);
   const routeBadge = (s) => {
     const rt = findRoute(routes, routeOf(s));
@@ -255,6 +255,8 @@ export async function render(ctx) {
 
   on(el, 'click', '#add', () => openForm(null));
   on(el, 'click', '[data-edit]', async (e, b) => openForm(await get(`/servers/${b.dataset.edit}`)));
+  // #/servers?edit=<id>: where an AI assistant sends the user to enter a password (MCP never takes one)
+  if (query.edit && canOperate() && list.some((x) => x.id === +query.edit)) openForm(await get(`/servers/${+query.edit}`));
   on(el, 'click', '[data-del]', async (e, b) => {
     const s = list.find((x) => x.id === +b.dataset.del);
     if (!(await confirmBox({ title: 'Delete server', message: html`Delete server <b>${s.name}</b>? (Existing backups are kept.)`, danger: true, okText: 'Delete' }))) return;

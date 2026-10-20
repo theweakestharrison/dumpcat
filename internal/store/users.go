@@ -144,7 +144,7 @@ func (s *Store) PurgeSessions() {
 
 func (s *Store) CreateToken(t *APIToken) error {
 	ts := now()
-	if t.Access != TokenFull {
+	if t.Access != TokenFull && t.Access != TokenManage {
 		t.Access = TokenRead
 	}
 	res, err := s.db.Exec(`INSERT INTO api_tokens(user_id,name,prefix,token_hash,access,created_at,expires_at) VALUES(?,?,?,?,?,?,?)`,

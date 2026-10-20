@@ -193,7 +193,7 @@ var apiSections = []apiSection{
 			{"POST /api/me/totp/enable", "Finish two-factor setup. Body: `{\"code\": \"123456\"}`."},
 			{"POST /api/me/totp/disable", "Turn two-factor sign-in off. Body: `{\"password\"}`."},
 			{"GET /api/me/tokens", "Your API tokens: name, prefix, access, created, last used, expiry. Never the token itself."},
-			{"POST /api/me/tokens", "Create a token. Body: `{\"name\", \"access\": \"read\" or \"full\", \"expires_days\" (0 = never), \"password\"}`. Answers `{\"token\": \"mv_…\", \"item\": {…}}`: the token is shown only in this answer."},
+			{"POST /api/me/tokens", "Create a token. Body: `{\"name\", \"access\": \"read\", \"full\" or \"manage\", \"expires_days\" (0 = never), \"password\"}`. Answers `{\"token\": \"mv_…\", \"item\": {…}}`: the token is shown only in this answer."},
 			{"DELETE /api/me/tokens/{id}", "Revoke one of your tokens."},
 			{"POST /api/me/logout-others", "Sign out your other browser sessions."},
 		},
@@ -284,7 +284,8 @@ type mcpToolInfo struct {
 	Description string `json:"description"`
 	Route       string `json:"route"`
 	Role        string `json:"role"`        // lowest role that sees the tool
-	Write       bool   `json:"write"`       // starts something: needs a full-access token
+	Write       bool   `json:"write"`       // starts or changes something: needs a full-access token
+	Manage      bool   `json:"manage"`      // changes the configuration: needs a token with Manage access
 	Destructive bool   `json:"destructive"` // may remove something
 	Available   bool   `json:"available"`   // the signed-in account's role is enough
 }
@@ -294,7 +295,7 @@ func (s *Server) mcpToolInfos(u *store.User) []mcpToolInfo {
 	for _, t := range mcpTools() {
 		role := s.routeRoles[t.Route]
 		out = append(out, mcpToolInfo{Name: t.Name, Title: t.Title, Description: t.Description, Route: t.Route, Role: role,
-			Write: t.Write || !readOnlyAllows(t.Route), Destructive: t.Destructive,
+			Write: t.Write || !readOnlyAllows(t.Route), Manage: t.Manage, Destructive: t.Destructive,
 			Available: u != nil && store.RoleLevel(u.Role) >= store.RoleLevel(role)})
 	}
 	return out
@@ -338,7 +339,9 @@ func (s *Server) apiReference(origin string) string {
 	p("- Create an API token in the web UI: **API & MCP → New token** (or `POST /api/me/tokens`). Send it with every request:\n" +
 		"  `Authorization: Bearer mv_…`. A token acts as the account that created it.\n")
 	p("- **Read-only** tokens (the default) can call every `GET` route except downloads and OAuth, plus `POST /api/cron/preview` and " +
-		"`POST /api/pitr/plan`: they look and change nothing. **Full-access** tokens can do everything the account's role can.\n")
+		"`POST /api/pitr/plan`: they look and change nothing. **Full-access** tokens can do everything the account's role can. " +
+		"**Manage** tokens are full-access tokens that MCP also lets set up and change jobs, drills, servers and storages; over " +
+		"the REST API they are the same as full access.\n")
 	p("- Roles, from least to most: viewer (looks), operator (runs backups, restores, manages servers, storages, jobs and drills), " +
 		"admin (users, settings, notifications, agents, WireGuard, updates). Each route below names the lowest role it needs.\n")
 	p("- Requests with a token need no CSRF header (the web UI's session sends `X-CSRF-Token` on changes).\n\n")
@@ -369,12 +372,18 @@ func (s *Server) apiReference(origin string) string {
 	p("## AI assistants (MCP)\n\n")
 	p("DumpCat is an MCP server: `%s/api/mcp` (streamable HTTP, header `Authorization: Bearer <token>`). For clients that start a "+
 		"local command, `dumpcat mcp` forwards stdio to it (settings `DUMPCAT_MCP_URL`, `DUMPCAT_MCP_TOKEN`). Each tool call runs "+
-		"the REST request named below with the token: the same role check, read-only rule and audit log. Restores, deletions, "+
-		"credentials and settings are not available over MCP.\n\n", origin)
+		"the REST request named below with the token: the same role check, read-only rule and audit log. A full-access token "+
+		"starts backups, verifications, drills and storage tests; the tools that set up and change jobs, drills, servers and "+
+		"storages need a token with Manage access. Restores, deletions and settings are not available over MCP, and no tool "+
+		"takes or returns a secret (password, key, passphrase): a tool that leaves one unset answers `finish_url`, the web UI "+
+		"page where the user enters it.\n\n", origin)
 	p("| Tool | What it does | Role | Token | REST request |\n|---|---|---|---|---|\n")
 	for _, t := range s.mcpToolInfos(nil) {
 		tok := "read-only or full"
-		if t.Write {
+		switch {
+		case t.Manage:
+			tok = "Manage access"
+		case t.Write:
 			tok = "full access"
 		}
 		desc, _, _ := strings.Cut(t.Description, ". ")

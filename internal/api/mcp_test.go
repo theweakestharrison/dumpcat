@@ -207,7 +207,19 @@ func (f *mcpFixture) toolNames(token string) []string {
 	return names
 }
 
-var writeTools = []string{"run_backup", "verify_backup", "start_drill"}
+// toolsBy lists the tools that start something (full access) and those that change the
+// configuration (Manage access).
+func toolsBy() (writes, manages []string) {
+	for _, tl := range mcpTools() {
+		switch {
+		case tl.Manage:
+			manages = append(manages, tl.Name)
+		case tl.Write:
+			writes = append(writes, tl.Name)
+		}
+	}
+	return writes, manages
+}
 
 func TestMCPToolList(t *testing.T) {
 	f := newMCPFixture(t)
@@ -225,16 +237,27 @@ func TestMCPToolList(t *testing.T) {
 		if tool.Write != (method != http.MethodGet && !readOnlyPOST[tool.Route]) {
 			t.Fatalf("tool %s: Write does not match its route %s", tool.Name, tool.Route)
 		}
+		if tool.Manage && !tool.Write {
+			t.Fatalf("tool %s changes the configuration but is not a write tool", tool.Name)
+		}
 	}
 	all := len(mcpTools())
+	writeTools, manageTools := toolsBy()
+	if len(manageTools) != 8 || !slices.Contains(writeTools, "test_storage") {
+		t.Fatalf("write tools %v, manage tools %v", writeTools, manageTools)
+	}
 
+	manage := f.toolNames(f.token(store.RoleOperator, store.TokenManage))
+	if len(manage) != all {
+		t.Fatalf("an operator with a Manage token sees %d of %d tools: %v", len(manage), all, manage)
+	}
 	full := f.toolNames(f.token(store.RoleOperator, store.TokenFull))
-	if len(full) != all {
+	if len(full) != all-len(manageTools) || slices.Contains(full, "create_job") || !slices.Contains(full, "run_backup") {
 		t.Fatalf("an operator with a full token sees %d of %d tools: %v", len(full), all, full)
 	}
 	readOnly := f.toolNames(f.token(store.RoleAdmin, store.TokenRead))
-	viewer := f.toolNames(f.token(store.RoleViewer, store.TokenFull))
-	for _, w := range writeTools {
+	viewer := f.toolNames(f.token(store.RoleViewer, store.TokenManage))
+	for _, w := range append(writeTools, manageTools...) {
 		if slices.Contains(readOnly, w) || slices.Contains(viewer, w) {
 			t.Fatalf("%s is offered to a read-only token or a viewer", w)
 		}
@@ -242,7 +265,11 @@ func TestMCPToolList(t *testing.T) {
 	if !slices.Contains(readOnly, "plan_pitr") || slices.Contains(viewer, "plan_pitr") {
 		t.Fatalf("plan_pitr (operator, changes nothing): read-only admin %v, viewer %v", readOnly, viewer)
 	}
-	if len(readOnly) != all-len(writeTools) || len(viewer) != all-len(writeTools)-1 {
+	if !slices.Contains(readOnly, "preview_schedule") || !slices.Contains(viewer, "list_storages") {
+		t.Fatalf("read tools: read-only admin %v, viewer %v", readOnly, viewer)
+	}
+	writes := len(writeTools) + len(manageTools)
+	if len(readOnly) != all-writes || len(viewer) != all-writes-1 {
 		t.Fatalf("read-only %d, viewer %d of %d tools", len(readOnly), len(viewer), all)
 	}
 
@@ -510,6 +537,9 @@ func TestTokenAccess(t *testing.T) {
 	if c, tk := create(`{"name":"ci","access":"full","password":"correct horse operator"}`); c != 200 || tk.Access != store.TokenFull {
 		t.Fatalf("full access: %d %+v", c, tk)
 	}
+	if c, tk := create(`{"name":"assistant-setup","access":"manage","password":"correct horse operator"}`); c != 200 || tk.Access != store.TokenManage {
+		t.Fatalf("manage access: %d %+v", c, tk)
+	}
 	if c, _ := create(`{"name":"x","access":"admin","password":"correct horse operator"}`); c != http.StatusBadRequest {
 		t.Fatalf("invalid access: %d", c)
 	}
@@ -517,11 +547,15 @@ func TestTokenAccess(t *testing.T) {
 		t.Fatalf("control character in the name: %d", c)
 	}
 	list, err := f.st.ListTokens(f.users[store.RoleOperator].ID)
-	if err != nil || len(list) != 3 {
+	if err != nil || len(list) != 4 {
 		t.Fatalf("tokens: %+v %v", list, err)
 	}
-	// unknown values fail closed
+	// unknown values fail closed; only manage manages
 	if (&store.APIToken{Access: ""}).ReadOnly() != true || (&store.APIToken{Access: "write"}).ReadOnly() != true {
 		t.Fatal("an unknown access value must be read-only")
+	}
+	if (&store.APIToken{Access: store.TokenManage}).ReadOnly() || !(&store.APIToken{Access: store.TokenManage}).Manages() ||
+		(&store.APIToken{Access: store.TokenFull}).Manages() || (&store.APIToken{Access: "Manage"}).Manages() {
+		t.Fatal("manage: full access that also manages, and nothing else manages")
 	}
 }

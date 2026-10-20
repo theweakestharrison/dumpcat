@@ -232,6 +232,11 @@ let modalSeq = 0;
  * inert (focus stays inside), focus returns to the opener, and a backdrop
  * click does not discard a form the user already edited.
  */
+/** Closes every open dialog, newest first: another page is about to show (e.g. a link an AI assistant gave). */
+export function closeModals() {
+  for (const e of modalStack.slice().reverse()) e.close();
+}
+
 export function modal({ title, body, footer, size = '', onClose }) {
   const opener = document.activeElement;
   const bd = document.createElement('div');

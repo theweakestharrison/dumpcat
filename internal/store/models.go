@@ -62,7 +62,7 @@ type APIToken struct {
 	UserID     int64      `json:"user_id"`
 	Name       string     `json:"name"`
 	Prefix     string     `json:"prefix"`
-	Access     string     `json:"access"` // TokenRead, TokenFull
+	Access     string     `json:"access"` // TokenRead, TokenFull, TokenManage
 	CreatedAt  time.Time  `json:"created_at"`
 	LastUsedAt *time.Time `json:"last_used_at"`
 	ExpiresAt  *time.Time `json:"expires_at"`
@@ -72,10 +72,16 @@ type APIToken struct {
 const (
 	TokenRead = "read" // looks only: no change, no backup download, whatever the user's role
 	TokenFull = "full" // everything the user's role allows
+	// TokenManage is full, and over MCP also gets the tools that create and change jobs, drills,
+	// servers and storages: an assistant given a full token cannot change the configuration
+	TokenManage = "manage"
 )
 
-// ReadOnly tells whether the token may only look (any value but full: fail closed).
-func (t *APIToken) ReadOnly() bool { return t.Access != TokenFull }
+// ReadOnly tells whether the token may only look (any value but full or manage: fail closed).
+func (t *APIToken) ReadOnly() bool { return t.Access != TokenFull && t.Access != TokenManage }
+
+// Manages tells whether MCP offers the token the tools that change the configuration.
+func (t *APIToken) Manages() bool { return t.Access == TokenManage }
 
 type Server struct {
 	ID          int64     `json:"id"`

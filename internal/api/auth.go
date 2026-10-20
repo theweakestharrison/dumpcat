@@ -332,7 +332,7 @@ func (s *Server) meTokenCreate(w http.ResponseWriter, r *http.Request) error {
 	var in struct {
 		Name        string `json:"name"`
 		ExpiresDays int    `json:"expires_days"`
-		Access      string `json:"access"` // read (default), full
+		Access      string `json:"access"` // read (default), full, manage
 		Password    string `json:"password"`
 	}
 	if err := readJSON(r, &in); err != nil {
@@ -347,9 +347,9 @@ func (s *Server) meTokenCreate(w http.ResponseWriter, r *http.Request) error {
 	switch in.Access {
 	case "":
 		in.Access = store.TokenRead // a token only looks unless asked otherwise
-	case store.TokenRead, store.TokenFull:
+	case store.TokenRead, store.TokenFull, store.TokenManage:
 	default:
-		return badRequest("access must be read or full")
+		return badRequest("access must be read, full or manage")
 	}
 	// a token outlives sessions and password changes: creating one needs the password (or, for
 	// an account that signs in with SSO only, a fresh sign-in), so a stolen session cannot turn

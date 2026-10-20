@@ -17,7 +17,7 @@ const TYPE_GROUPS = [
 const RCLONE_NAME = { gdrive: 'drive', onedrive: 'onedrive', dropbox: 'dropbox' };
 
 export async function render(ctx) {
-  const { el } = ctx;
+  const { el, query } = ctx;
   const [{ types, oauth_callback: callbackURL }, initial] = await Promise.all([get('/storage-types'), get('/storages')]);
   let list = initial;
   const typeDef = (t) => types.find((x) => x.type === t);
@@ -216,6 +216,8 @@ export async function render(ctx) {
 
   on(el, 'click', '#add', () => openForm(null));
   on(el, 'click', '[data-edit]', async (e, b) => openForm(await get(`/storages/${b.dataset.edit}`)));
+  // #/storages?edit=<id>: where an AI assistant sends the user to enter a secret (MCP never takes one)
+  if (query.edit && canOperate() && list.some((x) => x.id === +query.edit)) openForm(await get(`/storages/${+query.edit}`));
   on(el, 'click', '[data-test]', (e, b) => busy(b, async () => {
     try {
       const r = await post(`/storages/${b.dataset.test}/test`);

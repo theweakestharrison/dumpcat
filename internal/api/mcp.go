@@ -164,7 +164,7 @@ func (s *Server) mcpDispatch(r *http.Request, a *authInfo, m *rpcMessage) (any, 
 		}
 		return map[string]any{"tools": list}, nil
 	case "tools/call":
-		return s.mcpCallTool(r, m.Params)
+		return s.mcpCallTool(r, a, m.Params)
 	}
 	return nil, &rpcError{rpcMethodNotFound, "method not found: " + m.Method}
 }
@@ -180,10 +180,13 @@ func (s *Server) mcpInstructions(a *authInfo) string {
 		access = "with a read-only token: you can see what the account can see and change nothing"
 	case store.RoleLevel(a.User.Role) < store.RoleLevel(store.RoleOperator):
 		access = "as a viewer: you can look and change nothing"
+	case mcpManages(a):
+		access = "with Manage access: you can also start backups, verifications and restore drills, and set up and change jobs, " +
+			"restore drills, database servers and storages (ask the user first)"
 	}
 	return fmt.Sprintf(`DumpCat %s backs up databases (%s) on schedules to local and cloud storage, archives their logs (MySQL binlogs, PostgreSQL WAL) for point-in-time recovery, and tests backups with restore drills.
 Start with get_overview, and get_monitoring for what needs attention. A backup is one run of a job: list_backups and get_backup show backups, get_log shows the end of a log (backups, restores, drill runs, log archiving). To investigate a failure, read its error, then its log.
-Signed in as %s (role %s) %s. Restores, deletions, credentials and settings are not available over MCP: they are done in the web UI. Secrets are never returned.`,
+Signed in as %s (role %s) %s. Restores, deletions and DumpCat's settings are not available over MCP: they are done in the web UI. Secrets (passwords, keys, passphrases) are never returned or taken: when a setup needs one, give the user the finish_url the tool returns, where they enter it.`,
 		s.Version, strings.Join(engines, ", "), a.User.Username, a.User.Role, access)
 }
 
@@ -196,10 +199,13 @@ type mcpTool struct {
 	// Route is the REST route the tool calls: its role and the read-only token rule decide who
 	// sees the tool in tools/list. Calls are checked by the routes themselves.
 	Route       string
-	Write       bool // starts something
+	Write       bool // starts or changes something
 	Destructive bool // may remove something (retention after a backup)
-	Schema      map[string]any
-	Run         func(c *mcpCall, args json.RawMessage) (any, error)
+	// Manage changes the configuration (mcp_manage.go): only for tokens with Manage access,
+	// which the route cannot tell from full access
+	Manage bool
+	Schema map[string]any
+	Run    func(c *mcpCall, args json.RawMessage) (any, error)
 }
 
 func (t *mcpTool) describe() map[string]any {
@@ -214,11 +220,14 @@ func (t *mcpTool) describe() map[string]any {
 // mcpVisible tells whether tools/list offers the tool to the caller: what its route allows.
 func (s *Server) mcpVisible(a *authInfo, t *mcpTool) bool {
 	role, ok := s.routeRoles[t.Route]
-	if !ok || store.RoleLevel(a.User.Role) < store.RoleLevel(role) {
+	if !ok || store.RoleLevel(a.User.Role) < store.RoleLevel(role) || (t.Manage && !mcpManages(a)) {
 		return false
 	}
 	return a.Token == nil || !a.Token.ReadOnly() || readOnlyAllows(t.Route)
 }
+
+// mcpManages tells whether the caller may use the tools that change the configuration.
+func mcpManages(a *authInfo) bool { return a.Token != nil && a.Token.Manages() }
 
 func mcpToolNamed(name string) *mcpTool {
 	for _, t := range mcpTools() {
@@ -229,7 +238,7 @@ func mcpToolNamed(name string) *mcpTool {
 	return nil
 }
 
-func (s *Server) mcpCallTool(r *http.Request, params json.RawMessage) (any, *rpcError) {
+func (s *Server) mcpCallTool(r *http.Request, a *authInfo, params json.RawMessage) (any, *rpcError) {
 	var p struct {
 		Name      string          `json:"name"`
 		Arguments json.RawMessage `json:"arguments"`
@@ -240,6 +249,10 @@ func (s *Server) mcpCallTool(r *http.Request, params json.RawMessage) (any, *rpc
 	t := mcpToolNamed(p.Name)
 	if t == nil {
 		return nil, &rpcError{rpcInvalidParams, "unknown tool: " + p.Name}
+	}
+	if t.Manage && !mcpManages(a) {
+		// the routes take any full-access token: this is the one check MCP makes itself
+		return mcpToolError(p.Name + " changes DumpCat's configuration: it needs an API token with Manage access (API & MCP → New token)"), nil
 	}
 	args := bytes.TrimSpace(p.Arguments)
 	if len(args) == 0 || string(args) == "null" {
@@ -647,8 +660,13 @@ var runStatuses = []string{store.StatusQueued, store.StatusRunning, store.Status
 	store.StatusFailed, store.StatusCanceled, store.StatusDeleted}
 
 // mcpTools is the tool set. Read tools need what the matching GET route needs (viewer);
-// run_backup, verify_backup and start_drill need an operator and a token with full access.
+// run_backup, verify_backup, start_drill and test_storage need an operator and a token with full
+// access; the tools of mcp_manage.go that change the configuration a token with Manage access.
 func mcpTools() []mcpTool {
+	return append(mcpBaseTools(), mcpSetupTools()...)
+}
+
+func mcpBaseTools() []mcpTool {
 	return []mcpTool{
 		{
 			Name: "get_overview", Title: "DumpCat overview", Route: "GET /api/dashboard",

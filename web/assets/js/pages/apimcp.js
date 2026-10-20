@@ -53,6 +53,11 @@ const TABS = [
   ['rest', 'REST API & agents'],
 ];
 
+// A token's access: read looks, full also starts things, manage also lets an assistant change the configuration over MCP.
+const ACCESS = { read: ['info', 'Read-only'], full: ['warn', 'Full access'], manage: ['bad', 'Manage'] };
+const accessBadge = (a) => { const [cls, label] = ACCESS[a] || ACCESS.read; return html`<span class="badge ${cls}">${label}</span>`; };
+const toolNeeds = (t) => (t.manage ? html`<span class="badge bad">Manage token</span>` : t.write ? html`<span class="badge warn">full-access token</span>` : html`<span class="badge info">read-only token</span>`);
+
 const fill = (text, token) => text.split(TOK).join(token || EXAMPLE_TOKEN);
 const showToken = (text, token) => raw(esc(text).split(esc(TOK)).join(`<mark class="api-tok">${esc(token || EXAMPLE_TOKEN)}</mark>`));
 
@@ -64,7 +69,7 @@ export async function render(ctx) {
   const myTools = info.tools.filter((t) => t.available);
 
   const tokenTable = () => (tokens.length ? html`<div class="table-wrap"><table class="table"><thead><tr><th>Name</th><th>Access</th><th>Prefix</th><th>Created</th><th>Last used</th><th>Expires</th><th></th></tr></thead><tbody>
-    ${tokens.map((t) => html`<tr><td><b>${t.name}</b></td><td>${t.access === 'full' ? html`<span class="badge warn">Full access</span>` : html`<span class="badge info">Read-only</span>`}</td><td class="mono small">${t.prefix}…</td><td>${fmtDate(t.created_at)}</td><td>${t.last_used_at ? fmtAgo(t.last_used_at) : html`<span class="muted">never</span>`}</td><td>${t.expires_at ? fmtDate(t.expires_at) : 'never'}</td>
+    ${tokens.map((t) => html`<tr><td><b>${t.name}</b></td><td>${accessBadge(t.access)}</td><td class="mono small">${t.prefix}…</td><td>${fmtDate(t.created_at)}</td><td>${t.last_used_at ? fmtAgo(t.last_used_at) : html`<span class="muted">never</span>`}</td><td>${t.expires_at ? fmtDate(t.expires_at) : 'never'}</td>
       <td class="actions"><button class="btn btn-sm btn-ghost btn-icon" data-tdel="${t.id}" title="Revoke" aria-label="Revoke ${t.name}">${icon('trash')}</button></td></tr>`)}</tbody></table></div>`
     : empty('No tokens yet. Create one for each assistant or script, so you can revoke it on its own.', 'key'));
 
@@ -81,14 +86,16 @@ export async function render(ctx) {
   };
 
   const toolGroup = (list) => html`<ul class="api-tools">${list.map((t) => html`<li class="${t.available ? '' : 'off'}" title="${t.description}"><code>${t.name}</code><span>${t.title}</span>${t.available ? '' : html`<small>needs ${t.role}</small>`}</li>`)}</ul>`;
-  const toolsView = () => html`<div class="grid grid-2 api-tool-groups">
+  const toolsView = () => html`<div class="grid grid-3 api-tool-groups">
       <div><div class="section-title">${icon('eye')} Look and investigate <span class="badge info">read-only token</span></div>${toolGroup(info.tools.filter((t) => !t.write))}</div>
-      <div><div class="section-title">${icon('play')} Act <span class="badge warn">full-access token</span></div>${toolGroup(info.tools.filter((t) => t.write))}
-        <p class="small muted">Starting something also needs the operator or admin role. Nothing else can be changed over MCP.</p></div></div>
+      <div><div class="section-title">${icon('play')} Act <span class="badge warn">full-access token</span></div>${toolGroup(info.tools.filter((t) => t.write && !t.manage))}
+        <p class="small muted">Starting something also needs the operator or admin role.</p></div>
+      <div><div class="section-title">${icon('edit')} Set up and change <span class="badge bad">Manage token</span></div>${toolGroup(info.tools.filter((t) => t.manage))}
+        <p class="small muted">Jobs, restore drills, servers and storages. Passwords, keys and passphrases are never sent over MCP: the assistant gives you a link to the page where you enter them.</p></div></div>
     <details class="api-preview"><summary>Every tool in detail</summary>${toolsTable()}</details>`;
   const toolsTable = () => html`<div class="table-wrap" style="margin-top:10px"><table class="table"><thead><tr><th>Tool</th><th>What it does</th><th>Needs</th><th>You</th></tr></thead><tbody>
     ${info.tools.map((t) => html`<tr><td><div class="mono"><b>${t.name}</b></div><div class="sub">${t.title}</div></td><td class="small">${t.description.split('. ')[0].replace(/\.$/, '')}.</td>
-      <td><div class="chips"><span class="badge outline">${t.role}</span>${t.write ? html`<span class="badge warn">full-access token</span>` : html`<span class="badge info">read-only token</span>`}</div></td>
+      <td><div class="chips"><span class="badge outline">${t.role}</span>${toolNeeds(t)}</div></td>
       <td>${t.available ? html`<span class="badge good">${icon('check')}Yes</span>` : html`<span class="muted small">needs ${t.role}</span>`}</td></tr>`)}</tbody></table></div>`;
 
   const draw = () => {
@@ -97,7 +104,7 @@ export async function render(ctx) {
 
       <div class="grid grid-3 api-ways">
         <div class="card api-way"><span class="api-way-ico">${icon('sparkle')}</span><div><h3>AI assistants (MCP)</h3>
-          <p>Claude Code, Claude Desktop and other MCP clients check what failed or is overdue, read logs and explain failures. With full access they can also start backups, verifications and drills.</p>
+          <p>Claude Code, Claude Desktop and other MCP clients check what failed or is overdue, read logs and explain failures. With full access they also start backups, verifications and drills; with Manage access they set up and change jobs, drills, servers and storages.</p>
           <span class="chip-fact">${info.tools.length} tools · ${myTools.length} for your role</span></div></div>
         <div class="card api-way"><span class="api-way-ico">${icon('code')}</span><div><h3>REST API</h3>
           <p>Automate DumpCat from scripts, CI and monitoring: JSON over HTTPS with a bearer token, the same requests the web UI makes.</p>
@@ -111,6 +118,7 @@ export async function render(ctx) {
         <div class="card-body small muted api-access">
           <div><span class="badge info">Read-only</span> sees what your account sees and changes nothing. Enough for monitoring and for an assistant that investigates.</div>
           <div><span class="badge warn">Full access</span> can do everything your role (${me.role}) can: CI that runs jobs, an assistant that starts backups, verifications and drills.</div>
+          <div><span class="badge bad">Manage</span> is full access, and over MCP an assistant can also set up and change jobs, restore drills, servers and storages. Give it only to an assistant you let change DumpCat.</div>
         </div>
         ${tokenTable()}</div>
 
@@ -132,7 +140,7 @@ export async function render(ctx) {
       <div class="card"><div class="card-head"><span class="api-num">3</span><h2>What an assistant can do</h2></div>
         <div class="card-body"><p class="small muted" style="margin-top:0">Each tool runs the matching REST request with the token: it is allowed, refused and written to the audit log exactly as that request would be. MCP clients ask you before calling a tool that starts something.</p>
         ${toolsView()}
-        <div class="alert info" style="margin-top:14px">${icon('lock')}<div>Restores, deletions, credentials and settings are never available over MCP, and no setting turns them on. Answers leave out passwords, keys and tokens.</div></div></div></div>
+        <div class="alert info" style="margin-top:14px">${icon('lock')}<div>Restores, deletions and settings are never available over MCP, and no setting turns them on. Passwords, keys, tokens and passphrases never go through it, in either direction: you enter them on this site.</div></div></div></div>
 
       <div class="card"><div class="card-head"><h2>API reference (Markdown)</h2>
         <div class="btn-group"><button class="btn btn-sm" data-docs-copy ${docs ? '' : 'disabled'}>${icon('copy')}Copy Markdown</button><button class="btn btn-sm" data-docs-dl ${docs ? '' : 'disabled'}>${icon('download')}Download</button></div></div>
@@ -180,9 +188,10 @@ export async function render(ctx) {
     try {
       const init = await mcpRequest(state.token, 'initialize', { protocolVersion: info.protocol_versions[0], capabilities: {}, clientInfo: { name: 'dumpcat-web', version: app.version } });
       const list = await mcpRequest(state.token, 'tools/list');
-      const who = /Signed in as (\S+) \(role (\w+)\) (with a read-only token|as a viewer|with full access)/.exec(init.instructions || '');
+      const who = /Signed in as (\S+) \(role (\w+)\) (with a read-only token|as a viewer|with full access|with Manage access)/.exec(init.instructions || '');
+      const access = { 'with a read-only token': 'read-only token', 'as a viewer': 'viewer: looks only', 'with full access': 'full access', 'with Manage access': 'Manage access' };
       state.test = { version: init.serverInfo.version, protocol: init.protocolVersion, tools: list.tools.map((t) => t.name),
-        who: who ? `signed in as ${who[1]} (${who[2]}), ${who[3] === 'with a read-only token' ? 'read-only token' : who[3] === 'as a viewer' ? 'viewer: looks only' : 'full access'}` : '' };
+        who: who ? `signed in as ${who[1]} (${who[2]}), ${access[who[3]]}` : '' };
     } catch (er) {
       state.test = { error: er.status === 401 ? 'The token is not valid: it may be mistyped, revoked or expired.' : er.message };
     }
@@ -193,8 +202,8 @@ export async function render(ctx) {
     const m = modal({
       title: 'New API token',
       body: html`<form id="tk"><div class="field"><label class="req">Name</label><input type="text" name="name" placeholder="e.g. claude-code, jenkins-deploy" required></div>
-        <div class="field" style="margin-top:12px"><label>Access</label><select name="access"><option value="read" selected>Read-only: see status, backups and logs, change nothing</option><option value="full">Full: everything your role (${me.role}) can do</option></select>
-          <div class="help">Read-only suits monitoring and AI assistants. Running jobs from CI, or letting an assistant start backups, verifications and drills, needs full access.</div></div>
+        <div class="field" style="margin-top:12px"><label>Access</label><select name="access"><option value="read" selected>Read-only: see status, backups and logs, change nothing</option><option value="full">Full: everything your role (${me.role}) can do</option><option value="manage">Manage: full, and an assistant can set up and change jobs, drills, servers and storages</option></select>
+          <div class="help">Read-only suits monitoring and AI assistants. Running jobs from CI, or letting an assistant start backups, verifications and drills, needs full access. An assistant that sets backups up for you needs Manage; it never sees or sends passwords.</div></div>
         <div class="field" style="margin-top:12px"><label>Expires after (days, 0 = never)</label><input type="number" name="expires_days" value="90" min="0"></div>
         ${me.has_password === false
     ? html`<div class="alert info" style="margin-top:12px">${icon('lock')}<div>Your account signs in with single sign-on: a token can be created within 10 minutes of signing in.</div></div>`
