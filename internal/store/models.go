@@ -372,6 +372,7 @@ const (
 	MethodMydumper  = "mydumper"
 	MethodPhysical  = "physical"
 	MethodPgDump    = "pg_dump"
+	MethodPgBase    = "pg_basebackup"
 
 	TypeFull        = "full"
 	TypeIncremental = "incremental"

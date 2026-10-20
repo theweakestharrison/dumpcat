@@ -38,6 +38,8 @@ const (
 // server kept writing.
 var ErrStalled = errors.New("no new data although the server kept writing — reconnecting")
 
+var _ LogArchiver = MySQL{}
+
 var mysqlLogInfo = LogInfo{Name: "binlog", Files: "binlogs", Prefix: "binlog", Close: "FLUSH BINARY LOGS",
 	Targets: []string{"time", "gtid", "position", "latest"}}
 

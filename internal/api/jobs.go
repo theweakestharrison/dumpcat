@@ -81,7 +81,7 @@ func (s *Server) applyJob(in *jobInput, j *store.Job, isAdmin bool) error {
 	}
 	j.Databases = cleanList(in.Databases)
 	j.ExcludeTables = cleanList(in.ExcludeTables)
-	if j.Method == store.MethodPhysical {
+	if m.Physical {
 		j.DBMode = "all"
 		j.Databases = []string{}
 		j.ExcludeTables = []string{}
@@ -102,7 +102,7 @@ func (s *Server) applyJob(in *jobInput, j *store.Job, isAdmin bool) error {
 	}
 	j.Schedule = strings.TrimSpace(in.Schedule)
 	j.IncrSchedule = strings.TrimSpace(in.IncrSchedule)
-	if j.Method != store.MethodPhysical {
+	if !m.Incremental {
 		j.IncrSchedule = ""
 	}
 	j.Compression = pipeline.NormalizeCompression(in.Compression)

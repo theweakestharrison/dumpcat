@@ -75,8 +75,8 @@ func drillRunnable(run *store.Run) error {
 	switch {
 	case run.Status != store.StatusSuccess && run.Status != store.StatusPartial:
 		return fmt.Errorf("backup #%d is not a successful backup", run.ID)
-	case run.Method == store.MethodPhysical:
-		return errors.New("restore drills test logical backups (mysqldump, mydumper); physical backups are not supported yet")
+	case isPhysical(run.Method):
+		return errors.New("restore drills test logical backups (mysqldump, mydumper, pg_dump); physical backups are not supported yet")
 	case run.Meta["single_file"] == true:
 		return errors.New("a single-file dump restores under its original database names, so it cannot be drilled under temporary names — turn off \"One file for all databases\" in the job")
 	case run.Encrypted && run.Passphrase == "":
@@ -106,7 +106,7 @@ func (r *Runner) drillCandidate(job *store.Job) (*store.Run, error) {
 		if first == nil {
 			first = fmt.Errorf("the newest backup (#%d) cannot be drilled: %w", run.ID, err)
 		}
-		if run.Method == store.MethodPhysical || run.Meta["single_file"] == true {
+		if isPhysical(run.Method) || run.Meta["single_file"] == true {
 			return nil, first // every backup of this job is alike
 		}
 	}
@@ -119,8 +119,8 @@ func (r *Runner) drillCandidate(job *store.Job) (*store.Run, error) {
 // CheckDrillJob tells why the backups of a job cannot be drilled ("" when they can).
 func CheckDrillJob(job *store.Job) string {
 	switch {
-	case job.Method == store.MethodPhysical:
-		return "restore drills test logical backups (mysqldump, mydumper); physical backups are not supported yet"
+	case isPhysical(job.Method):
+		return "restore drills test logical backups (mysqldump, mydumper, pg_dump); physical backups are not supported yet"
 	case job.Method == store.MethodMysqldump && job.Options.SingleFile:
 		return "the job writes one file for all databases, which restores under the original names only — turn off \"One file for all databases\" to drill its backups"
 	}

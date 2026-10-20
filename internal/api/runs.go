@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"dumpcat/internal/drivers"
 	"dumpcat/internal/monitor"
 	"dumpcat/internal/pipeline"
 	"dumpcat/internal/runner"
@@ -205,7 +206,7 @@ func (s *Server) runRestore(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 	u := userOf(r)
-	if run.Method == store.MethodPhysical && in.Apply && u.Role != store.RoleAdmin {
+	if m, _, ok := drivers.Method(run.Method); ok && m.Physical && in.Apply && u.Role != store.RoleAdmin {
 		return errf(403, "only admins can replace the datadir")
 	}
 	// the service runs as root: arbitrary extraction paths are admin-only

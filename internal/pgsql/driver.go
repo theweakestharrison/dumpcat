@@ -13,6 +13,11 @@ import (
 // Driver is the PostgreSQL driver.
 type Driver struct{}
 
+var (
+	_ engine.LogArchiver      = Driver{}
+	_ engine.PhysicalRestorer = Driver{}
+)
+
 func (Driver) Engine() string   { return store.EnginePostgres }
 func (Driver) Label() string    { return "PostgreSQL" }
 func (Driver) Product() string  { return "PostgreSQL" }
@@ -23,6 +28,9 @@ var methods = []engine.Method{
 		Description: "Logical backup of each database with pg_dump --format=directory, tables dumped in parallel from one consistent snapshot. Restore individual databases, rename them, restore onto newer PostgreSQL versions with pg_restore (also in parallel).",
 		Threads:     "pg_dump / pg_restore --jobs: tables dumped and restored in parallel (one database at a time)",
 		Users:       "Roles and tablespaces (pg_dumpall --globals-only)", UsersHelp: "Saved as a separate _globals.sql file; restoring it creates the roles the target does not have. Passwords need a superuser backup account."},
+	{ID: store.MethodPgBase, Title: "pg_basebackup (physical)", Icon: "hdd", Physical: true, LogArchive: true,
+		Description: "Copies the whole cluster while it runs (every database, role and setting) over a replication connection: nothing to install on the database host. The base of WAL archiving and point-in-time recovery. A restore prepares a data directory on the DumpCat host and can replace a local cluster.",
+		Threads:     "Not used: pg_basebackup copies the cluster in one stream"},
 }
 
 func (Driver) Methods() []engine.Method { return methods }
@@ -51,18 +59,49 @@ func (Driver) CheckName(name string) error {
 	return nil
 }
 
-// Support: pg_dump and pg_restore of the server's major version or newer.
+// Support: pg_dump and pg_restore of the server's major version or newer;
+// pg_basebackup and pg_receivewal with a REPLICATION account.
 func (Driver) Support(sv *store.Server, info *dbconn.ServerInfo, t *engine.Tools) []engine.MethodSupport {
+	return []engine.MethodSupport{dumpSupport(info, t), baseSupport(info, t)}
+}
+
+func baseSupport(info *dbconn.ServerInfo, t *engine.Tools) engine.MethodSupport {
+	ms := engine.MethodSupport{Method: store.MethodPgBase}
+	bb, err := t.PGFor("pg_basebackup", info.Major)
+	if err != nil {
+		ms.Message = err.Error()
+		return ms
+	}
+	repl := false
+	for _, g := range info.Grants {
+		repl = repl || g == "SUPERUSER" || g == "REPLICATION"
+	}
+	switch {
+	case !repl:
+		ms.Message = bb.Version + " — the backup account needs the REPLICATION attribute (ALTER ROLE … REPLICATION) and a replication line in pg_hba.conf"
+		return ms
+	case info.WALLevel == "minimal":
+		ms.Message = bb.Version + " — wal_level is minimal: set it to replica"
+		return ms
+	}
+	ms.OK, ms.Message = true, bb.Version
+	if _, err := t.PGFor("pg_receivewal", info.Major); err != nil {
+		ms.Message += " — WAL archiving needs pg_receivewal"
+	}
+	return ms
+}
+
+func dumpSupport(info *dbconn.ServerInfo, t *engine.Tools) engine.MethodSupport {
 	ms := engine.MethodSupport{Method: store.MethodPgDump}
 	dump, err := t.PGFor("pg_dump", info.Major)
 	if err != nil {
 		ms.Message = err.Error()
-		return []engine.MethodSupport{ms}
+		return ms
 	}
 	restore, err := t.PGFor("pg_restore", info.Major)
 	if err != nil {
 		ms.Message = dump.Version + " — restores need pg_restore: " + err.Error()
-		return []engine.MethodSupport{ms}
+		return ms
 	}
 	ms.OK, ms.Message = true, dump.Version
 	if restore.Major != dump.Major {
@@ -71,7 +110,7 @@ func (Driver) Support(sv *store.Server, info *dbconn.ServerInfo, t *engine.Tools
 	if _, err := t.PGFor("pg_dumpall", info.Major); err != nil {
 		ms.Message += " — roles are not backed up without pg_dumpall"
 	}
-	return []engine.MethodSupport{ms}
+	return ms
 }
 
 // Compat compares the backup's server with the target.

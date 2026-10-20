@@ -77,6 +77,29 @@ func tlsConfig(s *store.Server, serverName string) (*tls.Config, error) {
 // Connect opens one connection to database (empty: the maintenance database
 // postgres). Nothing is read from the environment or a password file.
 func Connect(ctx context.Context, s *store.Server, database string) (*pgx.Conn, error) {
+	cfg, err := connConfig(s, database)
+	if err != nil {
+		return nil, err
+	}
+	cctx, cancel := context.WithTimeout(ctx, 20*time.Second)
+	defer cancel()
+	return pgx.ConnectConfig(cctx, cfg)
+}
+
+// replicationConn opens a physical replication connection (the walsender
+// protocol of pg_receivewal and pg_basebackup).
+func replicationConn(ctx context.Context, s *store.Server) (*pgconn.PgConn, error) {
+	cfg, err := connConfig(s, "postgres")
+	if err != nil {
+		return nil, err
+	}
+	cfg.RuntimeParams["replication"] = "true"
+	cctx, cancel := context.WithTimeout(ctx, 20*time.Second)
+	defer cancel()
+	return pgconn.ConnectConfig(cctx, &cfg.Config)
+}
+
+func connConfig(s *store.Server, database string) (*pgx.ConnConfig, error) {
 	e, err := endpointOf(s)
 	if err != nil {
 		return nil, err
@@ -109,9 +132,7 @@ func Connect(ctx context.Context, s *store.Server, database string) (*pgx.Conn, 
 			cfg.Fallbacks = []*pgconn.FallbackConfig{{Host: e.host, Port: uint16(e.port)}}
 		}
 	}
-	cctx, cancel := context.WithTimeout(ctx, 20*time.Second)
-	defer cancel()
-	return pgx.ConnectConfig(cctx, cfg)
+	return cfg, nil
 }
 
 // adminConn connects to a database every role may reach for CREATE/DROP

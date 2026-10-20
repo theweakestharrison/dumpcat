@@ -194,7 +194,8 @@ func (r *Runner) execBackup(ctx context.Context, task *Task, run *store.Run, job
 	for _, m := range missing {
 		lg.Printf("Warning: database %s does not exist on the server, skipping", m)
 	}
-	if job.Method != store.MethodPhysical && len(dbs) == 0 {
+	whole := isPhysical(job.Method) // the whole instance, not a selection of databases
+	if !whole && len(dbs) == 0 {
 		fail(errors.New("no databases match the job selection"))
 		return
 	}
@@ -202,7 +203,7 @@ func (r *Runner) execBackup(ctx context.Context, task *Task, run *store.Run, job
 	for _, d := range dbs {
 		estimate += d.SizeBytes
 	}
-	if job.Method == store.MethodPhysical {
+	if whole {
 		estimate = info.TotalBytes
 	}
 	task.SetEstimate(estimate)
@@ -210,7 +211,7 @@ func (r *Runner) execBackup(ctx context.Context, task *Task, run *store.Run, job
 	for i, d := range dbs {
 		names[i] = d.Name
 	}
-	if job.Method != store.MethodPhysical {
+	if !whole {
 		lg.Printf("Databases (%d, ~%s): %s", len(dbs), humanBytes(estimate), strings.Join(names, ", "))
 	} else {
 		lg.Printf("Physical backup of the whole instance (~%s of data)", humanBytes(estimate))

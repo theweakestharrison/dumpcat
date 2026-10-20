@@ -10,7 +10,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"regexp"
 	"runtime"
 	"strings"
 	"time"
@@ -18,7 +17,6 @@ import (
 	"dumpcat/internal/dbconn"
 	"dumpcat/internal/drivers"
 	"dumpcat/internal/engine"
-	"dumpcat/internal/execx"
 	"dumpcat/internal/notify"
 	"dumpcat/internal/pipeline"
 	"dumpcat/internal/storage"
@@ -95,11 +93,11 @@ func (r *Runner) StartRestore(runID int64, req RestoreRequest, userID int64, use
 			return nil, fmt.Errorf("a %s backup restores onto a %s server: %s is not one", drv.Product(), drv.Product(), target.Name)
 		}
 		target = target.ForRestore()
-	} else if run.Method != store.MethodPhysical {
+	} else if !isPhysical(run.Method) {
 		return nil, errors.New("no target server selected")
 	}
 	kind := "logical"
-	if run.Method == store.MethodPhysical {
+	if isPhysical(run.Method) {
 		kind = "physical"
 		if req.Apply && runtime.GOOS != "linux" {
 			return nil, errors.New("automatic datadir replacement is only supported on Linux")
@@ -108,7 +106,7 @@ func (r *Runner) StartRestore(runID int64, req RestoreRequest, userID int64, use
 			return nil, errors.New("replacing the datadir works only on the machine running DumpCat, not on a server reached through an agent or WireGuard")
 		}
 	}
-	if run.Method != store.MethodPhysical && run.Meta["single_file"] == true {
+	if !isPhysical(run.Method) && run.Meta["single_file"] == true {
 		if len(req.Databases) > 0 && len(req.Databases) != len(run.Databases) {
 			return nil, errors.New("a single-file backup can only be restored in full")
 		}
@@ -227,9 +225,13 @@ func (r *Runner) execRestore(ctx context.Context, task *Task, rs *store.Restore,
 			return
 		}
 	}
-	if run.Method == store.MethodPhysical {
+	pr, driverPhysical := drivers.ForMethod(run.Method).(engine.PhysicalRestorer)
+	switch {
+	case run.Method == store.MethodPhysical:
 		err = r.restorePhysical(ctx, task, env, run, target, req, pass)
-	} else {
+	case driverPhysical && isPhysical(run.Method):
+		err = r.restorePhysicalDriver(task, env, pr, run, target, req, pass, rp)
+	default:
 		err = r.restoreLogical(ctx, task, env, run, target, req, pass)
 	}
 	if err == nil && rp != nil && !la.LogInfo().Recovery {
@@ -552,6 +554,61 @@ func (r *Runner) backupChain(run *store.Run) ([]*store.Run, error) {
 	return chain, nil
 }
 
+// isPhysical tells whether a method copies the whole instance (its data
+// directory) rather than databases.
+func isPhysical(method string) bool {
+	m, _, ok := drivers.Method(method)
+	return ok && m.Physical
+}
+
+// restoreDir is where a physical backup is extracted: the directory asked
+// for, or <data dir>/restore/<job>-<backup>.
+func (r *Runner) restoreDir(run *store.Run, asked string) (string, error) {
+	dir := strings.TrimSpace(asked)
+	if dir == "" {
+		// the names come from the catalog (or an imported manifest): the directory must stay one level under restore/
+		base := filepath.Join(r.DataDir, "restore")
+		dir = filepath.Join(base, fmt.Sprintf("%s-%s", run.JobSlug, run.DirName))
+		if rel, err := filepath.Rel(base, dir); err != nil || rel == "." || strings.HasPrefix(rel, "..") || strings.ContainsAny(rel, `/\`) {
+			return "", fmt.Errorf("invalid backup directory name %q", run.JobSlug+"-"+run.DirName)
+		}
+	}
+	return filepath.Abs(dir)
+}
+
+// restorePhysicalDriver restores a physical backup through its driver
+// (PostgreSQL): a data directory prepared here, recovered to the point in
+// time of rp, and optionally swapped in for a local cluster.
+func (r *Runner) restorePhysicalDriver(task *Task, env *engine.Env, pr engine.PhysicalRestorer, run *store.Run, target *store.Server, req RestoreRequest, pass string, rp *engine.Replay) error {
+	loc, backend, err := r.pickLocation(run, req.LocationID)
+	if err != nil {
+		return err
+	}
+	src := &restoreSource{r: r, task: task, run: run, loc: loc, backend: backend, pass: pass, lg: env.Log}
+	spec := &engine.PhysicalSpec{Run: run, Replay: rp, OSUser: strings.TrimSpace(req.OSUser)}
+	if target != nil && spec.OSUser == "" {
+		spec.OSUser = target.OSUser
+	}
+	if req.Apply {
+		datadir, service := strings.TrimSpace(req.Datadir), strings.TrimSpace(req.ServiceName)
+		if target != nil {
+			if datadir == "" {
+				datadir = target.Datadir
+			}
+			if service == "" {
+				service = target.ServiceName
+			}
+		}
+		if datadir == "" {
+			return errors.New("no data directory to replace")
+		}
+		spec.Apply = &engine.ApplySpec{Datadir: filepath.Clean(datadir), Service: service, DataDir: r.DataDir}
+	} else if spec.Dir, err = r.restoreDir(run, req.TargetDir); err != nil {
+		return err
+	}
+	return pr.RestorePhysical(env, src, spec)
+}
+
 func (r *Runner) restorePhysical(ctx context.Context, task *Task, env *engine.Env, run *store.Run, target *store.Server, req RestoreRequest, pass string) error {
 	flavor, _ := run.Meta["flavor"].(string)
 	if flavor == "" {
@@ -561,16 +618,10 @@ func (r *Runner) restorePhysical(ctx context.Context, task *Task, env *engine.En
 	if err != nil {
 		return err
 	}
-	dir := strings.TrimSpace(req.TargetDir)
-	if dir == "" {
-		// the names come from the catalog (or an imported manifest): the directory must stay one level under restore/
-		base := filepath.Join(r.DataDir, "restore")
-		dir = filepath.Join(base, fmt.Sprintf("%s-%s", run.JobSlug, run.DirName))
-		if rel, err := filepath.Rel(base, dir); err != nil || rel == "." || strings.HasPrefix(rel, "..") || strings.ContainsAny(rel, `/\`) {
-			return fmt.Errorf("invalid backup directory name %q", run.JobSlug+"-"+run.DirName)
-		}
+	dir, err := r.restoreDir(run, req.TargetDir)
+	if err != nil {
+		return err
 	}
-	dir, _ = filepath.Abs(dir)
 	if entries, err := os.ReadDir(dir); err == nil && len(entries) > 0 {
 		return fmt.Errorf("target directory %s is not empty", dir)
 	}
@@ -667,15 +718,6 @@ func (r *Runner) restorePhysical(ctx context.Context, task *Task, env *engine.En
 	return r.applyPhysical(ctx, task, env, flavor, fullDir, target, req, threads)
 }
 
-func runSimple(ctx context.Context, lg *tasklog.Logger, name string, args ...string) error {
-	lg.Printf("$ %s", execx.Quote(name, args))
-	cmd := execx.Command(ctx, name, args...)
-	w := lg.Writer("[" + filepath.Base(name) + "] ")
-	defer w.Close()
-	cmd.Stdout, cmd.Stderr = w, w
-	return cmd.Run()
-}
-
 func (r *Runner) applyPhysical(ctx context.Context, task *Task, env *engine.Env, flavor, fullDir string, target *store.Server, req RestoreRequest, threads int) error {
 	lg := env.Log
 	task.SetPhase("apply")
@@ -717,13 +759,13 @@ func (r *Runner) applyPhysical(ctx context.Context, task *Task, env *engine.Env,
 	stamp := time.Now().Format("20060102-150405")
 	oldDir := datadir + ".before-restore-" + stamp
 	lg.Printf("=== APPLYING TO DATADIR %s (service %s) ===", datadir, service)
-	if err := runSimple(ctx, lg, "systemctl", "stop", "--", service); err != nil {
+	if err := engine.RunSimple(ctx, lg, "systemctl", "stop", "--", service); err != nil {
 		return fmt.Errorf("could not stop the service: %w", err)
 	}
 	if _, err := os.Stat(datadir); err == nil {
 		lg.Printf("Renaming the old datadir → %s", oldDir)
 		if err := os.Rename(datadir, oldDir); err != nil {
-			_ = runSimple(context.Background(), lg, "systemctl", "start", "--", service)
+			_ = engine.RunSimple(context.Background(), lg, "systemctl", "start", "--", service)
 			return fmt.Errorf("could not rename the old datadir: %w", err)
 		}
 	}
@@ -735,7 +777,7 @@ func (r *Runner) applyPhysical(ctx context.Context, task *Task, env *engine.Env,
 				lg.Printf("Rollback failed: %v. Run it yourself: mv %s %s", err, oldDir, datadir)
 			}
 		}
-		_ = runSimple(context.Background(), lg, "systemctl", "start", "--", service)
+		_ = engine.RunSimple(context.Background(), lg, "systemctl", "start", "--", service)
 		return cause
 	}
 	if err := os.MkdirAll(datadir, 0o750); err != nil {
@@ -744,13 +786,13 @@ func (r *Runner) applyPhysical(ctx context.Context, task *Task, env *engine.Env,
 	if err := engine.CopyBack(env, flavor, fullDir, datadir, req.MoveBack, threads); err != nil {
 		return rollback(err)
 	}
-	if err := runSimple(ctx, lg, "chown", "-R", "--", osUser+":"+osUser, datadir); err != nil {
+	if err := engine.RunSimple(ctx, lg, "chown", "-R", "--", osUser+":"+osUser, datadir); err != nil {
 		return rollback(err)
 	}
 	if p, err := exec.LookPath("restorecon"); err == nil {
-		_ = runSimple(ctx, lg, p, "-R", datadir)
+		_ = engine.RunSimple(ctx, lg, p, "-R", datadir)
 	}
-	if err := runSimple(ctx, lg, "systemctl", "start", "--", service); err != nil {
+	if err := engine.RunSimple(ctx, lg, "systemctl", "start", "--", service); err != nil {
 		lg.Printf("The service failed to start with the new data.")
 		return rollback(fmt.Errorf("could not start the service: %w", err))
 	}
@@ -759,17 +801,6 @@ func (r *Runner) applyPhysical(ctx context.Context, task *Task, env *engine.Env,
 	return nil
 }
 
-var (
-	unitNameRe = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9@._:-]{0,127}$`)
-	osUserRe   = regexp.MustCompile(`^[a-z_][a-z0-9_.-]{0,31}$`)
-)
-
-// System directories the restore never replaces: these, and everything under them...
-var systemTrees = []string{"/bin", "/boot", "/dev", "/etc", "/lib", "/lib32", "/lib64", "/proc", "/run", "/sbin", "/sys", "/usr"}
-
-// ...and these themselves (a datadir may live under them).
-var systemDirs = []string{"/home", "/media", "/mnt", "/opt", "/root", "/srv", "/tmp", "/var", "/var/lib", "/var/log", "/var/tmp"}
-
 // datadirMarkers: a non-empty directory holding none of these is not a MySQL/MariaDB datadir.
 var datadirMarkers = []string{"mysql", "ibdata1", "mysql.ibd", "aria_log_control", "ib_logfile0", "#innodb_redo", "auto.cnf", "undo_001", "ibtmp1"}
 
@@ -777,45 +808,5 @@ var datadirMarkers = []string{"mysql", "ibdata1", "mysql.ibd", "aria_log_control
 // runs as root and renames, replaces and chowns the datadir, act on anything but a database's
 // datadir. The values may come from a server record that operators can edit.
 func checkPhysicalTarget(datadir, service, osUser, dataDir string) error {
-	if !unitNameRe.MatchString(service) {
-		return fmt.Errorf("invalid service name %q", service)
-	}
-	if !osUserRe.MatchString(osUser) {
-		return fmt.Errorf("invalid OS user %q", osUser)
-	}
-	clean := filepath.Clean(datadir)
-	if clean != datadir || !filepath.IsAbs(clean) || strings.ContainsAny(clean, "\x00\r\n") {
-		return fmt.Errorf("invalid datadir %q: use a clean absolute path", datadir)
-	}
-	slash := filepath.ToSlash(clean)
-	for _, d := range systemTrees {
-		if slash == d || strings.HasPrefix(slash, d+"/") {
-			return fmt.Errorf("refusing to replace %s: it is a system directory", clean)
-		}
-	}
-	for _, d := range systemDirs {
-		if slash == d {
-			return fmt.Errorf("refusing to replace %s: it is a system directory", clean)
-		}
-	}
-	if own, err := filepath.Abs(dataDir); err == nil {
-		if rel, err := filepath.Rel(own, clean); err == nil && !strings.HasPrefix(rel, "..") {
-			return fmt.Errorf("refusing to replace %s: it is inside DumpCat's data directory", clean)
-		}
-		if rel, err := filepath.Rel(clean, own); err == nil && !strings.HasPrefix(rel, "..") {
-			return fmt.Errorf("refusing to replace %s: it contains DumpCat's data directory", clean)
-		}
-	}
-	entries, err := os.ReadDir(clean)
-	if err != nil || len(entries) == 0 {
-		return nil // missing or empty: nothing is replaced
-	}
-	for _, e := range entries {
-		for _, m := range datadirMarkers {
-			if e.Name() == m {
-				return nil
-			}
-		}
-	}
-	return fmt.Errorf("refusing to replace %s: it does not look like a MySQL/MariaDB datadir (no mysql/, ibdata1 or aria_log_control)", clean)
+	return engine.CheckDatadir(datadir, service, osUser, dataDir, datadirMarkers, "MySQL/MariaDB")
 }

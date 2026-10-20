@@ -32,7 +32,7 @@ var mysqlMethods = []Method{
 		Description: "Multi-threaded logical backup that splits large tables into chunks; parallel restore is many times faster. Best for large databases that still need logical restores.",
 		Threads:     "Number of mydumper dump threads",
 		Users:       "Users & grants (GRANT)", UsersHelp: "Saved as a separate _users.sql file; restoring it is optional."},
-	{ID: store.MethodPhysical, Title: "Physical (XtraBackup / MariaBackup)", Icon: "hdd", Physical: true, LogArchive: true,
+	{ID: store.MethodPhysical, Title: "Physical (XtraBackup / MariaBackup)", Icon: "hdd", Physical: true, Incremental: true, LogArchive: true,
 		Description: "Copies data files while the database is running (hot backup, no InnoDB locking), with incremental support. Fastest for very large databases (100 GB–TB); restore is a file copy. Runs on the database server: DumpCat installed there, or an agent started with --allow-physical.",
 		Threads:     "Number of files copied in parallel (--parallel)"},
 }

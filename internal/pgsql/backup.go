@@ -31,7 +31,11 @@ const GlobalsFile = "_globals.sql"
 // Backup runs pg_dump --format=directory for each database, then stores
 // each directory as one tar file in the sink, and the roles in _globals.sql.
 func (Driver) Backup(env *engine.Env, spec *engine.BackupSpec, sink engine.Sink) (*engine.Result, error) {
-	if spec.Job.Method != store.MethodPgDump {
+	switch spec.Job.Method {
+	case store.MethodPgDump:
+	case store.MethodPgBase:
+		return baseBackup(env, spec, sink)
+	default:
 		return nil, fmt.Errorf("unsupported method: %s", spec.Job.Method)
 	}
 	if len(spec.Databases) == 0 {

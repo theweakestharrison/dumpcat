@@ -29,6 +29,9 @@ type Env struct {
 	Loc         *time.Location // times in the log (nil: the machine's zone)
 }
 
+// Location is the zone of the times in the log.
+func (e *Env) Location() *time.Location { return e.location() }
+
 func (e *Env) location() *time.Location {
 	if e.Loc != nil {
 		return e.Loc

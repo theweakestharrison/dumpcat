@@ -18,7 +18,11 @@ import (
 // newer one (pg_dump refuses newer servers; pg_restore reads archives of its
 // own and older versions).
 
-var pgToolNames = []string{"pg_dump", "pg_restore", "pg_dumpall"}
+var pgToolNames = []string{"pg_dump", "pg_restore", "pg_dumpall", "pg_basebackup", "pg_receivewal", "postgres", "pg_ctl"}
+
+// pgServerTools come with the server package, not the client one: a
+// point-in-time recovery runs the server binaries of the backup's version.
+var pgServerTools = map[string]bool{"postgres": true, "pg_ctl": true}
 
 func isPGTool(name string) bool {
 	for _, n := range pgToolNames {
@@ -31,11 +35,16 @@ func isPGTool(name string) bool {
 
 const pgLinuxHint = "Ubuntu/Debian: apt install postgresql-client-<major> (the major of your server, from apt.postgresql.org) | RHEL: dnf install postgresql<major> (PGDG repository)"
 const pgWindowsHint = `install PostgreSQL for Windows or its command line tools (C:\Program Files\PostgreSQL\<major>\bin is found automatically), or set the path in Settings`
+const pgServerLinuxHint = "the PostgreSQL server of the backup's version: Ubuntu/Debian: apt install postgresql-<major> | RHEL: dnf install postgresql<major>-server (PGDG repository)"
 
 var pgPurpose = map[string]string{
-	"pg_dump":    "Logical backup (PostgreSQL)",
-	"pg_restore": "Restore of pg_dump archives (PostgreSQL)",
-	"pg_dumpall": "Roles and tablespaces (PostgreSQL)",
+	"pg_dump":       "Logical backup (PostgreSQL)",
+	"pg_restore":    "Restore of pg_dump archives (PostgreSQL)",
+	"pg_dumpall":    "Roles and tablespaces (PostgreSQL)",
+	"pg_basebackup": "Physical backup of the whole cluster (PostgreSQL)",
+	"pg_receivewal": "Continuous WAL archiving (PostgreSQL)",
+	"postgres":      "Recovery of physical backups, point-in-time (PostgreSQL server)",
+	"pg_ctl":        "Stops the recovery server (PostgreSQL server)",
 }
 
 // PGTool is one installed PostgreSQL client binary.
@@ -180,8 +189,24 @@ func (t *Tools) PGFor(name string, want int) (PGTool, error) {
 	return list[best], nil
 }
 
-func pgHint(major int) string {
+// PGExact picks the copy of a tool of exactly that major version (the
+// server binaries that recover a data directory must match it).
+func (t *Tools) PGExact(name string, want int) (PGTool, error) {
+	for _, tl := range t.PGTools(name) {
+		if tl.Major == want {
+			return tl, nil
+		}
+	}
+	return PGTool{}, fmt.Errorf("%w %s %d on the server (install: %s)", ErrToolMissing, name, want, pgToolHint(name, want))
+}
+
+func pgHint(major int) string { return pgToolHint("", major) }
+
+func pgToolHint(name string, major int) string {
 	h := pgLinuxHint
+	if pgServerTools[name] {
+		h = pgServerLinuxHint
+	}
 	if runtime.GOOS == "windows" {
 		h = pgWindowsHint
 	}
@@ -193,7 +218,7 @@ func pgHint(major int) string {
 
 // pgTool summarizes the copies of a PostgreSQL tool for the System page.
 func (t *Tools) pgTool(name string) *Tool {
-	tl := &Tool{Name: name, Purpose: pgPurpose[name], Hint: pgHint(0)}
+	tl := &Tool{Name: name, Purpose: pgPurpose[name], Hint: pgToolHint(name, 0)}
 	list := t.PGTools(name)
 	if len(list) == 0 {
 		return tl

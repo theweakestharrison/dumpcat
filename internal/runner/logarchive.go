@@ -494,7 +494,7 @@ func (a *archiver) archiveFile(ctx context.Context, job *store.Job, name string)
 	if err != nil {
 		return err
 	}
-	stored := filepath.Join(a.dir, ".enc", name+".stored")
+	stored := filepath.Join(a.dir, ".enc", strings.ReplaceAll(name, "/", "_")+".stored")
 	if inf.Skip {
 		os.Remove(stored)
 		a.stream.Archived(name)
@@ -504,10 +504,22 @@ func (a *archiver) archiveFile(ctx context.Context, job *store.Job, name string)
 	if err != nil {
 		return err
 	}
-	raw := filepath.Join(a.dir, name)
-	row, err := a.r.Store.FindLogFile(job.UUID, name, inf.First)
+	raw := filepath.Join(a.dir, filepath.FromSlash(name))
+	archived := name // the name in the archive
+	if inf.Name != "" {
+		archived = inf.Name
+	}
+	row, err := a.r.Store.FindLogFile(job.UUID, archived, inf.First)
 	if err != nil && !errors.Is(err, store.ErrNotFound) {
 		return err
+	}
+	if row != nil && row.RawSHA256 != "" {
+		// the same name and first event, yet another file (a new numbering, a new cluster)
+		if sum, err := filePrefixSHA256(raw, inf.Size); err != nil {
+			return err
+		} else if sum != row.RawSHA256 {
+			row = nil
+		}
 	}
 	op := &storage.Op{Log: a.lg, BwLimit: job.Options.BwLimit}
 	if row == nil {
@@ -524,10 +536,10 @@ func (a *archiver) archiveFile(ctx context.Context, job *store.Job, name string)
 			os.Remove(stored)
 			return err
 		}
-		rel := a.storagePath(job, name, inf.First, comp, pass != "")
+		rel := a.storagePath(job, archived, inf.First, comp, pass != "")
 		jid, sid := job.ID, job.ServerID
 		row = &store.LogFile{JobID: &jid, JobUUID: job.UUID, JobName: job.Name, ServerID: &sid, ServerName: job.ServerName,
-			FileName: name, Seq: inf.Seq, FirstTS: inf.First, LastTS: inf.Last, SizeBytes: inf.Size, StoredBytes: size,
+			FileName: archived, Seq: inf.Seq, FirstTS: inf.First, LastTS: inf.Last, SizeBytes: inf.Size, StoredBytes: size,
 			SHA256: sum, RawSHA256: rawSum, Compression: comp, Encrypted: pass != "", Passphrase: pass, Path: rel, Meta: inf.Meta}
 		var errs []string
 		for _, t := range targets {
@@ -585,7 +597,7 @@ func (a *archiver) archiveFile(ctx context.Context, job *store.Job, name string)
 	now := time.Now()
 	lt := inf.Last
 	a.set(func(st *ArchiverStatus) {
-		st.LastArchived, st.ArchivedAt = name, &now
+		st.LastArchived, st.ArchivedAt = archived, &now
 		if !lt.IsZero() && (st.ArchivedUntil == nil || lt.After(*st.ArchivedUntil)) {
 			st.ArchivedUntil = &lt
 		}
@@ -595,7 +607,7 @@ func (a *archiver) archiveFile(ctx context.Context, job *store.Job, name string)
 	if !inf.First.IsZero() {
 		span = inf.First.In(loc).Format("15:04:05") + " → " + inf.Last.In(loc).Format("2006-01-02 15:04:05")
 	}
-	a.lg.Printf("Archived %s (%s, %s → %s) to %d storage(s)", name, span, humanBytes(inf.Size), humanBytes(row.StoredBytes), len(targets))
+	a.lg.Printf("Archived %s (%s, %s → %s) to %d storage(s)", archived, span, humanBytes(inf.Size), humanBytes(row.StoredBytes), len(targets))
 	return nil
 }
 
@@ -674,6 +686,20 @@ func encodeLogFile(src, dst string, size int64, o pipeline.ChainOptions) (stored
 		return 0, "", "", err
 	}
 	return ch.OutBytes(), ch.SHA256(), hex.EncodeToString(rh.Sum(nil)), nil
+}
+
+// filePrefixSHA256 hashes the first size bytes of a file.
+func filePrefixSHA256(p string, size int64) (string, error) {
+	f, err := os.Open(p)
+	if err != nil {
+		return "", err
+	}
+	defer f.Close()
+	h := sha256.New()
+	if _, err := io.Copy(h, io.LimitReader(f, size)); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(h.Sum(nil)), nil
 }
 
 func fileSHA256(p string) (string, error) {

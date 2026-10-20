@@ -63,7 +63,7 @@ var windowsHints = map[string]string{
 
 const windowsToolHint = `install MySQL or MariaDB for Windows (their bin folder is found automatically), or copy the .exe into the "tools" folder next to dumpcat.exe`
 
-var toolOrder = []string{"mysqldump", "mariadb-dump", "mysql", "mariadb", "mydumper", "myloader", "xtrabackup", "xbstream", "mariabackup", "mbstream", "mysqlbinlog", "mariadb-binlog", "pg_dump", "pg_restore", "pg_dumpall", "rclone"}
+var toolOrder = []string{"mysqldump", "mariadb-dump", "mysql", "mariadb", "mydumper", "myloader", "xtrabackup", "xbstream", "mariabackup", "mbstream", "mysqlbinlog", "mariadb-binlog", "pg_dump", "pg_restore", "pg_dumpall", "pg_basebackup", "pg_receivewal", "postgres", "pg_ctl", "rclone"}
 
 type Tools struct {
 	mu        sync.Mutex

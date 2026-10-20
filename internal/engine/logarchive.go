@@ -95,6 +95,7 @@ type LogStream interface {
 
 // LogFileInfo describes a closed file about to be archived.
 type LogFileInfo struct {
+	Name        string // its name in the archive ("": the staged name)
 	Seq         int64
 	First, Last time.Time // first and last timed event (zero: none)
 	Size        int64     // bytes archived

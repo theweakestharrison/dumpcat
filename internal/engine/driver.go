@@ -48,7 +48,8 @@ type Method struct {
 	Icon        string `json:"icon"`
 	Description string `json:"description"`
 	Threads     string `json:"threads"`     // what a job's thread count means
-	Physical    bool   `json:"physical"`    // copies the data directory: the whole instance, full + incremental
+	Physical    bool   `json:"physical"`    // copies the data directory: the whole instance
+	Incremental bool   `json:"incremental"` // has incremental backups (physical MySQL)
 	Drill       bool   `json:"drill"`       // restore drills can test its backups
 	Estimates   bool   `json:"estimates"`   // drills can compare the server's row estimates instead of counting
 	LogArchive  bool   `json:"log_archive"` // continuous log archiving and point-in-time recovery
