@@ -44,7 +44,7 @@ Hướng dẫn đầy đủ để cài đặt, cấu hình và vận hành DumpC
 | Thông báo | Email (SMTP, HTML kèm bản text), Telegram, Slack, Discord, Webhook (ký HMAC) — khi lỗi và/hoặc thành công |
 | Giám sát | **Cảnh báo backup quá hạn** cho từng job (theo lịch chạy, hoặc tuổi tối đa) và **cảnh báo lưu trữ log chậm** (binlog / WAL), mỗi sự cố báo một lần và báo lại khi đã hết; **báo cáo tuần** qua email; Prometheus **`/metrics`** (bearer token hoặc chỉ máy này) |
 | Trợ lý AI | Endpoint **MCP** và `dumpcat mcp` cho Claude Desktop, Claude Code và các MCP client khác: trạng thái, backup, log và lỗi, mặc định chỉ đọc; chạy backup, verify và diễn tập với token toàn quyền |
-| Bảo mật | Mật khẩu bcrypt, phiên HttpOnly + CSRF, khóa đăng nhập sai nhiều lần, 2FA TOTP, **đăng nhập một lần (SSO)** với OpenID Connect (Google, Microsoft Entra ID, Keycloak, Authentik…), API token (chỉ đọc hoặc toàn quyền), vai trò, audit log, mọi mật khẩu/khóa cloud mã hóa AES-256-GCM khi lưu, mật khẩu DB không bao giờ nằm trên dòng lệnh |
+| Bảo mật | Mật khẩu bcrypt, phiên HttpOnly + CSRF, khóa đăng nhập sai nhiều lần, 2FA TOTP, **đăng nhập một lần (SSO)** với OpenID Connect (Google, Microsoft Entra ID, Keycloak, Authentik…), API token (chỉ đọc, toàn quyền hoặc Manage), vai trò, audit log, mọi mật khẩu/khóa cloud mã hóa AES-256-GCM khi lưu, mật khẩu DB không bao giờ nằm trên dòng lệnh |
 | Phục hồi thảm họa | Mỗi bản backup có `manifest.json` → cài DumpCat mới, thêm storage, bấm **Nhập danh mục** là thấy lại toàn bộ backup. File backup là định dạng chuẩn (zstd/gzip/age/xbstream) — restore được cả khi không có DumpCat |
 
 ## 2. Chọn phương thức backup
@@ -1018,11 +1018,13 @@ Nên sao lưu thêm `/var/lib/dumpcat/master.key` và `dumpcat.db` (cấu hình,
 - Khi chạy sau reverse proxy (`DUMPCAT_TRUST_PROXY=1`), địa chỉ client lấy từ `X-Real-IP` hoặc mục cuối của `X-Forwarded-For`, tức mục do proxy thêm vào.
 - Tạo API token phải nhập mật khẩu tài khoản (tài khoản không có mật khẩu, chỉ đăng nhập bằng SSO: phải đăng nhập
   trong vòng 10 phút trước đó; tắt 2FA của tài khoản đó cũng vậy). Khi admin đặt lại mật khẩu hoặc khóa một tài khoản (hay `dumpcat user passwd` / `disable`), mọi API token của tài khoản đó bị thu hồi.
-- API token là **chỉ đọc** (mặc định) hoặc **toàn quyền**, tức quyền theo vai trò của người tạo. Dù vai trò nào, token
-  chỉ đọc chỉ xem được: không thay đổi gì, không tải backup, không tạo token mới. Token tạo trước 1.5.0 có toàn quyền.
+- API token là **chỉ đọc** (mặc định), **toàn quyền**, tức quyền theo vai trò của người tạo, hoặc **Manage**: toàn
+  quyền, và qua MCP còn thiết lập và sửa được job, diễn tập, server và storage. Dù vai trò nào, token chỉ đọc chỉ xem
+  được: không thay đổi gì, không tải backup, không tạo token mới. Token tạo trước 1.5.0 có toàn quyền.
 - Endpoint MCP cho trợ lý AI (`/api/mcp`, [12](#trợ-lý-ai-mcp)) chỉ nhận API token, không bao giờ nhận phiên đăng nhập
   của trình duyệt, và mỗi công cụ của nó chạy đúng request API tương ứng bằng token đó: không làm được gì mà token
-  không làm được qua API. Restore, xóa, thông tin đăng nhập và cài đặt không có ở đó.
+  không làm được qua API. Restore, xóa và cài đặt không có ở đó, và không công cụ nào nhận hay trả về mật khẩu, khóa
+  hoặc passphrase.
 - Phải nhập lại mật khẩu của server hay storage khi đổi địa chỉ hoặc user, hạ mức TLS, đổi chứng chỉ CA hoặc tắt kiểm tra chứng chỉ.
 - Mật khẩu DB, khóa cloud, token OAuth, passphrase được mã hóa AES-256-GCM bằng `master.key` (chmod 600). Có thể đặt khóa qua biến `DUMPCAT_MASTER_KEY` thay vì file. DumpCat không khởi động với một master key không thuộc về database của nó (ví dụ chép `dumpcat.db` sang máy khác mà quên `master.key`), và job có mã hóa sẽ báo lỗi chứ không lưu bản không mã hóa khi không đọc được passphrase.
 - Mật khẩu DB truyền qua option file tạm (0600) và xóa sau khi dùng — không xuất hiện trong `ps`. Log tự che các bí mật.
@@ -1167,12 +1169,15 @@ Webhook thông báo gửi JSON `{kind, status, title, fields, error, url, time}`
 DumpCat là một server [MCP](https://modelcontextprotocol.io), nên Claude Desktop, Claude Code và các MCP client khác
 làm việc được với nó: xem việc gì thất bại hay quá hạn, liệt kê job và bản backup, đọc lý do một bản backup thất bại
 (lỗi và phần cuối log), xem tình trạng lưu trữ binlog / WAL và kết quả diễn tập restore, và xem trước một lần khôi phục
-theo thời điểm. Với token toàn quyền của operator hoặc admin, trợ lý còn chạy được backup, kiểm tra (verify) hoặc diễn
-tập restore (MCP client hỏi bạn trước khi gọi những công cụ này). Restore, xóa, thông tin đăng nhập và cài đặt không có
-qua MCP, và không có cài đặt nào bật chúng lên.
+theo thời điểm. Với token toàn quyền của operator hoặc admin, trợ lý còn chạy được backup, kiểm tra (verify), diễn tập
+restore hoặc thử storage; với token **Manage**, trợ lý còn thiết lập được backup: thêm và sửa server database, storage,
+job và diễn tập restore (MCP client hỏi bạn trước khi gọi những công cụ này). Restore, xóa và cài đặt của DumpCat không
+có qua MCP, và không có cài đặt nào bật chúng lên. Bí mật không bao giờ đi qua MCP, theo cả hai chiều: mật khẩu, khóa và
+passphrase do bạn nhập trên giao diện web (xem *Để trợ lý thiết lập backup* bên dưới).
 
 1. Ở trang **API & MCP**, tạo một token cho trợ lý (**New token**). **Read-only** (mặc định) chỉ cho xem; **Full** cho
-   chạy thêm backup, verify và diễn tập. Trang tự điền token mới vào các đoạn cấu hình (lệnh và file bên dưới, với
+   chạy thêm backup, verify và diễn tập; **Manage** cho thiết lập và sửa thêm job, diễn tập, server và storage. Trang tự
+   điền token mới vào các đoạn cấu hình (lệnh và file bên dưới, với
    địa chỉ server của bạn), và nút **Test MCP connection** kiểm tra token như một trợ lý thật: phiên bản DumpCat, tài
    khoản và quyền của token, và các công cụ nó nhận được.
 2. Kết nối client, hoặc thẳng tới endpoint `https://backup.example.com/api/mcp` (streamable HTTP, header
@@ -1238,7 +1243,7 @@ server trên máy. Kiểm tra cài đặt trước:
 dumpcat mcp -check
 # OK: DumpCat 1.6.0 at https://backup.example.com/api/mcp (MCP 2025-11-25)
 # Signed in as alice (role operator) with a read-only token: you can see what the account can see and change nothing
-# 15 tools: get_overview, get_monitoring, list_servers, …
+# 19 tools: get_overview, get_monitoring, list_servers, …
 ```
 
 `dumpcat mcp` kiểm tra chứng chỉ của server giống như agent. Với chứng chỉ tự ký của DumpCat (`DUMPCAT_TLS_AUTO`), chép
@@ -1255,15 +1260,43 @@ việc kiểm tra. `http://` không mã hóa chỉ được chấp nhận với 
 | `get_log` | Phần cuối log của một bản backup, một lần restore, một lần diễn tập hoặc phần lưu trữ log của job | viewer |
 | `list_restores`, `get_restore` | Các lần restore đã chạy, kèm trạng thái và lỗi | viewer |
 | `list_drills`, `list_drill_runs`, `get_drill_run` | Diễn tập restore và kết quả, từng bước kiểm tra | viewer |
+| `list_storages`, `get_storage` | Storage, cài đặt không kèm bí mật (bí mật nào đã đặt), lần thử gần nhất và các job đang dùng | viewer |
+| `list_storage_types` | Các loại storage và cài đặt của từng loại, có đánh dấu cài đặt bí mật | viewer |
+| `preview_schedule` | Kiểm tra một biểu thức cron và xem năm lần chạy tới; không thay đổi gì | viewer |
 | `plan_pitr` | Xem trước khôi phục theo thời điểm: bản backup gốc và log đã lưu có tới được đích không; không thay đổi gì | operator |
 | `run_backup` | Chạy backup một job ngay | operator, token Full |
 | `verify_backup` | Đọc lại các bản sao của một backup và so mọi checksum | operator, token Full |
 | `start_drill` | Chạy một diễn tập restore ngay | operator, token Full |
+| `test_storage` | Ghi, đọc lại và xóa một file thử trên storage | operator, token Full |
+| `create_server`, `update_server` | Thêm hoặc sửa server database, không kèm mật khẩu | operator, token Manage |
+| `create_storage`, `update_storage` | Thêm hoặc sửa storage, không kèm bí mật | operator, token Manage |
+| `create_job`, `update_job` | Tạo hoặc sửa job backup (lịch, database, storage, retention, tùy chọn; tạm dừng bằng `enabled`) | operator, token Manage |
+| `create_drill`, `update_drill` | Tạo hoặc sửa diễn tập restore | operator, token Manage |
 
 Các công cụ giống nhau cho mọi loại database. Mỗi lần gọi chạy đúng request REST API tương ứng bằng token đó, nên được
 cho phép, bị từ chối, ghi audit log và trả lời đúng như request đó. Kết quả không chứa mật khẩu, passphrase, khóa
 storage, địa chỉ webhook, pre/post command hay token, và che các thông tin đăng nhập lẫn trong lỗi và log. Endpoint
 không giữ phiên: mỗi request đều mang token.
+
+#### Để trợ lý thiết lập backup
+
+Với token **Manage**, trợ lý làm được phần thiết lập bạn vẫn làm trên giao diện web, từ một yêu cầu như *"backup database
+shop trên db-01 mỗi đêm lúc 1:30 lên S3, giữ 14 ngày"*: thêm server và storage, tạo job và diễn tập restore, rồi chạy bản
+backup đầu tiên và kiểm tra nó. Job hay diễn tập mới bắt đầu từ các giá trị mặc định của form trên giao diện web (hằng
+ngày lúc 02:00, zstd, giữ 7 bản gần nhất, verify một bản sao, báo khi lỗi; diễn tập vào Chủ nhật lúc 05:00), và mỗi lần
+sửa chỉ đổi đúng các cài đặt được nêu. Giảm retention sẽ xóa các bản backup cũ hơn sau lần backup kế tiếp, giống như trên
+giao diện web.
+
+Bí mật không bao giờ đi qua trợ lý. Không công cụ nào nhận mật khẩu database, khóa hay OAuth token của storage, hoặc
+passphrase mã hóa; pre/post command và tham số thêm cho công cụ backup cũng chỉ đặt trên giao diện web. Khi một thứ được
+tạo mà còn thiếu bí mật, câu trả lời kèm `finish_url`, trang để bạn nhập nó: form sửa của server hoặc storage
+(`#/servers?edit=<id>`, `#/storages?edit=<id>`), hoặc trang của job. Job được tạo với yêu cầu mã hóa sẽ ở trạng thái tạm
+dừng, chưa mã hóa, cho tới khi bạn đặt passphrase ở đó và bật nó lên. Trỏ một server hay storage đã lưu bí mật sang host,
+port, endpoint hoặc user khác cần nhập lại bí mật, nên thay đổi đó cũng làm trên giao diện web. Storage thư mục local và
+rclone cần vai trò admin, giống như trên giao diện web.
+
+Token toàn quyền (Full) không dùng được các công cụ này (trợ lý được giao token Full không đổi được cấu hình), và qua REST
+API, token Manage không có thêm quyền gì so với token Full.
 
 ### Prometheus metrics
 

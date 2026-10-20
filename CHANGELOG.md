@@ -6,6 +6,29 @@ page at dumpcat.cc/changelog/ (see `scripts/build-site.py`). Newest version
 first. Each section: `## <version> (<date>)`, a one-line summary, then `###`
 groups of bullets.
 
+## 1.7.0
+
+AI assistants can set backups up: MCP tools that add and change database servers, storages, jobs and restore drills,
+for API tokens with the new Manage access. Passwords, keys and passphrases still never go through MCP.
+
+### AI assistants (MCP)
+
+- A third kind of API token, **Manage**: full access, and over MCP an assistant can also set up and change backups.
+  Read-only and full-access tokens keep doing what they did: an assistant given a full-access token still cannot
+  change the configuration. Over the REST API, Manage is the same as full access.
+- New tools for Manage tokens: `create_server`, `update_server`, `create_storage`, `update_storage`, `create_job`,
+  `update_job`, `create_drill` and `update_drill`. A new job or drill starts from the web UI form's defaults, and a
+  change touches only the settings it names (`update_job` with `enabled: false` pauses a job).
+- Secrets never go through MCP: no tool takes a database password, storage key, OAuth token or encryption passphrase,
+  and pre/post commands and extra tool arguments stay in the web UI. A tool that leaves a secret unset answers with
+  `finish_url`, the page where the user enters it (the server and storage pages open their form with `?edit=<id>`);
+  a job asked to be encrypted is created paused until its passphrase is set there. Moving a server or storage with a
+  saved secret to another host or endpoint still needs the secret again, in the web UI.
+- New tools: `list_storages`, `get_storage`, `list_storage_types` and `preview_schedule` for every token, and
+  `test_storage` for full-access tokens.
+- Deleting, restoring and DumpCat's settings remain out of MCP.
+- The **API & MCP** page offers Manage when creating a token and groups the tools by the access they need.
+
 ## 1.6.0 (2026-10-20)
 
 An API & MCP page to connect AI assistants and scripts, the API reference in Markdown, single sign-on with OpenID

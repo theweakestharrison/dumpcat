@@ -44,7 +44,7 @@ The complete guide to installing, configuring and operating DumpCat. For an over
 | Notifications | Email (SMTP, HTML with a plain-text version), Telegram, Slack, Discord, Webhook (HMAC-signed) — on failure and/or success |
 | Monitoring | **Overdue-backup alerts** per job (from its schedule, or a max age) and **log archive lag** alerts (binlog / WAL), once per incident with a message when it clears; a **weekly digest** by email; Prometheus **`/metrics`** (bearer token or this machine only) |
 | AI assistants | An **MCP** endpoint and `dumpcat mcp` for Claude Desktop, Claude Code and other MCP clients: status, backups, logs and failures, read-only by default; backups, verifications and drills with a full-access token |
-| Security | bcrypt passwords, HttpOnly sessions + CSRF, lockout after repeated failed logins, TOTP 2FA, **single sign-on** with OpenID Connect (Google, Microsoft Entra ID, Keycloak, Authentik…), API tokens (read-only or full), roles, audit log, every password/cloud key encrypted at rest with AES-256-GCM, database passwords never on the command line |
+| Security | bcrypt passwords, HttpOnly sessions + CSRF, lockout after repeated failed logins, TOTP 2FA, **single sign-on** with OpenID Connect (Google, Microsoft Entra ID, Keycloak, Authentik…), API tokens (read-only, full or Manage), roles, audit log, every password/cloud key encrypted at rest with AES-256-GCM, database passwords never on the command line |
 | Disaster recovery | Every backup carries a `manifest.json` → install a fresh DumpCat, add the storage, click **Import backup catalog** and every backup is listed again. Backup files use standard formats (zstd/gzip/age/xbstream) — they can be restored even without DumpCat |
 
 ## 2. Choosing a backup method
@@ -1046,12 +1046,14 @@ It is also worth backing up `/var/lib/dumpcat/master.key` and `dumpcat.db` (conf
 - Behind a reverse proxy (`DUMPCAT_TRUST_PROXY=1`), the client address is `X-Real-IP` or the last `X-Forwarded-For` entry, the one the proxy added.
 - Creating an API token asks for the account password (an account without one, which signs in with SSO only: a
   sign-in within the last 10 minutes; the same goes for turning its 2FA off). An admin resetting a user's password or disabling the account (or `dumpcat user passwd` / `disable`) also revokes that user's API tokens.
-- An API token is **read-only** (the default) or has **full** access, the permissions of its user's role. Whatever
+- An API token is **read-only** (the default) or has **full** access, the permissions of its user's role, or
+  **Manage** access: full access that MCP also lets set up and change jobs, drills, servers and storages. Whatever
   the role, a read-only token can only look: no change, no backup download, no new token. Tokens created before
   1.5.0 have full access.
 - The MCP endpoint for AI assistants (`/api/mcp`, [12](#ai-assistants-mcp)) accepts API tokens only, never the
   browser session, and each of its tools runs the matching API request with that token: it can do nothing the token
-  cannot do over the API. Restores, deletions, credentials and settings are not available there.
+  cannot do over the API. Restores, deletions and settings are not available there, and no tool takes or returns a
+  password, key or passphrase.
 - Re-enter a server's or storage's password when you change its address or user, weaken its TLS mode, change its CA certificate or turn certificate checks off.
 - Database passwords, cloud keys, OAuth tokens and passphrases are encrypted with AES-256-GCM using `master.key` (chmod 600). The key can be supplied through `DUMPCAT_MASTER_KEY` instead of a file. DumpCat refuses to start with a master key that does not belong to its database (for example `dumpcat.db` copied to another host without `master.key`), and a job that encrypts backups fails rather than storing anything unencrypted when its passphrase cannot be read.
 - Database passwords are passed through a temporary option file (0600) that is deleted after use — they never show up in `ps`. Logs mask secrets automatically.
@@ -1195,12 +1197,15 @@ Webhook notifications send the JSON `{kind, status, title, fields, error, url, t
 DumpCat is an [MCP](https://modelcontextprotocol.io) server, so Claude Desktop, Claude Code and other MCP clients can
 work with it: see what failed or is overdue, list jobs and backups, read why a backup failed (its error and the end of
 its log), check binlog / WAL archiving and restore drill results, and preview a point-in-time recovery. With a
-full-access token of an operator or admin they can also start a backup, a verification or a restore drill (MCP clients
-ask you before they call such a tool). Restores, deletions, credentials and settings are not available over MCP, and
-no setting turns them on.
+full-access token of an operator or admin they can also start a backup, a verification, a restore drill or a storage
+test, and with a **Manage** token they can set backups up: add and change database servers, storages, jobs and
+restore drills (MCP clients ask you before they call such a tool). Restores, deletions and DumpCat's settings are not
+available over MCP, and no setting turns them on. Secrets never go through MCP in either direction: you enter
+passwords, keys and passphrases in the web UI (see *Setting backups up with an assistant* below).
 
 1. On the **API & MCP** page, create a token for the assistant (**New token**). **Read-only** (the default) lets it
-   look; **Full** also lets it start backups, verifications and drills. The page fills the new token into its setup
+   look; **Full** also lets it start backups, verifications and drills; **Manage** also lets it set up and change
+   jobs, drills, servers and storages. The page fills the new token into its setup
    snippets (the commands and files below, with your server's address), and **Test MCP connection** checks it the way
    an assistant would: the DumpCat version, the account and access the token has, and the tools it gets.
 2. Connect the client, either straight to the endpoint `https://backup.example.com/api/mcp` (streamable HTTP, header
@@ -1266,7 +1271,7 @@ starts a local server. Check the settings first:
 dumpcat mcp -check
 # OK: DumpCat 1.6.0 at https://backup.example.com/api/mcp (MCP 2025-11-25)
 # Signed in as alice (role operator) with a read-only token: you can see what the account can see and change nothing
-# 15 tools: get_overview, get_monitoring, list_servers, …
+# 19 tools: get_overview, get_monitoring, list_servers, …
 ```
 
 `dumpcat mcp` checks the server's certificate like the agent does. For DumpCat's self-signed certificate
@@ -1284,15 +1289,43 @@ dumpcat mcp -check
 | `get_log` | The end of the log of a backup, a restore, a drill run or a job's log archiving | viewer |
 | `list_restores`, `get_restore` | Restores that were run, with status and error | viewer |
 | `list_drills`, `list_drill_runs`, `get_drill_run` | Restore drills and their results, check by check | viewer |
+| `list_storages`, `get_storage` | Storages, their settings without secrets (which secrets are set), last test and the jobs using them | viewer |
+| `list_storage_types` | The storage types and the settings of each, secret ones marked | viewer |
+| `preview_schedule` | Check a cron expression and show its next five times; changes nothing | viewer |
 | `plan_pitr` | Point-in-time recovery preview: the base backup and whether the archived log reaches the target; changes nothing | operator |
 | `run_backup` | Start a backup of a job now | operator, full token |
 | `verify_backup` | Read a backup's copies back and compare every checksum | operator, full token |
 | `start_drill` | Run a restore drill now | operator, full token |
+| `test_storage` | Write, read back and delete a test file on a storage | operator, full token |
+| `create_server`, `update_server` | Add or change a database server, without its passwords | operator, Manage token |
+| `create_storage`, `update_storage` | Add or change a storage, without its secrets | operator, Manage token |
+| `create_job`, `update_job` | Create or change a backup job (schedule, databases, storages, retention, options; pause with `enabled`) | operator, Manage token |
+| `create_drill`, `update_drill` | Create or change a restore drill | operator, Manage token |
 
 The tools are the same for every database engine. Each call runs the matching REST API request with the token, so it
 is allowed, refused, written to the audit log and answered exactly as that request would be. Answers leave out
 passwords, passphrases, storage keys, webhook addresses, pre/post commands and tokens, and mask credentials found in
 errors and logs. The endpoint keeps no session: every request carries the token.
+
+#### Setting backups up with an assistant
+
+With a **Manage** token an assistant can do the setup you would do in the web UI, from a request such as *"back up
+the shop database on db-01 every night at 1:30 to S3, keep 14 days"*: add the server and the storage, create the job
+and a restore drill, then run the first backup and check it. Every new job or drill starts from the web UI form's
+defaults (daily at 02:00, zstd, keep the last 7, verify one copy, notify on failure; drills on Sundays at 05:00), and a
+change touches only the settings it names. Lowering retention removes older backups after the next backup, as in the
+web UI.
+
+Secrets never pass through the assistant. No tool takes a database password, a storage key or OAuth token, or an
+encryption passphrase, and pre/post commands and extra tool arguments are left to the web UI. When something is
+created without its secret, the answer carries `finish_url`, the page where you enter it: the server's or storage's
+edit form (`#/servers?edit=<id>`, `#/storages?edit=<id>`), or the job's page. A job created with encryption waits
+paused, unencrypted, until you set its passphrase there and enable it. Pointing a server or storage with a saved secret
+at another host, port, endpoint or user needs the secret again, so that change is made in the web UI too. Local folder
+and rclone storages need the admin role, as in the web UI.
+
+A token with full access cannot use these tools (an assistant given one cannot change the configuration), and Manage
+gives no more over the REST API than full access does.
 
 ### Prometheus metrics
 

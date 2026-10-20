@@ -60,11 +60,12 @@ single Go binary with the UI built in.
 - **Careful restores.** Restore under new database names or onto another instance or version (with `DEFINER`,
   collation and `GTID_PURGED` rewrites), test-decrypt every file before anything is dropped, fast load mode, and
   automatic rollback when a physical restore replaces the datadir.
-- **Built for teams.** Admin, operator and viewer roles, TOTP two-factor login, read-only or full API tokens, an audit
+- **Built for teams.** Admin, operator and viewer roles, TOTP two-factor login, read-only, full or Manage API tokens, an audit
   log, and notifications by HTML email, Telegram, Slack, Discord or HMAC-signed webhook.
 - **Works with AI assistants.** An [MCP](docs/manual.md#ai-assistants-mcp) endpoint lets Claude Desktop, Claude Code
   and other MCP clients check status, read backups and logs and investigate failures, read-only by default; with a
-  full-access token they can also run backups, verifications and restore drills.
+  full-access token they can also run backups, verifications and restore drills, and with a Manage token set up and
+  change servers, storages, jobs and drills. Passwords, keys and passphrases never go through the assistant.
 - **Standard formats.** Every backup carries a `manifest.json` and uses zstd / gzip / age / xbstream, so you can restore
   it with `age`, `zstd` and `mysql` alone, or import the catalog into a fresh DumpCat.
 - **Safe self-updates.** `dumpcat update` waits for running jobs, backs up its own database, can require signed
