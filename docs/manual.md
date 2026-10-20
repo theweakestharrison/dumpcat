@@ -1044,7 +1044,8 @@ It is also worth backing up `/var/lib/dumpcat/master.key` and `dumpcat.db` (conf
 - Roles: **admin** (everything), **operator** (servers, cloud/FTP/SFTP storage, jobs, running backups/restores), **viewer** (read-only). Actions that touch the host's file system or credentials (local directory / custom rclone storage, S3 without an access key, which uses the host's own cloud identity, pre/post commands, extra tool arguments, choosing the extraction directory, replacing the datadir) are admin-only. Replacing a datadir is refused for system directories and for a directory that does not look like a MySQL/MariaDB datadir.
 - 5 failed logins within 15 minutes from one address lock that account for that address for 15 minutes (others can still sign in); 20 failures from one IP lock that IP for 15 minutes. Attempts are counted before the password is checked, so parallel requests get no extra tries. A two-factor code works once.
 - Behind a reverse proxy (`DUMPCAT_TRUST_PROXY=1`), the client address is `X-Real-IP` or the last `X-Forwarded-For` entry, the one the proxy added.
-- Creating an API token asks for the account password. An admin resetting a user's password or disabling the account (or `dumpcat user passwd` / `disable`) also revokes that user's API tokens.
+- Creating an API token asks for the account password (an account without one, which signs in with SSO only: a
+  sign-in within the last 10 minutes; the same goes for turning its 2FA off). An admin resetting a user's password or disabling the account (or `dumpcat user passwd` / `disable`) also revokes that user's API tokens.
 - An API token is **read-only** (the default) or has **full** access, the permissions of its user's role. Whatever
   the role, a read-only token can only look: no change, no backup download, no new token. Tokens created before
   1.5.0 have full access.

@@ -13,12 +13,13 @@ export async function render(ctx) {
       <div class="page-head"><div><h1>Profile &amp; security</h1><div class="sub">${me.username} · ${me.role}</div></div></div>
       <div class="grid grid-2">
         <div class="card"><div class="card-head"><h2>Change password</h2></div><div class="card-body">
+          ${me.has_password === false ? html`<p class="muted" style="margin:0">Your account signs in with single sign-on and has no password. An admin can set one in Users.</p>` : html`
           <form id="pw-form" autocomplete="off">
             <div class="field"><label>Current password</label><input type="password" name="current" required autocomplete="current-password"></div>
             <div class="field" style="margin-top:12px"><label>New password (min. 8 characters)</label><input type="password" name="new" required minlength="8" autocomplete="new-password"></div>
             <div class="field" style="margin-top:12px"><label>Confirm new password</label><input type="password" name="new2" required autocomplete="new-password"></div>
             <div class="form-actions" style="margin-top:14px"><button class="btn btn-primary" type="submit">Change password</button></div>
-          </form></div></div>
+          </form>`}</div></div>
         <div class="card"><div class="card-head"><h2>Two-factor authentication (TOTP)</h2>${me.totp_enabled ? html`<span class="badge good">${icon('shield')}Enabled</span>` : html`<span class="badge warn">${icon('alert')}Not enabled</span>`}</div><div class="card-body">
           ${me.totp_enabled ? html`<p>Signing in requires a 6-digit code from your authenticator app.</p><button class="btn btn-danger" id="totp-off">Disable 2FA</button>`
             : html`<p>Protect your account with Google Authenticator, Microsoft Authenticator, Authy, 1Password…</p><button class="btn btn-primary" id="totp-on">${icon('shield')}Enable 2FA</button>`}
@@ -59,11 +60,13 @@ export async function render(ctx) {
   on(el, 'click', '#totp-off', () => {
     const m = modal({
       title: 'Disable two-factor authentication',
-      body: html`<div class="field"><label>Enter your password to confirm</label><input type="password" id="pw" autocomplete="current-password"></div>`,
+      body: me.has_password === false
+        ? html`<p style="margin-top:0">Your account signs in with single sign-on: 2FA can be disabled within 10 minutes of signing in.</p>`
+        : html`<div class="field"><label>Enter your password to confirm</label><input type="password" id="pw" autocomplete="current-password"></div>`,
       footer: html`<button class="btn" data-close>Cancel</button><button class="btn btn-danger-solid" id="off">Disable 2FA</button>`,
     });
     m.el.querySelector('#off').onclick = (ev) => busy(ev.currentTarget, async () => {
-      try { await post('/me/totp/disable', { password: m.el.querySelector('#pw').value }); m.close(); toast('2FA disabled', 'warn'); await reload(); } catch (er) { toastErr(er); }
+      try { await post('/me/totp/disable', { password: m.el.querySelector('#pw')?.value || '' }); m.close(); toast('2FA disabled', 'warn'); await reload(); } catch (er) { toastErr(er); }
     });
   });
   on(el, 'click', '#logout-others', async (e, b) => {

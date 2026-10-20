@@ -498,3 +498,64 @@ func TestUsersWithoutPassword(t *testing.T) {
 }
 
 func itoa(n int64) string { return strconv.FormatInt(n, 10) }
+
+func TestSSOOnlyAccountConfirms(t *testing.T) {
+	e := newSSOEnv(t, func(c *store.SSOConfig) { c.AutoCreate = true })
+	sessionPost := func(path, body, cookie, csrf string) *httptest.ResponseRecorder {
+		req := httptest.NewRequest(http.MethodPost, path, strings.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("X-CSRF-Token", csrf)
+		req.AddCookie(&http.Cookie{Name: sessionCookie, Value: cookie})
+		rec := httptest.NewRecorder()
+		e.h.ServeHTTP(rec, req)
+		return rec
+	}
+	session := func(u *store.User, raw string, age time.Duration) {
+		now := time.Now()
+		if err := e.s.Store.CreateSession(&store.Session{ID: auth.SHA256Hex(raw), UserID: u.ID, CSRF: "csrf-" + raw,
+			CreatedAt: now.Add(-age), LastSeenAt: now, ExpiresAt: now.Add(time.Hour)}); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	// bob has no password: right after an SSO sign-in, the session stands in for it
+	sc := cookieOf(e.signIn(map[string]any{"sub": "bob-1", "email": "bob@example.com", "preferred_username": "bob"}, nil), sessionCookie)
+	var me struct {
+		CSRF string `json:"csrf"`
+		User struct {
+			HasPassword bool `json:"has_password"`
+		} `json:"user"`
+	}
+	_ = json.Unmarshal(e.get("/api/me", sc).Body.Bytes(), &me)
+	if me.User.HasPassword || me.CSRF == "" {
+		t.Fatalf("me: %+v", me)
+	}
+	rec := sessionPost("/api/me/tokens", `{"name":"ci","access":"full"}`, sc.Value, me.CSRF)
+	var tok struct{ Token string }
+	_ = json.Unmarshal(rec.Body.Bytes(), &tok)
+	if rec.Code != 200 || tok.Token == "" {
+		t.Fatalf("fresh session: %d %s", rec.Code, rec.Body.String())
+	}
+	if rec := sessionPost("/api/me/totp/disable", `{}`, sc.Value, me.CSRF); rec.Code != 200 {
+		t.Fatalf("2FA off, fresh session: %d %s", rec.Code, rec.Body.String())
+	}
+	// an older session, or an API token, cannot
+	bob, _ := e.s.Store.GetUserByName("bob")
+	session(bob, "old", 11*time.Minute)
+	if rec := sessionPost("/api/me/tokens", `{"name":"x"}`, "old", "csrf-old"); rec.Code != 403 || !strings.Contains(rec.Body.String(), "sign in again") {
+		t.Fatalf("old session: %d %s", rec.Code, rec.Body.String())
+	}
+	if rec := send(e.h, "POST", "/api/me/tokens", tok.Token, map[string]string{"name": "minted"}); rec.Code != 403 {
+		t.Fatalf("token minting a token: %d %s", rec.Code, rec.Body.String())
+	}
+	// an account with a password still needs it, however fresh its session
+	hash, _ := auth.HashPassword("correct horse")
+	alice := e.user("alice", "alice@example.com", store.RoleOperator, func(u *store.User) { u.PasswordHash = hash })
+	session(alice, "fresh", 0)
+	if rec := sessionPost("/api/me/tokens", `{"name":"x"}`, "fresh", "csrf-fresh"); rec.Code != 400 || !strings.Contains(rec.Body.String(), "password") {
+		t.Fatalf("password account: %d %s", rec.Code, rec.Body.String())
+	}
+	if rec := sessionPost("/api/me/tokens", `{"name":"x","password":"correct horse"}`, "fresh", "csrf-fresh"); rec.Code != 200 {
+		t.Fatalf("with the password: %d %s", rec.Code, rec.Body.String())
+	}
+}

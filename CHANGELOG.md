@@ -31,7 +31,8 @@ Connect, an instance name and logo, and installed instances kept out of search e
 - Users are found by the provider account they used before, else by their verified email address, and are linked
   from then on (**SSO** badge in Users, where an admin can unlink). Optional: allowed email domains, creating
   unknown users with a default role, and roles from a group or role claim (also nested ones such as
-  `realm_access.roles`); the last admin is never demoted. While SSO is on, accounts may be created without a password.
+  `realm_access.roles`); the last admin is never demoted. While SSO is on, accounts may be created without a password;
+  such an account creates API tokens or turns its 2FA off within 10 minutes of signing in, in place of the password.
 - Password sign-in stays as the fallback, optionally for admins only. Accounts with 2FA still enter their code after
   SSO, locked accounts are refused, and failures count toward the per-address sign-in limit. The audit log records
   SSO sign-ins, failures with their reason, tests and accounts created by SSO.

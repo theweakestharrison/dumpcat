@@ -196,7 +196,9 @@ export async function render(ctx) {
         <div class="field" style="margin-top:12px"><label>Access</label><select name="access"><option value="read" selected>Read-only: see status, backups and logs, change nothing</option><option value="full">Full: everything your role (${me.role}) can do</option></select>
           <div class="help">Read-only suits monitoring and AI assistants. Running jobs from CI, or letting an assistant start backups, verifications and drills, needs full access.</div></div>
         <div class="field" style="margin-top:12px"><label>Expires after (days, 0 = never)</label><input type="number" name="expires_days" value="90" min="0"></div>
-        <div class="field" style="margin-top:12px"><label class="req">Your current password</label><input type="password" name="password" autocomplete="current-password" required></div></form>`,
+        ${me.has_password === false
+    ? html`<div class="alert info" style="margin-top:12px">${icon('lock')}<div>Your account signs in with single sign-on: a token can be created within 10 minutes of signing in.</div></div>`
+    : html`<div class="field" style="margin-top:12px"><label class="req">Your current password</label><input type="password" name="password" autocomplete="current-password" required></div>`}</form>`,
       footer: html`<button class="btn" data-close>Cancel</button><button class="btn btn-primary" id="mk">Create</button>`,
     });
     m.el.querySelector('#mk').onclick = (ev) => busy(ev.currentTarget, async () => {

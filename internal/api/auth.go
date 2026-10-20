@@ -305,7 +305,7 @@ func (s *Server) meTOTPDisable(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		return err
 	}
-	if err := s.recheckPassword(u, in.Password, "incorrect password"); err != nil {
+	if err := s.confirmIdentity(r, u, in.Password, "incorrect password"); err != nil {
 		return err
 	}
 	u.TOTPEnabled = false
@@ -351,13 +351,14 @@ func (s *Server) meTokenCreate(w http.ResponseWriter, r *http.Request) error {
 	default:
 		return badRequest("access must be read or full")
 	}
-	// a token outlives sessions and password changes: creating one needs the password, so a
-	// stolen session cannot turn itself into lasting access
+	// a token outlives sessions and password changes: creating one needs the password (or, for
+	// an account that signs in with SSO only, a fresh sign-in), so a stolen session cannot turn
+	// itself into lasting access
 	u, err := s.Store.GetUser(userOf(r).ID)
 	if err != nil {
 		return err
 	}
-	if err := s.recheckPassword(u, in.Password, "enter your current password to create a token"); err != nil {
+	if err := s.confirmIdentity(r, u, in.Password, "enter your current password to create a token"); err != nil {
 		return err
 	}
 	raw := "mv_" + auth.RandomToken(30)
@@ -565,6 +566,23 @@ func (s *Server) recheckPassword(u *store.User, password, msg string) error {
 	}
 	s.Limiter.Reset(key)
 	return nil
+}
+
+// ssoFreshSignIn is how long after signing in an account without a password may confirm a
+// sensitive change.
+const ssoFreshSignIn = 10 * time.Minute
+
+// confirmIdentity is recheckPassword for every account. One without a password signs in with
+// SSO only: a browser session that signed in within ssoFreshSignIn stands in for the password
+// (an older, possibly stolen, session or an API token cannot).
+func (s *Server) confirmIdentity(r *http.Request, u *store.User, password, msg string) error {
+	if u.PasswordHash != "" {
+		return s.recheckPassword(u, password, msg)
+	}
+	if a := authFrom(r); a != nil && a.Session != nil && time.Since(a.Session.CreatedAt) <= ssoFreshSignIn {
+		return nil
+	}
+	return errf(403, "your account signs in with single sign-on: sign out, sign in again and do this within %d minutes", int(ssoFreshSignIn.Minutes()))
 }
 
 // useTOTP checks a two-factor code that may be used only once.

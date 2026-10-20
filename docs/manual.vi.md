@@ -1016,7 +1016,8 @@ Nên sao lưu thêm `/var/lib/dumpcat/master.key` và `dumpcat.db` (cấu hình,
 - Vai trò: **admin** (tất cả), **operator** (server, storage cloud/FTP/SFTP, job, chạy backup/restore), **viewer** (chỉ xem). Các thao tác chạm tới hệ thống file hoặc quyền truy cập của máy chủ (storage thư mục cục bộ / rclone tùy chỉnh, S3 không khóa vì nó dùng danh tính cloud của chính máy chủ, pre/post command, tham số thêm cho công cụ, chọn thư mục giải nén, thay datadir) chỉ dành cho admin. Thay datadir bị từ chối với thư mục hệ thống và với thư mục không giống datadir MySQL/MariaDB.
 - Một địa chỉ đăng nhập sai 5 lần trong 15 phút → khóa tài khoản đó với địa chỉ đó 15 phút (người khác vẫn đăng nhập được); một IP sai 20 lần → khóa IP 15 phút. Mỗi lần thử được tính trước khi kiểm tra mật khẩu, nên gửi song song không được thêm lượt. Mỗi mã 2FA chỉ dùng được một lần.
 - Khi chạy sau reverse proxy (`DUMPCAT_TRUST_PROXY=1`), địa chỉ client lấy từ `X-Real-IP` hoặc mục cuối của `X-Forwarded-For`, tức mục do proxy thêm vào.
-- Tạo API token phải nhập mật khẩu tài khoản. Khi admin đặt lại mật khẩu hoặc khóa một tài khoản (hay `dumpcat user passwd` / `disable`), mọi API token của tài khoản đó bị thu hồi.
+- Tạo API token phải nhập mật khẩu tài khoản (tài khoản không có mật khẩu, chỉ đăng nhập bằng SSO: phải đăng nhập
+  trong vòng 10 phút trước đó; tắt 2FA của tài khoản đó cũng vậy). Khi admin đặt lại mật khẩu hoặc khóa một tài khoản (hay `dumpcat user passwd` / `disable`), mọi API token của tài khoản đó bị thu hồi.
 - API token là **chỉ đọc** (mặc định) hoặc **toàn quyền**, tức quyền theo vai trò của người tạo. Dù vai trò nào, token
   chỉ đọc chỉ xem được: không thay đổi gì, không tải backup, không tạo token mới. Token tạo trước 1.5.0 có toàn quyền.
 - Endpoint MCP cho trợ lý AI (`/api/mcp`, [12](#trợ-lý-ai-mcp)) chỉ nhận API token, không bao giờ nhận phiên đăng nhập
