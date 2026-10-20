@@ -44,7 +44,7 @@ The complete guide to installing, configuring and operating DumpCat. For an over
 | Notifications | Email (SMTP, HTML with a plain-text version), Telegram, Slack, Discord, Webhook (HMAC-signed) — on failure and/or success |
 | Monitoring | **Overdue-backup alerts** per job (from its schedule, or a max age) and **log archive lag** alerts (binlog / WAL), once per incident with a message when it clears; a **weekly digest** by email; Prometheus **`/metrics`** (bearer token or this machine only) |
 | AI assistants | An **MCP** endpoint and `dumpcat mcp` for Claude Desktop, Claude Code and other MCP clients: status, backups, logs and failures, read-only by default; backups, verifications and drills with a full-access token |
-| Security | bcrypt passwords, HttpOnly sessions + CSRF, lockout after repeated failed logins, TOTP 2FA, API tokens (read-only or full), roles, audit log, every password/cloud key encrypted at rest with AES-256-GCM, database passwords never on the command line |
+| Security | bcrypt passwords, HttpOnly sessions + CSRF, lockout after repeated failed logins, TOTP 2FA, **single sign-on** with OpenID Connect (Google, Microsoft Entra ID, Keycloak, Authentik…), API tokens (read-only or full), roles, audit log, every password/cloud key encrypted at rest with AES-256-GCM, database passwords never on the command line |
 | Disaster recovery | Every backup carries a `manifest.json` → install a fresh DumpCat, add the storage, click **Import backup catalog** and every backup is listed again. Backup files use standard formats (zstd/gzip/age/xbstream) — they can be restored even without DumpCat |
 
 ## 2. Choosing a backup method
@@ -1038,6 +1038,9 @@ It is also worth backing up `/var/lib/dumpcat/master.key` and `dumpcat.db` (conf
 - Put DumpCat behind HTTPS (nginx/caddy or the built-in TLS) and restrict access by IP or VPN.
 - Until the first admin exists, creating it requires the one-time **setup token** (service log or `dumpcat setup-token`, see [4](#4-getting-started)), also for requests from localhost. A new token is created at every start; it is compared in constant time, 5 wrong tokens lock that IP for 15 minutes, and it is deleted once an account exists.
 - Enable **2FA** for admins (**Profile & security**). **Settings** can also remind admins to enable 2FA when they sign in.
+- Single sign-on with an OpenID Connect provider is optional; password sign-in stays as the fallback, and an account
+  with 2FA still enters its code after SSO ([below](#single-sign-on-openid-connect)).
+- Search engines are told not to index the sign-in page ([13](#search-engines)).
 - Roles: **admin** (everything), **operator** (servers, cloud/FTP/SFTP storage, jobs, running backups/restores), **viewer** (read-only). Actions that touch the host's file system or credentials (local directory / custom rclone storage, S3 without an access key, which uses the host's own cloud identity, pre/post commands, extra tool arguments, choosing the extraction directory, replacing the datadir) are admin-only. Replacing a datadir is refused for system directories and for a directory that does not look like a MySQL/MariaDB datadir.
 - 5 failed logins within 15 minutes from one address lock that account for that address for 15 minutes (others can still sign in); 20 failures from one IP lock that IP for 15 minutes. Attempts are counted before the password is checked, so parallel requests get no extra tries. A two-factor code works once.
 - Behind a reverse proxy (`DUMPCAT_TRUST_PROXY=1`), the client address is `X-Real-IP` or the last `X-Forwarded-For` entry, the one the proxy added.
@@ -1056,6 +1059,94 @@ It is also worth backing up `/var/lib/dumpcat/master.key` and `dumpcat.db` (conf
 - Agents ([3.7](#37-database-hosts-that-accept-no-inbound-connections-agent)) authenticate with a key stored only as a hash, open only the database addresses on their own allow list, and run without privileges. Database traffic goes inside the agent's connection: use HTTPS.
 - The built-in WireGuard ([3.8](#38-built-in-wireguard)) is off by default and creates no network interface on the DumpCat host: peers reach nothing on it, and DumpCat reaches only the addresses routed to each peer. Its private key is encrypted with the master key; peer configurations are shown once.
 - The service runs as root so it can do physical backups/restores. If you only use logical backups, you can create a dedicated user: `useradd -r dumpcat`, `chown -R dumpcat /var/lib/dumpcat`, and set `User=dumpcat` in the unit.
+
+### Single sign-on (OpenID Connect)
+
+Admins set it up in **Settings → Authentication**. Any provider with OpenID Connect discovery works; the guides
+below cover Google, Microsoft Entra ID, Keycloak and Authentik.
+
+1. Set the **Base URL** in **Settings → General** to the address people open DumpCat at (for example
+   `https://backup.example.com`). The **Redirect URL** shown under Authentication follows it:
+   `https://backup.example.com/api/auth/sso/callback`. Without a Base URL it is built from the address of the page.
+2. At the provider, create a web application (a confidential client) with that redirect URL, and note its client ID
+   and client secret.
+3. In DumpCat, enter the **Issuer URL**, the **Client ID** and the **Client secret**, click **Test SSO**, then tick
+   **Allow single sign-on** and save. Saving checks that the provider answers.
+
+How a sign-in works:
+
+- The sign-in page shows the SSO button (its label can be changed) under the password form. DumpCat uses the
+  authorization code flow with PKCE (S256), a `state` bound to the browser by a cookie and used once, and a `nonce`.
+  It checks the ID token's signature with the keys the provider publishes (RS256/384/512, PS256/384/512,
+  ES256/384/512 or EdDSA; never `none` or a shared-secret HS* signature), the issuer, the audience, the expiry and
+  the nonce. The client secret is encrypted with the master key like other secrets and is never shown again.
+- The DumpCat account is the one linked to the provider account at an earlier sign-in. The first time, it is found
+  by its **email address** (the `email` claim, or the claim set in **Email claim**); an address the provider marks
+  as not verified is refused. From then on the account is linked to that provider account, so a later change of
+  address at the provider does not matter. **Users** shows linked accounts with an **SSO** badge, and an admin can
+  unlink one (for example after the user was recreated at the provider). Two accounts with the same address, or an
+  account linked to another provider account, are refused.
+- **Allowed email domains** (e.g. `example.com, example.org`) limit who may sign in with SSO.
+- **Create accounts for new users** creates an unknown user at the first sign-in, with the **Role of new accounts**
+  (the username is the provider's `preferred_username`, else the address). Without it an admin adds the account
+  first in **Users**; while SSO is on, the password is optional there (an account without one signs in only with SSO).
+- **Role from a claim**: name a claim (`groups`, `roles`, or a nested one such as `realm_access.roles`) and the
+  values that give each role, comma-separated. Every SSO sign-in then sets the account's role to the highest one
+  that matches, and a user with none of the values cannot sign in with SSO. The last active admin is never demoted.
+  Claims missing from the ID token are read from the provider's userinfo endpoint.
+- **Password sign-in**: everyone, or admins only (everyone else must use SSO). Admins can always sign in with their
+  password: it is the way in when the provider is down or misconfigured.
+- Two-factor authentication: a DumpCat account with 2FA also enters its code after SSO. Otherwise the provider's own
+  MFA applies (set it up there); the reminder to enable 2FA in **Settings → Security** concerns password sign-ins.
+- A locked account cannot sign in with SSO either. Failed SSO sign-ins count toward the per-address limit (20 in 15
+  minutes). The audit log records `sso_login`, `sso_login_failed` (with the reason), `sso_test`, and accounts created
+  or roles changed by SSO.
+- **Test SSO** runs a sign-in with the settings of the form, saved or not, in a new tab, and shows the verified
+  identity, every claim the provider sent (useful to pick the role claim) and what a real sign-in would do: which
+  account it uses, whether it creates one, or why it would be refused. Nobody is signed in.
+
+#### Google
+
+1. In the Google Cloud console: **APIs & Services → OAuth consent screen**: *Internal* keeps sign-in to your Google
+   Workspace accounts; *External* needs test users or publishing.
+2. **Credentials → Create credentials → OAuth client ID**, type *Web application*, **Authorized redirect URIs**: the
+   redirect URL.
+3. In DumpCat: issuer `https://accounts.google.com`, the client ID and secret. Google sends `email` and
+   `email_verified` but no groups: set **Allowed email domains** to your domain, and manage roles in DumpCat (or
+   create accounts with the default role).
+
+#### Microsoft Entra ID
+
+1. Microsoft Entra admin center: **App registrations → New registration**, *Accounts in this organizational
+   directory only*, redirect URI of type *Web*: the redirect URL.
+2. **Certificates & secrets → New client secret**: copy its *Value*.
+3. In DumpCat: issuer `https://login.microsoftonline.com/<tenant-id>/v2.0` (the *Directory (tenant) ID* on the
+   app's Overview), client ID = *Application (client) ID*. A multi-tenant issuer (`/common`, `/organizations`) does
+   not work: DumpCat checks that tokens come from your tenant.
+4. Email: add the optional claim **email** in **Token configuration** (ID token), or set **Email claim** to
+   `preferred_username` (the user principal name) when it is the address your DumpCat accounts use.
+5. Roles (optional): define **App roles** (for example `DumpCat.Admin`, `DumpCat.Operator`), assign them in
+   *Enterprise applications → Users and groups*, and set **Role from a claim** to `roles`. Or add a groups claim
+   (**Token configuration → Add groups claim**): its values are the groups' object IDs.
+
+#### Keycloak
+
+1. In the realm: **Clients → Create client**, *OpenID Connect*, client ID `dumpcat`; **Client authentication** on,
+   **Standard flow** on; **Valid redirect URIs**: the redirect URL. Copy the secret from the **Credentials** tab.
+2. In DumpCat: issuer `https://<keycloak>/realms/<realm>` (Keycloak before version 17: `.../auth/realms/<realm>`).
+3. Roles (optional): realm roles are in `realm_access.roles` (set **Role from a claim** to that); or add a *Group
+   Membership* mapper to the client's dedicated scope with claim name `groups`, *Full group path* off, *Add to ID
+   token* on, and use `groups`.
+
+#### Authentik
+
+1. **Applications → Providers → Create → OAuth2/OpenID Provider**, client type *Confidential*, redirect URI: the
+   redirect URL (*strict*). Choose a **Signing Key** (a certificate): without one, authentik signs with the client
+   secret (HS256), which DumpCat refuses.
+2. **Applications → Create** with a slug, for example `dumpcat`, and that provider.
+3. In DumpCat: issuer `https://<authentik>/application/o/<slug>/` (with the trailing slash), the client ID and
+   secret. Groups come in the `groups` claim (from the *profile* scope). If sign-in is refused because the address
+   is not verified, check what the provider's *email* scope mapping sends as `email_verified`.
 
 ## 12. API & automation
 
@@ -1280,7 +1371,7 @@ groups:
 | `DUMPCAT_UPDATE_PUBLIC_KEY` | | Release signing public key(s), base64, comma-separated; added to the keys built in. With a key, only signed releases are installed ([3.6](#36-updating)) |
 | `DUMPCAT_LOG_FILE` | | Also write the log to this file, rotated at 20 MB (a Windows service logs to `<data>\dumpcat.log`) |
 
-In the UI (**Settings**): time zone, number of concurrent jobs, staging directory, default thread count, idle session timeout, history retention, extra rclone flags, the path of each tool (e.g. for several xtrabackup versions).
+In the UI (**Settings**): time zone, number of concurrent jobs, staging directory, default thread count, idle session timeout, history retention, extra rclone flags, the path of each tool (e.g. for several xtrabackup versions), the instance name and logo, search-engine indexing and single sign-on ([11](#single-sign-on-openid-connect)).
 
 Command line:
 
@@ -1299,6 +1390,25 @@ dumpcat version
 
 Internal data: `/var/lib/dumpcat/dumpcat.db` (SQLite), `master.key`, `logs/`, `staging/` (temporary), `restore/` (default for physical restores),
 `setup-token` (only until the first admin exists).
+
+### Branding
+
+**Settings → Branding** gives the instance a name and a logo, for example to tell several DumpCat instances apart.
+
+- The **instance name** replaces "DumpCat" in the sidebar, the browser tab, the sign-in page, the authenticator app
+  (for 2FA set up from then on) and notifications; email subjects start with `[name]`.
+- The **logo** (PNG, SVG or WebP, at most 256 KB, admins only) replaces the cat in the sidebar, on the sign-in page
+  and as the tab's icon. Emails show it when it is a PNG (mail clients do not show SVG or WebP). DumpCat checks the
+  file's content, not its name: an SVG must be a plain drawing, without scripts, event handlers, embedded documents
+  or links to other files, and it is served with a policy that keeps anything in it from running.
+- **Reset to default** brings back the name DumpCat and the cat.
+
+### Search engines
+
+An installed DumpCat asks search engines not to index it: `/robots.txt` disallows everything, every answer carries
+`X-Robots-Tag: noindex, nofollow` and the page has a robots meta tag, so the sign-in page does not show up in search
+results. **Settings → Security → Let search engines index this instance** lifts all three; use it only for a public
+demo.
 
 ## 14. Troubleshooting
 

@@ -8,7 +8,8 @@ groups of bullets.
 
 ## 1.6.0
 
-An API & MCP page to connect AI assistants and scripts, and the API reference in Markdown.
+An API & MCP page to connect AI assistants and scripts, the API reference in Markdown, single sign-on with OpenID
+Connect, an instance name and logo, and installed instances kept out of search engines.
 
 ### API & MCP
 
@@ -19,6 +20,37 @@ An API & MCP page to connect AI assistants and scripts, and the API reference in
 - `GET /api/docs.md`: the API reference in Markdown, for people and AI agents. The server writes it from its own
   routes (authentication, conventions, curl examples, the MCP tools, every route with the role and token it needs),
   and a test keeps every route documented. `GET /api/mcp/tools` lists the MCP tools as JSON.
+
+### Single sign-on (OpenID Connect)
+
+- Sign in with Google, Microsoft Entra ID, Keycloak, Authentik or any OpenID Connect provider: **Settings →
+  Authentication** takes the issuer URL (discovery), client ID and secret (encrypted with the master key) and scopes,
+  and shows the redirect URL to register. The sign-in page gets an SSO button under the password form.
+- Authorization code flow with PKCE, a state bound to the browser and a nonce; the ID token's signature is checked
+  with the provider's keys (no `none` or HS* tokens), with its issuer, audience, expiry and nonce.
+- Users are found by the provider account they used before, else by their verified email address, and are linked
+  from then on (**SSO** badge in Users, where an admin can unlink). Optional: allowed email domains, creating
+  unknown users with a default role, and roles from a group or role claim (also nested ones such as
+  `realm_access.roles`); the last admin is never demoted. While SSO is on, accounts may be created without a password.
+- Password sign-in stays as the fallback, optionally for admins only. Accounts with 2FA still enter their code after
+  SSO, locked accounts are refused, and failures count toward the per-address sign-in limit. The audit log records
+  SSO sign-ins, failures with their reason, tests and accounts created by SSO.
+- **Test SSO** runs a sign-in with the settings of the form and shows the verified claims and what a sign-in would do,
+  without signing anyone in.
+
+### Branding
+
+- **Settings → Branding**: an instance name for the sidebar, page titles, the sign-in page, the authenticator app and
+  notifications (email subjects start with `[name]`), and a logo (PNG, SVG or WebP, at most 256 KB) for the sidebar,
+  the sign-in page, the tab's icon and, as a PNG, emails. Uploads are checked by their content; SVGs with scripts,
+  event handlers or links to other files are refused, and the logo is served with a policy that keeps anything in it
+  from running. **Reset to default** brings back DumpCat and the cat.
+
+### Search engines
+
+- Installed instances stay out of search results by default: `/robots.txt` disallows everything, every answer
+  carries `X-Robots-Tag: noindex, nofollow`, and the page has a robots meta tag. **Settings → Security** can allow
+  indexing (for a public demo).
 
 ## 1.5.0 (2026-10-20)
 

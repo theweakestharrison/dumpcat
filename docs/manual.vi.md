@@ -44,7 +44,7 @@ Hướng dẫn đầy đủ để cài đặt, cấu hình và vận hành DumpC
 | Thông báo | Email (SMTP, HTML kèm bản text), Telegram, Slack, Discord, Webhook (ký HMAC) — khi lỗi và/hoặc thành công |
 | Giám sát | **Cảnh báo backup quá hạn** cho từng job (theo lịch chạy, hoặc tuổi tối đa) và **cảnh báo lưu trữ log chậm** (binlog / WAL), mỗi sự cố báo một lần và báo lại khi đã hết; **báo cáo tuần** qua email; Prometheus **`/metrics`** (bearer token hoặc chỉ máy này) |
 | Trợ lý AI | Endpoint **MCP** và `dumpcat mcp` cho Claude Desktop, Claude Code và các MCP client khác: trạng thái, backup, log và lỗi, mặc định chỉ đọc; chạy backup, verify và diễn tập với token toàn quyền |
-| Bảo mật | Mật khẩu bcrypt, phiên HttpOnly + CSRF, khóa đăng nhập sai nhiều lần, 2FA TOTP, API token (chỉ đọc hoặc toàn quyền), vai trò, audit log, mọi mật khẩu/khóa cloud mã hóa AES-256-GCM khi lưu, mật khẩu DB không bao giờ nằm trên dòng lệnh |
+| Bảo mật | Mật khẩu bcrypt, phiên HttpOnly + CSRF, khóa đăng nhập sai nhiều lần, 2FA TOTP, **đăng nhập một lần (SSO)** với OpenID Connect (Google, Microsoft Entra ID, Keycloak, Authentik…), API token (chỉ đọc hoặc toàn quyền), vai trò, audit log, mọi mật khẩu/khóa cloud mã hóa AES-256-GCM khi lưu, mật khẩu DB không bao giờ nằm trên dòng lệnh |
 | Phục hồi thảm họa | Mỗi bản backup có `manifest.json` → cài DumpCat mới, thêm storage, bấm **Nhập danh mục** là thấy lại toàn bộ backup. File backup là định dạng chuẩn (zstd/gzip/age/xbstream) — restore được cả khi không có DumpCat |
 
 ## 2. Chọn phương thức backup
@@ -1010,6 +1010,9 @@ Nên sao lưu thêm `/var/lib/dumpcat/master.key` và `dumpcat.db` (cấu hình,
 - Đặt sau HTTPS (nginx/caddy hoặc TLS tích hợp), giới hạn IP truy cập/VPN.
 - Khi chưa có admin, muốn tạo admin đầu tiên phải nhập **mã thiết lập** dùng một lần (trong log của service hoặc `dumpcat setup-token`, xem [mục 4](#4-bắt-đầu-sử-dụng)), kể cả khi truy cập từ localhost. Mỗi lần khởi động tạo mã mới; mã được so sánh constant-time, sai 5 lần → khóa IP đó 15 phút, và bị xóa ngay khi đã có tài khoản.
 - Bật **2FA** cho admin (Hồ sơ & bảo mật). Có thể bật nhắc 2FA bắt buộc trong Cài đặt.
+- Đăng nhập một lần qua nhà cung cấp OpenID Connect là tùy chọn; đăng nhập bằng mật khẩu vẫn là phương án dự phòng, và
+  tài khoản có 2FA vẫn phải nhập mã sau khi đăng nhập SSO ([bên dưới](#đăng-nhập-một-lần-sso-openid-connect)).
+- Công cụ tìm kiếm được yêu cầu không lập chỉ mục trang đăng nhập ([13](#công-cụ-tìm-kiếm)).
 - Vai trò: **admin** (tất cả), **operator** (server, storage cloud/FTP/SFTP, job, chạy backup/restore), **viewer** (chỉ xem). Các thao tác chạm tới hệ thống file hoặc quyền truy cập của máy chủ (storage thư mục cục bộ / rclone tùy chỉnh, S3 không khóa vì nó dùng danh tính cloud của chính máy chủ, pre/post command, tham số thêm cho công cụ, chọn thư mục giải nén, thay datadir) chỉ dành cho admin. Thay datadir bị từ chối với thư mục hệ thống và với thư mục không giống datadir MySQL/MariaDB.
 - Một địa chỉ đăng nhập sai 5 lần trong 15 phút → khóa tài khoản đó với địa chỉ đó 15 phút (người khác vẫn đăng nhập được); một IP sai 20 lần → khóa IP 15 phút. Mỗi lần thử được tính trước khi kiểm tra mật khẩu, nên gửi song song không được thêm lượt. Mỗi mã 2FA chỉ dùng được một lần.
 - Khi chạy sau reverse proxy (`DUMPCAT_TRUST_PROXY=1`), địa chỉ client lấy từ `X-Real-IP` hoặc mục cuối của `X-Forwarded-For`, tức mục do proxy thêm vào.
@@ -1027,6 +1030,95 @@ Nên sao lưu thêm `/var/lib/dumpcat/master.key` và `dumpcat.db` (cấu hình,
 - Agent ([3.7](#37-server-database-không-cho-kết-nối-vào-agent)) xác thực bằng khóa chỉ lưu dạng hash, chỉ mở các địa chỉ database trong danh sách cho phép của chính nó, và chạy không cần quyền. Dữ liệu database đi bên trong kết nối của agent: hãy dùng HTTPS.
 - WireGuard tích hợp ([3.8](#38-wireguard-tích-hợp)) tắt mặc định và không tạo network interface nào trên máy chạy DumpCat: peer không vào được gì trên máy đó, còn DumpCat chỉ vào được các địa chỉ route tới từng peer. Khóa riêng được mã hóa bằng master key; cấu hình của peer chỉ hiện một lần.
 - Service chạy root để backup/restore vật lý. Nếu chỉ dùng backup logic, có thể tạo user riêng: `useradd -r dumpcat`, `chown -R dumpcat /var/lib/dumpcat`, sửa `User=dumpcat` trong unit.
+
+### Đăng nhập một lần (SSO, OpenID Connect)
+
+Admin cấu hình trong **Cài đặt → Authentication**. Dùng được với mọi nhà cung cấp hỗ trợ OpenID Connect discovery;
+hướng dẫn bên dưới cho Google, Microsoft Entra ID, Keycloak và Authentik.
+
+1. Đặt **Base URL** trong **Cài đặt → General** là địa chỉ mọi người mở DumpCat (vd. `https://backup.example.com`).
+   **Redirect URL** hiện trong phần Authentication đi theo nó: `https://backup.example.com/api/auth/sso/callback`.
+   Không có Base URL thì lấy theo địa chỉ của trang đang mở.
+2. Bên nhà cung cấp, tạo một ứng dụng web (confidential client) với redirect URL đó, ghi lại client ID và client
+   secret.
+3. Trong DumpCat, nhập **Issuer URL**, **Client ID**, **Client secret**, bấm **Test SSO**, rồi tích **Allow single
+   sign-on** và lưu. Khi lưu, DumpCat kiểm tra nhà cung cấp có trả lời không.
+
+Cách đăng nhập hoạt động:
+
+- Trang đăng nhập có thêm nút SSO (đổi được nhãn) dưới form mật khẩu. DumpCat dùng authorization code flow với PKCE
+  (S256), một `state` gắn với trình duyệt bằng cookie và chỉ dùng một lần, cùng một `nonce`. ID token được kiểm tra
+  chữ ký bằng các khóa nhà cung cấp công bố (RS256/384/512, PS256/384/512, ES256/384/512 hoặc EdDSA; không bao giờ
+  nhận `none` hay chữ ký bằng bí mật chung HS*), issuer, audience, hạn dùng và nonce. Client secret được mã hóa bằng
+  master key như các bí mật khác và không bao giờ hiện lại.
+- Tài khoản DumpCat là tài khoản đã gắn với tài khoản bên nhà cung cấp ở lần đăng nhập trước. Lần đầu, DumpCat tìm
+  theo **địa chỉ email** (claim `email`, hoặc claim đặt ở **Email claim**); địa chỉ mà nhà cung cấp báo là chưa xác
+  minh bị từ chối. Từ đó tài khoản được gắn với tài khoản bên nhà cung cấp, nên sau này đổi email bên đó cũng không
+  sao. Trang **Users** hiện huy hiệu **SSO** cho tài khoản đã gắn, và admin có thể gỡ liên kết (vd. khi người dùng
+  được tạo lại bên nhà cung cấp). Hai tài khoản trùng địa chỉ, hoặc tài khoản đã gắn với một tài khoản khác bên nhà
+  cung cấp, đều bị từ chối.
+- **Allowed email domains** (vd. `example.com, example.org`) giới hạn ai được đăng nhập bằng SSO.
+- **Create accounts for new users** tạo tài khoản cho người dùng chưa có ở lần đăng nhập đầu, với vai trò ở **Role of
+  new accounts** (username lấy từ `preferred_username`, nếu không có thì từ địa chỉ email). Không bật thì admin phải
+  thêm tài khoản trước trong **Users**; khi SSO đang bật, mật khẩu ở đó là tùy chọn (tài khoản không có mật khẩu chỉ
+  đăng nhập được bằng SSO).
+- **Role from a claim**: đặt tên claim (`groups`, `roles`, hoặc claim lồng như `realm_access.roles`) và các giá trị
+  ứng với từng vai trò, cách nhau bằng dấu phẩy. Khi đó mỗi lần đăng nhập SSO đều đặt vai trò cao nhất khớp được, và
+  người không có giá trị nào khớp thì không đăng nhập SSO được. Admin hoạt động cuối cùng không bao giờ bị hạ quyền.
+  Claim nào không có trong ID token thì được đọc từ endpoint userinfo của nhà cung cấp.
+- **Password sign-in**: mọi người, hoặc chỉ admin (những người khác phải dùng SSO). Admin luôn đăng nhập được bằng mật
+  khẩu: đó là lối vào khi nhà cung cấp gặp sự cố hoặc cấu hình sai.
+- Xác thực hai lớp: tài khoản DumpCat có 2FA vẫn phải nhập mã sau khi đăng nhập SSO. Nếu không, MFA của nhà cung cấp
+  được áp dụng (cấu hình bên đó); lời nhắc bật 2FA trong **Cài đặt → Security** chỉ áp dụng cho đăng nhập bằng mật khẩu.
+- Tài khoản bị khóa cũng không đăng nhập SSO được. Đăng nhập SSO thất bại được tính vào giới hạn theo địa chỉ (20 lần
+  trong 15 phút). Audit log ghi `sso_login`, `sso_login_failed` (kèm lý do), `sso_test`, và các tài khoản được tạo
+  hoặc đổi vai trò qua SSO.
+- **Test SSO** chạy thử một lần đăng nhập với cài đặt đang có trong form (đã lưu hay chưa) ở tab mới, và cho thấy danh
+  tính đã xác minh, mọi claim nhà cung cấp gửi (tiện để chọn claim vai trò) và việc một lần đăng nhập thật sẽ làm:
+  dùng tài khoản nào, có tạo tài khoản mới không, hoặc vì sao bị từ chối. Không ai được đăng nhập.
+
+#### Google
+
+1. Trong Google Cloud console: **APIs & Services → OAuth consent screen**: *Internal* chỉ cho tài khoản Google
+   Workspace của bạn; *External* cần thêm test user hoặc publish.
+2. **Credentials → Create credentials → OAuth client ID**, loại *Web application*, **Authorized redirect URIs**:
+   redirect URL.
+3. Trong DumpCat: issuer `https://accounts.google.com`, client ID và secret. Google gửi `email` và `email_verified`
+   nhưng không gửi nhóm: đặt **Allowed email domains** là domain của bạn, và quản lý vai trò trong DumpCat (hoặc tạo
+   tài khoản với vai trò mặc định).
+
+#### Microsoft Entra ID
+
+1. Microsoft Entra admin center: **App registrations → New registration**, chọn *Accounts in this organizational
+   directory only*, redirect URI loại *Web*: redirect URL.
+2. **Certificates & secrets → New client secret**: chép *Value*.
+3. Trong DumpCat: issuer `https://login.microsoftonline.com/<tenant-id>/v2.0` (*Directory (tenant) ID* ở trang
+   Overview của app), client ID = *Application (client) ID*. Issuer nhiều tenant (`/common`, `/organizations`) không
+   dùng được: DumpCat kiểm tra token phải đến từ tenant của bạn.
+4. Email: thêm optional claim **email** trong **Token configuration** (ID token), hoặc đặt **Email claim** là
+   `preferred_username` (user principal name) nếu đó là địa chỉ mà tài khoản DumpCat dùng.
+5. Vai trò (tùy chọn): tạo **App roles** (vd. `DumpCat.Admin`, `DumpCat.Operator`), gán trong *Enterprise
+   applications → Users and groups*, rồi đặt **Role from a claim** là `roles`. Hoặc thêm groups claim (**Token
+   configuration → Add groups claim**): giá trị là object ID của các nhóm.
+
+#### Keycloak
+
+1. Trong realm: **Clients → Create client**, *OpenID Connect*, client ID `dumpcat`; bật **Client authentication** và
+   **Standard flow**; **Valid redirect URIs**: redirect URL. Chép secret ở tab **Credentials**.
+2. Trong DumpCat: issuer `https://<keycloak>/realms/<realm>` (Keycloak trước bản 17: `.../auth/realms/<realm>`).
+3. Vai trò (tùy chọn): realm role nằm trong `realm_access.roles` (đặt **Role from a claim** là claim đó); hoặc thêm
+   mapper *Group Membership* vào dedicated scope của client với claim name `groups`, tắt *Full group path*, bật *Add to
+   ID token*, rồi dùng `groups`.
+
+#### Authentik
+
+1. **Applications → Providers → Create → OAuth2/OpenID Provider**, client type *Confidential*, redirect URI: redirect
+   URL (*strict*). Chọn **Signing Key** (một chứng chỉ): không có nó, authentik ký bằng client secret (HS256), và
+   DumpCat từ chối.
+2. **Applications → Create** với slug, vd. `dumpcat`, và provider vừa tạo.
+3. Trong DumpCat: issuer `https://<authentik>/application/o/<slug>/` (có dấu `/` ở cuối), client ID và secret. Nhóm
+   nằm trong claim `groups` (từ scope *profile*). Nếu đăng nhập bị từ chối vì địa chỉ chưa xác minh, hãy xem scope
+   mapping *email* của nhà cung cấp gửi `email_verified` là gì.
 
 ## 12. API & tự động hóa
 
@@ -1250,7 +1342,7 @@ groups:
 | `DUMPCAT_UPDATE_PUBLIC_KEY` | | Khóa công khai để kiểm tra chữ ký bản phát hành (base64, cách nhau bằng dấu phẩy), cộng thêm vào khóa gắn sẵn. Có khóa thì chỉ cài bản đã ký ([3.6](#36-cập-nhật)) |
 | `DUMPCAT_LOG_FILE` | | Ghi thêm log ra file này, xoay vòng mỗi 20 MB (Windows Service ghi vào `<data>\dumpcat.log`) |
 
-Trong giao diện (**Cài đặt**): múi giờ, số job đồng thời, thư mục tạm (staging), số luồng mặc định, thời hạn phiên, lưu lịch sử, cờ rclone bổ sung, đường dẫn từng công cụ (vd. nhiều phiên bản xtrabackup).
+Trong giao diện (**Cài đặt**): múi giờ, số job đồng thời, thư mục tạm (staging), số luồng mặc định, thời hạn phiên, lưu lịch sử, cờ rclone bổ sung, đường dẫn từng công cụ (vd. nhiều phiên bản xtrabackup), tên và logo của instance, cho phép công cụ tìm kiếm lập chỉ mục và đăng nhập một lần ([11](#đăng-nhập-một-lần-sso-openid-connect)).
 
 Dòng lệnh:
 
@@ -1269,6 +1361,24 @@ dumpcat version
 
 Dữ liệu nội bộ: `/var/lib/dumpcat/dumpcat.db` (SQLite), `master.key`, `logs/`, `staging/` (tạm), `restore/` (restore vật lý mặc định),
 `setup-token` (chỉ có cho tới khi tạo admin đầu tiên).
+
+### Thương hiệu (tên và logo)
+
+**Cài đặt → Branding** đặt tên và logo cho instance, vd. để phân biệt nhiều instance DumpCat.
+
+- **Tên instance** thay chữ "DumpCat" ở thanh bên, tab trình duyệt, trang đăng nhập, ứng dụng xác thực (cho 2FA cài
+  từ lúc đó trở đi) và thông báo; tiêu đề email bắt đầu bằng `[tên]`.
+- **Logo** (PNG, SVG hoặc WebP, tối đa 256 KB, chỉ admin) thay con mèo ở thanh bên, trang đăng nhập và icon của tab.
+  Email hiện logo khi đó là PNG (trình đọc email không hiện SVG hay WebP). DumpCat kiểm tra nội dung file chứ không
+  dựa vào tên: SVG phải là một hình vẽ thuần, không có script, event handler, tài liệu nhúng hay liên kết tới file
+  khác, và được trả về kèm chính sách không cho bất cứ thứ gì trong đó chạy.
+- **Reset to default** đưa về tên DumpCat và con mèo.
+
+### Công cụ tìm kiếm
+
+DumpCat đã cài đặt yêu cầu công cụ tìm kiếm không lập chỉ mục: `/robots.txt` chặn tất cả, mọi phản hồi có header
+`X-Robots-Tag: noindex, nofollow` và trang có thẻ meta robots, nên trang đăng nhập không hiện trong kết quả tìm kiếm.
+**Cài đặt → Security → Let search engines index this instance** bỏ cả ba; chỉ dùng cho bản demo công khai.
 
 ## 14. Xử lý sự cố
 
