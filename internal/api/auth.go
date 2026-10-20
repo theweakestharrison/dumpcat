@@ -32,7 +32,7 @@ func (s *Server) userView(u *store.User) map[string]any {
 
 func (s *Server) authStatus(w http.ResponseWriter, r *http.Request) error {
 	n, _ := s.Store.CountUsers()
-	out := map[string]any{"setup_required": n == 0, "authenticated": false, "version": s.Version, "platform": runtime.GOOS}
+	out := map[string]any{"setup_required": n == 0, "authenticated": false, "version": s.Version, "platform": runtime.GOOS, "brand": s.brandView()}
 	if n > 0 {
 		if c, err := r.Cookie(sessionCookie); err == nil && c.Value != "" {
 			if se, err := s.Store.GetSession(auth.SHA256Hex(c.Value)); err == nil && time.Now().Before(se.ExpiresAt) {
@@ -249,7 +249,8 @@ func (s *Server) meTOTPSetup(w http.ResponseWriter, r *http.Request) error {
 	if err := s.Store.UpdateUser(u); err != nil {
 		return err
 	}
-	url := auth.TOTPURL("DumpCat", u.Username, secret)
+	// the authenticator app lists the code under the instance name (a colon would end the issuer)
+	url := auth.TOTPURL(strings.ReplaceAll(s.Store.GetSettings().Brand(), ":", ""), u.Username, secret)
 	out := map[string]any{"secret": secret, "url": url}
 	if code, err := qr.Encode(url, qr.M); err == nil {
 		code.Scale = 6

@@ -34,11 +34,12 @@ func (s *Server) robotsHeader(next http.Handler) http.Handler {
 	})
 }
 
-// renderIndex adapts index.html to the settings: the robots meta tag goes once indexing is allowed.
+// renderIndex adapts index.html to the settings: the robots meta tag goes once indexing is
+// allowed, and the title and icon follow the branding (branding.go).
 func (s *Server) renderIndex(b []byte) []byte {
 	if !s.noindex() {
 		b = bytes.Replace(b, []byte("\n  "+robotsMeta), nil, 1)
 		b = bytes.Replace(b, []byte(robotsMeta), nil, 1)
 	}
-	return b
+	return s.brandIndex(b)
 }

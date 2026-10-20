@@ -144,10 +144,11 @@ func (s *Server) digestPreview(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		return badRequest("%v", err)
 	}
+	d.Brand = s.Notifier.Brand()
 	page, err := d.HTML(s.Notifier.Host)
 	if err != nil {
 		return err
 	}
-	page = strings.ReplaceAll(page, "cid:logo@dumpcat", "data:image/png;base64,"+base64.StdEncoding.EncodeToString(notify.Logo()))
+	page = strings.ReplaceAll(page, "cid:logo@dumpcat", "data:image/png;base64,"+base64.StdEncoding.EncodeToString(d.Brand.EmailLogo()))
 	return ok(w, map[string]string{"html": page})
 }

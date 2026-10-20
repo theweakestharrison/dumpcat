@@ -1,6 +1,6 @@
-import { get, post, put } from '../api.js';
+import { get, post, put, del } from '../api.js';
 import { html, setHTML, icon, toast, toastErr, busy, validate, formError, modal, confirmBox, copyText } from '../ui.js';
-import { setLeaveGuard } from '../app.js';
+import { setLeaveGuard, app, setBrand } from '../app.js';
 
 export const title = 'Settings';
 
@@ -16,6 +16,16 @@ export async function render(ctx) {
   setHTML(el, html`
     <div class="page-head"><div><h1>System settings</h1></div></div>
     <form id="set-form" autocomplete="off">
+    <div class="card" id="sec-branding"><div class="card-head"><h2>Branding</h2></div><div class="card-body"><div class="form-grid">
+      <div class="field"><label for="instance_name">Instance name</label><input type="text" id="instance_name" name="instance_name" value="${s.instance_name || ''}" maxlength="60" placeholder="DumpCat">
+        <div class="help">Shown in the sidebar, the browser tab, the sign-in page and notifications; email subjects start with it. Leave blank for DumpCat.</div></div>
+      <div class="field"><label>Logo</label>
+        <div class="inline"><img class="logo-preview" id="logo-preview" src="${app.brand.logo || '/assets/favicon.svg'}" alt="Current logo" width="40" height="40">
+          <button type="button" class="btn" id="logo-upload">${icon('upload')}Upload logo</button>
+          <button type="button" class="btn btn-ghost" id="brand-reset">${icon('refresh')}Reset to default</button>
+          <input type="file" id="logo-file" class="hidden" accept="image/png,image/svg+xml,image/webp,.png,.svg,.webp" aria-label="Logo file"></div>
+        <div class="help">PNG, SVG or WebP, at most 256 KB; a square image looks best. SVGs with scripts or links to other files are refused. Emails show a PNG logo (with SVG or WebP they keep the cat). <b>Reset to default</b> brings back the name DumpCat and the cat.</div></div>
+    </div></div></div>
     <div class="card"><div class="card-head"><h2>General</h2></div><div class="card-body"><div class="form-grid">
       <div class="field"><label>Time zone (schedules &amp; backup directory names)</label><input type="text" name="timezone" value="${s.timezone}" list="tz-list" placeholder="default: the server's time zone">
         <datalist id="tz-list">${TZ.map((t) => html`<option value="${t}">`)}</datalist></div>
@@ -104,6 +114,42 @@ export async function render(ctx) {
       m.el.querySelector('iframe').srcdoc = r.html;
     } catch (er) { toastErr(er); }
   });
+  const preview = el.querySelector('#logo-preview');
+  const fileInput = el.querySelector('#logo-file');
+  // the logo is saved at once: picking a file does not leave the form with unsaved changes
+  ['input', 'change'].forEach((t) => fileInput.addEventListener(t, (e) => e.stopPropagation()));
+  el.querySelector('#logo-upload').onclick = () => fileInput.click();
+  fileInput.addEventListener('change', async () => {
+    const f = fileInput.files[0];
+    fileInput.value = '';
+    if (!f) return;
+    if (f.size > 256 * 1024) { toast('The logo must be at most 256 KB', 'bad'); return; }
+    const data = await new Promise((res, rej) => { const rd = new FileReader(); rd.onload = () => res(rd.result); rd.onerror = () => rej(rd.error); rd.readAsDataURL(f); });
+    await busy(el.querySelector('#logo-upload'), async () => {
+      try {
+        const b = await put('/branding/logo', { data });
+        setBrand(b);
+        preview.src = b.logo;
+        toast('Logo updated');
+      } catch (er) { toastErr(er); }
+    });
+  });
+  el.querySelector('#brand-reset').onclick = async (e) => {
+    const btn = e.currentTarget;
+    if (!(await confirmBox({ title: 'Reset branding', message: 'Go back to the name DumpCat and the cat logo?', okText: 'Reset' }))) return;
+    await busy(btn, async () => {
+      try {
+        const cur = await get('/settings');
+        await put('/settings', { ...cur, instance_name: '' });
+        const b = await del('/branding/logo');
+        form.instance_name.value = '';
+        s.instance_name = '';
+        setBrand(b);
+        preview.src = '/assets/favicon.svg';
+        toast('Branding reset to default');
+      } catch (er) { toastErr(er); }
+    });
+  };
   let dirty = false;
   const setDirty = (v) => { dirty = v; el.querySelector('#dirty-note').textContent = v ? 'Unsaved changes' : ''; };
   form.addEventListener('input', () => setDirty(true));
@@ -117,6 +163,7 @@ export async function render(ctx) {
       const tp = {};
       form.querySelectorAll('[data-tool]').forEach((i) => { if (i.value.trim()) tp[i.dataset.tool] = i.value.trim(); });
       const body = {
+        instance_name: form.instance_name.value.trim(),
         timezone: form.timezone.value.trim(), base_url: form.base_url.value.trim(), max_concurrent: +form.max_concurrent.value,
         default_threads: +form.default_threads.value, staging_dir: form.staging_dir.value.trim(), history_days: +form.history_days.value,
         rclone_flags: form.rclone_flags.value.trim(), session_hours: +form.session_hours.value, require_2fa_admins: form.require_2fa_admins.checked, tool_paths: tp,
@@ -125,7 +172,12 @@ export async function render(ctx) {
         freshness_alerts: form.freshness_alerts.checked, stale_grace_minutes: +form.stale_grace_minutes.value, binlog_lag_minutes: +form.binlog_lag_minutes.value,
         digest_weekday: +form.digest_weekday.value, digest_hour: +form.digest_hour.value, metrics_access: form.metrics_access.value,
       };
-      try { await put('/settings', body); setDirty(false); toast('Settings saved'); } catch (er) { formError(form, er.message); }
+      try {
+        const saved = await put('/settings', body);
+        setDirty(false);
+        setBrand({ name: saved.instance_name || 'DumpCat' });
+        toast('Settings saved');
+      } catch (er) { formError(form, er.message); }
     });
   });
 }

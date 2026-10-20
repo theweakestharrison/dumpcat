@@ -590,6 +590,8 @@ type Settings struct {
 	DigestHour        int    `json:"digest_hour"`         // and hour, in the time zone above
 	// search engines may index the web UI (off: robots.txt, X-Robots-Tag and the page say noindex)
 	AllowIndexing bool `json:"allow_indexing"`
+	// branding: the name in the UI, page titles and notifications ("" = DumpCat); the logo is stored apart
+	InstanceName string `json:"instance_name"`
 }
 
 const (

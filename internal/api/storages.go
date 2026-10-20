@@ -402,13 +402,14 @@ func (s *Server) oauthResult(w http.ResponseWriter, r *http.Request) error {
 
 func (s *Server) oauthCallback(w http.ResponseWriter, r *http.Request) error {
 	q := r.URL.Query()
-	msg := "Authorization succeeded. You can close this tab and return to DumpCat."
+	msg := "Authorization succeeded. You can close this tab and return to " + s.Store.GetSettings().Brand() + "."
 	if e := q.Get("error"); e != "" {
 		msg = "Authorization failed: " + e + " " + q.Get("error_description")
 	} else if _, err := s.OAuth.Exchange(r.Context(), q.Get("state"), q.Get("code"), userOf(r).ID); err != nil {
 		msg = "Authorization failed: " + err.Error()
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	fmt.Fprintf(w, `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>DumpCat OAuth</title><link rel="stylesheet" href="/assets/app.css"></head><body class="oauth-done"><div class="card"><h2>DumpCat</h2><p>%s</p></div></body></html>`, html.EscapeString(msg))
+	name := html.EscapeString(s.Store.GetSettings().Brand())
+	fmt.Fprintf(w, `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>%s OAuth</title><link rel="stylesheet" href="/assets/app.css"></head><body class="oauth-done"><div class="card"><h2>%s</h2><p>%s</p></div></body></html>`, name, name, html.EscapeString(msg))
 	return nil
 }

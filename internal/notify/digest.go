@@ -20,6 +20,7 @@ type Digest struct {
 	PrevWritten int64         // and of the period before
 	URL         string        // the dashboard ("" without a base URL)
 	Time        time.Time
+	Brand       Brand // set by the Notifier from the settings
 }
 
 // DigestJob is one job's week.
@@ -288,9 +289,9 @@ func (d *Digest) text(host string) string {
 		}
 	}
 	if d.URL != "" {
-		b.WriteString("\nOpen in DumpCat: " + d.URL + "\n")
+		b.WriteString("\nOpen in " + d.Brand.name() + ": " + d.URL + "\n")
 	}
-	fmt.Fprintf(&b, "\n-- \nDumpCat on %s · %s\n", host, ev.when())
+	fmt.Fprintf(&b, "\n-- \n%s on %s · %s\n", d.Brand.name(), host, ev.when())
 	return b.String()
 }
 
@@ -411,7 +412,7 @@ func (d *Digest) emailHTML(host string) (string, error) {
 	}
 	data := map[string]any{
 		"Title": ev.Title, "L": l, "Label": "Weekly digest · " + d.period(), "Mark": ev.mark(), "Tiles": tiles, "Overdue": ods,
-		"Jobs": jobs, "Drills": drills, "Storages": sts, "Stored": fmtBytes(d.stored()), "Host": host, "When": ev.when(),
+		"Jobs": jobs, "Drills": drills, "Storages": sts, "Stored": fmtBytes(d.stored()), "Host": host, "When": ev.when(), "Brand": d.Brand.name(),
 		"Preheader": fmt.Sprintf("%s · %s written · %d overdue", ev.Title, fmtBytes(d.Written), len(d.Overdue)), "Manage": template.URL(ev.manageURL()),
 	}
 	if strings.HasPrefix(d.URL, "http") {
@@ -435,5 +436,5 @@ func (d *Digest) emailMessage(from string, to []string, host string) ([]byte, er
 	if err != nil {
 		return nil, err
 	}
-	return mimeMessage(from, to, "📊 Weekly digest: "+d.event().Title+" ("+d.period()+")", d.Time, d.text(host), page)
+	return mimeMessage(from, to, d.Brand.subject("📊 Weekly digest: "+d.event().Title+" ("+d.period()+")"), d.Time, d.text(host), page, d.Brand.EmailLogo())
 }

@@ -64,6 +64,10 @@ type Server struct {
 
 	allowIndexing atomic.Bool // Settings: search engines may index the UI (robots.go)
 
+	logoMu     sync.Mutex  // the uploaded logo, read once (branding.go)
+	logoCache  *store.Logo // nil: the cat
+	logoLoaded bool
+
 	api        http.Handler      // the API routes: MCP tools call them in-process (mcp.go)
 	routeRoles map[string]string // route pattern → minimum role
 }
@@ -546,6 +550,10 @@ func (s *Server) routes(mux *http.ServeMux) {
 	s.route(mux, "GET /api/settings", adm, s.settingsGet)
 	s.route(mux, "PUT /api/settings", adm, s.settingsPut)
 	s.route(mux, "POST /api/settings/metrics-token", adm, s.metricsTokenCreate)
+	// branding: the instance name is a setting; the logo is uploaded apart (branding.go)
+	s.route(mux, "GET /api/branding/logo", pub, s.logoGet)
+	s.route(mux, "PUT /api/branding/logo", adm, s.logoPut)
+	s.route(mux, "DELETE /api/branding/logo", adm, s.logoDelete)
 	// Prometheus metrics: off until enabled in Settings (bearer token or this machine only)
 	mux.HandleFunc("GET /metrics", s.metricsEndpoint)
 	mux.HandleFunc("GET /robots.txt", s.robotsTxt)

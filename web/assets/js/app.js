@@ -1,7 +1,7 @@
 import { get, post, setCsrf, setUnauthorizedHandler, setNewBuildHandler } from './api.js';
 import { html, setHTML, icon, on, toast, toastErr, busy, formData, closeDropdowns, dropdown, linkLabels } from './ui.js';
 
-export const app = { user: null, version: '', csrf: '' };
+export const app = { user: null, version: '', csrf: '', brand: { name: 'DumpCat', logo: '' } };
 
 const isAdmin = () => app.user && app.user.role === 'admin';
 const canOperate = () => app.user && (app.user.role === 'admin' || app.user.role === 'operator');
@@ -127,7 +127,25 @@ export function setTitle(t) {
       return html`${sep}<a class="crumb" href="${p.href}">${p.label}</a>`;
     }));
   }
-  document.title = lastLabel + ' · DumpCat';
+  pageLabel = lastLabel;
+  document.title = lastLabel + ' · ' + app.brand.name;
+}
+let pageLabel = '';
+
+// ---------- branding: the instance name and logo (Settings → Branding) ----------
+const DEFAULT_LOGO = '/assets/favicon.svg';
+function brandHTML() {
+  return html`<div class="brand"><img class="brand-logo" src="${app.brand.logo || DEFAULT_LOGO}" alt="" width="30" height="30"><div>${app.brand.name}<small>MySQL · MariaDB · PostgreSQL</small></div></div>`;
+}
+/** Shows a new instance name or logo in the sidebar, the tab's title and its icon. */
+export function setBrand(b) {
+  if (b) app.brand = { ...app.brand, ...b };
+  const link = document.querySelector('link[rel="icon"]');
+  if (link) {
+    if (app.brand.logo) { link.href = app.brand.logo; link.removeAttribute('type'); } else if (!link.href.endsWith('favicon.svg')) { link.href = DEFAULT_LOGO; link.type = 'image/svg+xml'; }
+  }
+  document.querySelectorAll('.brand').forEach((el) => { el.outerHTML = String(brandHTML()); });
+  document.title = pageLabel ? pageLabel + ' · ' + app.brand.name : app.brand.name;
 }
 
 let setNav = () => {};
@@ -204,7 +222,7 @@ async function route() {
       cleanup: (fn) => cleanups.push(fn),
       alive: () => seq === routeSeq,
     };
-    setTitle(mod.title || 'DumpCat');
+    setTitle(mod.title || app.brand.name);
     await mod.render(ctx);
     window.scrollTo(0, 0);
   } catch (e) {
@@ -257,7 +275,7 @@ function renderLayout() {
   const t = currentTheme();
   setHTML(root, html`<div class="app">
     <aside class="sidebar" id="sidebar">
-      <div class="brand"><img class="brand-logo" src="/assets/favicon.svg" alt="" width="30" height="30"><div>DumpCat<small>MySQL · MariaDB · PostgreSQL</small></div></div>
+      ${brandHTML()}
       <nav class="nav">${navHtml}</nav>
       <div class="sidebar-foot">v${app.version} <a href="#/system" class="badge info hidden" id="upd-ind">${icon('download')}<span></span></a></div>
     </aside>
@@ -333,8 +351,10 @@ async function logout() {
 
 // ---------- auth screens ----------
 function authShell(body) {
+  pageLabel = '';
+  document.title = app.brand.name;
   return html`<div class="auth-wrap"><div class="auth-card">
-    <div class="brand"><img class="brand-logo" src="/assets/favicon.svg" alt="" width="30" height="30"><div>DumpCat<small>MySQL · MariaDB · PostgreSQL</small></div></div>
+    ${brandHTML()}
     <div class="card"><div class="card-body">${body}</div></div>
     <p class="muted small" style="text-align:center;margin-top:14px">v${app.version}</p>
   </div></div>`;
@@ -485,6 +505,7 @@ async function boot() {
   }
   app.version = st.version;
   app.platform = st.platform;
+  if (st.brand) setBrand(st.brand);
   if (st.setup_required) return renderSetup();
   if (!st.authenticated) return renderLogin();
   await afterLogin(st);

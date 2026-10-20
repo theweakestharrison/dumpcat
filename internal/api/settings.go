@@ -228,6 +228,10 @@ func (s *Server) settingsPut(w http.ResponseWriter, r *http.Request) error {
 	if in.DigestWeekday < 0 || in.DigestWeekday > 6 || in.DigestHour < 0 || in.DigestHour > 23 {
 		return badRequest("invalid day or hour for the weekly digest")
 	}
+	in.InstanceName = strings.TrimSpace(in.InstanceName)
+	if err := checkInstanceName(in.InstanceName); err != nil {
+		return err
+	}
 	in.BaseURL = strings.TrimRight(strings.TrimSpace(in.BaseURL), "/")
 	in.UpdateURL = strings.TrimSpace(in.UpdateURL)
 	if in.UpdateURL != "" {

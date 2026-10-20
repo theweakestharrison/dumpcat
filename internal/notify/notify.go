@@ -36,6 +36,7 @@ type Event struct {
 	Error  string            `json:"error,omitempty"`
 	URL    string            `json:"url,omitempty"`
 	Time   time.Time         `json:"time"`
+	Brand  Brand             `json:"-"` // set by the Notifier from the settings
 }
 
 // StatusRecovered ends an alert (stale, binlog_lag): it goes to the channels
@@ -131,6 +132,7 @@ func (n *Notifier) Send(ev Event) {
 	if err != nil {
 		return
 	}
+	ev.Brand = n.Brand()
 	for _, ch := range chans {
 		if !ch.Enabled {
 			continue
@@ -153,7 +155,7 @@ func (n *Notifier) Send(ev Event) {
 
 // Test sends a test message synchronously.
 func (n *Notifier) Test(ctx context.Context, ch *store.NotifyChannel) error {
-	ev := Event{Kind: "test", Status: "success", Title: "Notifications work", Time: time.Now()}
+	ev := Event{Kind: "test", Status: "success", Title: "Notifications work", Time: time.Now(), Brand: n.Brand()}
 	ev.Add("Channel", ch.Name)
 	ev.Add("Sent from", n.Host)
 	ev.Add("Time", ev.Time.Format("2006-01-02 15:04:05"))
@@ -236,6 +238,7 @@ func (n *Notifier) SendDigest(ctx context.Context, ch *store.NotifyChannel, d *D
 	if ch.Type != "email" {
 		return errors.New("the weekly digest is sent by email only")
 	}
+	d.Brand = n.Brand()
 	return sendEmail(ctx, ch.Config, func(from string, to []string) ([]byte, error) { return d.emailMessage(from, to, n.Host) })
 }
 

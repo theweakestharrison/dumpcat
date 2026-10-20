@@ -131,9 +131,9 @@ func (e *Event) text(host string) string {
 		}
 	}
 	if e.URL != "" {
-		b.WriteString("\nOpen in DumpCat: " + e.URL + "\n")
+		b.WriteString("\nOpen in " + e.Brand.name() + ": " + e.URL + "\n")
 	}
-	fmt.Fprintf(&b, "\n-- \nDumpCat on %s · %s\n", host, e.when())
+	fmt.Fprintf(&b, "\n-- \n%s on %s · %s\n", e.Brand.name(), host, e.when())
 	return b.String()
 }
 
@@ -161,8 +161,8 @@ var emailShell = template.Must(template.New("email").Parse(`<!doctype html>
 <table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width:600px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif">
   <tr><td style="padding:0 4px 14px">
     <table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>
-      <td style="width:36px;vertical-align:middle"><img src="cid:logo@dumpcat" width="36" height="36" alt="DumpCat" style="display:block;border:0;border-radius:9px"></td>
-      <td class="ink" style="padding-left:10px;vertical-align:middle;font-size:16px;font-weight:700;color:#0e1116;line-height:1.2">DumpCat<br><span class="muted" style="font-size:12px;font-weight:400;color:#6b6963">MySQL · MariaDB · PostgreSQL</span></td>
+      <td style="width:36px;vertical-align:middle"><img src="cid:logo@dumpcat" width="36" height="36" alt="{{.Brand}}" style="display:block;border:0;border-radius:9px"></td>
+      <td class="ink" style="padding-left:10px;vertical-align:middle;font-size:16px;font-weight:700;color:#0e1116;line-height:1.2">{{.Brand}}<br><span class="muted" style="font-size:12px;font-weight:400;color:#6b6963">MySQL · MariaDB · PostgreSQL</span></td>
     </tr></table>
   </td></tr>
   <tr><td class="card" style="background:#ffffff;border:1px solid #e3e2dd;border-radius:14px;overflow:hidden">
@@ -179,13 +179,13 @@ var emailShell = template.Must(template.New("email").Parse(`<!doctype html>
       {{template "content" .}}
       {{if .URL}}<tr><td class="px" style="padding:18px 28px 26px">
         <table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr><td style="border-radius:8px;background:#2368c4">
-          <a href="{{.URL}}" style="display:inline-block;padding:11px 20px;border-radius:8px;font-size:14px;font-weight:600;color:#ffffff;text-decoration:none">Open in DumpCat →</a>
+          <a href="{{.URL}}" style="display:inline-block;padding:11px 20px;border-radius:8px;font-size:14px;font-weight:600;color:#ffffff;text-decoration:none">Open in {{.Brand}} →</a>
         </td></tr></table>
       </td></tr>{{else}}<tr><td style="height:18px;line-height:18px;font-size:0">&nbsp;</td></tr>{{end}}
     </table>
   </td></tr>
   <tr><td class="muted" style="padding:16px 8px 0;text-align:center;font-size:12px;line-height:1.6;color:#8a8882">
-    Sent by DumpCat on {{.Host}} · {{.When}}{{if .Manage}}<br><a href="{{.Manage}}" style="color:#8a8882;text-decoration:underline">Notification settings</a>{{end}}
+    Sent by {{.Brand}} on {{.Host}} · {{.When}}{{if .Manage}}<br><a href="{{.Manage}}" style="color:#8a8882;text-decoration:underline">Notification settings</a>{{end}}
   </td></tr>
 </table>
 </td></tr></table>
@@ -231,7 +231,7 @@ func (e *Event) emailHTML(host string) (string, error) {
 	}
 	data := map[string]any{
 		"Title": e.Title, "L": l, "Label": l.Kind + " · " + l.Status, "Mark": e.mark(), "Rows": rows, "Error": trunc(strings.TrimSpace(e.Error), 4000),
-		"Host": host, "When": e.when(), "Preheader": strings.Join(pre, " · "), "Manage": template.URL(e.manageURL()),
+		"Host": host, "When": e.when(), "Preheader": strings.Join(pre, " · "), "Manage": template.URL(e.manageURL()), "Brand": e.Brand.name(),
 	}
 	if strings.HasPrefix(e.URL, "http") {
 		data["URL"] = template.URL(e.URL)
@@ -250,12 +250,12 @@ func (e *Event) emailMessage(from string, to []string, host string) ([]byte, err
 		return nil, err
 	}
 	l := e.look()
-	return mimeMessage(from, to, strings.TrimSpace(l.Icon+" "+e.Title), e.Time, e.text(host), htmlBody)
+	return mimeMessage(from, to, e.Brand.subject(strings.TrimSpace(l.Icon+" "+e.Title)), e.Time, e.text(host), htmlBody, e.Brand.EmailLogo())
 }
 
 // mimeMessage builds an email with a text and an HTML version, the HTML with
-// the logo attached inline.
-func mimeMessage(from string, to []string, subject string, date time.Time, textBody, htmlBody string) ([]byte, error) {
+// the logo (a PNG) attached inline.
+func mimeMessage(from string, to []string, subject string, date time.Time, textBody, htmlBody string, logo []byte) ([]byte, error) {
 	var body bytes.Buffer
 	alt := multipart.NewWriter(&body)
 	part := func(w *multipart.Writer, h textproto.MIMEHeader, content []byte, b64 bool) error {
@@ -289,7 +289,7 @@ func mimeMessage(from string, to []string, subject string, date time.Time, textB
 		return nil, err
 	}
 	if err := part(rel, textproto.MIMEHeader{"Content-Type": {"image/png"}, "Content-Transfer-Encoding": {"base64"},
-		"Content-Id": {"<logo@dumpcat>"}, "Content-Disposition": {`inline; filename="dumpcat.png"`}}, logoPNG, true); err != nil {
+		"Content-Id": {"<logo@dumpcat>"}, "Content-Disposition": {`inline; filename="dumpcat.png"`}}, logo, true); err != nil {
 		return nil, err
 	}
 	if err := rel.Close(); err != nil {
@@ -338,7 +338,7 @@ func (e *Event) telegram() string {
 		fmt.Fprintf(&b, "\n<b>Error</b>\n<pre>%s</pre>\n", esc(trunc(strings.TrimSpace(e.Error), 1500)))
 	}
 	if strings.HasPrefix(e.URL, "http") {
-		fmt.Fprintf(&b, "\n<a href=\"%s\">Open in DumpCat →</a>", esc(e.URL))
+		fmt.Fprintf(&b, "\n<a href=\"%s\">Open in %s →</a>", esc(e.URL), esc(e.Brand.name()))
 	}
 	return b.String()
 }
@@ -381,10 +381,10 @@ func (e *Event) slack(host string) map[string]any {
 	}
 	if strings.HasPrefix(e.URL, "http") {
 		blocks = append(blocks, map[string]any{"type": "actions", "elements": []any{map[string]any{"type": "button",
-			"text": map[string]any{"type": "plain_text", "text": "Open in DumpCat"}, "url": e.URL}}})
+			"text": map[string]any{"type": "plain_text", "text": trunc("Open in "+e.Brand.name(), 75)}, "url": e.URL}}})
 	}
 	blocks = append(blocks, map[string]any{"type": "context", "elements": []any{map[string]any{"type": "mrkdwn",
-		"text": fmt.Sprintf("DumpCat on %s · <!date^%d^{date_short_pretty} {time}|%s>", slackEsc(host), e.Time.Unix(), e.when())}}})
+		"text": fmt.Sprintf("%s on %s · <!date^%d^{date_short_pretty} {time}|%s>", slackEsc(e.Brand.name()), slackEsc(host), e.Time.Unix(), e.when())}}})
 	return map[string]any{"text": l.Icon + " " + slackEsc(e.Title), "attachments": []any{map[string]any{"color": l.Slack, "blocks": blocks}}}
 }
 
@@ -398,7 +398,7 @@ func (e *Event) discord(host string) map[string]any {
 	}
 	embed := map[string]any{
 		"title": trunc(l.Icon+" "+e.Title, 256), "description": desc, "color": l.Discord,
-		"footer": map[string]any{"text": trunc("DumpCat on "+host, 2000)}, "timestamp": e.Time.UTC().Format(time.RFC3339),
+		"footer": map[string]any{"text": trunc(e.Brand.name()+" on "+host, 2000)}, "timestamp": e.Time.UTC().Format(time.RFC3339),
 	}
 	if strings.HasPrefix(e.URL, "http") {
 		embed["url"] = e.URL
@@ -417,5 +417,5 @@ func (e *Event) discord(host string) map[string]any {
 	if len(fields) > 0 {
 		embed["fields"] = fields
 	}
-	return map[string]any{"username": "DumpCat", "embeds": []any{embed}}
+	return map[string]any{"username": e.Brand.discordName(), "embeds": []any{embed}}
 }
