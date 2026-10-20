@@ -8,7 +8,7 @@ export const title = 'Restore details';
 const OPT_LABELS = {
   location_id: 'Source location', target_server_id: 'Target server (id)', databases: 'Databases', rename: 'Rename', drop_existing: 'Drop target databases first',
   no_binlog: 'No binlog', fast_mode: 'Fast mode', restore_users: 'Restore users', threads: 'Threads', target_dir: 'Extraction directory',
-  apply: 'Apply to datadir', service_name: 'Service', datadir: 'Datadir', move_back: 'Move-back', use_memory: 'use-memory', os_user: 'OS user',
+  apply: 'Replace the data directory', service_name: 'Service', datadir: 'Data directory', move_back: 'Move-back', use_memory: 'use-memory', os_user: 'OS user',
   pitr: 'Point-in-time recovery', strip_definer: 'Remove DEFINER', convert_collations: 'Convert collations', skip_gtid_purged: 'Skip GTID_PURGED',
   no_owner: 'Skip ownership (--no-owner)', no_privileges: 'Skip privileges (--no-privileges)',
 };
@@ -18,12 +18,14 @@ function fmtPITR(t) {
     case 'time': return `up to ${fmtDate(t.time, true)}`;
     case 'gtid': return `just before GTID ${t.gtid}`;
     case 'position': return `up to ${t.file}:${t.pos}`;
+    case 'lsn': return `up to WAL position ${t.lsn}`;
+    case 'name': return `up to restore point ${t.name}`;
     default: return 'latest available';
   }
 }
 
 function fmtOpt(v) {
-  if (v && v.type && ['time', 'gtid', 'position', 'latest'].includes(v.type)) return fmtPITR(v);
+  if (v && v.type && ['time', 'gtid', 'position', 'lsn', 'name', 'latest'].includes(v.type)) return fmtPITR(v);
   if (v === true) return 'yes';
   if (v === false) return 'no';
   if (Array.isArray(v)) return v.length ? v.join(', ') : 'all';

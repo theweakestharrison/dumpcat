@@ -803,7 +803,7 @@ route('POST', '/pitr/plan', ({ body }) => {
   if (t.type === 'time' && t.time) until = iso(new Date(t.time).getTime());
   const used = files.filter((b) => b.first_ts <= until);
   const label = { latest: 'the latest archived binlog', time: `the moment ${until}`, position: `${t.file}:${t.pos}`, gtid: `just before GTID ${t.gtid}` }[t.type] || t.type;
-  return { ok: true, target: label, base: { id: r.id, dir_name: r.dir_name, method: r.method, type: r.type, started_at: r.started_at, consistent_at: r.started_at, binlog_file: r.meta.binlog_file, binlog_pos: r.meta.binlog_pos },
+  return { ok: true, target: label, log: 'binlog', files_name: 'binlogs', base: { id: r.id, dir_name: r.dir_name, method: r.method, type: r.type, started_at: r.started_at, consistent_at: r.started_at, start: `${r.meta.binlog_file}:${r.meta.binlog_pos}` },
     run_ok: true, files: used.length, bytes: used.reduce((a, b) => a + b.stored_bytes, 0), first_file: used[0] && used[0].file_name, last_file: used.at(-1) && used.at(-1).file_name, coverage: files.at(-1).last_ts, warnings: [] };
 });
 
@@ -1048,10 +1048,11 @@ route('GET', '/binlog', () => db.jobs.filter((j) => j.options.binlog_archive).ma
   const last = files.at(-1);
   return {
     archive: true, enabled: j.enabled, job_id: j.id, job_name: j.name, method: j.method, rotate_minutes: j.options.binlog_rotate_minutes, server_name: j.server_name,
+    engine: 'mysql', log: { name: 'binlog', file: 'binlog', files: 'binlogs', prefix: 'binlog', targets: ['time', 'gtid', 'position', 'latest'], close: 'FLUSH BINARY LOGS', recovery: false },
     stats: { files: files.length, raw_bytes: files.reduce((a, b) => a + b.size_bytes, 0), stored_bytes: files.reduce((a, b) => a + b.stored_bytes, 0), first: files[0] && files[0].first_ts, last: last && last.last_ts },
-    status: { job_id: j.id, job_name: j.name, server_name: j.server_name, state: 'streaming', error: '', error_at: null, next_try: null, since: iso(now() - 4 * 24 * H), restarts: 0,
+    status: { job_id: j.id, job_name: j.name, server_name: j.server_name, log: 'binlog', state: 'streaming', error: '', error_at: null, next_try: null, since: iso(now() - 4 * 24 * H), restarts: 0,
       current_file: `mysql-bin.${String((last ? last.seq : 900) + 1).padStart(6, '0')}`, received_bytes: Math.round(3.2 * MiB + (now() % 600000) * 20), received_at: iso(now() - 2000),
-      server_file: `mysql-bin.${String((last ? last.seq : 900) + 1).padStart(6, '0')}`, server_pos: Math.round(3.2 * MiB + (now() % 600000) * 20), checked_at: iso(now() - 3000),
+      server_position: `mysql-bin.${String((last ? last.seq : 900) + 1).padStart(6, '0')}:${Math.round(3.2 * MiB + (now() % 600000) * 20)}`, checked_at: iso(now() - 3000),
       lag_bytes: 0, lag_seconds: 0, pending_files: 0, pending_bytes: 0, upload_error: '', last_archived: last && last.file_name, archived_at: last && last.created_at, archived_until: last && last.last_ts, rotated_at: last && last.last_ts,
       started_at: iso(now() - 4 * 24 * H), caught_up_at: iso(now() - 3000), pending_since: null, archive_lag_seconds: 0 },
   };

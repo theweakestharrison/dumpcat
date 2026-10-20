@@ -1,14 +1,14 @@
 import { get, post } from '../api.js';
 import { html, setHTML, icon, $, debounce, fmtDate, toDate } from '../ui.js';
 import { navigate, canOperate } from '../app.js';
-import { backBtn, pitrTargetFields, bindPITRFields, readPITRTarget, pitrPlanView, localInput } from '../components.js';
+import { backBtn, pitrTargetFields, bindPITRFields, readPITRTarget, pitrPlanView, localInput, logInfo } from '../components.js';
 
 export const title = 'Point-in-time recovery';
 
 const DAY = 86400000;
 
-// Picks the recovery target first, on a timeline of the job's backups and archived binlogs; the newest
-// backup before it is then restored through the normal restore form with the target pre-filled.
+// Picks the recovery target first, on a timeline of the job's backups and archived log (binlogs, WAL); the
+// newest backup before it is then restored through the normal restore form with the target pre-filled.
 export async function render(ctx) {
   const { el, query } = ctx;
   if (!canOperate()) { setHTML(el, html`<div class="alert warn">${icon('lock')}<div>You don't have permission to restore.</div></div>`); return; }
@@ -16,7 +16,7 @@ export async function render(ctx) {
   let jobId = +query.job_id || (jobs[0] && jobs[0].job_id) || 0;
   setHTML(el, html`
     <div class="page-head">${backBtn('#/binlogs')}<div><h1>Restore to a point in time</h1>
-      <div class="sub">Pick where the recovery stops. DumpCat restores the newest backup before that point, then replays the archived binlogs up to it.</div></div></div>
+      <div class="sub">Pick where the recovery stops. DumpCat restores the newest backup before that point, then replays the archived log (binlogs, WAL) up to it.</div></div></div>
     ${jobs.length ? html`<form id="pitr-form" autocomplete="off">
       <div class="card"><div class="card-body">
         <div class="pt-head">
@@ -27,7 +27,7 @@ export async function render(ctx) {
       </div></div>
       <div class="card" style="margin-top:16px"><div class="card-body">
         <div class="section-title">Stop the recovery</div>
-        <div id="pitr-target">${pitrTargetFields({})}</div>
+        <div id="pitr-target"></div>
       </div></div>
       <div class="card" style="margin-top:16px"><div class="card-body">
         <div class="section-title">What DumpCat will do</div>
@@ -35,13 +35,31 @@ export async function render(ctx) {
       </div></div>
       <div class="form-actions" style="margin-top:16px"><a class="btn" href="#/binlogs">Cancel</a><button class="btn btn-primary" type="submit" id="go" disabled>${icon('restore')}Continue to restore options</button></div>
     </form>`
-      : html`<div class="card"><div class="empty">${icon('layers')}No job archives binlogs yet: turn on continuous binlog archiving in a job first.</div></div>`}`);
+      : html`<div class="card"><div class="empty">${icon('layers')}No job archives its server's log yet: turn on continuous log archiving in a job first.</div></div>`}`);
   if (!jobs.length) return;
 
   const form = $('#pitr-form', el);
   const tbox = $('#pitr-target', el);
-  const timeInput = $('[name=pitr_time]', tbox);
-  bindPITRFields(tbox);
+  // the target types of the job's log; restore points of its archived WAL (PostgreSQL)
+  let shown = null;
+  const drawTarget = async () => {
+    const job = jobs.find((j) => j.job_id === jobId) || jobs[0];
+    const L = logInfo(job.log);
+    let points = [];
+    if (L.targets.includes('name')) {
+      try {
+        const res = await get(`/jobs/${job.job_id}/binlogs?limit=1000`);
+        points = [...new Set(res.items.flatMap((f) => ((f.meta && f.meta.points) || []).map((x) => x.name)))];
+      } catch { /* suggestions only */ }
+    }
+    if (!ctx.alive()) return;
+    const prev = shown === L.name ? readPITRTarget(tbox) || {} : {};
+    setHTML(tbox, pitrTargetFields(prev, job.log, points));
+    if (shown === null) bindPITRFields(tbox); // the listeners stay on the box
+    else tbox.querySelector('input[name=pitr_type]:checked').dispatchEvent(new Event('change', { bubbles: true }));
+    shown = L.name;
+  };
+  const timeInput = () => $('[name=pitr_time]', tbox);
   let plan = null;
   let target = null;
   let view = null; // { job, runs, from, to } of the timeline
@@ -68,7 +86,7 @@ export async function render(ctx) {
     view = { job, from, to: now, min, max: last ? last.getTime() : now, backups, live, first, last };
     const inWindow = backups.filter((b) => b.at.getTime() >= from).length;
     setHTML($('#pt-facts', el), html`
-      <span class="chip-fact">${icon('layers')}Binlogs ${first ? fmtDate(first) : '—'} → ${live ? html`<b class="live">now, streaming</b>` : (last ? fmtDate(last) : '—')}</span>
+      <span class="chip-fact">${icon('layers')}${logInfo(job.log).name === 'WAL' ? 'WAL' : 'Binlogs'} ${first ? fmtDate(first) : '—'} → ${live ? html`<b class="live">now, streaming</b>` : (last ? fmtDate(last) : '—')}</span>
       <span class="chip-fact">${icon('archive')}${inWindow} backup${inWindow === 1 ? '' : 's'} in this window</span>`);
     drawTimeline();
   };
@@ -101,14 +119,15 @@ export async function render(ctx) {
       <div class="pt-axis">${axis()}</div>
       <ul class="pt-legend">
         <li><i class="lg-full"></i>Full backup</li><li><i class="lg-incr"></i>Incremental</li>
-        <li><i class="lg-stream"></i>Archived binlogs</li><li><i class="lg-replay"></i>Replayed on restore</li><li><i class="lg-pin"></i>Recovery point</li>
+        <li><i class="lg-stream"></i>Archived ${logInfo(v.job.log).files}</li><li><i class="lg-replay"></i>Replayed on restore</li><li><i class="lg-pin"></i>Recovery point</li>
       </ul>
     </div>`);
     const range = $('#pt-range', el);
     range.addEventListener('input', () => {
       const typeTime = form.querySelector('input[name=pitr_type][value=time]');
       if (!typeTime.checked) { typeTime.checked = true; typeTime.dispatchEvent(new Event('change', { bubbles: true })); }
-      timeInput.value = localInput(new Date(+range.value));
+      const ti = timeInput();
+      if (ti) ti.value = localInput(new Date(+range.value));
       placePin();
       recheck();
     });
@@ -159,7 +178,7 @@ export async function render(ctx) {
     $('#go', el).disabled = true;
     placePin();
     if (!target) { plan = null; markPlan(); setHTML(box, html`<div class="muted small">Enter where to stop.</div>`); return; }
-    setHTML(box, html`<div class="muted small">${icon('loader', 'spin')} Checking backups and archived binlogs…</div>`);
+    setHTML(box, html`<div class="muted small">${icon('loader', 'spin')} Checking backups and the archived log…</div>`);
     try { plan = await post('/pitr/plan', { job_id: jobId, target }); } catch (er) { plan = { ok: false, target: target.type, error: er.message }; }
     if (!ctx.alive()) return;
     setHTML(box, pitrPlanView(plan, 0, target));
@@ -170,11 +189,12 @@ export async function render(ctx) {
   const recheck = debounce(check, 400);
   tbox.addEventListener('input', () => { placePin(); recheck(); });
   tbox.addEventListener('change', () => { placePin(); recheck(); });
-  form.job_id.addEventListener('change', async () => { jobId = +form.job_id.value; await loadJob(); check(); });
+  form.job_id.addEventListener('change', async () => { jobId = +form.job_id.value; await drawTarget(); await loadJob(); check(); });
   form.addEventListener('submit', (e) => {
     e.preventDefault();
     if (plan && plan.ok) navigate(`/runs/${plan.base.id}/restore?pitr=${encodeURIComponent(JSON.stringify(target))}`);
   });
+  await drawTarget();
   await loadJob();
   check();
 }

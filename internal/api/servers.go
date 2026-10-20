@@ -387,14 +387,20 @@ type engineView struct {
 	Methods        []engine.Method        `json:"methods"`
 	RestoreOptions []engine.RestoreOption `json:"restore_options"`
 	Drills         bool                   `json:"drills"`
+	Log            *engine.LogInfo        `json:"log,omitempty"` // continuous log archiving and PITR
 }
 
 func (s *Server) enginesList(w http.ResponseWriter, r *http.Request) error {
 	var out []engineView
 	for _, d := range drivers.All() {
 		_, sb := d.(engine.Sandbox)
-		out = append(out, engineView{Engine: d.Engine(), Label: d.Label(), Product: d.Product(), DefaultPort: d.DefaultPort(),
-			Methods: d.Methods(), RestoreOptions: d.RestoreOptions(), Drills: sb})
+		v := engineView{Engine: d.Engine(), Label: d.Label(), Product: d.Product(), DefaultPort: d.DefaultPort(),
+			Methods: d.Methods(), RestoreOptions: d.RestoreOptions(), Drills: sb}
+		if la, ok := d.(engine.LogArchiver); ok {
+			info := la.LogInfo()
+			v.Log = &info
+		}
+		out = append(out, v)
 	}
 	return ok(w, out)
 }

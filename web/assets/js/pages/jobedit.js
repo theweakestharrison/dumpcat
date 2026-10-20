@@ -35,6 +35,24 @@ const DB_HELP = {
   mysql: '"All" excludes system schemas (mysql, sys, information_schema, performance_schema). Users &amp; grants are backed up separately (option below).',
   postgres: '"All" excludes the template databases (template0, template1). Roles are backed up separately (option below).',
 };
+// Section 8: what archiving the server's log means per engine
+const LOG_TEXT = {
+  mysql: {
+    label: 'Continuous binlog archiving',
+    help: 'DumpCat streams the server\'s binary logs (mysqlbinlog --raw --stop-never, as a replication client) and stores every closed binlog — compressed and encrypted like the backups — on this job\'s storages. A restore can then stop at any moment: a time, a binlog position or just before a GTID. Retention removes binlogs older than the oldest kept backup.',
+    rotate: 'Close &amp; upload the current binlog after (minutes)',
+    rotateHelp: 'Bounds how much could be lost if this server disappears: once the current binlog holds transactions this long, DumpCat runs FLUSH BINARY LOGS (needs RELOAD) so it is uploaded. 0 = only when the server rotates it (max_binlog_size). Changes not uploaded yet are also kept in the DumpCat staging folder.',
+    reqs: 'Requirements: <code>log_bin</code> and <code>server_id</code> on the server; the backup user needs <code>REPLICATION SLAVE</code> and <code>REPLICATION CLIENT</code> (MariaDB: <code>BINLOG MONITOR</code>); <code>mysqlbinlog</code>/<code>mariadb-binlog</code> on the DumpCat host. mysqldump jobs then always record the binlog position. Binlogs contain changes to <b>every</b> database of the server.',
+  },
+  postgres: {
+    label: 'Continuous WAL archiving',
+    help: 'DumpCat streams the server\'s WAL (pg_receivewal, through a replication slot of this job) and stores every completed segment — compressed and encrypted like the backups — on this job\'s storages. A restore can then stop at any moment: a time, a restore point or a WAL position. Retention removes WAL older than the oldest kept backup.',
+    rotate: 'Close &amp; upload the current WAL segment after (minutes)',
+    rotateHelp: 'Bounds how much could be lost if this server disappears: once the current segment holds commits this long, DumpCat runs pg_switch_wal() (a superuser, or GRANT EXECUTE ON FUNCTION pg_switch_wal() TO the account) so it is uploaded. 0 = only when the segment is full. Changes not uploaded yet are also kept in the DumpCat staging folder.',
+    reqs: 'Requirements: <code>wal_level</code> replica (the default) or logical; the backup account needs the <code>REPLICATION</code> attribute and a <code>replication</code> line in <code>pg_hba.conf</code>; <code>pg_receivewal</code> on the DumpCat host. The replication slot <b>keeps WAL on the server</b> whenever DumpCat is not receiving it: set <code>max_slot_wal_keep_size</code> to bound it. Turning archiving off, disabling or deleting the job drops the slot.',
+  },
+};
+
 const EXCL_HELP = {
   mysql: html`Exclude tables (one per line, as <code>database.table</code>)`,
   postgres: html`Exclude tables (one per line, as <code>database.table</code> or <code>database.schema.table</code>)`,
@@ -64,7 +82,7 @@ export async function render(ctx) {
   const titleText = editing ? `Edit job: ${job.name}` : 'New backup job';
   setTitle([{ label: 'Backup jobs', href: '#/jobs' }, titleText]);
   const SECTIONS = [['sec-general', 'General'], ['sec-db', 'Databases'], ['sec-schedule', 'Schedule'], ['sec-compress', 'Compression'],
-    ['sec-storage', 'Storage'], ['sec-retention', 'Retention'], ['sec-advanced', 'Advanced'], ['sec-binlog', 'Binlog & PITR'], ['sec-notify', 'Notifications']];
+    ['sec-storage', 'Storage'], ['sec-retention', 'Retention'], ['sec-advanced', 'Advanced'], ['sec-binlog', 'Log & PITR'], ['sec-notify', 'Notifications']];
   const tgt = (id) => job.targets.find((t) => t.storage_id === id);
   const o = job.options;
   // jobs saved before verify_mode only have verify_after (it checked every copy)
@@ -213,13 +231,13 @@ export async function render(ctx) {
         </div>
       </div></details>
 
-      <div class="card" id="sec-binlog"><div class="card-head"><h2>8. Binlog &amp; point-in-time recovery</h2><span class="muted small hidden" id="binlog-na">MySQL / MariaDB only for now</span></div><div class="card-body" id="binlog-body">
-        ${chk('binlog_archive', o.binlog_archive, 'Continuous binlog archiving', 'DumpCat streams the server\'s binary logs (mysqlbinlog --raw --stop-never, as a replication client) and stores every closed binlog — compressed and encrypted like the backups — on this job\'s storages. A restore can then stop at any moment: a time, a binlog position or just before a GTID. Retention removes binlogs older than the oldest kept backup.')}
+      <div class="card" id="sec-binlog"><div class="card-head"><h2>8. Log archiving &amp; point-in-time recovery</h2><span class="muted small hidden" id="binlog-na"></span></div><div class="card-body" id="binlog-body">
+        <label class="check"><input type="checkbox" name="binlog_archive" ${o.binlog_archive ? 'checked' : ''}><span id="log-label"></span></label>
         <div id="binlog-opts" class="${o.binlog_archive ? '' : 'hidden'}" style="margin-top:12px">
           <div class="form-grid">
-            <div class="field"><label>Close &amp; upload the current binlog after (minutes)</label>${num('binlog_rotate_minutes', o.binlog_rotate_minutes, 'min="0" max="1440"')}
-              <div class="help">Bounds how much could be lost if this server disappears: once the current binlog holds transactions this long, DumpCat runs FLUSH BINARY LOGS (needs RELOAD) so it is uploaded. 0 = only when the server rotates it (max_binlog_size). Changes not uploaded yet are also kept in the DumpCat staging folder.</div></div>
-            <div class="field"><div class="alert info">${icon('info')}<div>Requirements: <code>log_bin</code> and <code>server_id</code> on the server; the backup user needs <code>REPLICATION SLAVE</code> and <code>REPLICATION CLIENT</code> (MariaDB: <code>BINLOG MONITOR</code>); <code>mysqlbinlog</code>/<code>mariadb-binlog</code> on the DumpCat host. mysqldump jobs then always record the binlog position. Binlogs contain changes to <b>every</b> database of the server.</div></div></div>
+            <div class="field"><label for="binlog_rotate_minutes" id="log-rotate"></label>${num('binlog_rotate_minutes', o.binlog_rotate_minutes, 'id="binlog_rotate_minutes" min="0" max="1440"')}
+              <div class="help" id="log-rotate-help"></div></div>
+            <div class="field"><div class="alert info">${icon('info')}<div id="log-reqs"></div></div></div>
           </div>
         </div>
       </div></div>
@@ -268,14 +286,20 @@ export async function render(ctx) {
     $$('.radio-card', el).forEach((c) => c.classList.toggle('selected', c.querySelector('input').checked));
     $('#sec-db', el).classList.toggle('hidden', !!mi.physical);
     $('[data-jump=sec-db]', el).classList.toggle('hidden', !!mi.physical);
-    $('#incr-field', el).classList.toggle('hidden', !mi.physical);
-    $('#sched-label', el).textContent = `${mi.physical ? 'FULL backup' : 'Backup'} schedule (cron)`;
+    $('#incr-field', el).classList.toggle('hidden', !mi.incremental);
+    $('#sched-label', el).textContent = `${mi.incremental ? 'FULL backup' : 'Backup'} schedule (cron)`;
     $$('[data-for]', el).forEach((d) => d.classList.toggle('hidden', !d.dataset.for.split(' ').includes(m)));
     $('[data-users]', el).classList.toggle('hidden', !mi.users);
     if (mi.users) setHTML($('#users-label', el), html`${mi.users}<span class="help">${mi.users_help}</span>`);
-    // binlog archiving is MySQL's (the driver's log archiver)
+    // the driver's log archiver: binlogs (MySQL), WAL (PostgreSQL pg_basebackup)
+    const lt = LOG_TEXT[eng.engine] || LOG_TEXT.mysql;
+    setHTML($('#log-label', el), html`${lt.label}<span class="help">${lt.help}</span>`);
+    setHTML($('#log-rotate', el), raw(lt.rotate));
+    $('#log-rotate-help', el).textContent = lt.rotateHelp;
+    setHTML($('#log-reqs', el), raw(lt.reqs));
     $('#binlog-body', el).classList.toggle('hidden', !mi.log_archive);
     $('#binlog-na', el).classList.toggle('hidden', !!mi.log_archive);
+    $('#binlog-na', el).textContent = eng.engine === 'postgres' ? 'WAL archiving needs the pg_basebackup method' : 'Not available for this method';
     if (!mi.log_archive) form.binlog_archive.checked = false;
     const mode = form.querySelector('input[name=db_mode]:checked').value;
     $('#db-list', el).classList.toggle('hidden', mode === 'all');

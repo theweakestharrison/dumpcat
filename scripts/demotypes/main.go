@@ -19,8 +19,12 @@ func main() {
 	var engines []map[string]any
 	for _, d := range drivers.All() {
 		_, sb := d.(engine.Sandbox)
-		engines = append(engines, map[string]any{"engine": d.Engine(), "label": d.Label(), "product": d.Product(), "default_port": d.DefaultPort(),
-			"methods": d.Methods(), "restore_options": d.RestoreOptions(), "drills": sb})
+		e := map[string]any{"engine": d.Engine(), "label": d.Label(), "product": d.Product(), "default_port": d.DefaultPort(),
+			"methods": d.Methods(), "restore_options": d.RestoreOptions(), "drills": sb}
+		if la, ok := d.(engine.LogArchiver); ok {
+			e["log"] = la.LogInfo()
+		}
+		engines = append(engines, e)
 	}
 	enc := json.NewEncoder(os.Stdout)
 	enc.SetIndent("", " ")

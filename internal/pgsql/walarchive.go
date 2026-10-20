@@ -39,7 +39,7 @@ const (
 	pageHeaderSz = longPageHeader
 )
 
-var walLogInfo = engine.LogInfo{Name: "WAL", Files: "WAL segments", Prefix: "wal", Close: "pg_switch_wal()",
+var walLogInfo = engine.LogInfo{Name: "WAL", File: "WAL segment", Files: "WAL segments", Prefix: "wal", Close: "pg_switch_wal()",
 	Targets: []string{"time", "name", "lsn", "latest"}, Recovery: true}
 
 func (Driver) LogInfo() engine.LogInfo { return walLogInfo }

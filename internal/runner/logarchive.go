@@ -601,6 +601,9 @@ func (a *archiver) archiveFile(ctx context.Context, job *store.Job, name string)
 		if !lt.IsZero() && (st.ArchivedUntil == nil || lt.After(*st.ArchivedUntil)) {
 			st.ArchivedUntil = &lt
 		}
+		if !lt.IsZero() && (st.ReceivedAt == nil || lt.After(*st.ReceivedAt)) {
+			st.ReceivedAt = &lt // closed between two checks of the stream
+		}
 	})
 	loc := a.r.location()
 	span := "no timed events"

@@ -40,7 +40,7 @@ var ErrStalled = errors.New("no new data although the server kept writing — re
 
 var _ LogArchiver = MySQL{}
 
-var mysqlLogInfo = LogInfo{Name: "binlog", Files: "binlogs", Prefix: "binlog", Close: "FLUSH BINARY LOGS",
+var mysqlLogInfo = LogInfo{Name: "binlog", File: "binlog", Files: "binlogs", Prefix: "binlog", Close: "FLUSH BINARY LOGS",
 	Targets: []string{"time", "gtid", "position", "latest"}}
 
 func (MySQL) LogInfo() LogInfo { return mysqlLogInfo }

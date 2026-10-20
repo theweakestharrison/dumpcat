@@ -437,15 +437,16 @@ func (s *Server) dashboard(w http.ResponseWriter, r *http.Request) error {
 		}
 	}
 	for _, a := range s.Runner.ArchiverStatuses() {
+		log := a.Log // binlog, WAL
 		switch {
 		case a.State != "streaming" && a.Error != "":
-			warnings = append(warnings, fmt.Sprintf("Job \"%s\": binlog archiving is failing — %s", a.JobName, a.Error))
+			warnings = append(warnings, fmt.Sprintf("Job \"%s\": %s archiving is failing — %s", a.JobName, log, a.Error))
 		case a.UploadError != "":
-			warnings = append(warnings, fmt.Sprintf("Job \"%s\": binlog upload is failing — %s", a.JobName, a.UploadError))
+			warnings = append(warnings, fmt.Sprintf("Job \"%s\": %s upload is failing — %s", a.JobName, log, a.UploadError))
 		case a.Pending > 5:
-			warnings = append(warnings, fmt.Sprintf("Job \"%s\": %d binlog files are waiting for upload", a.JobName, a.Pending))
+			warnings = append(warnings, fmt.Sprintf("Job \"%s\": %d %s files are waiting for upload", a.JobName, a.Pending, log))
 		case set.BinlogLagMinutes > 0 && a.ArchiveLag > int64(set.BinlogLagMinutes)*60:
-			warnings = append(warnings, fmt.Sprintf("Job \"%s\": the binlog archive is %s behind the server", a.JobName, monitor.Duration(time.Duration(a.ArchiveLag)*time.Second)))
+			warnings = append(warnings, fmt.Sprintf("Job \"%s\": the %s archive is %s behind the server", a.JobName, log, monitor.Duration(time.Duration(a.ArchiveLag)*time.Second)))
 		}
 	}
 	if drills, err := s.Store.ListDrills(0); err == nil {

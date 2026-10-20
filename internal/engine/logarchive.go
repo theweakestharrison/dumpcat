@@ -23,6 +23,7 @@ import (
 // LogInfo names a driver's log for people and the runner.
 type LogInfo struct {
 	Name    string   `json:"name"`    // "binlog", "WAL"
+	File    string   `json:"file"`    // one file: "binlog", "WAL segment"
 	Files   string   `json:"files"`   // "binlogs", "WAL segments"
 	Prefix  string   `json:"prefix"`  // staging folder, archive log and storage folder: "binlog", "wal"
 	Targets []string `json:"targets"` // PITR target types in the order the UI offers them
@@ -366,5 +367,5 @@ const TimeLimit = 5 * time.Minute
 // CoverageError explains that the archive does not reach a target time yet.
 func CoverageError(info LogInfo, cov time.Time, loc *time.Location) error {
 	return fmt.Errorf("%s are only archived up to %s — pick an earlier time, close the current %s now and wait for the upload, or choose 'Latest'",
-		info.Files, cov.In(loc).Format("2006-01-02 15:04:05"), info.Name)
+		info.Files, cov.In(loc).Format("2006-01-02 15:04:05"), info.File)
 }

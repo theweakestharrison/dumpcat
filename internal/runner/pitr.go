@@ -201,7 +201,7 @@ func (r *Runner) PlanPITR(jobID, runID int64, t PITRTarget) (*PITRPlanView, erro
 		v.Coverage = &c
 	}
 	if p.Partial != "" {
-		v.Warnings = append(v.Warnings, fmt.Sprintf("Also uses the %s still being received, %s (not uploaded yet), from the DumpCat staging folder", info.Name, p.Partial))
+		v.Warnings = append(v.Warnings, fmt.Sprintf("Also uses the %s still being received, %s (not uploaded yet), from the DumpCat staging folder", info.File, p.Partial))
 	}
 	return v, nil
 }
@@ -264,7 +264,7 @@ func (r *Runner) pitrPrepare(ctx context.Context, task *Task, env *engine.Env, l
 	if plan.Partial != "" && !done {
 		a := r.archiver(*plan.Base.Run.JobID)
 		if a == nil {
-			return nil, fmt.Errorf("%s archiving has stopped — the %s being received is not available", info.Name, info.Name)
+			return nil, fmt.Errorf("%s archiving has stopped — the %s being received is not available", info.Name, info.File)
 		}
 		tmp := filepath.Join(dir, ".partial", plan.Partial)
 		snap, err := a.stream.Snapshot(tmp)
@@ -289,7 +289,7 @@ func (r *Runner) pitrPrepare(ctx context.Context, task *Task, env *engine.Env, l
 		if !snap.Last.IsZero() {
 			upTo = ", up to " + snap.Last.In(loc).Format("2006-01-02 15:04:05")
 		}
-		lg.Printf("Including the %s being received, %s (%s%s)", info.Name, snap.Name, humanBytes(snap.Size), upTo)
+		lg.Printf("Including the %s being received, %s (%s%s)", info.File, snap.Name, humanBytes(snap.Size), upTo)
 		if _, err := chk.Add(engine.LocalLog{Name: snap.Name, Path: local}); err != nil {
 			return nil, err
 		}

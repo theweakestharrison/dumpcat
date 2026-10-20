@@ -14,7 +14,7 @@ const NAV = [
     { path: '/runs', label: 'Backups', icon: 'archive' },
     { path: '/restores', label: 'Restores', icon: 'restore' },
     { path: '/drills', label: 'Restore drills', icon: 'flask' },
-    { path: '/binlogs', label: 'Binlog & PITR', icon: 'layers' },
+    { path: '/binlogs', label: 'Binlog / WAL & PITR', icon: 'layers' },
   ] },
   { group: 'Configuration', items: [
     { path: '/servers', label: 'Database servers', icon: 'database' },

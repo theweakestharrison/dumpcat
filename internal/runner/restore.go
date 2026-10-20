@@ -215,7 +215,7 @@ func (r *Runner) execRestore(ctx context.Context, task *Task, rs *store.Restore,
 	if plan != nil {
 		rp, err = r.pitrPrepare(ctx, task, env, la, plan, workDir, pass)
 		if errors.Is(err, errReplan) {
-			lg.Printf("The %s being received was just closed — planning PITR again", la.LogInfo().Name)
+			lg.Printf("The %s being received was just closed — planning PITR again", la.LogInfo().File)
 			if plan, err = r.planPITR(la, plan.Base, plan.Target); err == nil {
 				rp, err = r.pitrPrepare(ctx, task, env, la, plan, workDir, pass)
 			}

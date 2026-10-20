@@ -10,6 +10,8 @@ const META_LABELS = {
   from_lsn: 'From LSN', to_lsn: 'To LSN', last_lsn: 'Last LSN', backup_type: 'Type (xtrabackup)',
   server_version: 'Server version', server_host: 'Server hostname', flavor: 'Server flavor', tool: 'Tool', tool_version: 'Tool version',
   consistent_at: 'Data consistent at',
+  start_lsn: 'WAL start (LSN)', end_lsn: 'WAL end (LSN)', timeline: 'Timeline', system_id: 'System identifier', wal_segment_size: 'WAL segment size',
+  pg_major: 'PostgreSQL version', pg_dump_major: 'pg_dump version',
 };
 
 export async function render(ctx) {
