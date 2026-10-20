@@ -20,7 +20,7 @@ func TestArchiveLag(t *testing.T) {
 		"upload waiting":          {ArchiverStatus{State: "streaming", StartedAt: now.Add(-time.Hour), CheckedAt: ago(time.Second), Pending: 2, PendingSince: ago(33 * time.Minute)}, 33 * time.Minute},
 		"caught up after a start": {ArchiverStatus{State: "starting", StartedAt: now.Add(-time.Minute), CaughtUpAt: ago(2 * time.Hour)}, time.Minute},
 	} {
-		if got := c.st.archiveLag(now); got != c.want {
+		if got := c.st.ArchiveLagAt(now); got != c.want {
 			t.Errorf("%s: %v, want %v", name, got, c.want)
 		}
 	}

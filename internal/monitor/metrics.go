@@ -103,16 +103,16 @@ func (c *Checker) Metrics(src MetricSources) *Metrics {
 	for _, i := range c.Incidents() {
 		alerts[i.Kind]++
 	}
-	open := m.Gauge("dumpcat_alerts_open", "Freshness and binlog lag alerts that have not cleared.")
+	open := m.Gauge("dumpcat_alerts_open", "Freshness and log archive lag alerts that have not cleared.")
 	for _, k := range sortedKeys(alerts) {
 		open.Add(float64(alerts[k]), "kind", k)
 	}
 
-	// binlog archiving
-	lag := m.Gauge("dumpcat_binlog_archive_lag_seconds", "How long the binlog archive has been behind the server.")
-	streaming := m.Gauge("dumpcat_binlog_streaming", "1 while the binlog stream of the job is connected.")
-	pending := m.Gauge("dumpcat_binlog_pending_files", "Closed binlogs waiting for upload.")
-	until := m.Gauge("dumpcat_binlog_archived_until_timestamp_seconds", "Last event of the newest archived binlog: the latest point-in-time recovery target (Unix time).")
+	// log archiving (MySQL binlogs, PostgreSQL WAL; the series names predate PostgreSQL)
+	lag := m.Gauge("dumpcat_binlog_archive_lag_seconds", "How long the log archive (binlog / WAL) has been behind the server.")
+	streaming := m.Gauge("dumpcat_binlog_streaming", "1 while the log stream (binlog / WAL) of the job is connected.")
+	pending := m.Gauge("dumpcat_binlog_pending_files", "Closed log files (binlogs / WAL segments) waiting for upload.")
+	until := m.Gauge("dumpcat_binlog_archived_until_timestamp_seconds", "Last event of the newest archived log file: the latest point-in-time recovery target (Unix time).")
 	for _, a := range c.Runner.ArchiverStatuses() {
 		l := []string{"job", a.JobName, "server", a.ServerName}
 		lag.Add(float64(a.ArchiveLag), l...)
@@ -125,8 +125,8 @@ func (c *Checker) Metrics(src MetricSources) *Metrics {
 
 	// storage
 	backups := m.Gauge("dumpcat_storage_backups", "Backups kept on the storage.")
-	used := m.Gauge("dumpcat_storage_used_bytes", "Bytes DumpCat keeps on the storage (backups and binlogs).")
-	binlogs := m.Gauge("dumpcat_storage_binlog_bytes", "Bytes of archived binlogs on the storage.")
+	used := m.Gauge("dumpcat_storage_used_bytes", "Bytes DumpCat keeps on the storage (backups and archived logs).")
+	binlogs := m.Gauge("dumpcat_storage_binlog_bytes", "Bytes of archived log files (binlogs / WAL) on the storage.")
 	free := m.Gauge("dumpcat_storage_free_bytes", "Free space of a local storage's file system.")
 	total := m.Gauge("dumpcat_storage_size_bytes", "Size of a local storage's file system.")
 	use, _ := c.Store.StorageUsage()

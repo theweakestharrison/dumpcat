@@ -214,14 +214,14 @@ func (c *Checker) Check(ctx context.Context) {
 				}
 				c.incidents[key] = inc
 				changed = true
-				c.logf("monitor: binlog archiving of job %s is %s behind", a.JobName, Duration(lag))
+				c.logf("monitor: %s archiving of job %s is %s behind", logName(a), a.JobName, Duration(lag))
 			case lag <= limit && inc != nil:
 				if inc.Notified && notifies {
 					c.Send(c.caughtUpEvent(a, inc, now))
 				}
 				delete(c.incidents, key)
 				changed = true
-				c.logf("monitor: binlog archiving of job %s caught up", a.JobName)
+				c.logf("monitor: %s archiving of job %s caught up", logName(a), a.JobName)
 			}
 		}
 	}
@@ -288,8 +288,21 @@ func (c *Checker) freshEvent(j *store.Job, ls *store.Run, inc *Incident, now tim
 	return ev
 }
 
+// logName is what the archiver archives: binlog, WAL.
+func logName(a runner.ArchiverStatus) string {
+	if a.Log == "" {
+		return "binlog"
+	}
+	return a.Log
+}
+
+func logTitle(a runner.ArchiverStatus) string {
+	n := logName(a)
+	return strings.ToUpper(n[:1]) + n[1:]
+}
+
 func (c *Checker) lagEvent(a runner.ArchiverStatus, lag, limit time.Duration, now time.Time, loc *time.Location) notify.Event {
-	ev := notify.Event{Kind: KindBinlogLag, Status: store.StatusFailed, Title: "Binlog archiving is behind: " + a.JobName, Time: now,
+	ev := notify.Event{Kind: KindBinlogLag, Status: store.StatusFailed, Title: logTitle(a) + " archiving is behind: " + a.JobName, Time: now,
 		URL: c.link("/#/binlogs"), Error: a.Error}
 	if ev.Error == "" {
 		ev.Error = a.UploadError
@@ -308,7 +321,7 @@ func (c *Checker) lagEvent(a runner.ArchiverStatus, lag, limit time.Duration, no
 }
 
 func (c *Checker) caughtUpEvent(a runner.ArchiverStatus, inc *Incident, now time.Time) notify.Event {
-	ev := notify.Event{Kind: KindBinlogLag, Status: notify.StatusRecovered, Title: "Binlog archiving caught up: " + a.JobName, Time: now,
+	ev := notify.Event{Kind: KindBinlogLag, Status: notify.StatusRecovered, Title: logTitle(a) + " archiving caught up: " + a.JobName, Time: now,
 		URL: c.link("/#/binlogs")}
 	ev.Add("Server", a.ServerName)
 	ev.Add("Was behind for", Duration(now.Sub(inc.Since)))

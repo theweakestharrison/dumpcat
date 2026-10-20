@@ -4,11 +4,14 @@ import (
 	"fmt"
 	"net/http"
 
+	"dumpcat/internal/drivers"
+	"dumpcat/internal/engine"
 	"dumpcat/internal/runner"
 	"dumpcat/internal/store"
 )
 
-// binlogOverview lists jobs that archive binlogs (or still have archived files).
+// binlogOverview lists jobs that archive their server's log (MySQL binlogs,
+// PostgreSQL WAL), or still have archived files.
 func (s *Server) binlogOverview(w http.ResponseWriter, r *http.Request) error {
 	jobs, err := s.Store.ListJobs()
 	if err != nil {
@@ -17,13 +20,19 @@ func (s *Server) binlogOverview(w http.ResponseWriter, r *http.Request) error {
 	out := []map[string]any{}
 	for i := range jobs {
 		j := &jobs[i]
-		stats := s.Store.BinlogStats(j.UUID)
-		if !j.Options.BinlogArchive && stats.Files == 0 {
+		stats := s.Store.LogStats(j.UUID)
+		if !j.Options.LogArchive && stats.Files == 0 {
 			continue
 		}
 		item := map[string]any{
 			"job_id": j.ID, "job_name": j.Name, "server_name": j.ServerName, "method": j.Method, "enabled": j.Enabled,
-			"archive": j.Options.BinlogArchive, "rotate_minutes": j.Options.BinlogRotateMinutes, "stats": stats,
+			"archive": j.Options.LogArchive, "rotate_minutes": j.Options.LogRotateMinutes, "stats": stats,
+		}
+		if _, drv, ok := drivers.Method(j.Method); ok {
+			item["engine"] = drv.Engine()
+			if la, ok := drv.(engine.LogArchiver); ok {
+				item["log"] = la.LogInfo()
+			}
 		}
 		if st, ok := s.Runner.ArchiverStatus(j.ID); ok {
 			item["status"] = st
@@ -42,12 +51,12 @@ func (s *Server) jobBinlogs(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		return err
 	}
-	items, total, err := s.Store.ListBinlogPage(j.UUID, queryInt(r, "limit", 100), queryInt(r, "offset", 0))
+	items, total, err := s.Store.ListLogPage(j.UUID, queryInt(r, "limit", 100), queryInt(r, "offset", 0))
 	if err != nil {
 		return err
 	}
 	if items == nil {
-		items = []store.BinlogFile{}
+		items = []store.LogFile{}
 	}
 	return ok(w, map[string]any{"items": items, "total": total})
 }
@@ -57,7 +66,7 @@ func (s *Server) jobBinlogLog(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		return err
 	}
-	return s.sendLog(w, r, s.Runner.BinlogLogPath(id))
+	return s.sendLog(w, r, s.Runner.ArchiveLogPath(id))
 }
 
 func (s *Server) jobBinlogRotate(w http.ResponseWriter, r *http.Request) error {
@@ -65,7 +74,7 @@ func (s *Server) jobBinlogRotate(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		return err
 	}
-	if err := s.Runner.RotateBinlog(id); err != nil {
+	if err := s.Runner.RotateLog(id); err != nil {
 		return badRequest("%v", err)
 	}
 	s.audit(r, "binlog_rotate", fmt.Sprintf("job:%d", id), "")
@@ -85,7 +94,7 @@ func (s *Server) jobBinlogRestart(w http.ResponseWriter, r *http.Request) error 
 }
 
 // pitrPlan picks the base backup for a recovery target and checks that the
-// archived binlogs reach it (nothing is changed).
+// archived log reaches it (nothing is changed).
 func (s *Server) pitrPlan(w http.ResponseWriter, r *http.Request) error {
 	var in struct {
 		JobID  int64             `json:"job_id"`

@@ -141,12 +141,12 @@ func (s *Server) applyJob(in *jobInput, j *store.Job, isAdmin bool) error {
 	j.Options.VerifyMode = j.Options.Verify()
 	j.Options.VerifyAfter = j.Options.VerifyMode != store.VerifyOff
 	if !m.LogArchive {
-		j.Options.BinlogArchive = false // the binlog archiver is MySQL's
+		j.Options.LogArchive = false // the method's driver has no log archiver for it
 	}
-	if j.Options.BinlogArchive && j.Method == store.MethodMysqldump {
+	if j.Options.LogArchive && j.Method == store.MethodMysqldump {
 		j.Options.RecordBinlog = true // PITR replays from the position of every dump
 	}
-	j.Options.BinlogRotateMinutes = max(0, min(j.Options.BinlogRotateMinutes, 1440))
+	j.Options.LogRotateMinutes = max(0, min(j.Options.LogRotateMinutes, 1440))
 	j.Options.MaxAgeHours = max(0, min(j.Options.MaxAgeHours, 24*366))
 	j.Retention = in.Retention
 	if len(in.Targets) == 0 {
@@ -301,7 +301,7 @@ func (s *Server) jobDelete(w http.ResponseWriter, r *http.Request) error {
 				deleted++
 			}
 		}
-		n, err := s.Runner.DeleteJobBinlogs(ctx, j.UUID)
+		n, err := s.Runner.DeleteJobLogs(ctx, j.UUID)
 		if err != nil {
 			errs = append(errs, err.Error())
 		}

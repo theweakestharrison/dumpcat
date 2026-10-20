@@ -26,6 +26,14 @@ type Env struct {
 	Tools       *Tools
 	TmpDir      string // private scratch dir for this task (removed afterwards)
 	LowPriority bool
+	Loc         *time.Location // times in the log (nil: the machine's zone)
+}
+
+func (e *Env) location() *time.Location {
+	if e.Loc != nil {
+		return e.Loc
+	}
+	return time.Local
 }
 
 type FileOpts struct {

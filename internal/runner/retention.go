@@ -282,11 +282,12 @@ func (r *Runner) DeleteRun(ctx context.Context, runID, locationID int64, cascade
 	return nil
 }
 
-// expiredBinlogs returns the archived files no kept backup can replay: a
+// expiredLogFiles returns the archived files no kept backup can replay: a
 // file archived before a backup started was closed before it, so it only
 // holds events the backup already contains. Archive times are used because
-// event times are not monotonic. Without kept backups nothing expires.
-func expiredBinlogs(files []store.BinlogFile, kept []store.Run) []store.BinlogFile {
+// event times are not monotonic. Without kept backups nothing expires;
+// pinned files (PostgreSQL timeline history) never do.
+func expiredLogFiles(files []store.LogFile, kept []store.Run) []store.LogFile {
 	if len(kept) == 0 || len(files) == 0 {
 		return nil
 	}
@@ -297,25 +298,29 @@ func expiredBinlogs(files []store.BinlogFile, kept []store.Run) []store.BinlogFi
 		}
 	}
 	oldest = oldest.Truncate(time.Second)
-	var out []store.BinlogFile
+	var out []store.LogFile
 	for _, f := range files {
-		if f.CreatedAt.Before(oldest) {
+		if f.CreatedAt.Before(oldest) && f.Meta["pinned"] != true {
 			out = append(out, f)
 		}
 	}
 	return out
 }
 
-// applyBinlogRetention deletes archived binlogs that are older than the
+// applyLogRetention deletes archived log files that are older than the
 // oldest backup kept on each storage (they can no longer be replayed).
-func (r *Runner) applyBinlogRetention(ctx context.Context, job *store.Job, lg *tasklog.Logger) {
-	files, err := r.Store.ListBinlogFiles(job.UUID)
+func (r *Runner) applyLogRetention(ctx context.Context, job *store.Job, lg *tasklog.Logger) {
+	files, err := r.Store.ListLogFiles(job.UUID)
 	if err != nil || len(files) == 0 {
 		return
 	}
 	runs, err := r.Store.RetentionCandidates(job.ID)
 	if err != nil {
 		return
+	}
+	what := "log file"
+	if la := logArchiverOf(job.Method); la != nil {
+		what = la.LogInfo().Name
 	}
 	for _, t := range job.Targets {
 		var kept []store.Run
@@ -324,15 +329,15 @@ func (r *Runner) applyBinlogRetention(ctx context.Context, job *store.Job, lg *t
 				kept = append(kept, run)
 			}
 		}
-		var here []store.BinlogFile
+		var here []store.LogFile
 		for _, f := range files {
 			if f.OKOn(t.StorageID) != nil {
 				here = append(here, f)
 			}
 		}
-		var expired []store.BinlogFile
-		for _, f := range expiredBinlogs(here, kept) {
-			if !r.binlogInUse(f.ID) {
+		var expired []store.LogFile
+		for _, f := range expiredLogFiles(here, kept) {
+			if !r.logFileInUse(f.ID) {
 				expired = append(expired, f)
 			}
 		}
@@ -345,19 +350,19 @@ func (r *Runner) applyBinlogRetention(ctx context.Context, job *store.Job, lg *t
 		}
 		backend, err := r.Storage.Get(st)
 		if err != nil {
-			lg.Printf("binlog retention %s: %v", st.Name, err)
+			lg.Printf("%s retention %s: %v", what, st.Name, err)
 			continue
 		}
 		deleted := 0
 		for _, f := range expired {
 			if err := backend.DeleteFile(ctx, f.Path); err != nil {
-				lg.Printf("  could not delete binlog %s: %v", f.Path, err)
+				lg.Printf("  could not delete %s %s: %v", what, f.Path, err)
 				continue
 			}
-			_ = r.Store.DeleteBinlogLocation(f.OKOn(t.StorageID).ID)
-			r.Store.DeleteBinlogIfOrphan(f.ID)
+			_ = r.Store.DeleteLogLocation(f.OKOn(t.StorageID).ID)
+			r.Store.DeleteLogIfOrphan(f.ID)
 			deleted++
 		}
-		lg.Printf("Binlog retention on %s: deleted %d archived binlog(s) older than the oldest kept backup", st.Name, deleted)
+		lg.Printf("Log retention on %s: deleted %d archived %s file(s) older than the oldest kept backup", st.Name, deleted, what)
 	}
 }

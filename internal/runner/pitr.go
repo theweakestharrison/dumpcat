@@ -4,222 +4,31 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
 	"sort"
-	"strconv"
 	"time"
 
-	"dumpcat/internal/binlog"
-	"dumpcat/internal/dbconn"
 	"dumpcat/internal/engine"
 	"dumpcat/internal/pipeline"
 	"dumpcat/internal/storage"
 	"dumpcat/internal/store"
-	"dumpcat/internal/tasklog"
 )
 
 // Point-in-time recovery: restore a base backup, then replay the archived
-// binary logs from the position recorded with that backup up to the target.
+// log (MySQL binlogs, PostgreSQL WAL) from where that backup ends up to the
+// target. The base selection, the plan, the downloads and their checks are
+// shared; the driver's LogArchiver knows positions, chains and replay.
 
 // PITRTarget is where a point-in-time restore stops.
-type PITRTarget struct {
-	Type string     `json:"type"` // time, position, gtid, latest
-	Time *time.Time `json:"time,omitempty"`
-	File string     `json:"file,omitempty"`
-	Pos  int64      `json:"pos,omitempty"`
-	GTID string     `json:"gtid,omitempty"`
-}
-
-func (t *PITRTarget) Normalize() error {
-	switch t.Type {
-	case "time":
-		if t.Time == nil || t.Time.IsZero() {
-			return errors.New("no recovery time selected")
-		}
-		if t.Time.After(time.Now().Add(time.Minute)) {
-			return errors.New("the recovery time is in the future")
-		}
-		t.File, t.Pos, t.GTID = "", 0, ""
-	case "position":
-		if err := engine.CheckBinlogName(t.File); err != nil || !binlog.IsName(t.File) {
-			return fmt.Errorf("invalid binlog file name: %q", t.File)
-		}
-		if t.Pos < 4 {
-			return errors.New("the binlog position must be ≥ 4")
-		}
-		t.Time, t.GTID = nil, ""
-	case "gtid":
-		g, err := binlog.NormalizeGTID(t.GTID)
-		if err != nil {
-			return err
-		}
-		t.GTID, t.Time, t.File, t.Pos = g, nil, "", 0
-	case "latest":
-		t.Time, t.File, t.Pos, t.GTID = nil, "", 0, ""
-	default:
-		return fmt.Errorf("invalid recovery target type: %q", t.Type)
-	}
-	return nil
-}
-
-func (t PITRTarget) Describe(loc *time.Location) string {
-	switch t.Type {
-	case "time":
-		return "time " + t.Time.In(loc).Format("2006-01-02 15:04:05")
-	case "position":
-		return fmt.Sprintf("position %s:%d", t.File, t.Pos)
-	case "gtid":
-		return "just before GTID " + t.GTID
-	}
-	return "the latest archived binlog"
-}
-
-type binlogPos struct {
-	File string `json:"file"`
-	Pos  int64  `json:"pos"`
-}
-
-func (p binlogPos) String() string { return fmt.Sprintf("%s:%d", p.File, p.Pos) }
-
-// posCompare orders positions of the same binlog numbering (ok=false when
-// the base names differ).
-func posCompare(a, b binlogPos) (int, bool) {
-	ab, as, ok1 := binlog.SplitName(a.File)
-	bb, bs, ok2 := binlog.SplitName(b.File)
-	if !ok1 || !ok2 || ab != bb {
-		return 0, false
-	}
-	switch {
-	case as != bs:
-		if as < bs {
-			return -1, true
-		}
-		return 1, true
-	case a.Pos < b.Pos:
-		return -1, true
-	case a.Pos > b.Pos:
-		return 1, true
-	}
-	return 0, true
-}
-
-func metaInt(m map[string]any, k string) (int64, bool) {
-	switch v := m[k].(type) {
-	case float64:
-		return int64(v), true
-	case int64:
-		return v, true
-	case int:
-		return int64(v), true
-	case json.Number:
-		n, err := v.Int64()
-		return n, err == nil
-	case string:
-		n, err := strconv.ParseInt(v, 10, 64)
-		return n, err == nil
-	}
-	return 0, false
-}
-
-// runStarts returns where binlog replay starts for each database of a run;
-// key "" holds the run-wide position (single snapshot dumps, physical).
-func runStarts(run *store.Run) map[string]binlogPos {
-	out := map[string]binlogPos{}
-	if f, _ := run.Meta["binlog_file"].(string); f != "" {
-		if p, ok := metaInt(run.Meta, "binlog_pos"); ok && p > 0 {
-			out[""] = binlogPos{f, p}
-		}
-	}
-	if run.Method == store.MethodMysqldump && run.Meta["single_file"] != true {
-		for _, d := range run.Databases {
-			if d.BinlogFile != "" && d.BinlogPos > 0 {
-				out[d.Name] = binlogPos{d.BinlogFile, d.BinlogPos}
-			}
-		}
-	}
-	return out
-}
-
-func startFor(starts map[string]binlogPos, db string) (binlogPos, bool) {
-	if p, ok := starts[db]; ok {
-		return p, true
-	}
-	p, ok := starts[""]
-	return p, ok
-}
-
-// startRange returns the lowest and highest start position.
-func startRange(starts map[string]binlogPos) (lo, hi binlogPos, ok bool) {
-	for _, p := range starts {
-		if !ok {
-			lo, hi, ok = p, p, true
-			continue
-		}
-		if c, _ := posCompare(p, lo); c < 0 {
-			lo = p
-		}
-		if c, _ := posCompare(p, hi); c > 0 {
-			hi = p
-		}
-	}
-	return
-}
-
-// consistentAt is an upper bound of the moment the backup's data reflects:
-// recorded precisely by newer backups, otherwise the end of the run.
-func consistentAt(run *store.Run) time.Time {
-	if v, ok := metaInt(run.Meta, "consistent_at"); ok && v > 0 {
-		return time.Unix(v, 0)
-	}
-	if run.FinishedAt != nil {
-		return *run.FinishedAt
-	}
-	return run.StartedAt
-}
-
-// baseErr explains why run cannot be the starting point for target.
-func baseErr(run *store.Run, t PITRTarget) error {
-	starts := runStarts(run)
-	_, hi, ok := startRange(starts)
-	if !ok {
-		return errors.New("the backup has no binlog position (mysqldump: enable 'Record binlog position')")
-	}
-	for _, p := range starts {
-		if _, ok := posCompare(p, hi); !ok {
-			return errors.New("invalid binlog position in the backup")
-		}
-	}
-	switch t.Type {
-	case "time":
-		if at := consistentAt(run); at.After(*t.Time) {
-			return fmt.Errorf("the backup already contains data up to %s — after the recovery target", at.Format(time.RFC3339))
-		}
-	case "position":
-		c, ok := posCompare(binlogPos{t.File, t.Pos}, hi)
-		if !ok {
-			return fmt.Errorf("binlog %s is not in the same sequence as the backup (%s)", t.File, hi.File)
-		}
-		if c < 0 {
-			return fmt.Errorf("the target position is before the backup position (%s)", hi)
-		}
-	case "gtid":
-		set, _ := run.Meta["gtid"].(string)
-		if inc, known := binlog.GTIDIncluded(set, t.GTID); known && inc {
-			return fmt.Errorf("GTID %s is already contained in the backup", t.GTID)
-		}
-	}
-	return nil
-}
+type PITRTarget = engine.PITRTarget
 
 // selectPITRBase picks the newest usable backup whose data precedes the target.
-func selectPITRBase(runs []store.Run, t PITRTarget, usable func(*store.Run) bool) (*store.Run, error) {
-	var best *store.Run
-	var bestAt time.Time
+func selectPITRBase(la engine.LogArchiver, runs []store.Run, t engine.PITRTarget, usable func(*store.Run) bool) (*engine.LogBase, error) {
+	var best *engine.LogBase
 	var lastErr error
 	for i := range runs {
 		r := &runs[i]
@@ -229,12 +38,13 @@ func selectPITRBase(runs []store.Run, t PITRTarget, usable func(*store.Run) bool
 		if usable != nil && !usable(r) {
 			continue
 		}
-		if err := baseErr(r, t); err != nil {
+		b, err := la.Base(r, &t)
+		if err != nil {
 			lastErr = err
 			continue
 		}
-		if at := consistentAt(r); best == nil || at.After(bestAt) {
-			best, bestAt = r, at
+		if best == nil || b.ConsistentAt.After(best.ConsistentAt) {
+			best = b
 		}
 	}
 	if best == nil {
@@ -246,216 +56,40 @@ func selectPITRBase(runs []store.Run, t PITRTarget, usable func(*store.Run) bool
 	return best, nil
 }
 
-var errNotArchived = errors.New("has not been archived")
-
-// binlogChain follows the archived files from the one holding start through
-// consecutive numbers. A RESET MASTER (or a physical restore) restarts the
-// numbering, so one name can exist several times: event times cannot tell
-// them apart (replayed statements keep their original timestamps), the
-// archive order can. The file holding a backup's position was still open
-// when the backup started, so it was archived after startedAt.
-func binlogChain(files []store.BinlogFile, start binlogPos, startedAt time.Time) ([]store.BinlogFile, error) {
-	byName := map[string][]int{}
-	for i, f := range files {
-		byName[f.FileName] = append(byName[f.FileName], i)
-	}
-	// every file the backup needs was still open (or not written yet) when it
-	// started, so it was archived afterwards
-	after := func(i int) bool { return !files[i].CreatedAt.Before(startedAt.Truncate(time.Second)) }
-	idx := -1
-	for _, i := range byName[start.File] {
-		if after(i) && (idx < 0 || files[i].ID < files[idx].ID) {
-			idx = i
-		}
-	}
-	if idx < 0 {
-		return nil, fmt.Errorf("binlog %s (where the backup starts) %w", start.File, errNotArchived)
-	}
-	chain := []store.BinlogFile{files[idx]}
-	cur := files[idx]
-	for len(chain) <= len(files) {
-		b, s, _ := binlog.SplitName(cur.FileName)
-		next := -1
-		dist := func(i int) int64 { return max(files[i].ID-cur.ID, cur.ID-files[i].ID) }
-		for _, i := range byName[fmt.Sprintf("%s.%06d", b, s+1)] {
-			if after(i) && (next < 0 || dist(i) < dist(next)) {
-				next = i
-			}
-		}
-		if next < 0 {
-			break
-		}
-		cur = files[next]
-		chain = append(chain, cur)
-	}
-	return chain, nil
-}
-
-func binlogStored(f *store.BinlogFile) bool {
-	for _, l := range f.Locations {
-		if l.Status == store.LocOK && l.StorageID != nil {
-			return true
-		}
-	}
-	return false
-}
-
-type pitrPlan struct {
-	Target   PITRTarget
-	Base     *store.Run
-	Starts   map[string]binlogPos
-	From     binlogPos          // lowest start position
-	Files    []store.BinlogFile // archived files to fetch, in replay order
-	Partial  string             // file still being streamed, appended after Files
-	Coverage time.Time          // binlog events are complete up to here
-	Bytes    int64
-	Warnings []string
-}
-
-func (p *pitrPlan) fileIDs() []int64 {
-	ids := make([]int64, len(p.Files))
-	for i, f := range p.Files {
-		ids[i] = f.ID
-	}
-	return ids
-}
-
-// planPITR checks that base plus archived binlogs reach the target.
-func (r *Runner) planPITR(base *store.Run, t PITRTarget) (*pitrPlan, error) {
-	if err := baseErr(base, t); err != nil {
-		return nil, err
-	}
-	starts := runStarts(base)
-	lo, _, _ := startRange(starts)
-	all, err := r.Store.ListBinlogFiles(base.JobUUID)
+// planPITR checks that the base plus archived log files reach the target.
+func (r *Runner) planPITR(la engine.LogArchiver, base *engine.LogBase, t engine.PITRTarget) (*engine.LogPlan, error) {
+	all, err := r.Store.ListLogFiles(base.Run.JobUUID)
 	if err != nil {
 		return nil, err
 	}
-	var files []store.BinlogFile
+	var files []store.LogFile
 	for i := range all {
-		if binlogStored(&all[i]) {
+		if engine.LogStored(&all[i]) {
 			files = append(files, all[i])
 		}
 	}
-	p := &pitrPlan{Target: t, Base: base, Starts: starts, From: lo}
-	chain, cerr := binlogChain(files, lo, base.StartedAt)
+	in := &engine.PlanInput{Base: base, Files: files, Target: t, Loc: r.location()}
+	// the file being received right now may continue (or start) the chain
+	if base.Run.JobID != nil {
+		if a := r.archiver(*base.Run.JobID); a != nil && a.la == la {
+			in.Current = a.stream.Current()
+		}
+	}
+	return la.Plan(in)
+}
 
-	// the file being streamed right now may continue (or start) the chain
-	var cur string
-	var curInf binlog.Info
-	var ast ArchiverStatus
-	if base.JobID != nil {
-		if a := r.archiver(*base.JobID); a != nil {
-			cur, curInf, ast = a.currentInfo()
-		}
+// pitrBase returns the log archiver of a backup's method and its base for
+// t (normalized).
+func pitrBase(run *store.Run, t *engine.PITRTarget) (engine.LogArchiver, *engine.LogBase, error) {
+	la := logArchiverOf(run.Method)
+	if la == nil {
+		return nil, nil, fmt.Errorf("%s backups cannot be the base of a point-in-time recovery", run.Method)
 	}
-	partial := false
-	if cur != "" && curInf.Events > 0 {
-		if len(chain) == 0 {
-			partial = cur == lo.File
-		} else {
-			last := chain[len(chain)-1]
-			lb, ls, _ := binlog.SplitName(last.FileName)
-			cb, cs, _ := binlog.SplitName(cur)
-			partial = cb == lb && cs == ls+1
-		}
+	if err := engine.NormalizeTarget(la, t); err != nil {
+		return nil, nil, err
 	}
-	if cerr != nil && !partial {
-		return nil, cerr
-	}
-	if len(chain) > 0 {
-		p.Coverage = chain[len(chain)-1].LastTS
-	}
-	if partial {
-		cov := curInf.LastTS
-		if ast.State == "streaming" && ast.LagBytes == 0 && ast.Current == cur && ast.CheckedAt != nil && ast.CheckedAt.After(cov) {
-			cov = *ast.CheckedAt
-		}
-		if cov.After(p.Coverage) {
-			p.Coverage = cov
-		}
-	}
-	have := map[string]bool{}
-	for _, f := range chain {
-		have[f.FileName] = true
-	}
-	if partial {
-		have[cur] = true
-	}
-	for db, s := range starts {
-		if !have[s.File] {
-			if db == "" {
-				return nil, fmt.Errorf("binlog %s %w", s.File, errNotArchived)
-			}
-			return nil, fmt.Errorf("binlog %s (where database %s starts) %w", s.File, db, errNotArchived)
-		}
-	}
-	if len(chain) > 0 && !partial {
-		last := chain[len(chain)-1]
-		in := map[int64]bool{}
-		for _, f := range chain {
-			in[f.ID] = true
-		}
-		for _, f := range files {
-			if f.ID > last.ID && !in[f.ID] {
-				p.Warnings = append(p.Warnings, fmt.Sprintf("The binlog sequence is broken after %s — later archived files cannot be used with this backup", last.FileName))
-				break
-			}
-		}
-	}
-
-	switch t.Type {
-	case "time":
-		if t.Time.After(p.Coverage) {
-			return nil, fmt.Errorf("binlogs are only archived up to %s — pick an earlier time, click 'Close binlog now' and wait for the upload, or choose 'Latest'",
-				p.Coverage.In(r.location()).Format("2006-01-02 15:04:05"))
-		}
-		// commit times only lag file creation by a moment: files created
-		// well after the target cannot hold anything older than it
-		limit := t.Time.Add(5 * time.Minute)
-		for _, f := range chain {
-			if f.FirstTS.After(limit) {
-				break
-			}
-			p.Files = append(p.Files, f)
-		}
-		if partial && len(p.Files) == len(chain) && !curInf.FirstTS.After(limit) {
-			p.Partial = cur
-		}
-	case "position":
-		found := false
-		for _, f := range chain {
-			p.Files = append(p.Files, f)
-			if f.FileName == t.File {
-				if t.Pos > f.SizeBytes {
-					return nil, fmt.Errorf("position %d is beyond the size of %s (%d)", t.Pos, f.FileName, f.SizeBytes)
-				}
-				found = true
-				break
-			}
-		}
-		if !found && partial && cur == t.File {
-			if t.Pos > curInf.Size {
-				return nil, fmt.Errorf("position %d has not been received yet (%s has %d bytes)", t.Pos, cur, curInf.Size)
-			}
-			p.Partial, found = cur, true
-		}
-		if !found {
-			return nil, fmt.Errorf("binlog %s is not in the archived sequence after the backup", t.File)
-		}
-	default: // gtid, latest
-		p.Files = chain
-		if partial {
-			p.Partial = cur
-		}
-	}
-	for _, f := range p.Files {
-		p.Bytes += f.SizeBytes
-	}
-	if p.Partial != "" {
-		p.Bytes += curInf.Size
-	}
-	return p, nil
+	b, err := la.Base(run, t)
+	return la, b, err
 }
 
 // ---- API view ----
@@ -467,14 +101,15 @@ type PlanRun struct {
 	Type         string    `json:"type"`
 	StartedAt    time.Time `json:"started_at"`
 	ConsistentAt time.Time `json:"consistent_at"`
-	BinlogFile   string    `json:"binlog_file"`
-	BinlogPos    int64     `json:"binlog_pos"`
+	Start        string    `json:"start"` // where replay starts: mysql-bin.000012:154, 0/3000028
 }
 
 type PITRPlanView struct {
 	OK        bool       `json:"ok"`
 	Error     string     `json:"error,omitempty"`
 	Target    string     `json:"target"`
+	Log       string     `json:"log"`        // binlog, WAL
+	FilesName string     `json:"files_name"` // binlogs, WAL segments
 	Base      *PlanRun   `json:"base,omitempty"`
 	RunOK     bool       `json:"run_ok"`              // the requested run can be the base
 	RunError  string     `json:"run_error,omitempty"` // why it cannot
@@ -500,33 +135,37 @@ func (r *Runner) pitrUsable(run *store.Run) bool {
 }
 
 // PlanPITR selects the base backup of a job for target and checks that the
-// archived binlogs reach it. runID (optional) is checked as a base too.
+// archived log reaches it. runID (optional) is checked as a base too.
 func (r *Runner) PlanPITR(jobID, runID int64, t PITRTarget) (*PITRPlanView, error) {
-	if err := t.Normalize(); err != nil {
-		return nil, err
-	}
-	loc := r.location()
-	v := &PITRPlanView{Target: t.Describe(loc), Warnings: []string{}}
-	var jobUUID string
+	var method, jobUUID string
 	var asked *store.Run
 	if runID > 0 {
 		run, err := r.Store.GetRun(runID)
 		if err != nil {
 			return nil, err
 		}
-		jobUUID, asked = run.JobUUID, run
+		method, jobUUID, asked = run.Method, run.JobUUID, run
 	} else {
 		job, err := r.Store.GetJob(jobID)
 		if err != nil {
 			return nil, err
 		}
-		jobUUID = job.UUID
+		method, jobUUID = job.Method, job.UUID
 	}
+	la := logArchiverOf(method)
+	if la == nil {
+		return nil, fmt.Errorf("%s backups cannot be the base of a point-in-time recovery", method)
+	}
+	if err := engine.NormalizeTarget(la, &t); err != nil {
+		return nil, err
+	}
+	info := la.LogInfo()
+	v := &PITRPlanView{Target: t.Describe(r.location()), Log: info.Name, FilesName: info.Files, Warnings: []string{}}
 	runs, err := r.Store.RunsByJobUUID(jobUUID)
 	if err != nil {
 		return nil, err
 	}
-	base, err := selectPITRBase(runs, t, r.pitrUsable)
+	base, err := selectPITRBase(la, runs, t, r.pitrUsable)
 	if err != nil {
 		v.Error = err.Error()
 		if asked != nil {
@@ -535,20 +174,19 @@ func (r *Runner) PlanPITR(jobID, runID int64, t PITRTarget) (*PITRPlanView, erro
 		return v, nil
 	}
 	if asked != nil {
-		if asked.ID == base.ID {
+		if asked.ID == base.Run.ID {
 			v.RunOK = true
-		} else if err := baseErr(asked, t); err != nil {
+		} else if ab, err := la.Base(asked, &t); err != nil {
 			v.RunError = err.Error()
-		} else if _, err := r.planPITR(asked, t); err != nil {
+		} else if _, err := r.planPITR(la, ab, t); err != nil {
 			v.RunError = err.Error()
 		} else {
 			v.RunOK = true
 		}
 	}
-	lo, _, _ := startRange(runStarts(base))
-	v.Base = &PlanRun{ID: base.ID, DirName: base.DirName, Method: base.Method, Type: base.Type, StartedAt: base.StartedAt,
-		ConsistentAt: consistentAt(base), BinlogFile: lo.File, BinlogPos: lo.Pos}
-	p, err := r.planPITR(base, t)
+	b := base.Run
+	v.Base = &PlanRun{ID: b.ID, DirName: b.DirName, Method: b.Method, Type: b.Type, StartedAt: b.StartedAt, ConsistentAt: base.ConsistentAt, Start: base.From}
+	p, err := r.planPITR(la, base, t)
 	if err != nil {
 		v.Error = err.Error()
 		return v, nil
@@ -563,181 +201,108 @@ func (r *Runner) PlanPITR(jobID, runID int64, t PITRTarget) (*PITRPlanView, erro
 		v.Coverage = &c
 	}
 	if p.Partial != "" {
-		v.Warnings = append(v.Warnings, fmt.Sprintf("Also uses the binlog still being written, %s (not uploaded yet), from the DumpCat staging folder", p.Partial))
+		v.Warnings = append(v.Warnings, fmt.Sprintf("Also uses the %s still being received, %s (not uploaded yet), from the DumpCat staging folder", info.Name, p.Partial))
 	}
 	return v, nil
 }
 
 // ---- restore: download, verify, resolve the stop point ----
 
-type pitrState struct {
-	plan  *pitrPlan
-	Files []string // local raw files in replay order
-	Names []string
-	Stop  *binlogPos // nil = replay everything
-}
+var errReplan = errors.New("the file being received was just closed")
 
-var errReplan = errors.New("the binlog was closed while preparing")
-
-// pitrPrepare fetches every binlog needed into the work dir and resolves the
-// stop position — before anything destructive happens to the target.
-func (r *Runner) pitrPrepare(ctx context.Context, task *Task, lg *tasklog.Logger, plan *pitrPlan, workDir, fallbackPass string) (*pitrState, error) {
+// pitrPrepare fetches every file needed into the work dir and lets the
+// driver check them and resolve the stop — before anything destructive
+// happens to the target.
+func (r *Runner) pitrPrepare(ctx context.Context, task *Task, env *engine.Env, la engine.LogArchiver, plan *engine.LogPlan, workDir, fallbackPass string) (*engine.Replay, error) {
+	lg := env.Log
+	info := la.LogInfo()
 	t := plan.Target
 	loc := r.location()
-	dir := filepath.Join(workDir, "binlog")
+	dir := filepath.Join(workDir, info.Prefix)
 	os.RemoveAll(dir)
 	if err := os.MkdirAll(dir, 0o700); err != nil {
 		return nil, err
 	}
-	lg.Printf("PITR: recover to %s — base backup #%d %s, replaying binlogs from %s (%d archived file(s)%s, %s)", t.Describe(loc), plan.Base.ID, plan.Base.DirName,
-		plan.From, len(plan.Files), map[bool]string{true: " + file being written " + plan.Partial, false: ""}[plan.Partial != ""], humanBytes(plan.Bytes))
+	partial := ""
+	if plan.Partial != "" {
+		partial = " + file being received " + plan.Partial
+	}
+	lg.Printf("PITR: recover to %s — base backup #%d %s, replaying %s from %s (%d archived file(s)%s, %s)", t.Describe(loc), plan.Base.Run.ID, plan.Base.Run.DirName,
+		info.Files, plan.Base.From, len(plan.Files), partial, humanBytes(plan.Bytes))
 	if total, free, err := diskUsage(dir); err == nil {
-		lg.Printf("Binlog work folder %s: %s free of %s", dir, humanBytes(free), humanBytes(total))
+		lg.Printf("PITR work folder %s: %s free of %s", dir, humanBytes(free), humanBytes(total))
 		if free < plan.Bytes {
-			return nil, fmt.Errorf("not enough free space for the binlogs (%s needed)", humanBytes(plan.Bytes))
+			return nil, fmt.Errorf("not enough free space for the %s (%s needed)", info.Files, humanBytes(plan.Bytes))
 		}
 	}
 	task.SetPhase("binlog_download")
 	task.SetEstimate(plan.Bytes)
-	stopper := &binlog.Stopper{GTID: t.GTID}
-	if t.Type == "time" {
-		stopper.Time = *t.Time
-	}
-	st := &pitrState{plan: plan}
-	resolve := t.Type == "time" || t.Type == "gtid"
-	check := func(path, name string, from int64) error {
-		f, err := os.Open(path)
-		if err != nil {
-			return err
-		}
-		defer f.Close()
-		// every replay start in this file must be an event boundary: if not,
-		// this file is not the one the backup saw (e.g. numbering restarted)
-		starts := map[int64]bool{}
-		for _, s := range plan.Starts {
-			if s.File == name {
-				starts[s.Pos] = false
-			}
-		}
-		stopper.StartFile(from)
-		end, err := binlog.Scan(f, 0, func(e *binlog.Event) error {
-			if _, ok := starts[e.Offset]; ok {
-				starts[e.Offset] = true
-			}
-			if !resolve {
-				return nil
-			}
-			if off, ok := stopper.Feed(e); ok {
-				st.Stop = &binlogPos{name, off}
-				return io.EOF
-			}
-			return nil
-		})
-		if errors.Is(err, io.ErrUnexpectedEOF) {
-			return fmt.Errorf("binlog %s is truncated", name)
-		}
-		if err != nil {
-			return fmt.Errorf("binlog %s: %w", name, err)
-		}
-		for pos, seen := range starts {
-			if !seen && pos != end && (st.Stop == nil || st.Stop.File != name || pos < st.Stop.Pos) {
-				return fmt.Errorf("binlog %s does not match the backup: position %d is not an event boundary (was the binlog numbering reset?)", name, pos)
-			}
-		}
-		if resolve && st.Stop == nil {
-			if off, ok := stopper.EndFile(); ok {
-				st.Stop = &binlogPos{name, off}
-			}
-		}
-		return nil
-	}
+	chk := la.NewCheck(env, plan)
+	done := false
 	for i := range plan.Files {
 		f := &plan.Files[i]
 		if err := ctx.Err(); err != nil {
 			return nil, err
 		}
 		local := filepath.Join(dir, f.FileName)
-		lg.Printf("[%d/%d] Fetching %s (%s, %s → %s)", i+1, len(plan.Files), f.FileName, humanBytes(f.SizeBytes),
-			f.FirstTS.In(loc).Format("01-02 15:04:05"), f.LastTS.In(loc).Format("01-02 15:04:05"))
-		if err := r.fetchBinlog(ctx, task, f, local, fallbackPass); err != nil {
+		span := ""
+		if !f.FirstTS.IsZero() {
+			span = ", " + f.FirstTS.In(loc).Format("01-02 15:04:05") + " → " + f.LastTS.In(loc).Format("01-02 15:04:05")
+		}
+		lg.Printf("[%d/%d] Fetching %s (%s%s)", i+1, len(plan.Files), f.FileName, humanBytes(f.SizeBytes), span)
+		if err := r.fetchLogFile(ctx, task, f, local, fallbackPass); err != nil {
 			return nil, fmt.Errorf("%s: %w", f.FileName, err)
 		}
-		st.Files, st.Names = append(st.Files, local), append(st.Names, f.FileName)
-		from := int64(0)
-		if i == 0 {
-			from = plan.From.Pos
-		}
-		if err := check(local, f.FileName, from); err != nil {
+		var err error
+		if done, err = chk.Add(engine.LocalLog{Name: f.FileName, Path: local, File: f}); err != nil {
 			return nil, err
 		}
-		if st.Stop != nil {
+		if done {
 			break
 		}
 	}
-	if plan.Partial != "" && st.Stop == nil {
-		a := r.archiver(*plan.Base.JobID)
+	if plan.Partial != "" && !done {
+		a := r.archiver(*plan.Base.Run.JobID)
 		if a == nil {
-			return nil, errors.New("binlog archiving has stopped — the binlog being written is not available")
+			return nil, fmt.Errorf("%s archiving has stopped — the %s being received is not available", info.Name, info.Name)
 		}
-		local := filepath.Join(dir, plan.Partial)
-		name, inf, caught, checked, err := a.snapshotCurrent(local)
+		tmp := filepath.Join(dir, ".partial", plan.Partial)
+		snap, err := a.stream.Snapshot(tmp)
 		if err != nil {
 			return nil, err
 		}
-		if name != plan.Partial {
+		if snap.Name != plan.Partial {
 			return nil, errReplan
 		}
-		cov := inf.LastTS
-		if caught && checked.After(cov) {
-			cov = checked
+		cov := snap.Last
+		if snap.CaughtUp && snap.CheckedAt.After(cov) {
+			cov = snap.CheckedAt
 		}
 		if t.Type == "time" && t.Time.After(cov) {
-			return nil, fmt.Errorf("binlogs only reach %s", cov.In(loc).Format("2006-01-02 15:04:05"))
+			return nil, fmt.Errorf("%s only reach %s", info.Files, cov.In(loc).Format("2006-01-02 15:04:05"))
 		}
-		lg.Printf("Including the binlog being written, %s (%s, up to %s)", name, humanBytes(inf.Size), inf.LastTS.In(loc).Format("2006-01-02 15:04:05"))
-		st.Files, st.Names = append(st.Files, local), append(st.Names, name)
-		from := int64(0)
-		if len(plan.Files) == 0 {
-			from = plan.From.Pos
+		local := filepath.Join(dir, snap.Name)
+		if err := os.Rename(tmp, local); err != nil {
+			return nil, err
 		}
-		if err := check(local, name, from); err != nil {
+		upTo := ""
+		if !snap.Last.IsZero() {
+			upTo = ", up to " + snap.Last.In(loc).Format("2006-01-02 15:04:05")
+		}
+		lg.Printf("Including the %s being received, %s (%s%s)", info.Name, snap.Name, humanBytes(snap.Size), upTo)
+		if _, err := chk.Add(engine.LocalLog{Name: snap.Name, Path: local}); err != nil {
 			return nil, err
 		}
 	}
-	switch t.Type {
-	case "position":
-		st.Stop = &binlogPos{t.File, t.Pos}
-	case "gtid":
-		if st.Stop == nil {
-			return nil, fmt.Errorf("GTID %s not found in the binlogs after the base backup", t.GTID)
-		}
-	}
-	if len(st.Files) == 0 {
-		return nil, errors.New("no binlog to replay")
-	}
-	if st.Stop != nil {
-		for db, s := range plan.Starts {
-			if c, _ := posCompare(*st.Stop, s); c < 0 {
-				what := "the backup"
-				if db != "" {
-					what = "database " + db
-				}
-				return nil, fmt.Errorf("the stop point %s is before the position of %s (%s) — choose a later target", st.Stop, what, s)
-			}
-		}
-		lg.Printf("PITR: stop point %s (events from this position on are not replayed)", st.Stop)
-	} else {
-		lg.Printf("PITR: replaying all %d binlog file(s)", len(st.Files))
-	}
-	return st, nil
+	return chk.Finish()
 }
 
-// fetchBinlog downloads, decrypts and decompresses one archived file and
+// fetchLogFile downloads, decrypts and decompresses one archived file and
 // checks both checksums.
-func (r *Runner) fetchBinlog(ctx context.Context, task *Task, f *store.BinlogFile, local, fallbackPass string) error {
+func (r *Runner) fetchLogFile(ctx context.Context, task *Task, f *store.LogFile, local, fallbackPass string) error {
 	var lastErr error = errors.New("no storage holds this file")
 	// local storages first
-	locs := append([]store.BinlogLocation{}, f.Locations...)
+	locs := append([]store.LogLocation{}, f.Locations...)
 	sort.SliceStable(locs, func(i, j int) bool { return locs[i].StorageType == "local" && locs[j].StorageType != "local" })
 	for _, l := range locs {
 		if l.Status != store.LocOK || l.StorageID == nil {
@@ -753,7 +318,7 @@ func (r *Runner) fetchBinlog(ctx context.Context, task *Task, f *store.BinlogFil
 			lastErr = err
 			continue
 		}
-		if err := r.fetchBinlogFrom(ctx, task, b, f, local, fallbackPass); err != nil {
+		if err := r.fetchLogFileFrom(ctx, task, b, f, local, fallbackPass); err != nil {
 			lastErr = fmt.Errorf("%s: %w", st.Name, err)
 			continue
 		}
@@ -762,7 +327,7 @@ func (r *Runner) fetchBinlog(ctx context.Context, task *Task, f *store.BinlogFil
 	return lastErr
 }
 
-func (r *Runner) fetchBinlogFrom(ctx context.Context, task *Task, b storage.Backend, f *store.BinlogFile, local, fallbackPass string) error {
+func (r *Runner) fetchLogFileFrom(ctx context.Context, task *Task, b storage.Backend, f *store.LogFile, local, fallbackPass string) error {
 	pass := f.Passphrase
 	if pass == "" {
 		pass = fallbackPass
@@ -797,144 +362,20 @@ func (r *Runner) fetchBinlogFrom(ctx context.Context, task *Task, b storage.Back
 		return errors.New("checksum mismatch of the stored file")
 	}
 	if f.RawSHA256 != "" && hex.EncodeToString(rh.Sum(nil)) != f.RawSHA256 {
-		return errors.New("checksum mismatch of the decoded binlog")
+		return errors.New("checksum mismatch of the decoded file")
 	}
 	return nil
 }
 
-// ---- restore: replay ----
-
-func waitForServer(ctx context.Context, s *store.Server, lg *tasklog.Logger) error {
-	deadline := time.Now().Add(3 * time.Minute)
-	for {
-		db, err := dbconn.Open(ctx, s, "")
-		if err == nil {
-			db.Close()
-			return nil
-		}
-		if time.Now().After(deadline) {
-			return fmt.Errorf("server %s is not ready: %w", s.Name, err)
-		}
-		lg.Printf("Waiting for server %s to accept connections...", s.Name)
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		case <-time.After(5 * time.Second):
-		}
-	}
-}
-
-// pitrSteps turns the prepared files into replay steps. Logical restores
-// replay each restored database from its own snapshot position (filtered and
-// renamed like the restore); physical restores replay everything.
-func pitrSteps(st *pitrState, run *store.Run, req RestoreRequest) []engine.BinlogStep {
-	idx := map[string]int{}
-	for i, n := range st.Names {
-		idx[n] = i
-	}
-	last := len(st.Files) - 1
-	if st.Stop != nil {
-		if i, ok := idx[st.Stop.File]; ok {
-			last = i
-		}
-	}
-	type stream struct {
-		db, to string
-		from   binlogPos
-	}
-	var streams []stream
-	if run.Method == store.MethodPhysical {
-		streams = append(streams, stream{from: st.plan.From})
-	} else {
-		for _, d := range selectDatabases(run, req) {
-			if p, ok := startFor(st.plan.Starts, d.Name); ok {
-				streams = append(streams, stream{db: d.Name, to: targetName(req, d.Name), from: p})
-			}
-		}
-	}
-	var steps []engine.BinlogStep
-	for i := 0; i <= last; i++ {
-		for _, s := range streams {
-			first, ok := idx[s.from.File]
-			if !ok || i < first {
-				continue
-			}
-			step := engine.BinlogStep{File: st.Files[i], Database: s.db}
-			if s.to != s.db {
-				step.TargetDB = s.to
-			}
-			if i == first {
-				step.StartPos = s.from.Pos
-			}
-			if st.Stop != nil && i == last {
-				step.StopPos = st.Stop.Pos
-				if step.StartPos >= step.StopPos {
-					continue
-				}
-			}
-			steps = append(steps, step)
-		}
-	}
-	return steps
-}
-
-func (r *Runner) pitrApply(ctx context.Context, task *Task, env *engine.Env, st *pitrState, run *store.Run, target *store.Server, req RestoreRequest) error {
-	lg := env.Log
-	if run.Method == store.MethodPhysical {
-		if err := waitForServer(ctx, target, lg); err != nil {
-			return err
-		}
-	}
+// pitrApply replays the checked files after the base restore (not for
+// drivers whose physical restore runs the recovery itself).
+func (r *Runner) pitrApply(ctx context.Context, task *Task, env *engine.Env, la engine.LogArchiver, rp *engine.Replay, run *store.Run, target *store.Server, req RestoreRequest) error {
 	task.SetPhase("binlog_apply")
-	srcFlavor, _ := run.Meta["flavor"].(string)
-	if srcFlavor == "" {
-		srcFlavor = "mysql"
-	}
-	clientFlavor, err := r.targetFlavor(ctx, target)
-	if err != nil {
-		return err
-	}
-	steps := pitrSteps(st, run, req)
-	if len(steps) == 0 {
-		lg.Printf("PITR: no changes after the backup to replay")
-		return nil
-	}
-	sizes := map[string]int64{}
-	var total int64
-	for _, s := range steps {
-		if _, ok := sizes[s.File]; !ok {
-			if fi, err := os.Stat(s.File); err == nil {
-				sizes[s.File] = fi.Size()
-			}
-		}
-		total += sizes[s.File]
-	}
-	task.SetEstimate(task.Raw.N() + total)
+	spec := &engine.ReplaySpec{Run: run, Target: target, Databases: selectDatabases(run, req), Rename: req.Rename, NoBinlog: req.NoBinlog,
+		Progress: func(n int64) { task.Raw.Add(n) },
+		Estimate: func(n int64) { task.SetEstimate(task.Raw.N() + n) }}
 	if req.FastMode {
-		defer r.enableFastMode(ctx, target, lg)()
+		spec.FastMode = func() func() { return r.enableFastMode(ctx, target, env.Log) }
 	}
-	if run.Method == store.MethodPhysical {
-		lg.Printf("PITR: replaying %d binlog file(s) into %s (whole instance)", len(steps), target.Name)
-	} else {
-		lg.Printf("PITR: replaying binlogs for %d database(s) (%d steps) into %s — each database from its own snapshot position", len(selectDatabases(run, req)), len(steps), target.Name)
-	}
-	t0 := time.Now()
-	err = engine.ApplyBinlogs(env, target, steps, engine.BinlogApplyOpts{
-		BinlogTool:   engine.BinlogToolName(srcFlavor),
-		ClientFlavor: clientFlavor,
-		NoBinlog:     req.NoBinlog,
-		// a logical restore onto a server that already executed the original
-		// transactions (usually the source itself) needs new GTIDs
-		SkipGTIDs: run.Method != store.MethodPhysical,
-		OnStep:    func(i int) { task.Raw.Add(sizes[steps[i].File]) },
-	})
-	if err != nil {
-		return fmt.Errorf("replaying binlogs: %w", err)
-	}
-	stop := "end of the binlogs"
-	if st.Stop != nil {
-		stop = st.Stop.String()
-	}
-	lg.Printf("PITR: binlogs replayed up to %s (%s) in %s", st.plan.Target.Describe(r.location()), stop, humanDuration(time.Since(t0)))
-	return nil
+	return la.Replay(env, rp, spec)
 }

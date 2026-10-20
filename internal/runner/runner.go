@@ -48,8 +48,8 @@ type Runner struct {
 	fast   map[int64]*fastOrig // fast-restore settings per server
 
 	archMu    sync.Mutex
-	archivers map[int64]*archiver // binlog archivers per job
-	binlogUse map[int64]int       // archived binlogs read by PITR restores
+	archivers map[int64]*archiver // log archivers per job
+	logUse    map[int64]int       // archived log files read by PITR restores
 
 	drills map[int64]bool // restore drills running, per drill
 
@@ -62,7 +62,7 @@ func New(st *store.Store, sm *storage.Manager, tools *engine.Tools, n *notify.No
 	ctx, cancel := context.WithCancel(context.Background())
 	r := &Runner{Store: st, Storage: sm, Tools: tools, Notifier: n, DataDir: dataDir, AppVersion: version,
 		tasks: map[string]*Task{}, jobRunning: map[int64]bool{}, ctx: ctx, cancel: cancel,
-		inUse: map[int64]int{}, fast: map[int64]*fastOrig{}, archivers: map[int64]*archiver{}, binlogUse: map[int64]int{},
+		inUse: map[int64]int{}, fast: map[int64]*fastOrig{}, archivers: map[int64]*archiver{}, logUse: map[int64]int{},
 		drills: map[int64]bool{}}
 	r.BaseURL = func() string { return "" }
 	return r
@@ -251,28 +251,28 @@ func (r *Runner) runInUse(id int64) bool {
 	return r.inUse[id] > 0
 }
 
-// useBinlogs protects archived binlogs read by a restore from retention.
-func (r *Runner) useBinlogs(ids ...int64) func() {
+// useLogFiles protects archived log files read by a restore from retention.
+func (r *Runner) useLogFiles(ids ...int64) func() {
 	r.mu.Lock()
 	for _, id := range ids {
-		r.binlogUse[id]++
+		r.logUse[id]++
 	}
 	r.mu.Unlock()
 	return func() {
 		r.mu.Lock()
 		for _, id := range ids {
-			if r.binlogUse[id]--; r.binlogUse[id] <= 0 {
-				delete(r.binlogUse, id)
+			if r.logUse[id]--; r.logUse[id] <= 0 {
+				delete(r.logUse, id)
 			}
 		}
 		r.mu.Unlock()
 	}
 }
 
-func (r *Runner) binlogInUse(id int64) bool {
+func (r *Runner) logFileInUse(id int64) bool {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	return r.binlogUse[id] > 0
+	return r.logUse[id] > 0
 }
 
 // acquire waits for a free backup slot (max_concurrent setting).

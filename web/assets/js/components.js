@@ -254,7 +254,7 @@ export function pitrPlanView(p, runId, target) {
   const [stop, stopNote] = pitrStopText(target, p);
   const files = p.files + (p.partial ? 1 : 0);
   const range = p.first_file ? html`<code>${p.first_file}</code>${p.last_file && p.last_file !== p.first_file ? html` → <code>${p.last_file}</code>` : ''}${p.partial ? ' + the file still being received' : ''}`
-    : html`from <code>${b.binlog_file}:${b.binlog_pos}</code>`;
+    : html`from <code>${b.start}</code>`;
   return html`<div class="pitr-plan">
       <div class="pp-step"><span class="pp-ico">${icon('archive')}</span><div><small>1 · Restore the backup</small>
         <b><a href="#/runs/${b.id}">#${b.id}</a> ${b.dir_name}</b><span>data up to ${fmtDate(b.consistent_at, true)}</span></div></div>

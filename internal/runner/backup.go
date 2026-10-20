@@ -524,7 +524,7 @@ func (r *Runner) execBackup(ctx context.Context, task *Task, run *store.Run, job
 	if run.Status != store.StatusFailed && run.Status != store.StatusCanceled && !canceled {
 		task.SetPhase("retention")
 		r.applyRetention(ctx, job, lg)
-		r.applyBinlogRetention(ctx, job, lg)
+		r.applyLogRetention(ctx, job, lg)
 		switch job.Options.Verify() {
 		case store.VerifyAll:
 			task.SetPhase("verify")

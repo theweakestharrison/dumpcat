@@ -127,10 +127,11 @@ func (r *Runner) StartRestore(runID int64, req RestoreRequest, userID int64, use
 			return nil, err
 		}
 	}
-	var plan *pitrPlan
+	var plan *engine.LogPlan
 	if req.PITR != nil {
-		if err := req.PITR.Normalize(); err != nil {
-			return nil, err
+		la, base, err := pitrBase(run, req.PITR)
+		if err != nil {
+			return nil, fmt.Errorf("PITR: %w", err)
 		}
 		if run.Method == store.MethodPhysical && (!req.Apply || target == nil) {
 			return nil, errors.New("PITR from a physical backup requires 'Apply to MySQL now' and a target server, so binlogs can be replayed once it is running")
@@ -138,7 +139,7 @@ func (r *Runner) StartRestore(runID int64, req RestoreRequest, userID int64, use
 		if run.Type == store.TypeIncremental && !r.chainIntact(run) {
 			return nil, errors.New("the incremental chain of this backup is no longer complete")
 		}
-		plan, err = r.planPITR(run, *req.PITR)
+		plan, err = r.planPITR(la, base, *req.PITR)
 		if err != nil {
 			return nil, fmt.Errorf("PITR: %w", err)
 		}
@@ -171,7 +172,7 @@ func (r *Runner) StartRestore(runID int64, req RestoreRequest, userID int64, use
 	releaseBinlogs := func() {}
 	title := "Restore " + run.JobName + " " + run.DirName
 	if plan != nil {
-		releaseBinlogs = r.useBinlogs(plan.fileIDs()...)
+		releaseBinlogs = r.useLogFiles(plan.FileIDs()...)
 		title += " + PITR"
 	}
 	task, ctx := r.addTask("restore", rs.ID, 0, title)
@@ -186,7 +187,7 @@ func (r *Runner) StartRestore(runID int64, req RestoreRequest, userID int64, use
 	return rs, nil
 }
 
-func (r *Runner) execRestore(ctx context.Context, task *Task, rs *store.Restore, run *store.Run, target *store.Server, req RestoreRequest, plan *pitrPlan) {
+func (r *Runner) execRestore(ctx context.Context, task *Task, rs *store.Restore, run *store.Run, target *store.Server, req RestoreRequest, plan *engine.LogPlan) {
 	lg, err := tasklog.Open(r.RestoreLogPath(rs.ID))
 	if err != nil {
 		lg = tasklog.Discard()
@@ -208,16 +209,17 @@ func (r *Runner) execRestore(ctx context.Context, task *Task, rs *store.Restore,
 		r.finishRestore(rs, run, lg, start, err)
 		return
 	}
-	env := &engine.Env{Ctx: ctx, Log: lg, Tools: r.Tools, TmpDir: workDir}
-	// PITR: every binlog is fetched and verified, and the stop point
+	env := &engine.Env{Ctx: ctx, Log: lg, Tools: r.Tools, TmpDir: workDir, Loc: r.location()}
+	// PITR: every log file is fetched and verified, and the stop point
 	// resolved, before the base restore touches the target
-	var pst *pitrState
+	var rp *engine.Replay
+	la := logArchiverOf(run.Method)
 	if plan != nil {
-		pst, err = r.pitrPrepare(ctx, task, lg, plan, workDir, pass)
+		rp, err = r.pitrPrepare(ctx, task, env, la, plan, workDir, pass)
 		if errors.Is(err, errReplan) {
-			lg.Printf("The binlog being written was just closed — planning PITR again")
-			if plan, err = r.planPITR(run, plan.Target); err == nil {
-				pst, err = r.pitrPrepare(ctx, task, lg, plan, workDir, pass)
+			lg.Printf("The %s being received was just closed — planning PITR again", la.LogInfo().Name)
+			if plan, err = r.planPITR(la, plan.Base, plan.Target); err == nil {
+				rp, err = r.pitrPrepare(ctx, task, env, la, plan, workDir, pass)
 			}
 		}
 		if err != nil {
@@ -230,8 +232,8 @@ func (r *Runner) execRestore(ctx context.Context, task *Task, rs *store.Restore,
 	} else {
 		err = r.restoreLogical(ctx, task, env, run, target, req, pass)
 	}
-	if err == nil && pst != nil {
-		err = r.pitrApply(ctx, task, env, pst, run, target, req)
+	if err == nil && rp != nil && !la.LogInfo().Recovery {
+		err = r.pitrApply(ctx, task, env, la, rp, run, target, req)
 	}
 	r.finishRestore(rs, run, lg, start, err)
 }

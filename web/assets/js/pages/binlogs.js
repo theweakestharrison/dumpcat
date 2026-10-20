@@ -37,7 +37,7 @@ function card(it) {
       <div class="kv">
         ${s ? html`
           <div>Receiving</div><div class="mono small">${s.current_file || '—'}${s.received_bytes ? html` · ${fmtBytes(s.received_bytes)}` : ''}${s.received_at ? html` <span class="muted">· last event ${fmtDate(s.received_at, true)}</span>` : ''}</div>
-          <div>Server position</div><div class="mono small">${s.server_file ? `${s.server_file}:${s.server_pos}` : '—'}</div>
+          <div>Server position</div><div class="mono small">${s.server_position || '—'}</div>
           <div>Lag</div><div>${lagText(s)}</div>
           <div>Waiting for upload</div><div>${s.pending_files ? html`<b>${s.pending_files}</b> file(s) · ${fmtBytes(s.pending_bytes)}` : html`<span class="muted">none</span>`}</div>
           <div>Last archived</div><div>${s.last_archived ? html`<span class="mono small">${s.last_archived}</span> ${s.archived_at ? html`<span class="muted small">${fmtAgo(s.archived_at)}</span>` : ''}` : html`<span class="muted">—</span>`}</div>

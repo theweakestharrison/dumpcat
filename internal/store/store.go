@@ -367,6 +367,10 @@ ALTER TABLE runs ADD COLUMN drill_msg TEXT NOT NULL DEFAULT '';
 	`
 ALTER TABLE servers ADD COLUMN engine TEXT NOT NULL DEFAULT 'mysql';
 `,
+	// 8: the archive holds every engine's log files (MySQL binlogs, PostgreSQL WAL): their own details
+	`
+ALTER TABLE binlog_files ADD COLUMN meta TEXT NOT NULL DEFAULT '';
+`,
 }
 
 func (s *Store) migrate() error {

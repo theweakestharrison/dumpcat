@@ -305,9 +305,10 @@ type JobOptions struct {
 	ExtraArgs    string `json:"extra_args"`
 	PreCommand   string `json:"pre_command"`
 	PostCommand  string `json:"post_command"`
-	// continuous binlog archiving (point-in-time recovery)
-	BinlogArchive       bool `json:"binlog_archive"`
-	BinlogRotateMinutes int  `json:"binlog_rotate_minutes"` // FLUSH BINARY LOGS after N minutes (0 = never)
+	// continuous log archiving (point-in-time recovery): MySQL binlogs,
+	// PostgreSQL WAL (the JSON names predate PostgreSQL)
+	LogArchive       bool `json:"binlog_archive"`
+	LogRotateMinutes int  `json:"binlog_rotate_minutes"` // close the current file after N minutes (0 = never)
 	// monitoring
 	MaxAgeHours int `json:"max_age_hours"` // alert when the newest successful backup is older (0 = from the schedule)
 }
@@ -467,33 +468,37 @@ type RunLocation struct {
 	UpdatedAt   time.Time `json:"updated_at"`
 }
 
-// BinlogFile is one archived binary log file of a job's server.
-type BinlogFile struct {
-	ID          int64            `json:"id"`
-	JobID       *int64           `json:"job_id"`
-	JobUUID     string           `json:"job_uuid"`
-	JobName     string           `json:"job_name"`
-	ServerID    *int64           `json:"server_id"`
-	ServerName  string           `json:"server_name"`
-	FileName    string           `json:"file_name"` // name on the server, e.g. mysql-bin.000012
-	Seq         int64            `json:"seq"`
-	FirstTS     time.Time        `json:"first_ts"` // first event (file creation)
-	LastTS      time.Time        `json:"last_ts"`  // last event (rotate)
-	SizeBytes   int64            `json:"size_bytes"`
-	StoredBytes int64            `json:"stored_bytes"`
-	SHA256      string           `json:"sha256"` // of the stored (compressed/encrypted) file
-	RawSHA256   string           `json:"raw_sha256"`
-	Compression string           `json:"compression"`
-	Encrypted   bool             `json:"encrypted"`
-	Passphrase  string           `json:"-"`
-	Path        string           `json:"path"` // relative path on every storage
-	CreatedAt   time.Time        `json:"created_at"`
-	Locations   []BinlogLocation `json:"locations"`
+// LogFile is one archived log file of a job's server: a MySQL binary log or
+// a PostgreSQL WAL segment (table binlog_files, which predates PostgreSQL).
+type LogFile struct {
+	ID          int64         `json:"id"`
+	JobID       *int64        `json:"job_id"`
+	JobUUID     string        `json:"job_uuid"`
+	JobName     string        `json:"job_name"`
+	ServerID    *int64        `json:"server_id"`
+	ServerName  string        `json:"server_name"`
+	FileName    string        `json:"file_name"` // name on the server: mysql-bin.000012, 000000010000000000000003
+	Seq         int64         `json:"seq"`
+	FirstTS     time.Time     `json:"first_ts,omitzero"` // first event (zero: the file holds no timed event)
+	LastTS      time.Time     `json:"last_ts,omitzero"`  // last event
+	SizeBytes   int64         `json:"size_bytes"`
+	StoredBytes int64         `json:"stored_bytes"`
+	SHA256      string        `json:"sha256"` // of the stored (compressed/encrypted) file
+	RawSHA256   string        `json:"raw_sha256"`
+	Compression string        `json:"compression"`
+	Encrypted   bool          `json:"encrypted"`
+	Passphrase  string        `json:"-"`
+	Path        string        `json:"path"` // relative path on every storage
+	CreatedAt   time.Time     `json:"created_at"`
+	Locations   []LogLocation `json:"locations"`
+	// Meta holds what the engine knows of the file (WAL: timeline, LSN range,
+	// restore points, system identifier).
+	Meta map[string]any `json:"meta,omitempty"`
 }
 
-type BinlogLocation struct {
+type LogLocation struct {
 	ID          int64     `json:"id"`
-	BinlogID    int64     `json:"binlog_id"`
+	FileID      int64     `json:"binlog_id"`
 	StorageID   *int64    `json:"storage_id"`
 	StorageName string    `json:"storage_name"`
 	StorageType string    `json:"storage_type"`
@@ -503,7 +508,7 @@ type BinlogLocation struct {
 }
 
 // OKOn returns the location on storageID when the file is stored there.
-func (b *BinlogFile) OKOn(storageID int64) *BinlogLocation {
+func (b *LogFile) OKOn(storageID int64) *LogLocation {
 	for i := range b.Locations {
 		l := &b.Locations[i]
 		if l.StorageID != nil && *l.StorageID == storageID && l.Status == LocOK {
