@@ -10,6 +10,8 @@ import (
 	"strings"
 	"time"
 
+	"dumpcat/internal/drivers"
+	"dumpcat/internal/engine"
 	"dumpcat/internal/storage"
 	"dumpcat/internal/store"
 )
@@ -183,6 +185,9 @@ var safeSegment = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$`)
 // charsetRe: character set and collation names, written unquoted into CREATE DATABASE.
 var charsetRe = regexp.MustCompile(`^[A-Za-z0-9_]{1,64}$`)
 
+// localeRe: PostgreSQL locales (en_US.UTF-8, English_United States.1252, C).
+var localeRe = regexp.MustCompile(`^[A-Za-z0-9_.@ -]{1,64}$`)
+
 func validateManifest(m *store.Manifest) error {
 	// the storage that holds a manifest may be writable by someone who cannot touch this host:
 	// nothing in it may name a path outside the backup's own directory
@@ -192,15 +197,22 @@ func validateManifest(m *store.Manifest) error {
 	if m.JobSlug != "" && (!safeSegment.MatchString(m.JobSlug) || strings.Contains(m.JobSlug, "..")) {
 		return fmt.Errorf("invalid job directory name %q", m.JobSlug)
 	}
+	drv := drivers.ForMethod(m.Method)
+	if drv == nil {
+		return fmt.Errorf("invalid method %q", m.Method)
+	}
+	if m.Engine != "" && m.Engine != drv.Engine() {
+		return fmt.Errorf("method %q does not belong to engine %q", m.Method, m.Engine)
+	}
+	// MySQL writes them unquoted into CREATE DATABASE; PostgreSQL quotes its encoding and locale
+	collRe := charsetRe
+	if drv.Engine() != engine.EngineMySQL {
+		collRe = localeRe
+	}
 	for _, d := range m.Databases {
-		if (d.Charset != "" && !charsetRe.MatchString(d.Charset)) || (d.Collation != "" && !charsetRe.MatchString(d.Collation)) {
+		if (d.Charset != "" && !charsetRe.MatchString(d.Charset)) || (d.Collation != "" && !collRe.MatchString(d.Collation)) {
 			return fmt.Errorf("invalid character set or collation for database %q", d.Name)
 		}
-	}
-	switch m.Method {
-	case store.MethodMysqldump, store.MethodMydumper, store.MethodPhysical:
-	default:
-		return fmt.Errorf("invalid method %q", m.Method)
 	}
 	if m.Type != store.TypeFull && m.Type != store.TypeIncremental {
 		return fmt.Errorf("invalid type %q", m.Type)

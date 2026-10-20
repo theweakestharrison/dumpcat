@@ -40,10 +40,15 @@ type DrillAssertion struct {
 }
 
 type DrillOptions struct {
-	Threads       int  `json:"threads"`
-	NoBinlog      bool `json:"no_binlog"`       // keep the drill out of the sandbox's binary log
-	MaxRTOMinutes int  `json:"max_rto_minutes"` // fail when the restore takes longer (0 = no limit)
+	Threads       int    `json:"threads"`
+	NoBinlog      bool   `json:"no_binlog"`       // keep the drill out of the sandbox's binary log
+	MaxRTOMinutes int    `json:"max_rto_minutes"` // fail when the restore takes longer (0 = no limit)
+	RowCounts     string `json:"row_counts"`      // "" (exact, COUNT(*)) or "estimate" (the server's statistics)
 }
+
+// DrillRowsEstimate compares the server's row estimates (after ANALYZE)
+// instead of counting every row: for tables too big to count.
+const DrillRowsEstimate = "estimate"
 
 const (
 	DrillPassed = "passed"

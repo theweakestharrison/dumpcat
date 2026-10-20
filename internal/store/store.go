@@ -363,6 +363,10 @@ ALTER TABLE runs ADD COLUMN drill_status TEXT NOT NULL DEFAULT '';
 ALTER TABLE runs ADD COLUMN drilled_at INTEGER;
 ALTER TABLE runs ADD COLUMN drill_msg TEXT NOT NULL DEFAULT '';
 `,
+	// 7: several database engines — the driver of each server (methods name their engine)
+	`
+ALTER TABLE servers ADD COLUMN engine TEXT NOT NULL DEFAULT 'mysql';
+`,
 }
 
 func (s *Store) migrate() error {

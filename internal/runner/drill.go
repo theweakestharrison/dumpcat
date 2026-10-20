@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"dumpcat/internal/dbconn"
+	"dumpcat/internal/drivers"
 	"dumpcat/internal/engine"
 	"dumpcat/internal/notify"
 	"dumpcat/internal/store"
@@ -38,21 +39,23 @@ func (r *Runner) DrillLogPath(id int64) string {
 	return filepath.Join(r.DataDir, "logs", fmt.Sprintf("drill-%d.log", id))
 }
 
-// drillTempName names the copy of database db made by drill run id: the name
-// plus "__drill_<id>", cut to MySQL's 64 characters. taken holds the names
-// already used (lower case): every database of the backup and earlier copies.
+// drillTempName names the copy of database db made by drill run id on a
+// MySQL sandbox (see drillTempNameIn).
 func drillTempName(db string, id int64, taken map[string]bool) string {
-	base := []rune(db)
+	return drillTempNameIn(engine.MySQL{}, db, id, taken)
+}
+
+// drillTempNameIn names the copy of database db made by drill run id: the
+// name plus "__drill_<id>", cut to the engine's identifier limit. taken holds
+// the names already used (lower case): every database of the backup and
+// earlier copies.
+func drillTempNameIn(sb engine.Sandbox, db string, id int64, taken map[string]bool) string {
 	for n := 0; ; n++ {
 		suffix := fmt.Sprintf("%s%d", drillMarker, id)
 		if n > 0 {
 			suffix += fmt.Sprintf("_%d", n)
 		}
-		b := base
-		if keep := 64 - len([]rune(suffix)); len(b) > keep {
-			b = b[:keep]
-		}
-		name := string(b) + suffix
+		name := sb.TempName(db, suffix)
 		if !taken[strings.ToLower(name)] {
 			taken[strings.ToLower(name)] = true
 			return name
@@ -149,6 +152,10 @@ func (r *Runner) StartDrill(drillID, runID int64, trigger, user string) (*store.
 	if err != nil {
 		return nil, fmt.Errorf("sandbox server: %w", err)
 	}
+	sb := drivers.Sandbox(target)
+	if drv := drivers.ForMethod(job.Method); drv == nil || drivers.ForServer(target) != drv || sb == nil {
+		return nil, fmt.Errorf("the sandbox %s cannot restore the backups of job %s: it must be a server of the same engine", target.Name, job.Name)
+	}
 	target = target.ForRestore()
 	var run *store.Run
 	if runID > 0 {
@@ -203,7 +210,7 @@ func (r *Runner) StartDrill(drillID, runID int64, trigger, user string) (*store.
 		taken[strings.ToLower(e.Name)] = true
 	}
 	for _, e := range dbs {
-		x.Databases = append(x.Databases, store.DrillDB{Name: e.Name, Temp: drillTempName(e.Name, x.ID, taken)})
+		x.Databases = append(x.Databases, store.DrillDB{Name: e.Name, Temp: drillTempNameIn(sb, e.Name, x.ID, taken)})
 	}
 	if err := r.Store.UpdateDrillRun(x); err != nil {
 		done()
@@ -243,8 +250,10 @@ func (r *Runner) execDrill(ctx context.Context, task *Task, x *store.DrillRun, d
 	task.SetPhase("prepare")
 	same := r.sameServer(run, target)
 	noBinlog := d.Options.NoBinlog || same
-	if same {
+	if same && target.EngineName() == store.EngineMySQL {
 		lg.Printf("The sandbox is the backup's own source server: the copies get temporary names that cannot collide with its databases, and nothing is written to its binary log")
+	} else if same {
+		lg.Printf("The sandbox is the backup's own source server: the copies get temporary names that cannot collide with its databases")
 	}
 	info, err := r.drillPreflight(ctx, target, x, lg)
 	if err != nil {
@@ -270,8 +279,9 @@ func (r *Runner) execDrill(ctx context.Context, task *Task, x *store.DrillRun, d
 		req.Databases = append(req.Databases, m.Name)
 		req.Rename[m.Name] = m.Temp
 	}
-	_, sug := compatNotes(run, targetFlavorOf(target, info), info.Version, same)
+	_, sug := drivers.ForServer(target).Compat(run, target, info, same)
 	req.StripDefiner, req.ConvertCollations, req.SkipGTIDPurged = sug.StripDefiner, sug.ConvertCollations, sug.SkipGTIDPurged
+	req.NoOwner, req.NoPrivileges = sug.NoOwner, sug.NoPrivileges
 	for _, m := range x.Databases {
 		lg.Printf("  %s → %s", m.Name, m.Temp)
 	}
@@ -283,11 +293,7 @@ func (r *Runner) execDrill(ctx context.Context, task *Task, x *store.DrillRun, d
 	env := &engine.Env{Ctx: ctx, Log: lg, Tools: r.Tools, TmpDir: workDir}
 	lg.Printf("=== RESTORE ===")
 	t0 := time.Now()
-	if run.Method == store.MethodMydumper {
-		err = r.restoreMydumper(ctx, task, env, run, target, req, run.Passphrase, workDir)
-	} else {
-		err = r.restoreMysqldump(ctx, task, env, run, target, req, run.Passphrase)
-	}
+	err = r.restoreLogical(ctx, task, env, run, target, req, run.Passphrase)
 	rto := time.Since(t0)
 	x.RestoreMs = rto.Milliseconds()
 	if err != nil {
@@ -318,7 +324,7 @@ func (r *Runner) execDrill(ctx context.Context, task *Task, x *store.DrillRun, d
 // drillPreflight connects to the sandbox and makes sure none of the
 // temporary names exists there: a drill only ever drops what it created.
 func (r *Runner) drillPreflight(ctx context.Context, target *store.Server, x *store.DrillRun, lg *tasklog.Logger) (*dbconn.ServerInfo, error) {
-	info, err := dbconn.Inspect(ctx, target, false)
+	info, err := drivers.ForServer(target).Inspect(ctx, target, false)
 	if err != nil {
 		return nil, fmt.Errorf("could not connect to the sandbox with its restore account: %w", err)
 	}
@@ -343,36 +349,19 @@ func (r *Runner) dropDrillDatabases(target *store.Server, x *store.DrillRun, noB
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 	defer cancel()
-	var left, errs []string
-	err := func() error {
-		db, err := dbconn.Open(ctx, target, "")
-		if err != nil {
-			return err
+	var names []string
+	for _, name := range x.Leftover {
+		if !isDrillTemp(name, x.ID) {
+			lg.Printf("WARNING: refusing to drop %s: not a database of this drill", name)
+			continue
 		}
-		defer db.Close()
-		conn, err := db.Conn(ctx)
-		if err != nil {
-			return err
-		}
-		defer conn.Close()
-		if noBinlog {
-			if _, err := conn.ExecContext(ctx, "SET SESSION sql_log_bin=0"); err != nil {
-				lg.Printf("WARNING: could not disable the binary log for the cleanup: %v", err)
-			}
-		}
-		for _, name := range x.Leftover {
-			if !isDrillTemp(name, x.ID) {
-				lg.Printf("WARNING: refusing to drop %s: not a database of this drill", name)
-				continue
-			}
-			lg.Printf("DROP DATABASE IF EXISTS %s", dbconn.QuoteIdent(name))
-			if _, err := conn.ExecContext(ctx, "DROP DATABASE IF EXISTS "+dbconn.QuoteIdent(name)); err != nil {
-				left = append(left, name)
-				errs = append(errs, name+": "+err.Error())
-			}
-		}
-		return nil
-	}()
+		names = append(names, name)
+	}
+	sb := drivers.Sandbox(target)
+	if sb == nil {
+		return &store.DrillCheck{Kind: "cleanup", Name: "Cleanup", Status: store.CheckWarning, Message: "the sandbox's engine cannot drop drill copies"}
+	}
+	left, errs, err := sb.DropDatabases(ctx, target, names, noBinlog, lg)
 	if err != nil {
 		left, errs = x.Leftover, []string{err.Error()}
 	}
@@ -392,26 +381,24 @@ func (r *Runner) dropDrillDatabases(target *store.Server, x *store.DrillRun, noB
 func (r *Runner) drillChecks(ctx context.Context, lg *tasklog.Logger, d *store.Drill, run *store.Run, target *store.Server, x *store.DrillRun) []store.DrillCheck {
 	var out []store.DrillCheck
 	stats, _ := r.Store.RunTables(run.ID)
-	db, err := dbconn.Open(ctx, target, "")
+	sb := drivers.Sandbox(target)
+	if sb == nil {
+		return []store.DrillCheck{{Kind: "tables", Name: "Tables", Status: store.CheckFailed, Message: "restore drills are not available for this engine"}}
+	}
+	cc, err := sb.OpenCheck(ctx, target)
 	if err != nil {
 		return []store.DrillCheck{{Kind: "tables", Name: "Tables", Status: store.CheckFailed, Message: "could not connect to the sandbox: " + err.Error()}}
 	}
-	defer db.Close()
-	var lctn int
-	_ = db.QueryRowContext(ctx, "SELECT @@lower_case_table_names").Scan(&lctn)
-	fold := func(s string) string {
-		if lctn != 0 {
-			return strings.ToLower(s)
-		}
-		return s
-	}
+	defer cc.Close()
+	fold := cc.Fold
+	estimate := d.Options.RowCounts == store.DrillRowsEstimate
 	entries := map[string]store.DBEntry{}
 	for _, e := range run.Databases {
 		entries[e.Name] = e
 	}
 	for i := range x.Databases {
 		m := &x.Databases[i]
-		got, err := restoredTables(ctx, db, fold(m.Temp))
+		got, err := cc.Tables(ctx, fold(m.Temp))
 		if err != nil {
 			out = append(out, store.DrillCheck{Kind: "tables", Database: m.Name, Name: "Tables", Status: store.CheckFailed, Message: err.Error()})
 			continue
@@ -424,7 +411,7 @@ func (r *Runner) drillChecks(ctx context.Context, lg *tasklog.Logger, d *store.D
 		recorded, ok := stats[m.Name]
 		if !ok {
 			// a backup from before row counting: compare with information_schema at backup time
-			all, err := countSchemaObjects(ctx, db, fold(m.Temp))
+			all, err := cc.Objects(ctx, fold(m.Temp))
 			c := store.DrillCheck{Kind: "tables", Database: m.Name, Name: "Tables", Status: store.CheckOK, Expected: strconv.Itoa(entries[m.Name].Tables), Actual: strconv.Itoa(all),
 				Message: "tables and views, as listed by the server when the backup was made"}
 			if err != nil {
@@ -471,8 +458,18 @@ func (r *Runner) drillChecks(ctx context.Context, lg *tasklog.Logger, d *store.D
 		}
 		out = append(out, tc)
 		rc := store.DrillCheck{Kind: "rows", Database: m.Name, Name: "Row counts", Status: store.CheckOK}
+		var est map[string]int64
+		if estimate {
+			if est, err = cc.Estimate(ctx, fold(m.Temp)); err != nil {
+				if ctx.Err() != nil {
+					return out
+				}
+				lg.Printf("%s: no row estimates (%v): counting every row", m.Name, err)
+				est = nil
+			}
+		}
 		var expTotal, gotTotal int64
-		var bad []store.DrillTableRow
+		var bad, rough []store.DrillTableRow
 		for _, t := range names {
 			exp := recorded[t]
 			expTotal += exp
@@ -481,8 +478,17 @@ func (r *Runner) drillChecks(ctx context.Context, lg *tasklog.Logger, d *store.D
 				bad = append(bad, store.DrillTableRow{Table: t, Expected: exp, Actual: -1})
 				continue
 			}
-			var n int64
-			if err := db.QueryRowContext(ctx, "SELECT COUNT(*) FROM "+dbconn.QuoteIdent(fold(m.Temp))+"."+dbconn.QuoteIdent(real)).Scan(&n); err != nil {
+			if est != nil {
+				// the server's estimate after ANALYZE: exact for small tables, close for big ones
+				n := est[real]
+				gotTotal += n
+				if diff := n - exp; diff*10 > exp || -diff*10 > exp {
+					rough = append(rough, store.DrillTableRow{Table: t, Expected: exp, Actual: n})
+				}
+				continue
+			}
+			n, err := cc.Count(ctx, fold(m.Temp), real)
+			if err != nil {
 				if ctx.Err() != nil {
 					return out
 				}
@@ -498,9 +504,22 @@ func (r *Runner) drillChecks(ctx context.Context, lg *tasklog.Logger, d *store.D
 		m.Rows = gotTotal
 		rc.Expected, rc.Actual = humanCount(expTotal), humanCount(gotTotal)
 		rc.Message = fmt.Sprintf("%d table(s), every row count matches the backup", len(names))
-		if len(bad) > 0 {
+		if est != nil {
+			rc.Name = "Row counts (estimated)"
+			rc.Message = fmt.Sprintf("%d table(s), every estimate within 10 %% of the backup's row count", len(names))
+			if len(rough) > 0 && len(bad) == 0 {
+				rc.Status = store.CheckWarning
+				rc.Message = fmt.Sprintf("%d of %d table(s) are estimated more than 10 %% away from the backup's row count: run the drill with exact counts to compare", len(rough), len(names))
+				bad = rough
+			} else {
+				bad = append(bad, rough...)
+			}
+		}
+		if len(bad) > 0 && rc.Status == store.CheckOK {
 			rc.Status = store.CheckFailed
 			rc.Message = fmt.Sprintf("%d of %d table(s) differ from the backup", len(bad), len(names))
+		}
+		if len(bad) > 0 {
 			if len(bad) > 200 {
 				bad = bad[:200]
 			}
@@ -554,30 +573,6 @@ func humanCount(n int64) string {
 		b.WriteRune(c)
 	}
 	return b.String()
-}
-
-// restoredTables lists the base tables of a database.
-func restoredTables(ctx context.Context, db *sql.DB, schema string) ([]string, error) {
-	rows, err := db.QueryContext(ctx, `SELECT TABLE_NAME FROM information_schema.TABLES WHERE TABLE_SCHEMA=? AND TABLE_TYPE IN ('BASE TABLE','SYSTEM VERSIONED')`, schema)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var out []string
-	for rows.Next() {
-		var t string
-		if err := rows.Scan(&t); err != nil {
-			return nil, err
-		}
-		out = append(out, t)
-	}
-	return out, rows.Err()
-}
-
-func countSchemaObjects(ctx context.Context, db *sql.DB, schema string) (int, error) {
-	var n int
-	err := db.QueryRowContext(ctx, `SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA=?`, schema).Scan(&n)
-	return n, err
 }
 
 var reAssertStart = regexp.MustCompile(`(?is)^[\s(]*(SELECT|WITH)\b`)
@@ -638,59 +633,30 @@ func (r *Runner) drillAssert(ctx context.Context, target *store.Server, a store.
 			return c
 		}
 	}
-	actx, cancel := context.WithTimeout(ctx, 10*time.Minute)
+	actx, cancel := context.WithTimeout(ctx, engine.AssertTimeout)
 	defer cancel()
-	db, err := dbconn.Open(actx, target, schema)
+	sb := drivers.Sandbox(target)
+	if sb == nil {
+		c.Message = "restore drills are not available for this engine"
+		return c
+	}
+	v, err := sb.Assert(actx, target, schema, q)
+	if errors.Is(err, sql.ErrNoRows) {
+		c.Message, c.Actual = "the query returned no row", "no row"
+		return c
+	}
 	if err != nil {
-		c.Message = err.Error()
-		return c
-	}
-	defer db.Close()
-	conn, err := db.Conn(actx)
-	if err != nil {
-		c.Message = err.Error()
-		return c
-	}
-	defer conn.Close()
-	_, _ = conn.ExecContext(actx, "SET SESSION TRANSACTION READ ONLY")
-	_, _ = conn.ExecContext(actx, "SET SESSION max_statement_time=600")    // MariaDB
-	_, _ = conn.ExecContext(actx, "SET SESSION max_execution_time=600000") // MySQL
-	rows, err := conn.QueryContext(actx, q)
-	if err != nil {
-		c.Message = err.Error()
-		return c
-	}
-	defer rows.Close()
-	cols, err := rows.Columns()
-	if err != nil || len(cols) == 0 {
-		c.Message = "the query returned no column"
-		return c
-	}
-	if !rows.Next() {
-		if err := rows.Err(); err != nil {
-			c.Message = err.Error()
-		} else {
-			c.Message, c.Actual = "the query returned no row", "no row"
-		}
-		return c
-	}
-	vals := make([]sql.NullString, len(cols))
-	ptrs := make([]any, len(cols))
-	for i := range vals {
-		ptrs[i] = &vals[i]
-	}
-	if err := rows.Scan(ptrs...); err != nil {
 		c.Message = err.Error()
 		return c
 	}
 	c.Actual = "NULL"
-	if vals[0].Valid {
-		c.Actual = vals[0].String
+	if v.Valid {
+		c.Actual = v.String
 		if r := []rune(c.Actual); len(r) > 200 {
 			c.Actual = string(r[:199]) + "…"
 		}
 	}
-	if truthy(vals[0]) {
+	if truthy(v) {
 		c.Status, c.Message = store.CheckOK, "the first column is true"
 	} else {
 		c.Message = fmt.Sprintf("the first column is %s, not true", c.Actual)

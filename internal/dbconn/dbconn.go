@@ -107,12 +107,14 @@ type DBInfo struct {
 }
 
 type ServerInfo struct {
+	Engine         string   `json:"engine"` // driver that inspected the server: mysql, postgres
 	Version        string   `json:"version"`
 	VersionComment string   `json:"version_comment"`
 	Flavor         string   `json:"flavor"`
 	Major          int      `json:"major"`
 	Minor          int      `json:"minor"`
 	Datadir        string   `json:"datadir"`
+	WALLevel       string   `json:"wal_level,omitempty"` // PostgreSQL
 	LogBin         bool     `json:"log_bin"`
 	BinlogFormat   string   `json:"binlog_format"`
 	GTIDMode       string   `json:"gtid_mode"`

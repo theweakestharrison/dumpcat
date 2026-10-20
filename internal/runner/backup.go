@@ -15,6 +15,7 @@ import (
 	"dumpcat/internal/agent"
 	"dumpcat/internal/auth"
 	"dumpcat/internal/dbconn"
+	"dumpcat/internal/drivers"
 	"dumpcat/internal/engine"
 	"dumpcat/internal/execx"
 	"dumpcat/internal/notify"
@@ -150,6 +151,15 @@ func (r *Runner) execBackup(ctx context.Context, task *Task, run *store.Run, job
 		return
 	}
 	lg.Redact(server.Password, job.Passphrase)
+	drv := drivers.ForServer(server)
+	if drv == nil {
+		fail(fmt.Errorf("server %s: unknown database engine %q", server.Name, server.Engine))
+		return
+	}
+	if _, ok := engine.FindMethod(drv, job.Method); !ok {
+		fail(fmt.Errorf("the %s method does not back up %s servers: edit the job and pick another method", job.Method, drv.Product()))
+		return
+	}
 	if job.Method == store.MethodPhysical && server.WGPeerID != nil && *server.WGPeerID > 0 {
 		// xtrabackup/mariabackup copy the datadir of the machine they run on
 		fail(errors.New("physical backups need the backup tool on the database host: WireGuard only forwards the MySQL connection (use an agent started with --allow-physical, DumpCat installed on the database host, or mysqldump/mydumper)"))
@@ -165,15 +175,12 @@ func (r *Runner) execBackup(ctx context.Context, task *Task, run *store.Run, job
 	}
 
 	lg.Printf("Connecting to %s (%s:%d)...", server.Name, server.Host, server.Port)
-	info, err := dbconn.Inspect(dumpCtx, server, true)
+	info, err := drv.Inspect(dumpCtx, server, true)
 	if err != nil {
-		fail(fmt.Errorf("could not connect to MySQL: %w", err))
+		fail(fmt.Errorf("could not connect to %s: %w", drv.Product(), err))
 		return
 	}
-	flavor := server.Flavor
-	if flavor == "" || flavor == "auto" {
-		flavor = info.Flavor
-	}
+	flavor := engine.Flavor(server, info)
 	r.Store.UpdateServerDetected(server.ID, info.Version, info.Datadir)
 	if server.Datadir == "" {
 		server.Datadir = info.Datadir
@@ -210,7 +217,7 @@ func (r *Runner) execBackup(ctx context.Context, task *Task, run *store.Run, job
 	}
 
 	// incremental base
-	spec := &engine.BackupSpec{Server: server, Flavor: flavor, ServerVersion: info.Version, Job: job, Databases: dbs}
+	spec := &engine.BackupSpec{Server: server, Flavor: flavor, ServerVersion: info.Version, Info: info, Job: job, Databases: dbs}
 	if job.Method == store.MethodPhysical && server.AgentID != nil && *server.AgentID > 0 {
 		if spec.Remote, err = r.agentPhysical(server, flavor, lg); err != nil {
 			fail(err)
@@ -359,17 +366,7 @@ func (r *Runner) execBackup(ctx context.Context, task *Task, run *store.Run, job
 
 	task.SetPhase("dump")
 	lg.Printf("Starting %s...", job.Method)
-	var res *engine.Result
-	switch job.Method {
-	case store.MethodMysqldump:
-		res, err = engine.Mysqldump(env, spec, sink)
-	case store.MethodMydumper:
-		res, err = engine.Mydumper(env, spec, sink)
-	case store.MethodPhysical:
-		res, err = engine.Physical(env, spec, sink)
-	default:
-		err = fmt.Errorf("unsupported method: %s", job.Method)
-	}
+	res, err := drv.Backup(env, spec, sink)
 	if err != nil {
 		cleanupPartial()
 		fail(err)
@@ -413,6 +410,7 @@ func (r *Runner) execBackup(ctx context.Context, task *Task, run *store.Run, job
 	// manifest
 	fin := time.Now()
 	man := r.manifest(run, server, flavor, fin)
+	man.Engine = drv.Engine()
 	man.Tables = res.Tables
 	manData, _ := json.MarshalIndent(man, "", "  ")
 	if primaryDir != "" {

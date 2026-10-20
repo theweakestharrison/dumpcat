@@ -414,6 +414,7 @@ func (s *Server) routes(mux *http.ServeMux) {
 	s.route(mux, "PUT /api/servers/{id}", op, s.serverUpdate)
 	s.route(mux, "DELETE /api/servers/{id}", op, s.serverDelete)
 	s.route(mux, "GET /api/servers/{id}/info", vw, s.serverInfo)
+	s.route(mux, "GET /api/engines", vw, s.enginesList)
 	// agents: database hosts that connect out to DumpCat
 	s.route(mux, "GET /api/agents", vw, s.agentsList)
 	s.route(mux, "POST /api/agents", adm, s.agentCreate)

@@ -5,20 +5,20 @@ import (
 	"fmt"
 	"net/http"
 	"net/netip"
-	"os"
 	"path/filepath"
 	"regexp"
-	"strconv"
 	"strings"
 	"time"
 
 	"dumpcat/internal/dbconn"
+	"dumpcat/internal/drivers"
 	"dumpcat/internal/engine"
 	"dumpcat/internal/store"
 )
 
 type serverInput struct {
 	ID              int64  `json:"id"`
+	Engine          string `json:"engine"` // "" = mysql
 	Name            string `json:"name"`
 	Host            string `json:"host"`
 	Port            int    `json:"port"`
@@ -39,12 +39,25 @@ type serverInput struct {
 }
 
 func (in *serverInput) apply(sv *store.Server) error {
+	if in.Engine == "" {
+		in.Engine = store.EngineMySQL
+	}
+	drv := drivers.For(in.Engine)
+	if drv == nil {
+		return badRequest("invalid database engine %q", in.Engine)
+	}
 	if sv.ID > 0 {
+		if in.Engine != sv.EngineName() {
+			// the password belongs to another kind of server too
+			if in.Password == "" && sv.Password != "" {
+				return badRequest("re-enter the password when changing the database engine")
+			}
+		}
 		// Never send a stored password to a different destination: an
 		// operator could otherwise point the server at their own host.
 		port := in.Port
 		if port == 0 {
-			port = 3306
+			port = drv.DefaultPort()
 		}
 		moved := strings.TrimSpace(in.Host) != sv.Host || port != sv.Port || strings.TrimSpace(in.Socket) != sv.Socket ||
 			in.AgentID != idOf(sv.AgentID) || in.WGPeerID != idOf(sv.WGPeerID)
@@ -73,6 +86,7 @@ func (in *serverInput) apply(sv *store.Server) error {
 		id := in.WGPeerID
 		sv.WGPeerID = &id
 	}
+	sv.Engine = in.Engine
 	sv.Name = strings.TrimSpace(in.Name)
 	sv.Host = strings.TrimSpace(in.Host)
 	sv.Port = in.Port
@@ -98,10 +112,10 @@ func (in *serverInput) apply(sv *store.Server) error {
 	sv.HasPassword = sv.Password != ""
 	sv.HasRestorePassword = sv.RestorePassword != ""
 	if sv.Port == 0 {
-		sv.Port = 3306
+		sv.Port = drv.DefaultPort()
 	}
-	if sv.Flavor == "" {
-		sv.Flavor = "auto"
+	if sv.Flavor == "" || sv.Engine != store.EngineMySQL {
+		sv.Flavor = "auto" // MySQL's flavors only
 	}
 	switch sv.TLSMode {
 	case "", "disabled", "required", "verify":
@@ -236,7 +250,11 @@ func (s *Server) detectServer(id int64) {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
-	if info, err := dbconn.Inspect(ctx, sv, false); err == nil {
+	drv := drivers.ForServer(sv)
+	if drv == nil {
+		return
+	}
+	if info, err := drv.Inspect(ctx, sv, false); err == nil {
 		s.Store.UpdateServerDetected(id, info.Version, info.Datadir)
 	}
 }
@@ -254,11 +272,20 @@ func (s *Server) serverUpdate(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		return err
 	}
+	before := sv.EngineName()
 	if err := in.apply(sv); err != nil {
 		return err
 	}
 	if err := s.checkRoute(sv); err != nil {
 		return err
+	}
+	if sv.EngineName() != before {
+		if n, _ := s.Store.ServerInUse(id); n > 0 {
+			return badRequest("server is used by %d job(s) of its current engine — delete or reassign them before changing the engine", n)
+		}
+		if n := s.Store.DrillsUsingServer(id); n > 0 {
+			return badRequest("server is the sandbox of %d restore drill(s) — change or delete them before changing the engine", n)
+		}
 	}
 	if err := s.Store.UpdateServer(sv); err != nil {
 		if strings.Contains(err.Error(), "UNIQUE") {
@@ -293,105 +320,28 @@ func (s *Server) serverDelete(w http.ResponseWriter, r *http.Request) error {
 	return ok(w, map[string]bool{"ok": true})
 }
 
-type methodSupport struct {
-	Method  string `json:"method"`
-	OK      bool   `json:"ok"`
-	Message string `json:"message"`
-}
+type methodSupport = engine.MethodSupport
 
-var reVer = regexp.MustCompile(`(\d+)\.(\d+)\.(\d+)`)
-
-func verParts(s string) (int, int, int) {
-	m := reVer.FindStringSubmatch(s)
-	if m == nil {
-		return 0, 0, 0
-	}
-	a, _ := strconv.Atoi(m[1])
-	b, _ := strconv.Atoi(m[2])
-	c, _ := strconv.Atoi(m[3])
-	return a, b, c
-}
-
+// supportFor tells which backup methods of the server's engine can run. A
+// MySQL server behind an agent is judged by what the agent reported.
 func (s *Server) supportFor(sv *store.Server, info *dbconn.ServerInfo) []methodSupport {
-	flavor := sv.Flavor
-	if flavor == "" || flavor == "auto" {
-		flavor = info.Flavor
+	drv := drivers.ForServer(sv)
+	if drv == nil {
+		return nil
 	}
-	var out []methodSupport
-	dump := s.Tools.DumpTool(flavor)
-	client := s.Tools.Get(engine.ClientToolName(flavor))
-	ms := methodSupport{Method: store.MethodMysqldump, OK: dump.Found && client.Found}
-	if ms.OK {
-		ms.Message = dump.Version
-	} else if !dump.Found {
-		ms.Message = "Missing " + dump.Name + ": " + dump.Hint
-	} else {
-		ms.Message = "Missing client " + client.Name + " (needed for restores): " + client.Hint
-	}
-	out = append(out, ms)
-	md := s.Tools.Get("mydumper")
-	ml := s.Tools.Get("myloader")
-	ms = methodSupport{Method: store.MethodMydumper, OK: md.Found && ml.Found}
-	if ms.OK {
-		ms.Message = md.Version
-	} else {
-		ms.Message = "Missing mydumper/myloader: " + md.Hint
-	}
-	out = append(out, ms)
-	bname, sname := engine.PhysicalToolNames(flavor)
-	bt := s.Tools.Get(bname)
-	st := s.Tools.Get(sname)
-	ms = methodSupport{Method: store.MethodPhysical, OK: bt.Found && st.Found}
-	dd := sv.Datadir
-	if dd == "" {
-		dd = info.Datadir
-	}
-	switch {
-	case sv.WGPeerID != nil && *sv.WGPeerID > 0:
-		ms.OK = false
-		ms.Message = "Not through WireGuard: physical backups copy the datadir, so the backup tool must run on the database host — connect through an agent started with --allow-physical, or install DumpCat there"
-	case sv.AgentID != nil && *sv.AgentID > 0:
-		ms = s.agentPhysicalSupport(*sv.AgentID, flavor, info.Version, dd)
-	case !bt.Found:
-		ms.Message = "Missing " + bname + ": " + bt.Hint
-	case !st.Found:
-		ms.Message = "Missing " + sname + ": " + st.Hint
-	default:
-		var note string
-		ms.OK, note = physicalToolMatches(flavor, bt.Version, info.Version)
-		ms.Message = bt.Version + note
-		if dd != "" {
-			if _, err := os.Stat(dd); err != nil {
-				ms.OK = false
-				ms.Message += " — datadir " + dd + " is not accessible from this machine (physical backups must run on the database server itself, with read access to the datadir, or through an agent started with --allow-physical)"
+	out := drv.Support(sv, info, s.Tools)
+	if sv.EngineName() == store.EngineMySQL && sv.AgentID != nil && *sv.AgentID > 0 && (sv.WGPeerID == nil || *sv.WGPeerID == 0) {
+		dd := sv.Datadir
+		if dd == "" {
+			dd = info.Datadir
+		}
+		for i := range out {
+			if out[i].Method == store.MethodPhysical {
+				out[i] = s.agentPhysicalSupport(*sv.AgentID, engine.Flavor(sv, info), info.Version, dd)
 			}
 		}
 	}
-	out = append(out, ms)
 	return out
-}
-
-// physicalToolMatches checks the backup tool's version against the server's;
-// note explains a mismatch (or a patch-level advice).
-func physicalToolMatches(flavor, toolVersion, serverVersion string) (ok bool, note string) {
-	sMaj, sMin, sPatch := verParts(serverVersion)
-	if flavor == "mariadb" {
-		tMaj, tMin, tPatch := verParts(toolVersion)
-		if tMaj != sMaj || tMin != sMin {
-			return false, fmt.Sprintf(" — does NOT match server version %d.%d (mariabackup must match the MariaDB version)", sMaj, sMin)
-		} else if tPatch < sPatch {
-			return true, " — use a mariabackup with the same patch level as the server"
-		}
-		return true, ""
-	}
-	// "xtrabackup version 8.0.35-30 based on MySQL server 8.0.35"
-	tMaj, tMin, _ := verParts(toolVersion)
-	if sMaj == 5 && sMin == 7 && !(tMaj == 2 && tMin == 4) {
-		return false, " — MySQL 5.7 requires Percona XtraBackup 2.4"
-	} else if sMaj >= 8 && (tMaj != sMaj || tMin != sMin) {
-		return false, fmt.Sprintf(" — MySQL %d.%d requires XtraBackup %d.%d", sMaj, sMin, sMaj, sMin)
-	}
-	return true, ""
 }
 
 // agentPhysicalSupport tells whether the agent can run physical backups on
@@ -414,7 +364,7 @@ func (s *Server) agentPhysicalSupport(agentID int64, flavor, serverVersion, data
 	}
 	t := in.Caps.Physical.Tool(bname)
 	var note string
-	ms.OK, note = physicalToolMatches(flavor, t.Version, serverVersion)
+	ms.OK, note = engine.PhysicalToolMatches(flavor, t.Version, serverVersion)
 	ms.Message = t.Version + " on " + in.Hostname + " (agent " + name + ")" + note
 	if p := in.DatadirProblem(datadir); p != "" {
 		ms.OK = false
@@ -425,6 +375,28 @@ func (s *Server) agentPhysicalSupport(agentID int64, flavor, serverVersion, data
 		ms.Message += " — to restore these backups, install " + sname + " and " + bname + " on the DumpCat host too"
 	}
 	return ms
+}
+
+// engineView describes a database engine to the UI: the server form's
+// choice, the job editor's method cards and the restore page's options.
+type engineView struct {
+	Engine         string                 `json:"engine"`
+	Label          string                 `json:"label"`
+	Product        string                 `json:"product"`
+	DefaultPort    int                    `json:"default_port"`
+	Methods        []engine.Method        `json:"methods"`
+	RestoreOptions []engine.RestoreOption `json:"restore_options"`
+	Drills         bool                   `json:"drills"`
+}
+
+func (s *Server) enginesList(w http.ResponseWriter, r *http.Request) error {
+	var out []engineView
+	for _, d := range drivers.All() {
+		_, sb := d.(engine.Sandbox)
+		out = append(out, engineView{Engine: d.Engine(), Label: d.Label(), Product: d.Product(), DefaultPort: d.DefaultPort(),
+			Methods: d.Methods(), RestoreOptions: d.RestoreOptions(), Drills: sb})
+	}
+	return ok(w, out)
 }
 
 func (s *Server) serverTestUnsaved(w http.ResponseWriter, r *http.Request) error {
@@ -449,7 +421,7 @@ func (s *Server) serverTestUnsaved(w http.ResponseWriter, r *http.Request) error
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), 45*time.Second)
 	defer cancel()
-	info, err := dbconn.Inspect(ctx, sv, true)
+	info, err := drivers.ForServer(sv).Inspect(ctx, sv, true)
 	if err != nil {
 		return ok(w, map[string]any{"ok": false, "error": err.Error()})
 	}
@@ -465,9 +437,13 @@ func (s *Server) serverInfo(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		return err
 	}
+	drv := drivers.ForServer(sv)
+	if drv == nil {
+		return ok(w, map[string]any{"ok": false, "error": fmt.Sprintf("unknown database engine %q", sv.Engine)})
+	}
 	ctx, cancel := context.WithTimeout(r.Context(), 60*time.Second)
 	defer cancel()
-	info, err := dbconn.Inspect(ctx, sv, r.URL.Query().Get("sizes") != "0")
+	info, err := drv.Inspect(ctx, sv, r.URL.Query().Get("sizes") != "0")
 	if err != nil {
 		return ok(w, map[string]any{"ok": false, "error": err.Error()})
 	}

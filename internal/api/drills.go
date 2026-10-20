@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"strings"
 
+	"dumpcat/internal/drivers"
 	"dumpcat/internal/runner"
 	"dumpcat/internal/scheduler"
 	"dumpcat/internal/store"
@@ -74,6 +75,19 @@ func (s *Server) applyDrill(in *drillInput, d *store.Drill) error {
 		d.Assertions = append(d.Assertions, a)
 	}
 	d.Options = in.Options
+	switch d.Options.RowCounts {
+	case "", store.DrillRowsEstimate:
+	default:
+		return badRequest("invalid row count mode (exact or estimate)")
+	}
+	if m, _, ok := drivers.Method(job.Method); ok && !m.Estimates {
+		d.Options.RowCounts = "" // only engines that keep row estimates
+	}
+	if sv, err := s.Store.GetServer(in.TargetServerID); err == nil {
+		if js, err := s.Store.GetServer(job.ServerID); err == nil && js.EngineName() != sv.EngineName() {
+			return badRequest("the sandbox %s is not a %s server like the job's", sv.Name, drivers.ForServer(js).Product())
+		}
+	}
 	d.Options.Threads = max(0, min(d.Options.Threads, 32))
 	d.Options.MaxRTOMinutes = max(0, d.Options.MaxRTOMinutes)
 	d.NotifySuccess, d.NotifyFailure = in.NotifySuccess, in.NotifyFailure

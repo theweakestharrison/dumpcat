@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"dumpcat/internal/drivers"
 	"dumpcat/internal/monitor"
 	"dumpcat/internal/pipeline"
 	"dumpcat/internal/runner"
@@ -61,10 +62,12 @@ func (s *Server) applyJob(in *jobInput, j *store.Job, isAdmin bool) error {
 		return badRequest("server does not exist")
 	}
 	j.ServerID = in.ServerID
-	switch in.Method {
-	case store.MethodMysqldump, store.MethodMydumper, store.MethodPhysical:
-	default:
+	m, drv, known := drivers.Method(in.Method)
+	if !known {
 		return badRequest("invalid backup method")
+	}
+	if drivers.ForServer(sv) != drv {
+		return badRequest("%s backs up %s servers, and %s is a %s server", m.Title, drv.Product(), sv.Name, drivers.ForServer(sv).Product())
 	}
 	if in.Method == store.MethodPhysical && sv.WGPeerID != nil && *sv.WGPeerID > 0 {
 		return badRequest("server %s is reached through WireGuard: physical backups need the backup tool on the database host — connect through an agent started with --allow-physical, or use mysqldump or mydumper", sv.Name)
@@ -137,6 +140,9 @@ func (s *Server) applyJob(in *jobInput, j *store.Job, isAdmin bool) error {
 	}
 	j.Options.VerifyMode = j.Options.Verify()
 	j.Options.VerifyAfter = j.Options.VerifyMode != store.VerifyOff
+	if !m.LogArchive {
+		j.Options.BinlogArchive = false // the binlog archiver is MySQL's
+	}
 	if j.Options.BinlogArchive && j.Method == store.MethodMysqldump {
 		j.Options.RecordBinlog = true // PITR replays from the position of every dump
 	}

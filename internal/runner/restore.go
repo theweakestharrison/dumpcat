@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"dumpcat/internal/dbconn"
+	"dumpcat/internal/drivers"
 	"dumpcat/internal/engine"
 	"dumpcat/internal/execx"
 	"dumpcat/internal/notify"
@@ -40,6 +41,9 @@ type RestoreRequest struct {
 	StripDefiner      bool `json:"strip_definer"`
 	ConvertCollations bool `json:"convert_collations"`
 	SkipGTIDPurged    bool `json:"skip_gtid_purged"`
+	// PostgreSQL: objects owned by the restore account, no GRANTs (roles missing on the target)
+	NoOwner      bool `json:"no_owner"`
+	NoPrivileges bool `json:"no_privileges"`
 	// physical
 	TargetDir   string `json:"target_dir"`
 	Apply       bool   `json:"apply"`
@@ -52,17 +56,9 @@ type RestoreRequest struct {
 	PITR *PITRTarget `json:"pitr,omitempty"`
 }
 
-func (q RestoreRequest) portable() engine.PortableOpts {
-	return engine.PortableOpts{StripDefiner: q.StripDefiner, ConvertCollations: q.ConvertCollations, SkipGTIDPurged: q.SkipGTIDPurged}
-}
-
-// entry adapts a database's default collation to the target when
-// collations are converted.
-func (q RestoreRequest) entry(d store.DBEntry) store.DBEntry {
-	if q.ConvertCollations {
-		d.Collation = engine.PortableCollation(d.Collation)
-	}
-	return d
+func (q RestoreRequest) opts() engine.RestoreOpts {
+	return engine.RestoreOpts{StripDefiner: q.StripDefiner, ConvertCollations: q.ConvertCollations, SkipGTIDPurged: q.SkipGTIDPurged,
+		NoOwner: q.NoOwner, NoPrivileges: q.NoPrivileges}
 }
 
 func notifyEvent(kind, status, title, errMsg string) notify.Event {
@@ -85,11 +81,18 @@ func (r *Runner) StartRestore(runID int64, req RestoreRequest, userID int64, use
 	if run.Encrypted && run.Passphrase == "" && req.Passphrase == "" {
 		return nil, errors.New("the backup is encrypted: a passphrase is required")
 	}
+	drv := drivers.ForMethod(run.Method)
+	if drv == nil {
+		return nil, fmt.Errorf("unknown backup method %q", run.Method)
+	}
 	var target *store.Server
 	if req.TargetServerID > 0 {
 		target, err = r.Store.GetServer(req.TargetServerID)
 		if err != nil {
 			return nil, fmt.Errorf("target server: %w", err)
+		}
+		if drivers.ForServer(target) != drv {
+			return nil, fmt.Errorf("a %s backup restores onto a %s server: %s is not one", drv.Product(), drv.Product(), target.Name)
 		}
 		target = target.ForRestore()
 	} else if run.Method != store.MethodPhysical {
@@ -120,9 +123,8 @@ func (r *Runner) StartRestore(runID int64, req RestoreRequest, userID int64, use
 		if dst == "" {
 			continue
 		}
-		// a leading '-' would be parsed as a client option
-		if strings.HasPrefix(dst, "-") || len(dst) > 64 || strings.ContainsRune(dst, 0) {
-			return nil, fmt.Errorf("invalid target database name: %q", dst)
+		if err := drv.CheckName(dst); err != nil {
+			return nil, err
 		}
 	}
 	var plan *pitrPlan
@@ -223,13 +225,10 @@ func (r *Runner) execRestore(ctx context.Context, task *Task, rs *store.Restore,
 			return
 		}
 	}
-	switch run.Method {
-	case store.MethodPhysical:
+	if run.Method == store.MethodPhysical {
 		err = r.restorePhysical(ctx, task, env, run, target, req, pass)
-	case store.MethodMydumper:
-		err = r.restoreMydumper(ctx, task, env, run, target, req, pass, workDir)
-	default:
-		err = r.restoreMysqldump(ctx, task, env, run, target, req, pass)
+	} else {
+		err = r.restoreLogical(ctx, task, env, run, target, req, pass)
 	}
 	if err == nil && pst != nil {
 		err = r.pitrApply(ctx, task, env, pst, run, target, req)
@@ -418,20 +417,6 @@ func (r *Runner) RecoverFastMode() {
 	}
 }
 
-// checkNoBinlog fails early when the restore user may not disable binary
-// logging, so a "no binlog" restore never silently replicates.
-func checkNoBinlog(ctx context.Context, s *store.Server) error {
-	db, err := dbconn.Open(ctx, s, "")
-	if err != nil {
-		return err
-	}
-	defer db.Close()
-	if _, err := db.ExecContext(ctx, "SET SESSION sql_log_bin=0"); err != nil {
-		return fmt.Errorf("the restore account is not allowed to disable binlog (requires SUPER / SYSTEM_VARIABLES_ADMIN / BINLOG ADMIN): %w", err)
-	}
-	return nil
-}
-
 // preflight opens every file that will be restored and decodes its first
 // bytes: a wrong passphrase, missing file or unreachable storage is detected
 // before anything destructive (DROP DATABASE) happens.
@@ -483,43 +468,48 @@ func targetName(req RestoreRequest, src string) string {
 	return src
 }
 
-func prepareDatabase(ctx context.Context, s *store.Server, d store.DBEntry, name string, drop, noBinlog bool, lg *tasklog.Logger) error {
-	db, err := dbconn.Open(ctx, s, "")
-	if err != nil {
-		return err
-	}
-	defer db.Close()
-	// a single session so that sql_log_bin=0 also covers DROP/CREATE DATABASE
-	conn, err := db.Conn(ctx)
-	if err != nil {
-		return err
-	}
-	defer conn.Close()
-	if noBinlog {
-		if _, err := conn.ExecContext(ctx, "SET SESSION sql_log_bin=0"); err != nil {
-			return err
-		}
-	}
-	if drop {
-		lg.Printf("DROP DATABASE IF EXISTS %s", dbconn.QuoteIdent(name))
-		if _, err := conn.ExecContext(ctx, "DROP DATABASE IF EXISTS "+dbconn.QuoteIdent(name)); err != nil {
-			return err
-		}
-	}
-	q := "CREATE DATABASE IF NOT EXISTS " + dbconn.QuoteIdent(name)
-	// names from the catalog, written unquoted: only plain identifiers
-	if d.Charset != "" && charsetRe.MatchString(d.Charset) {
-		q += " CHARACTER SET " + d.Charset
-	}
-	if d.Collation != "" && charsetRe.MatchString(d.Collation) {
-		q += " COLLATE " + d.Collation
-	}
-	_, err = conn.ExecContext(ctx, q)
-	return err
+// restoreSource reads the files of one backup on one storage for a driver.
+type restoreSource struct {
+	r       *Runner
+	task    *Task
+	run     *store.Run
+	loc     *store.RunLocation
+	backend storage.Backend
+	pass    string
+	lg      *tasklog.Logger
 }
 
-func (r *Runner) restoreMysqldump(ctx context.Context, task *Task, env *engine.Env, run *store.Run, target *store.Server, req RestoreRequest, pass string) error {
-	flavor, err := r.inspectTarget(ctx, run, target, req, env.Log)
+func (s *restoreSource) Files() map[string]store.BackupFile {
+	files := map[string]store.BackupFile{}
+	for _, f := range s.run.Files {
+		files[pipeline.StripExt(f.Name)] = f
+	}
+	return files
+}
+
+func (s *restoreSource) Describe() string {
+	return fmt.Sprintf("%s (%s)", s.loc.StorageName, s.loc.Path)
+}
+
+func (s *restoreSource) Open(ctx context.Context, f store.BackupFile) (io.Reader, func(bool) error, error) {
+	return s.r.openBackupFile(ctx, s.task, s.backend, s.loc, f, s.pass)
+}
+
+func (s *restoreSource) Preflight(ctx context.Context, files []store.BackupFile) error {
+	return s.r.preflight(ctx, s.backend, s.loc, files, s.pass, s.lg)
+}
+
+func (s *restoreSource) SetPhase(p string)   { s.task.SetPhase(p) }
+func (s *restoreSource) SetEstimate(n int64) { s.task.SetEstimate(n) }
+
+// restoreLogical loads a logical backup into target through the driver of
+// its method (restores, drills, the base of a point-in-time recovery).
+func (r *Runner) restoreLogical(ctx context.Context, task *Task, env *engine.Env, run *store.Run, target *store.Server, req RestoreRequest, pass string) error {
+	drv := drivers.ForMethod(run.Method)
+	if drv == nil {
+		return fmt.Errorf("unknown backup method %q", run.Method)
+	}
+	info, err := r.inspectTarget(ctx, drv, run, target, req, env.Log)
 	if err != nil {
 		return err
 	}
@@ -527,246 +517,13 @@ func (r *Runner) restoreMysqldump(ctx context.Context, task *Task, env *engine.E
 	if err != nil {
 		return err
 	}
-	env.Log.Printf("Source: %s (%s) → server %s (%s)", loc.StorageName, loc.Path, target.Name, flavor)
-	files := map[string]store.BackupFile{}
-	for _, f := range run.Files {
-		files[pipeline.StripExt(f.Name)] = f
+	src := &restoreSource{r: r, task: task, run: run, loc: loc, backend: backend, pass: pass, lg: env.Log}
+	spec := &engine.RestoreSpec{Run: run, Target: target, Info: info, Databases: selectDatabases(run, req), Rename: req.Rename,
+		DropExisting: req.DropExisting, NoBinlog: req.NoBinlog, RestoreUsers: req.RestoreUsers, Threads: req.Threads, Opts: req.opts()}
+	if req.FastMode && drv.Engine() == engine.EngineMySQL {
+		spec.FastMode = func() func() { return r.enableFastMode(ctx, target, env.Log) }
 	}
-	var total int64
-	if req.NoBinlog {
-		if err := checkNoBinlog(ctx, target); err != nil {
-			return err
-		}
-	}
-	single := run.Meta["single_file"] == true
-	dbs := selectDatabases(run, req)
-	var check []store.BackupFile
-	if single {
-		f, ok := files["all-databases.sql"]
-		if !ok {
-			return errors.New("all-databases.sql not found in the backup")
-		}
-		check = append(check, f)
-	} else {
-		if len(dbs) == 0 {
-			return errors.New("no databases selected")
-		}
-		for _, d := range dbs {
-			f, ok := files[pipeline.StripExt(d.File)]
-			if !ok {
-				return fmt.Errorf("file for database %s not found", d.Name)
-			}
-			check = append(check, f)
-		}
-	}
-	if f, ok := files["_users.sql"]; ok && req.RestoreUsers {
-		check = append(check, f)
-	}
-	// nothing is dropped before every file proved readable with this passphrase
-	task.SetPhase("prepare")
-	if err := r.preflight(ctx, backend, loc, check, pass, env.Log); err != nil {
-		return err
-	}
-	if req.FastMode {
-		defer r.enableFastMode(ctx, target, env.Log)()
-	}
-	task.SetPhase("restore")
-	if single {
-		f := files["all-databases.sql"]
-		task.SetEstimate(f.Size)
-		if req.DropExisting {
-			for _, d := range run.Databases {
-				if err := prepareDatabase(ctx, target, req.entry(d), d.Name, true, req.NoBinlog, env.Log); err != nil {
-					return err
-				}
-			}
-		}
-		env.Log.Printf("Restore file %s (%s)", f.Name, humanBytes(f.Size))
-		rd, done, err := r.openBackupFile(ctx, task, backend, loc, f, pass)
-		if err != nil {
-			return err
-		}
-		err = engine.RestoreSQL(env, target, flavor, engine.PortableSQL(rd, req.portable()), engine.SQLRestoreOpts{NoBinlog: req.NoBinlog})
-		if derr := done(err == nil); err == nil && derr != nil {
-			return derr // the file is not the one that was backed up: the restore must not pass
-		}
-		if err != nil {
-			return err
-		}
-	} else {
-		for _, d := range dbs {
-			if f, ok := files[pipeline.StripExt(d.File)]; ok {
-				total += f.Size
-			}
-		}
-		task.SetEstimate(total)
-		threads := req.Threads
-		if threads <= 0 {
-			threads = 1
-		}
-		env.Log.Printf("Restoring %d database(s) (%s compressed), %d in parallel", len(dbs), humanBytes(total), threads)
-		err = engine.Parallel(ctx, threads, dbs, func(ctx context.Context, d store.DBEntry) error {
-			f, ok := files[pipeline.StripExt(d.File)]
-			if !ok {
-				return fmt.Errorf("file for database %s not found", d.Name)
-			}
-			name := targetName(req, d.Name)
-			if err := prepareDatabase(ctx, target, req.entry(d), name, req.DropExisting, req.NoBinlog, env.Log); err != nil {
-				return fmt.Errorf("%s: %w", name, err)
-			}
-			env.Log.Printf("Restore %s → %s (%s)", d.Name, name, humanBytes(f.Size))
-			t0 := time.Now()
-			rd, done, err := r.openBackupFile(ctx, task, backend, loc, f, pass)
-			if err != nil {
-				return err
-			}
-			e2 := *env
-			e2.Ctx = ctx
-			popts := req.portable()
-			popts.RenameFrom, popts.RenameTo = d.Name, name // definitions naming the source database follow the rename
-			err = engine.RestoreSQL(&e2, target, flavor, engine.PortableSQL(rd, popts), engine.SQLRestoreOpts{Database: name, NoBinlog: req.NoBinlog})
-			if derr := done(err == nil); err == nil && derr != nil {
-				return fmt.Errorf("%s: %w", name, derr)
-			}
-			if err != nil {
-				return fmt.Errorf("%s: %w", name, err)
-			}
-			env.Log.Printf("Done %s in %s", name, humanDuration(time.Since(t0)))
-			return nil
-		})
-		if err != nil {
-			return err
-		}
-	}
-	return r.restoreUsers(ctx, task, env, run, target, flavor, backend, loc, req, pass, files)
-}
-
-func (r *Runner) restoreUsers(ctx context.Context, task *Task, env *engine.Env, run *store.Run, target *store.Server, flavor string,
-	backend storage.Backend, loc *store.RunLocation, req RestoreRequest, pass string, files map[string]store.BackupFile) error {
-	if !req.RestoreUsers {
-		return nil
-	}
-	f, ok := files["_users.sql"]
-	if !ok {
-		env.Log.Printf("The backup contains no users/grants — skipping")
-		return nil
-	}
-	env.Log.Printf("Restoring users & grants (--force, errors in individual statements are ignored)")
-	rd, done, err := r.openBackupFile(ctx, task, backend, loc, f, pass)
-	if err != nil {
-		return err
-	}
-	err = engine.RestoreSQL(env, target, flavor, rd, engine.SQLRestoreOpts{NoBinlog: req.NoBinlog, Force: true})
-	if derr := done(err == nil); err == nil && derr != nil {
-		return derr
-	}
-	if err != nil {
-		env.Log.Printf("Some users/grants statements failed: %v", err)
-	}
-	return nil
-}
-
-func (r *Runner) restoreMydumper(ctx context.Context, task *Task, env *engine.Env, run *store.Run, target *store.Server, req RestoreRequest, pass, workDir string) error {
-	flavor, err := r.inspectTarget(ctx, run, target, req, env.Log)
-	if err != nil {
-		return err
-	}
-	loc, backend, err := r.pickLocation(run, req.LocationID)
-	if err != nil {
-		return err
-	}
-	files := map[string]store.BackupFile{}
-	for _, f := range run.Files {
-		files[pipeline.StripExt(f.Name)] = f
-	}
-	f, ok := files["mydumper.tar"]
-	if !ok {
-		return errors.New("mydumper.tar not found in the backup")
-	}
-	if req.NoBinlog {
-		if err := checkNoBinlog(ctx, target); err != nil {
-			return err
-		}
-	}
-	dir := filepath.Join(workDir, "dump")
-	if total, free, err := diskUsage(workDir); err == nil {
-		env.Log.Printf("Staging directory %s: %s free / %s, needs ~%s", workDir, humanBytes(free), humanBytes(total), humanBytes(f.Size))
-	}
-	task.SetPhase("download")
-	task.SetEstimate(f.Size)
-	env.Log.Printf("Downloading and extracting %s (%s) from %s", f.Name, humanBytes(f.Size), loc.StorageName)
-	rd, done, err := r.openBackupFile(ctx, task, backend, loc, f, pass)
-	if err != nil {
-		return err
-	}
-	n, err := engine.UntarTo(rd, dir)
-	if derr := done(err == nil); err == nil && derr != nil {
-		return derr
-	}
-	if err != nil {
-		return err
-	}
-	env.Log.Printf("Extracted %d files", n)
-	if o := req.portable(); o.Any() {
-		n, err := engine.RewriteMydumperSchemas(dir, o)
-		if err != nil {
-			return fmt.Errorf("rewriting the schema files: %w", err)
-		}
-		env.Log.Printf("Rewrote %d schema file(s) for the target (%s)", n, strings.Join(o.Labels(), ", "))
-	}
-	if n, err := engine.RenameMydumperSchemas(dir, req.Rename); err != nil {
-		return fmt.Errorf("rewriting the schema files: %w", err)
-	} else if n > 0 {
-		env.Log.Printf("Pointed %d schema file(s) at the renamed database(s)", n)
-	}
-	if req.FastMode {
-		defer r.enableFastMode(ctx, target, env.Log)()
-	}
-	task.SetPhase("restore")
-	threads := req.Threads
-	if threads <= 0 {
-		threads = 4
-	}
-	dbs := selectDatabases(run, req)
-	renamed := false
-	for _, d := range dbs {
-		if targetName(req, d.Name) != d.Name {
-			renamed = true
-		}
-	}
-	all := len(dbs) == len(run.Databases) && !renamed
-	for _, d := range dbs {
-		name := targetName(req, d.Name)
-		if req.DropExisting {
-			if err := prepareDatabase(ctx, target, req.entry(d), name, true, req.NoBinlog, env.Log); err != nil {
-				return err
-			}
-		}
-	}
-	base := engine.MyloaderOpts{Dir: dir, Threads: threads, Overwrite: req.DropExisting, EnableBinlog: !req.NoBinlog, OptimizeKeys: true}
-	if all {
-		env.Log.Printf("myloader: all %d database(s), %d threads", len(dbs), threads)
-		if err := engine.Myloader(env, target, base); err != nil {
-			return err
-		}
-	} else {
-		for _, d := range dbs {
-			o := base
-			o.SourceDB = d.Name
-			o.TargetDB = targetName(req, d.Name)
-			if !req.DropExisting {
-				if err := prepareDatabase(ctx, target, req.entry(d), o.TargetDB, false, req.NoBinlog, env.Log); err != nil {
-					return err
-				}
-			}
-			env.Log.Printf("myloader %s → %s, %d threads", d.Name, o.TargetDB, threads)
-			if err := engine.Myloader(env, target, o); err != nil {
-				return err
-			}
-		}
-	}
-	os.RemoveAll(dir)
-	return r.restoreUsers(ctx, task, env, run, target, flavor, backend, loc, req, pass, files)
+	return drv.Restore(env, src, spec)
 }
 
 // backupChain returns full → ... → run following parent links.

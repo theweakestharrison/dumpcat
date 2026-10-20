@@ -46,7 +46,9 @@ type Aborter interface {
 	Abort(err error)
 }
 
-// finish closes w on success or aborts it when the producer failed.
+// Finish closes w on success or aborts it when the producer failed.
+func Finish(w io.WriteCloser, runErr error) error { return finish(w, runErr) }
+
 func finish(w io.WriteCloser, runErr error) error {
 	if runErr != nil {
 		if a, ok := w.(Aborter); ok {
@@ -63,6 +65,7 @@ type BackupSpec struct {
 	Server         *store.Server
 	Flavor         string
 	ServerVersion  string
+	Info           *dbconn.ServerInfo // the server, inspected just before
 	Job            *store.Job
 	Databases      []dbconn.DBInfo
 	IncrementalLSN string
@@ -77,8 +80,10 @@ type Result struct {
 	Tables    store.TableStats // rows per table, counted from the dump (nil: unknown)
 }
 
-// setRows records the counted tables and the rows of each database (only for
+// SetRows records the counted tables and the rows of each database (only for
 // databases where the dump held something the counter understood).
+func (res *Result) SetRows(t store.TableStats) { res.setRows(t) }
+
 func (res *Result) setRows(t store.TableStats) {
 	if t == nil {
 		return
@@ -100,6 +105,14 @@ func (res *Result) setRows(t store.TableStats) {
 		}
 	}
 }
+
+// Command prepares a tool run: logged, low priority when asked, bound to the task.
+func (e *Env) Command(name string, args []string, extraEnv []string) *exec.Cmd {
+	return e.command(name, args, extraEnv)
+}
+
+// RunCmd runs cmd with stderr logged under prefix and returns a useful error.
+func (e *Env) RunCmd(cmd *exec.Cmd, prefix string) error { return e.runCmd(cmd, prefix) }
 
 func (e *Env) command(name string, args []string, extraEnv []string) *exec.Cmd {
 	e.Log.Printf("$ %s", execx.Quote(name, args))
@@ -275,6 +288,9 @@ func Parallel[T any](ctx context.Context, n int, items []T, fn func(ctx context.
 	return ctx.Err()
 }
 
+// ToEntries turns inspected databases into catalog entries.
+func ToEntries(dbs []dbconn.DBInfo) []store.DBEntry { return toEntries(dbs) }
+
 func toEntries(dbs []dbconn.DBInfo) []store.DBEntry {
 	out := make([]store.DBEntry, 0, len(dbs))
 	for _, d := range dbs {
@@ -284,6 +300,9 @@ func toEntries(dbs []dbconn.DBInfo) []store.DBEntry {
 }
 
 var ErrToolMissing = errors.New("missing tool")
+
+// RequireTool fails with an install hint when t was not found.
+func RequireTool(t *Tool) error { return requireTool(t) }
 
 func requireTool(t *Tool) error {
 	if t == nil || !t.Found {

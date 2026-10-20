@@ -5,7 +5,9 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"path"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -67,6 +69,7 @@ type APIToken struct {
 
 type Server struct {
 	ID          int64     `json:"id"`
+	Engine      string    `json:"engine"` // mysql (MySQL, MariaDB, Percona), postgres
 	Name        string    `json:"name"`
 	Host        string    `json:"host"`
 	Port        int       `json:"port"`
@@ -75,7 +78,7 @@ type Server struct {
 	Password    string    `json:"-"`
 	TLSMode     string    `json:"tls_mode"` // "", disabled, required, verify
 	CACert      string    `json:"ca_cert"`
-	Flavor      string    `json:"flavor"` // auto, mysql, mariadb, percona
+	Flavor      string    `json:"flavor"` // MySQL: auto, mysql, mariadb, percona
 	Version     string    `json:"version"`
 	Datadir     string    `json:"datadir"`
 	ServiceName string    `json:"service_name"`
@@ -94,6 +97,27 @@ type Server struct {
 	// WGPeerID: reach the server through DumpCat's WireGuard; Host is an
 	// address routed to this peer (its VPN address or a network behind it).
 	WGPeerID *int64 `json:"wg_peer_id"`
+}
+
+const (
+	EngineMySQL    = "mysql"
+	EnginePostgres = "postgres"
+)
+
+// EngineName is the server's engine ("mysql" for servers saved before engines existed).
+func (s *Server) EngineName() string {
+	if s.Engine == "" {
+		return EngineMySQL
+	}
+	return s.Engine
+}
+
+// DefaultPort is the engine's usual port, used when the server has none.
+func (s *Server) DefaultPort() int {
+	if s.EngineName() == EnginePostgres {
+		return 5432
+	}
+	return 3306
 }
 
 // TunnelEndpoint resolves a target behind an agent to a local address (set
@@ -142,7 +166,7 @@ func (s *Server) Addr() (host string, port int, socket string, err error) {
 		}
 		port := s.Port
 		if port == 0 {
-			port = 3306
+			port = s.DefaultPort()
 		}
 		host, port, err := WGEndpoint(*s.WGPeerID, net.JoinHostPort(s.Host, strconv.Itoa(port)))
 		if err != nil {
@@ -159,23 +183,27 @@ func (s *Server) Addr() (host string, port int, socket string, err error) {
 	}
 	port = s.Port
 	if port == 0 {
-		port = 3306
+		port = s.DefaultPort()
 	}
 	return host, port, "", nil
 }
 
 // AgentTarget is the address the agent dials for this server.
 func (s *Server) AgentTarget() (network, addr string) {
+	port := s.Port
+	if port == 0 {
+		port = s.DefaultPort()
+	}
 	if s.Socket != "" && (s.Host == "" || s.Host == "localhost") {
+		if s.EngineName() == EnginePostgres && !strings.Contains(path.Base(s.Socket), ".s.PGSQL.") {
+			// PostgreSQL names the socket directory: the socket is .s.PGSQL.<port> inside it
+			return "unix", path.Join(s.Socket, ".s.PGSQL."+strconv.Itoa(port))
+		}
 		return "unix", s.Socket
 	}
 	host := s.Host
 	if host == "" || host == "localhost" {
 		host = "127.0.0.1"
-	}
-	port := s.Port
-	if port == 0 {
-		port = 3306
 	}
 	return "tcp", net.JoinHostPort(host, strconv.Itoa(port))
 }
@@ -342,6 +370,7 @@ const (
 	MethodMysqldump = "mysqldump"
 	MethodMydumper  = "mydumper"
 	MethodPhysical  = "physical"
+	MethodPgDump    = "pg_dump"
 
 	TypeFull        = "full"
 	TypeIncremental = "incremental"
@@ -573,6 +602,7 @@ func DefaultSettings() Settings {
 type Manifest struct {
 	Format      string         `json:"format"`
 	AppVersion  string         `json:"app_version"`
+	Engine      string         `json:"engine,omitempty"` // mysql when missing (backups before 1.5.0)
 	UUID        string         `json:"uuid"`
 	JobUUID     string         `json:"job_uuid"`
 	JobName     string         `json:"job_name"`
