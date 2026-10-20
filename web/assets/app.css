@@ -135,12 +135,14 @@ hr { border: 0; border-top: 1px solid var(--border); margin: 16px 0; }
   position: sticky;
   top: 0;
   height: 100vh;
-  overflow-y: auto;
+  overflow: hidden;
 }
-.brand { display: flex; align-items: center; gap: 10px; padding: 18px 18px 14px; font-weight: 700; font-size: 16px; }
+/* only the menu scrolls: its scrollbar does not narrow the brand, and the brand and version stay in view */
+.brand { display: flex; align-items: center; gap: 10px; padding: 18px 18px 14px; font-weight: 700; font-size: 16px; flex: none; }
 .brand-logo { width: 30px; height: 30px; border-radius: 8px; display: block; flex: none; }
-.brand small { display: block; font-weight: 500; font-size: 11px; color: var(--muted); letter-spacing: 0.02em; }
-.nav { padding: 6px 10px 16px; flex: 1; }
+/* one line: a wider system font may run into the right padding rather than wrap */
+.brand small { display: block; font-weight: 500; font-size: 11px; color: var(--muted); white-space: nowrap; }
+.nav { padding: 6px 10px 16px; flex: 1; min-height: 0; overflow-y: auto; scrollbar-width: thin; }
 .nav-group { margin-top: 14px; }
 .nav-title { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); padding: 0 10px 6px; font-weight: 600; }
 .nav a {
@@ -151,7 +153,7 @@ hr { border: 0; border-top: 1px solid var(--border); margin: 16px 0; }
 .nav a:hover { background: var(--surface-2); text-decoration: none; color: var(--text); }
 .nav a.active { background: var(--accent-soft); color: var(--accent-ink); }
 .nav a svg { width: 18px; height: 18px; flex: none; }
-.sidebar-foot { padding: 12px 18px; border-top: 1px solid var(--border); font-size: 12px; color: var(--muted); }
+.sidebar-foot { padding: 12px 18px; border-top: 1px solid var(--border); font-size: 12px; color: var(--muted); flex: none; }
 
 .main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 .topbar {
