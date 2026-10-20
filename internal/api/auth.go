@@ -27,6 +27,7 @@ func (s *Server) userView(u *store.User) map[string]any {
 	return map[string]any{
 		"id": u.ID, "username": u.Username, "email": u.Email, "role": u.Role, "totp_enabled": u.TOTPEnabled,
 		"disabled": u.Disabled, "created_at": u.CreatedAt, "last_login_at": u.LastLoginAt,
+		"sso": u.SSOSubject != "", "has_password": u.PasswordHash != "",
 	}
 }
 
@@ -43,6 +44,7 @@ func (s *Server) authStatus(w http.ResponseWriter, r *http.Request) error {
 				}
 			}
 		}
+		s.ssoStatus(r, out) // the SSO button, and the two-factor step of an SSO sign-in
 	}
 	return ok(w, out)
 }
@@ -155,6 +157,14 @@ func (s *Server) authLogin(w http.ResponseWriter, r *http.Request) error {
 	}
 	if u.Disabled {
 		return errf(403, "account is locked")
+	}
+	if u.Role != store.RoleAdmin {
+		// with SSO on, passwords may be kept for admins: the fallback when the provider is down
+		if c := s.Store.GetSSO(); c.Enabled && c.PasswordAdminsOnly {
+			s.Limiter.Release(userKey)
+			s.IPLimit.Release(ipKey)
+			return errf(403, "sign in with single sign-on: password sign-in is for admins only")
+		}
 	}
 	if u.TOTPEnabled {
 		if strings.TrimSpace(in.TOTP) == "" {
@@ -418,11 +428,17 @@ func (s *Server) userCreate(w http.ResponseWriter, r *http.Request) error {
 	if _, err := s.Store.GetUserByName(in.Username); err == nil {
 		return badRequest("username already exists")
 	}
-	hash, err := auth.HashPassword(in.Password)
-	if err != nil {
-		return badRequest("%v", err)
+	hash := ""
+	if in.Password != "" || !s.Store.GetSSO().Enabled {
+		var err error
+		if hash, err = auth.HashPassword(in.Password); err != nil {
+			return badRequest("%v", err)
+		}
+	} else if strings.TrimSpace(in.Email) == "" {
+		// an account without a password signs in with SSO, which finds it by its email address
+		return badRequest("an account without a password needs the email address it signs in with through SSO")
 	}
-	u := &store.User{Username: in.Username, Email: in.Email, PasswordHash: hash, Role: in.Role}
+	u := &store.User{Username: in.Username, Email: strings.TrimSpace(in.Email), PasswordHash: hash, Role: in.Role}
 	if err := s.Store.CreateUser(u); err != nil {
 		return err
 	}
@@ -436,10 +452,11 @@ func (s *Server) userUpdate(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 	var in struct {
-		Email    *string `json:"email"`
-		Role     *string `json:"role"`
-		Disabled *bool   `json:"disabled"`
-		Password string  `json:"password"`
+		Email     *string `json:"email"`
+		Role      *string `json:"role"`
+		Disabled  *bool   `json:"disabled"`
+		Password  string  `json:"password"`
+		UnlinkSSO bool    `json:"unlink_sso"` // forget the SSO account: the next SSO sign-in finds the user by email again
 	}
 	if err := readJSON(r, &in); err != nil {
 		return err
@@ -477,6 +494,9 @@ func (s *Server) userUpdate(w http.ResponseWriter, r *http.Request) error {
 		}
 		u.PasswordHash = hash
 	}
+	if in.UnlinkSSO {
+		u.SSOSubject = ""
+	}
 	if err := s.Store.UpdateUser(u); err != nil {
 		return err
 	}
@@ -484,7 +504,11 @@ func (s *Server) userUpdate(w http.ResponseWriter, r *http.Request) error {
 		s.Store.DeleteUserSessions(u.ID, "")
 		s.Store.DeleteUserTokens(u.ID)
 	}
-	s.audit(r, "user_update", "user:"+u.Username, "role="+u.Role)
+	details := "role=" + u.Role
+	if in.UnlinkSSO {
+		details += ", SSO account unlinked"
+	}
+	s.audit(r, "user_update", "user:"+u.Username, details)
 	return ok(w, s.userView(u))
 }
 

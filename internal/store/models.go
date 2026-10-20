@@ -43,6 +43,7 @@ type User struct {
 	LastLoginAt  *time.Time `json:"last_login_at"`
 	PasswordHash string     `json:"-"`
 	TOTPSecret   string     `json:"-"` // plaintext base32 (encrypted at rest)
+	SSOSubject   string     `json:"-"` // "<issuer> <subject>" of the SSO account it is linked to ("" = none)
 }
 
 type Session struct {

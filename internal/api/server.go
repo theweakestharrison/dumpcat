@@ -63,6 +63,7 @@ type Server struct {
 	totp auth.TOTPGuard // a two-factor code signs in once
 
 	allowIndexing atomic.Bool // Settings: search engines may index the UI (robots.go)
+	sso           ssoState    // single sign-on in progress (sso.go)
 
 	logoMu     sync.Mutex  // the uploaded logo, read once (branding.go)
 	logoCache  *store.Logo // nil: the cat
@@ -435,6 +436,10 @@ func (s *Server) routes(mux *http.ServeMux) {
 	s.route(mux, "POST /api/auth/setup", pub, s.authSetup)
 	s.route(mux, "POST /api/auth/login", pub, s.authLogin)
 	s.route(mux, "POST /api/auth/logout", pub, s.authLogout)
+	// single sign-on with OpenID Connect (sso.go)
+	s.route(mux, "GET /api/auth/sso/start", pub, s.ssoStart)
+	s.route(mux, "GET /api/auth/sso/callback", pub, s.ssoCallback)
+	s.route(mux, "POST /api/auth/sso/totp", pub, s.ssoTOTP)
 	s.route(mux, "GET /api/me", vw, s.me)
 	s.route(mux, "POST /api/me/password", vw, s.mePassword)
 	s.route(mux, "POST /api/me/totp/setup", vw, s.meTOTPSetup)
@@ -550,6 +555,9 @@ func (s *Server) routes(mux *http.ServeMux) {
 	s.route(mux, "GET /api/settings", adm, s.settingsGet)
 	s.route(mux, "PUT /api/settings", adm, s.settingsPut)
 	s.route(mux, "POST /api/settings/metrics-token", adm, s.metricsTokenCreate)
+	s.route(mux, "GET /api/settings/sso", adm, s.ssoSettingsGet)
+	s.route(mux, "PUT /api/settings/sso", adm, s.ssoSettingsPut)
+	s.route(mux, "POST /api/settings/sso/test", adm, s.ssoTest)
 	// branding: the instance name is a setting; the logo is uploaded apart (branding.go)
 	s.route(mux, "GET /api/branding/logo", pub, s.logoGet)
 	s.route(mux, "PUT /api/branding/logo", adm, s.logoPut)

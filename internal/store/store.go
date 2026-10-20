@@ -375,6 +375,11 @@ ALTER TABLE binlog_files ADD COLUMN meta TEXT NOT NULL DEFAULT '';
 	`
 ALTER TABLE api_tokens ADD COLUMN access TEXT NOT NULL DEFAULT 'full';
 `,
+	// 10: SSO (OpenID Connect): the identity provider's account a user signs in with ("<issuer> <subject>")
+	`
+ALTER TABLE users ADD COLUMN sso_subject TEXT NOT NULL DEFAULT '';
+CREATE INDEX users_sso ON users(sso_subject) WHERE sso_subject <> '';
+`,
 }
 
 func (s *Store) migrate() error {

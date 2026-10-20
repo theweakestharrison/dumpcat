@@ -5,7 +5,7 @@ import (
 	"time"
 )
 
-const userCols = `id,username,email,password_hash,role,totp_secret,totp_enabled,disabled,created_at,updated_at,last_login_at`
+const userCols = `id,username,email,password_hash,role,totp_secret,totp_enabled,disabled,created_at,updated_at,last_login_at,sso_subject`
 
 func (s *Store) scanUser(row interface{ Scan(...any) error }) (*User, error) {
 	var u User
@@ -13,7 +13,7 @@ func (s *Store) scanUser(row interface{ Scan(...any) error }) (*User, error) {
 	var te, dis int
 	var ca, ua int64
 	var ll sql.NullInt64
-	if err := row.Scan(&u.ID, &u.Username, &u.Email, &u.PasswordHash, &u.Role, &totp, &te, &dis, &ca, &ua, &ll); err != nil {
+	if err := row.Scan(&u.ID, &u.Username, &u.Email, &u.PasswordHash, &u.Role, &totp, &te, &dis, &ca, &ua, &ll, &u.SSOSubject); err != nil {
 		return nil, notFound(err)
 	}
 	u.TOTPSecret = s.dec(totp)
@@ -68,8 +68,8 @@ func (s *Store) CreateUser(u *User) error {
 	if err != nil {
 		return err
 	}
-	res, err := s.db.Exec(`INSERT INTO users(username,email,password_hash,role,totp_secret,totp_enabled,disabled,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?)`,
-		u.Username, u.Email, u.PasswordHash, u.Role, totp, b2i(u.TOTPEnabled), b2i(u.Disabled), t, t)
+	res, err := s.db.Exec(`INSERT INTO users(username,email,password_hash,role,totp_secret,totp_enabled,disabled,created_at,updated_at,sso_subject) VALUES(?,?,?,?,?,?,?,?,?,?)`,
+		u.Username, u.Email, u.PasswordHash, u.Role, totp, b2i(u.TOTPEnabled), b2i(u.Disabled), t, t, u.SSOSubject)
 	if err != nil {
 		return err
 	}
@@ -84,8 +84,8 @@ func (s *Store) UpdateUser(u *User) error {
 	if err != nil {
 		return err
 	}
-	_, err = s.db.Exec(`UPDATE users SET username=?,email=?,password_hash=?,role=?,totp_secret=?,totp_enabled=?,disabled=?,updated_at=? WHERE id=?`,
-		u.Username, u.Email, u.PasswordHash, u.Role, totp, b2i(u.TOTPEnabled), b2i(u.Disabled), now(), u.ID)
+	_, err = s.db.Exec(`UPDATE users SET username=?,email=?,password_hash=?,role=?,totp_secret=?,totp_enabled=?,disabled=?,updated_at=?,sso_subject=? WHERE id=?`,
+		u.Username, u.Email, u.PasswordHash, u.Role, totp, b2i(u.TOTPEnabled), b2i(u.Disabled), now(), u.SSOSubject, u.ID)
 	return err
 }
 
