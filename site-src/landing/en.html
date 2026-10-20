@@ -8,6 +8,7 @@
 <template data-i18n="share-alt-short">DumpCat: backups that never lock the database, recovery to the exact second.</template>
 <template data-i18n="nav-aria">Sections</template>
 <template data-i18n="nav-features">Features</template>
+<template data-i18n="nav-ai">AI</template>
 <template data-i18n="nav-compare">Compare</template>
 <template data-i18n="nav-demo">Preview</template>
 <template data-i18n="nav-whatsnew">What's new</template>
@@ -116,6 +117,17 @@
 <template data-i18n="oss-contrib">Bug reports, pull requests and translations are welcome, see <a href="https://github.com/theweakestharrison/DumpCat/blob/main/CONTRIBUTING.md">CONTRIBUTING.md</a>. Please report security problems privately, as described in <a href="https://github.com/theweakestharrison/DumpCat/blob/main/SECURITY.md">SECURITY.md</a>.</template>
 <template data-i18n="oss-github">View on GitHub</template>
 <template data-i18n="oss-issues">Report an issue</template>
+<template data-i18n="ai-label">AI-friendly</template>
+<template data-i18n="ai-title">AI-friendly: let your AI assistant watch the backups</template>
+<template data-i18n="ai-intro">DumpCat ships an MCP server and an API reference written in Markdown. Claude Code, Claude Desktop and other AI agents connect with an API token to ask which backups failed, read the logs and explain why; with a full-access token they can also run backups, verifications and restore drills.</template>
+<template data-i18n="ai-list">
+  <div><dt>Built-in MCP server</dt><dd>The endpoint <code>/api/mcp</code> is part of DumpCat, nothing else to install: tools for the overview, alerts, jobs, backups, logs, restores, drills and point-in-time recovery previews. Clients that start a local server over stdio use <code>dumpcat mcp</code>.</dd></div>
+  <div><dt>Safe by default</dt><dd>New tokens can only look. Restores, deletions, credentials and settings never go through MCP; answers leave out passwords, keys and tokens, and whatever an assistant starts is written to the audit log.</dd></div>
+  <div><dt>An API reference in Markdown</dt><dd><code>/api/docs.md</code> is written by the server itself: authentication, conventions, curl examples and every route with the role and token it needs. Paste it into an AI chat, or let an agent read it and call the REST API.</dd></div>
+  <div><dt>Set up in a minute</dt><dd>The <em>API &amp; MCP</em> page in DumpCat creates the token, gives you the Claude Code command and the config for Claude Desktop and other clients, and a <em>Test</em> button to check the connection.</dd></div>
+</template>
+<template data-i18n="ai-aside-title">Connect Claude Code</template>
+<template data-i18n="ai-aside-text">Then ask in plain words: <em>“Which backups failed last night, and why?”</em>, <em>“Does shop-nightly have a backup newer than 24 hours?”</em>, <em>“Can I recover orders to 14:37 yesterday?”</em></template>
 <template data-i18n="cmp-label">Compare</template>
 <template data-i18n="cmp-title">DumpCat next to the other tools</template>
 <template data-i18n="cmp-intro">Pick a tool to see every feature side by side. Facts about other products are sourced and dated on the full comparison pages.</template>

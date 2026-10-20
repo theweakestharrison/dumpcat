@@ -49,6 +49,7 @@
       <a class="brand" href="#top" id="top"><svg aria-hidden="true"><use href="#dc-logo"/></svg>DumpCat</a>
       <nav class="nav" aria-label="Các mục" data-i18n-aria-label="nav-aria">
         <a href="#methods" data-i18n="nav-features">Tính năng</a>
+        <a href="#ai" data-i18n="nav-ai">AI</a>
         <a href="#compare" data-i18n="nav-compare">So sánh</a>
         <a href="/demo/" data-i18n="nav-demo">Xem giao diện</a>
         <a href="/changelog/" data-i18n="nav-whatsnew">Có gì mới</a>
@@ -290,6 +291,36 @@
         <div><dt>Database sau firewall</dt><dd>Agent trên server database tự kết nối ra DumpCat qua HTTPS, hoặc dùng WireGuard tích hợp. Không cần mở port nào tới database.</dd></div>
         <div><dt>Tự cập nhật</dt><dd><code>dumpcat update</code> kiểm tra <span class="nw">SHA-256</span>, backup cấu hình, chờ backup đang chạy xong và tự rollback nếu lỗi.</dd></div>
       </dl>
+    </div>
+  </section>
+
+  <section class="section" id="ai" aria-labelledby="ai-title">
+    <div class="wrap">
+      <div class="head">
+        <div>
+          <p class="label" data-i18n="ai-label">Cho AI</p>
+          <h2 id="ai-title" data-i18n="ai-title">AI-friendly: để trợ lý AI trông backup cùng bạn</h2>
+        </div>
+        <p class="intro" data-i18n="ai-intro">DumpCat có sẵn MCP server và tài liệu API viết bằng Markdown. Claude Code, Claude Desktop hay agent AI khác kết nối bằng một API token để hỏi backup nào lỗi, đọc log và giải thích vì sao; với token toàn quyền, chúng chạy được backup, verify và diễn tập restore.</p>
+      </div>
+      <div class="section-body storage-grid">
+        <dl class="oss-list" data-i18n="ai-list">
+          <div><dt>MCP server có sẵn</dt><dd>Endpoint <code>/api/mcp</code> nằm ngay trong DumpCat, không cài thêm gì: công cụ để xem tổng quan, cảnh báo, job, backup, log, restore, diễn tập và xem trước khôi phục theo thời điểm. Client tự chạy server qua stdio thì dùng <code>dumpcat mcp</code>.</dd></div>
+          <div><dt>An toàn mặc định</dt><dd>Token mới chỉ được xem. Restore, xóa, mật khẩu và settings không bao giờ đi qua MCP; câu trả lời đã lọc bỏ mật khẩu, khóa và token, và những gì AI khởi chạy đều ghi vào nhật ký thao tác.</dd></div>
+          <div><dt>API mô tả bằng Markdown</dt><dd><code>/api/docs.md</code> do chính server viết ra: xác thực, quy ước, ví dụ curl và từng route kèm quyền, loại token cần dùng. Dán vào khung chat AI, hoặc để agent tự đọc rồi gọi REST API.</dd></div>
+          <div><dt>Cài trong một phút</dt><dd>Trang <em>API &amp; MCP</em> trong DumpCat tạo token, cho sẵn lệnh cho Claude Code, cấu hình cho Claude Desktop và các client khác, rồi bấm <em>Test</em> để thử kết nối.</dd></div>
+        </dl>
+        <div class="aside">
+          <h3 data-i18n="ai-aside-title">Kết nối Claude Code</h3>
+          <div class="code">
+            <div class="code-bar"><span>bash</span><button type="button" class="copy" data-target="cmd-mcp" data-i18n="copy">Sao chép</button></div>
+            <pre><code id="cmd-mcp">claude mcp add --transport http dumpcat \
+  https://backup.example.com/api/mcp \
+  --header "Authorization: Bearer mv_…"</code></pre>
+          </div>
+          <p data-i18n="ai-aside-text">Rồi hỏi bằng lời thường: <em>“Đêm qua backup nào lỗi, vì sao?”</em>, <em>“Job shop-nightly có bản nào mới hơn 24 giờ không?”</em>, <em>“Khôi phục bảng orders về 14:37 hôm qua được không?”</em></p>
+        </div>
+      </div>
     </div>
   </section>
 
