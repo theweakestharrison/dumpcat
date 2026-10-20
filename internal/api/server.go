@@ -60,6 +60,9 @@ type Server struct {
 	setupLimit     *auth.Limiter // per-IP wrong setup tokens
 
 	totp auth.TOTPGuard // a two-factor code signs in once
+
+	api        http.Handler      // the API routes: MCP tools call them in-process (mcp.go)
+	routeRoles map[string]string // route pattern → minimum role
 }
 
 const sessionCookie = "dumpcat_session"
@@ -198,8 +201,35 @@ func (s *Server) audit(r *http.Request, action, target string, details string) {
 	s.Store.Audit(uid, name, action, target, details, s.clientIP(r))
 }
 
+// Routes a read-only API token may call besides GET: they only look.
+var readOnlyPOST = map[string]bool{
+	"POST /api/cron/preview": true,
+	"POST /api/pitr/plan":    true,
+}
+
+// GET routes a read-only API token may not call: backup data, an OAuth sign-in.
+var readOnlyDeniedGET = map[string]bool{
+	"GET /api/runs/{id}/download": true,
+	"GET /api/oauth/callback":     true,
+	"GET /api/oauth/result":       true,
+}
+
+// readOnlyAllows tells whether a read-only API token may call the route (new routes that
+// change something are refused until listed here).
+func readOnlyAllows(pattern string) bool {
+	method, _, _ := strings.Cut(pattern, " ")
+	if method == http.MethodGet || method == http.MethodHead {
+		return !readOnlyDeniedGET[pattern]
+	}
+	return readOnlyPOST[pattern]
+}
+
 // route registers a handler requiring minRole ("" = public).
 func (s *Server) route(mux *http.ServeMux, pattern, minRole string, h handlerFunc) {
+	if s.routeRoles == nil {
+		s.routeRoles = map[string]string{}
+	}
+	s.routeRoles[pattern] = minRole
 	mux.HandleFunc(pattern, func(w http.ResponseWriter, r *http.Request) {
 		defer func() {
 			if rec := recover(); rec != nil {
@@ -226,6 +256,10 @@ func (s *Server) route(mux *http.ServeMux, pattern, minRole string, h handlerFun
 			}
 			if store.RoleLevel(a.User.Role) < store.RoleLevel(minRole) {
 				s.writeErr(w, errf(403, "you don't have permission to do this (requires role %s)", minRole))
+				return
+			}
+			if a.Token != nil && a.Token.ReadOnly() && !readOnlyAllows(pattern) {
+				s.writeErr(w, errf(403, "this API token is read-only: create a token with full access in Profile & security"))
 				return
 			}
 			r = r.WithContext(context.WithValue(r.Context(), authKey, a))
@@ -386,6 +420,7 @@ func (s *Server) routes(mux *http.ServeMux) {
 		op  = store.RoleOperator
 		adm = store.RoleAdmin
 	)
+	s.api = mux
 	// auth
 	s.route(mux, "GET /api/auth/status", pub, s.authStatus)
 	s.route(mux, "POST /api/auth/setup", pub, s.authSetup)
@@ -516,6 +551,9 @@ func (s *Server) routes(mux *http.ServeMux) {
 	s.route(mux, "POST /api/update/rollback", adm, s.updateRollback)
 	s.route(mux, "POST /api/system/tools/refresh", adm, s.toolsRefresh)
 	s.route(mux, "GET /api/audit", adm, s.auditList)
+	// MCP for AI assistants: API tokens only, every tool calls the routes above (mcp.go)
+	s.route(mux, "POST /api/mcp", pub, s.mcpEndpoint)
+	mux.HandleFunc("/api/mcp", mcpNoStream)
 	mux.HandleFunc("/api/", func(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, 404, map[string]string{"error": "API endpoint not found"})
 	})

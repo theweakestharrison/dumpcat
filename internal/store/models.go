@@ -61,11 +61,20 @@ type APIToken struct {
 	UserID     int64      `json:"user_id"`
 	Name       string     `json:"name"`
 	Prefix     string     `json:"prefix"`
+	Access     string     `json:"access"` // TokenRead, TokenFull
 	CreatedAt  time.Time  `json:"created_at"`
 	LastUsedAt *time.Time `json:"last_used_at"`
 	ExpiresAt  *time.Time `json:"expires_at"`
 	Hash       string     `json:"-"`
 }
+
+const (
+	TokenRead = "read" // looks only: no change, no backup download, whatever the user's role
+	TokenFull = "full" // everything the user's role allows
+)
+
+// ReadOnly tells whether the token may only look (any value but full: fail closed).
+func (t *APIToken) ReadOnly() bool { return t.Access != TokenFull }
 
 type Server struct {
 	ID          int64     `json:"id"`

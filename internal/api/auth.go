@@ -321,6 +321,7 @@ func (s *Server) meTokenCreate(w http.ResponseWriter, r *http.Request) error {
 	var in struct {
 		Name        string `json:"name"`
 		ExpiresDays int    `json:"expires_days"`
+		Access      string `json:"access"` // read (default), full
 		Password    string `json:"password"`
 	}
 	if err := readJSON(r, &in); err != nil {
@@ -328,6 +329,16 @@ func (s *Server) meTokenCreate(w http.ResponseWriter, r *http.Request) error {
 	}
 	if strings.TrimSpace(in.Name) == "" {
 		return badRequest("token name is required")
+	}
+	if strings.ContainsFunc(in.Name, func(r rune) bool { return r < 0x20 || r == 0x7f }) {
+		return badRequest("the token name contains a line break or another control character")
+	}
+	switch in.Access {
+	case "":
+		in.Access = store.TokenRead // a token only looks unless asked otherwise
+	case store.TokenRead, store.TokenFull:
+	default:
+		return badRequest("access must be read or full")
 	}
 	// a token outlives sessions and password changes: creating one needs the password, so a
 	// stolen session cannot turn itself into lasting access
@@ -339,7 +350,7 @@ func (s *Server) meTokenCreate(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 	raw := "mv_" + auth.RandomToken(30)
-	t := &store.APIToken{UserID: userOf(r).ID, Name: strings.TrimSpace(in.Name), Prefix: raw[:10], Hash: auth.SHA256Hex(raw)}
+	t := &store.APIToken{UserID: userOf(r).ID, Name: strings.TrimSpace(in.Name), Prefix: raw[:10], Hash: auth.SHA256Hex(raw), Access: in.Access}
 	if in.ExpiresDays > 0 {
 		e := time.Now().AddDate(0, 0, in.ExpiresDays)
 		t.ExpiresAt = &e
@@ -347,7 +358,7 @@ func (s *Server) meTokenCreate(w http.ResponseWriter, r *http.Request) error {
 	if err := s.Store.CreateToken(t); err != nil {
 		return err
 	}
-	s.audit(r, "token_create", "token:"+t.Name, "")
+	s.audit(r, "token_create", "token:"+t.Name, "access="+t.Access)
 	return ok(w, map[string]any{"token": raw, "item": t})
 }
 

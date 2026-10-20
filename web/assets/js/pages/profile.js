@@ -26,9 +26,12 @@ export async function render(ctx) {
         </div></div>
       </div>
       <div class="card"><div class="card-head"><h2>API tokens</h2><button class="btn btn-sm btn-primary" id="tok-add">${icon('plus')}New token</button></div>
-        <div class="card-body small muted" style="padding-bottom:0">For automation / CI: <code>curl -X POST -H "Authorization: Bearer &lt;token&gt;" ${location.origin}/api/jobs/&lt;id&gt;/run</code>. A token has the same permissions as your account.</div>
-        <div class="table-wrap" style="margin-top:12px">${tokens.length ? html`<table class="table"><thead><tr><th>Name</th><th>Prefix</th><th>Created</th><th>Last used</th><th>Expires</th><th></th></tr></thead><tbody>
-          ${tokens.map((t) => html`<tr><td><b>${t.name}</b></td><td class="mono small">${t.prefix}…</td><td>${fmtDate(t.created_at)}</td><td>${t.last_used_at ? fmtAgo(t.last_used_at) : html`<span class="muted">never</span>`}</td><td>${t.expires_at ? fmtDate(t.expires_at) : 'never'}</td>
+        <div class="card-body small muted" style="padding-bottom:0">A <b>read-only</b> token sees what your account sees and changes nothing; a <b>full-access</b> token can do everything your role (${me.role}) can.
+          For automation / CI (full access): <code>curl -X POST -H "Authorization: Bearer &lt;token&gt;" ${location.origin}/api/jobs/&lt;id&gt;/run</code>.</div>
+        <div class="card-body small muted" style="padding-bottom:0" id="mcp-hint">${icon('zap')} <b>Use with AI assistants (MCP)</b>: Claude Desktop, Claude Code and other MCP clients can check status, read backups and logs, and investigate failures with a token.
+          Add the endpoint <code>${location.origin}/api/mcp</code> with the header <code>Authorization: Bearer &lt;token&gt;</code>, or run <code>dumpcat mcp</code> with <code>DUMPCAT_MCP_URL</code> and <code>DUMPCAT_MCP_TOKEN</code> set (manual: <i>API &amp; automation → AI assistants</i>). A read-only token is enough to look; running backups, verifications and drills needs full access.</div>
+        <div class="table-wrap" style="margin-top:12px">${tokens.length ? html`<table class="table"><thead><tr><th>Name</th><th>Access</th><th>Prefix</th><th>Created</th><th>Last used</th><th>Expires</th><th></th></tr></thead><tbody>
+          ${tokens.map((t) => html`<tr><td><b>${t.name}</b></td><td>${t.access === 'full' ? html`<span class="badge warn">Full</span>` : html`<span class="badge info">Read-only</span>`}</td><td class="mono small">${t.prefix}…</td><td>${fmtDate(t.created_at)}</td><td>${t.last_used_at ? fmtAgo(t.last_used_at) : html`<span class="muted">never</span>`}</td><td>${t.expires_at ? fmtDate(t.expires_at) : 'never'}</td>
             <td class="actions"><button class="btn btn-sm btn-ghost btn-icon" data-tdel="${t.id}" title="Revoke">${icon('trash')}</button></td></tr>`)}</tbody></table>` : empty('No tokens yet', 'key')}</div></div>`);
   };
   draw();
@@ -75,6 +78,8 @@ export async function render(ctx) {
     const m = modal({
       title: 'New API token',
       body: html`<form id="tk"><div class="field"><label class="req">Name</label><input type="text" name="name" placeholder="e.g. jenkins-deploy" required></div>
+        <div class="field" style="margin-top:12px"><label>Access</label><select name="access"><option value="read" selected>Read-only: see status, backups and logs, change nothing</option><option value="full">Full: everything your role (${me.role}) can do</option></select>
+          <div class="help">Read-only suits monitoring and AI assistants (MCP). Running jobs from CI, or letting an assistant start backups, verifications and drills, needs full access.</div></div>
         <div class="field" style="margin-top:12px"><label>Expires after (days, 0 = never)</label><input type="number" name="expires_days" value="90" min="0"></div>
         <div class="field" style="margin-top:12px"><label class="req">Your current password</label><input type="password" name="password" autocomplete="current-password" required></div></form>`,
       footer: html`<button class="btn" data-close>Cancel</button><button class="btn btn-primary" id="mk">Create</button>`,

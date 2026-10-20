@@ -144,8 +144,11 @@ func (s *Store) PurgeSessions() {
 
 func (s *Store) CreateToken(t *APIToken) error {
 	ts := now()
-	res, err := s.db.Exec(`INSERT INTO api_tokens(user_id,name,prefix,token_hash,created_at,expires_at) VALUES(?,?,?,?,?,?)`,
-		t.UserID, t.Name, t.Prefix, t.Hash, ts, nullTS(t.ExpiresAt))
+	if t.Access != TokenFull {
+		t.Access = TokenRead
+	}
+	res, err := s.db.Exec(`INSERT INTO api_tokens(user_id,name,prefix,token_hash,access,created_at,expires_at) VALUES(?,?,?,?,?,?,?)`,
+		t.UserID, t.Name, t.Prefix, t.Hash, t.Access, ts, nullTS(t.ExpiresAt))
 	if err != nil {
 		return err
 	}
@@ -155,7 +158,7 @@ func (s *Store) CreateToken(t *APIToken) error {
 }
 
 func (s *Store) ListTokens(userID int64) ([]APIToken, error) {
-	rows, err := s.db.Query(`SELECT id,user_id,name,prefix,token_hash,created_at,last_used_at,expires_at FROM api_tokens WHERE user_id=? ORDER BY id DESC`, userID)
+	rows, err := s.db.Query(`SELECT id,user_id,name,prefix,token_hash,access,created_at,last_used_at,expires_at FROM api_tokens WHERE user_id=? ORDER BY id DESC`, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -165,7 +168,7 @@ func (s *Store) ListTokens(userID int64) ([]APIToken, error) {
 		var t APIToken
 		var ca int64
 		var lu, ex sql.NullInt64
-		if err := rows.Scan(&t.ID, &t.UserID, &t.Name, &t.Prefix, &t.Hash, &ca, &lu, &ex); err != nil {
+		if err := rows.Scan(&t.ID, &t.UserID, &t.Name, &t.Prefix, &t.Hash, &t.Access, &ca, &lu, &ex); err != nil {
 			return nil, err
 		}
 		t.CreatedAt = fromTS(ca)
@@ -180,8 +183,8 @@ func (s *Store) GetTokenByHash(hash string) (*APIToken, error) {
 	var t APIToken
 	var ca int64
 	var lu, ex sql.NullInt64
-	err := s.db.QueryRow(`SELECT id,user_id,name,prefix,token_hash,created_at,last_used_at,expires_at FROM api_tokens WHERE token_hash=?`, hash).
-		Scan(&t.ID, &t.UserID, &t.Name, &t.Prefix, &t.Hash, &ca, &lu, &ex)
+	err := s.db.QueryRow(`SELECT id,user_id,name,prefix,token_hash,access,created_at,last_used_at,expires_at FROM api_tokens WHERE token_hash=?`, hash).
+		Scan(&t.ID, &t.UserID, &t.Name, &t.Prefix, &t.Hash, &t.Access, &ca, &lu, &ex)
 	if err != nil {
 		return nil, notFound(err)
 	}

@@ -371,6 +371,10 @@ ALTER TABLE servers ADD COLUMN engine TEXT NOT NULL DEFAULT 'mysql';
 	`
 ALTER TABLE binlog_files ADD COLUMN meta TEXT NOT NULL DEFAULT '';
 `,
+	// 9: API tokens are read-only or have their user's full role (tokens from before: full)
+	`
+ALTER TABLE api_tokens ADD COLUMN access TEXT NOT NULL DEFAULT 'full';
+`,
 }
 
 func (s *Store) migrate() error {

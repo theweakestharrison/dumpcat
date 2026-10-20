@@ -310,8 +310,8 @@ export function seed(now) {
   }
 
   return { users, agents, wireguard, servers, storages, jobs, runs, binlogs, restores, drills, drillRuns, channels, audit, tokens: [
-    { id: 1, user_id: 1, name: 'monitoring', prefix: 'mv_Mon1tor9', created_at: iso(now - 60 * D), last_used_at: iso(now - 25 * MIN), expires_at: null },
-    { id: 2, user_id: 1, name: 'ci-restore-test', prefix: 'mv_C1rEst0r', created_at: iso(now - 14 * D), last_used_at: iso(now - 2 * D), expires_at: iso(now + 76 * D) },
+    { id: 1, user_id: 1, name: 'monitoring', prefix: 'mv_Mon1tor9', access: 'read', created_at: iso(now - 60 * D), last_used_at: iso(now - 25 * MIN), expires_at: null },
+    { id: 2, user_id: 1, name: 'ci-restore-test', prefix: 'mv_C1rEst0r', access: 'full', created_at: iso(now - 14 * D), last_used_at: iso(now - 2 * D), expires_at: iso(now + 76 * D) },
   ], settings: { timezone: 'Asia/Ho_Chi_Minh', max_concurrent: 2, staging_dir: '/var/lib/dumpcat/staging', history_days: 90, base_url: 'https://backup.example.com', tool_paths: {}, session_hours: 12,
     rclone_flags: '--transfers 8', default_threads: 4, require_2fa_admins: true, update_url: '', update_auto_check: true,
     freshness_alerts: true, stale_grace_minutes: 60, binlog_lag_minutes: 30, metrics_access: 'token', digest_weekday: 1, digest_hour: 8, metrics_token_prefix: 'dcm_Pr0m3t' } };

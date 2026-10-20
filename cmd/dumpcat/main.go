@@ -59,6 +59,8 @@ Usage:
   dumpcat user reset-2fa -u NAME           disable a user's 2FA
   dumpcat user list
   dumpcat setup-token                      print the one-time token that creating the first admin requires
+  dumpcat mcp [-check]                     serve DumpCat's tools to an AI assistant over stdio (MCP);
+                                          URL and token from DUMPCAT_MCP_* ("dumpcat mcp -h")
   dumpcat decode -in FILE [-out FILE|-]    decrypt + decompress a backup file (.zst/.gz/.age)
   dumpcat update [-check] [-yes] [-rollback] check for / install a new version, or roll back
   dumpcat release keygen|sign|verify|pubkey  sign releases for the updater ("dumpcat release help")
@@ -104,6 +106,8 @@ func main() {
 		}
 	case "agent":
 		agentCmd(args)
+	case "mcp":
+		mcpCmd(args)
 	case "user":
 		userCmd(args)
 	case "setup-token":

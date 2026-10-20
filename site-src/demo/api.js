@@ -595,7 +595,7 @@ route('POST', '/me/password', () => ({ ok: true }));
 route('POST', '/me/logout-others', () => ({ ok: true, count: 1 }));
 route('GET', '/me/tokens', () => db.tokens);
 route('POST', '/me/tokens', ({ body }) => {
-  const item = { id: nextId(db.tokens), user_id: 1, name: body.name || 'token', prefix: 'mv_Dem0' + Math.random().toString(36).slice(2, 6), created_at: iso(now()), last_used_at: null, expires_at: body.days ? iso(now() + body.days * 24 * H) : null };
+  const item = { id: nextId(db.tokens), user_id: 1, name: body.name || 'token', prefix: 'mv_Dem0' + Math.random().toString(36).slice(2, 6), access: body.access === 'full' ? 'full' : 'read', created_at: iso(now()), last_used_at: null, expires_at: body.days ? iso(now() + body.days * 24 * H) : null };
   db.tokens.push(item);
   return { item, token: item.prefix + 'xDemoTokenNotUsable0000000000000' };
 });
