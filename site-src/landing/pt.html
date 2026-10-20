@@ -1,0 +1,197 @@
+<!-- Brazilian Portuguese (pt-BR) text of the landing page: the keys of en.html, translated.
+     A key missing here stays in English. The figures c-agent-fig and c-wg-fig are relabeled ("English => Português"). -->
+<template data-i18n="title">DumpCat: backup e recuperação point-in-time para MySQL, MariaDB e PostgreSQL</template>
+<template data-i18n="description">DumpCat: backup, restauração e recuperação point-in-time para MySQL, MariaDB e PostgreSQL em um único binário com interface web.</template>
+<template data-i18n="share">Backups que nunca bloqueiam o banco de dados. Recuperação até o segundo exato. Um único binário auto-hospedado com interface web.</template>
+<template data-i18n="share-alt">DumpCat: backups que nunca bloqueiam o banco de dados, recuperação até o segundo exato. Uma linha do tempo de recuperação point-in-time.</template>
+<template data-i18n="share-alt-short">DumpCat: backups que nunca bloqueiam o banco de dados, recuperação até o segundo exato.</template>
+<template data-i18n="nav-aria">Seções</template>
+<template data-i18n="nav-features">Recursos</template>
+<template data-i18n="nav-ai">IA</template>
+<template data-i18n="nav-compare">Comparar</template>
+<template data-i18n="nav-demo">Prévia</template>
+<template data-i18n="nav-whatsnew">Novidades</template>
+<template data-i18n="nav-install">Instalar</template>
+<template data-i18n="lang-aria">Idioma</template>
+<template data-i18n="eyebrow">Código aberto · Backup e restauração para MySQL, MariaDB e PostgreSQL</template>
+<template data-i18n="h1">Backups que nunca bloqueiam o banco. <span class="soft">Recuperação até o segundo exato.</span></template>
+<template data-i18n="lead">O DumpCat é um único binário com interface web. Ele agenda backups, compacta e criptografa os arquivos, envia cópias para S3, Google Drive, OneDrive ou SFTP, verifica cada uma e traz seus dados de volta quando você precisar. Roda em Linux e Windows, totalmente offline.</template>
+<template data-i18n="cta-install">Instalar <span data-version>1.5.0</span></template>
+<template data-i18n="cta-demo">Ver a interface</template>
+<template data-i18n="cta-github">Código no GitHub</template>
+<template data-i18n="pitr-title">Recuperação point-in-time</template>
+<template data-i18n="pitr-tag">Simulação</template>
+<template data-i18n="pitr-sub">Alguém apagou a tabela <code>orders</code> às 14:37:12. Arraste o marcador para escolher um ponto de recuperação: o DumpCat escolhe o backup base mais recente e os arquivos de binlog a reaplicar. O PostgreSQL funciona do mesmo jeito, com WAL arquivado.</template>
+<template data-i18n="tl-now">agora</template>
+<template data-i18n="ro-aria">Ponto de recuperação</template>
+<template data-i18n="lg-backup">Backup completo (mysqldump)</template>
+<template data-i18n="lg-binlog">Binlog arquivado, no máximo 15 minutos por arquivo</template>
+<template data-i18n="lg-replay">Reaplicado na restauração</template>
+<template data-i18n="lg-incident">Incidente</template>
+<template data-i18n="ro-to">Recuperar até</template>
+<template data-i18n="ro-base">Backup base</template>
+<template data-i18n="ro-replay">Reaplicar binlogs</template>
+<template data-i18n="ro-base-v">20261018-020000-full<small>mysqldump · consistente às 02:00:03</small></template>
+<template data-i18n="ro-replay-v">mysql-bin.000123 → mysql-bin.000173<small>51 arquivos, todos verificados antes de mexer em qualquer dado</small></template>
+<template data-i18n="ro-status-v">Antes do incidente: orders está intacta</template>
+<template data-i18n="tl-snap">Ir para logo antes do incidente</template>
+<template data-i18n="m-label">Métodos de backup</template>
+<template data-i18n="m-title">A ferramenta certa para cada banco e cada tamanho</template>
+<template data-i18n="m-intro">Para MySQL e MariaDB, o DumpCat orquestra <code>mysqldump</code>, <code>mydumper</code> e XtraBackup / MariaBackup. Ao adicionar um servidor, <em>Test connection</em> mostra a versão, o datadir, o tamanho de cada banco e quais métodos funcionam naquela máquina.</template>
+<template data-i18n="m-table">
+  <thead>
+    <tr><th scope="col"></th><th scope="col">mysqldump<small>lógico</small></th><th scope="col">mydumper<small>lógico, paralelo</small></th><th scope="col">XtraBackup / MariaBackup<small>físico, a quente</small></th></tr>
+  </thead>
+  <tbody>
+    <tr><th scope="row">Bloqueia o banco?</th><td data-m="mysqldump">Não no InnoDB, graças ao <code>--single-transaction</code></td><td data-m="mydumper">Um bloqueio global de poucos milissegundos para sincronizar as threads, depois nenhum</td><td data-m="físico">Nenhum bloqueio no InnoDB; um bloqueio de backup muito breve no final</td></tr>
+    <tr><th scope="row">Velocidade do backup</th><td data-m="mysqldump">1 thread por banco, vários bancos em paralelo</td><td data-m="mydumper">Multithread, tabelas divididas em blocos de linhas</td><td data-m="físico">A mais rápida: cópia de arquivos multithread</td></tr>
+    <tr><th scope="row">Velocidade da restauração</th><td data-m="mysqldump">A mais lenta</td><td data-m="mydumper">Rápida: em paralelo, índices criados após a carga</td><td data-m="físico">Muito rápida: cópia de arquivos + prepare</td></tr>
+    <tr><th scope="row">Incremental</th><td class="no" data-m="mysqldump">Não</td><td class="no" data-m="mydumper">Não</td><td class="yes" data-m="físico">Sim</td></tr>
+    <tr><th scope="row">Restaurar um só banco, renomear</th><td class="yes" data-m="mysqldump">Sim</td><td class="yes" data-m="mydumper">Sim</td><td class="no" data-m="físico">Não, só a instância inteira</td></tr>
+    <tr class="fit"><th scope="row">Ideal para</th><td data-m="mysqldump">Bancos com menos de 20–50 GB</td><td data-m="mydumper">Bancos grandes restaurados um de cada vez</td><td data-m="físico">De 100 GB a vários TB, RTO baixo</td></tr>
+  </tbody>
+</template>
+<template data-i18n="m-pg"><b>PostgreSQL</b> 10 ou mais recente: <code>pg_dump</code> por banco, com as tabelas exportadas e restauradas em paralelo, com outro nome ou em outro servidor; <code>pg_basebackup</code> para o cluster inteiro por uma conexão de replicação, com arquivamento contínuo de WAL para recuperar até um horário, um ponto de restauração ou uma posição do WAL.</template>
+<template data-i18n="s-label">Armazenamento</template>
+<template data-i18n="s-title">Um job, cópias em vários lugares</template>
+<template data-i18n="s-intro">Grave no disco local e depois envie, ou transmita direto para a nuvem sem disco temporário. Cada armazenamento guarda sua própria quantidade de cópias, por exemplo 3 backups no local e 30 dias no S3.</template>
+<template data-i18n="s-targets">
+  <li><b>Local / NFS</b><span>O mais rápido para restaurar; mantenha fora do disco do datadir</span></li>
+  <li><b>S3</b><span>AWS, Cloudflare R2, MinIO, Wasabi, DigitalOcean</span></li>
+  <li><b>Google Drive</b><span>OAuth ou uma conta de serviço</span></li>
+  <li><b>OneDrive</b><span>SharePoint incluído</span></li>
+  <li><b>FTP / FTPS</b><span>TLS explícito ou implícito</span></li>
+  <li><b>SFTP</b><span>Senha ou chave privada</span></li>
+  <li><b>WebDAV</b><span>Nextcloud e companhia</span></li>
+  <li><b>Backblaze B2</b><span>Além de Azure Blob e Dropbox</span></li>
+  <li><b>rclone</b><span>Mais de 70 outros backends</span></li>
+</template>
+<template data-i18n="s-aside-title">Formatos padrão, sem amarras</template>
+<template data-i18n="s-aside-text">Perdeu a máquina que roda o DumpCat? Instale uma cópia nova, adicione o armazenamento de novo e clique em <em>Import backup catalog</em>: todos os backups voltam para a lista. Sem o DumpCat, você ainda consegue restaurar com <code>age</code>, <code>zstd</code> e <code>mysql</code> ou <code>pg_restore</code>.</template>
+<template data-i18n="c-label">Conectividade</template>
+<template data-i18n="c-title">Banco sem nenhuma porta aberta? Tem backup do mesmo jeito.</template>
+<template data-i18n="c-intro">Quando o servidor de backup não consegue se conectar diretamente ao banco, por causa de um firewall, de NAT ou de um banco que só escuta em 127.0.0.1, deixe que o host do banco abra a conexão até o DumpCat. Há duas formas, e nenhuma abre porta no host do banco. Backups, restaurações e recuperação point-in-time funcionam como numa conexão direta.</template>
+<template data-i18n="c-agent-title">Agente</template>
+<template data-i18n="c-agent-fig" data-labels>
+  Agent: the database host opens the connection to DumpCat through its firewall => Agente: o host do banco abre a conexão com o DumpCat através do seu firewall
+  Backup server => Servidor de backup
+  Backup &amp; restore => Backup e restauração
+  Agent endpoint => Endpoint do agente
+  HTTPS · web UI port => HTTPS · porta da UI
+  Reachable over HTTPS => Acessível via HTTPS
+  Database host => Host do banco
+  No inbound port => Sem porta de entrada
+  Unchanged · 127.0.0.1 only => Inalterado · só 127.0.0.1
+  Allow list 127.0.0.1:3306 => Permite 127.0.0.1:3306
+  Nothing opened on this host => Nada aberto neste host
+  ← HTTPS · opened by the database host => ← HTTPS · aberta pelo host do banco
+  opened by the database host => aberta pelo host do banco
+  3306 inbound => 3306 de entrada
+  blocked, not needed => fechada, não precisa
+  The database host opens the tunnel => O host do banco abre o túnel
+  DumpCat&#x27;s database traffic flows back inside it => O tráfego do DumpCat até o banco volta por dentro dele
+</template>
+<template data-i18n="c-agent-facts">
+  <div><dt>O host do banco precisa de</dt><dd>HTTPS de saída até o DumpCat</dd></div>
+  <div><dt>Banco de dados</dt><dd>Inalterado, mesmo que só escute em 127.0.0.1</dd></div>
+  <div><dt>Instalação</dt><dd><code>sudo ./install.sh --agent --server … --key …</code></dd></div>
+  <div><dt>Ideal para</dt><dd>Não mexer na rede nem na configuração do MySQL</dd></div>
+</template>
+<template data-i18n="c-wg-title">WireGuard integrado</template>
+<template data-i18n="c-wg-tag">UDP · desativado por padrão</template>
+<template data-i18n="c-wg-fig" data-labels>
+  WireGuard: the database host opens the tunnel to DumpCat through its firewall => WireGuard: o host do banco abre o túnel até o DumpCat através do seu firewall
+  Backup server => Servidor de backup
+  Backup &amp; restore => Backup e restauração
+  WireGuard, built in => WireGuard integrado
+  UDP 51820 open => UDP 51820 aberta
+  Database host => Host do banco
+  No inbound port => Sem porta de entrada
+  Listens on 10.66.0.2 => Escuta em 10.66.0.2
+  Nothing opened on this host => Nada aberto neste host
+  ← WireGuard UDP · opened by the database host => ← WireGuard UDP · aberto pelo host do banco
+  opened by the database host => aberto pelo host do banco
+  3306 inbound => 3306 de entrada
+  blocked, not needed => fechada, não precisa
+  The database host opens the tunnel => O host do banco abre o túnel
+  DumpCat&#x27;s database traffic flows back inside it => O tráfego do DumpCat até o banco volta por dentro dele
+</template>
+<template data-i18n="c-wg-facts">
+  <div><dt>O host do banco precisa de</dt><dd>WireGuard padrão, UDP 51820 de saída até o DumpCat</dd></div>
+  <div><dt>Banco de dados</dt><dd>Escuta no endereço da VPN; o usuário libera o acesso de 10.66.0.1</dd></div>
+  <div><dt>Instalação</dt><dd>Ative na página WireGuard, copie <code>dumpcat.conf</code>, <code>systemctl enable --now wg-quick@dumpcat</code></dd></div>
+  <div><dt>Ideal para</dt><dd>Equipes que já usam WireGuard, ou um gateway para uma rede inteira de bancos</dd></div>
+</template>
+<template data-i18n="c-note">O host do banco abre a conexão; os dados trafegam nos dois sentidos dentro dela. Backups físicos (XtraBackup / MariaBackup) funcionam por um agente iniciado com <code>--allow-physical</code>; pelo WireGuard, eles ainda exigem o DumpCat instalado no host do banco.</template>
+<template data-i18n="o-label">Operações</template>
+<template data-i18n="o-title">Tudo aquilo que você faria com scripts caseiros</template>
+<template data-i18n="o-intro">Tudo isso já vem no DumpCat e é ativado e ajustado pela interface web.</template>
+<template data-i18n="o-list">
+  <div><dt>Criptografado antes do upload</dt><dd>O age (ChaCha20-Poly1305 + scrypt) roda no seu servidor, então o provedor de nuvem não consegue ler seus dados.</dd></div>
+  <div><dt>Verificação de integridade</dt><dd><span class="nw">SHA-256</span> para cada arquivo. A verificação relê, descriptografa, descompacta e procura a linha <code>Dump completed</code>.</dd></div>
+  <div><dt>Retenção GFS</dt><dd>Mantenha N backups, N dias, o último de cada dia, semana e mês. Cadeias incrementais só são apagadas junto com o seu backup completo.</dd></div>
+  <div><dt>Restaurações cuidadosas</dt><dd>Cada arquivo passa por um teste de descriptografia antes de qualquer banco ser apagado. Restaure com novos nomes, ou em outro servidor e outra versão (MySQL 8 ↔ MariaDB, PostgreSQL 15 → 16).</dd></div>
+  <div><dt>Contas e papéis</dt><dd>admin, operator, viewer. Dois fatores com TOTP, tokens de API, log de auditoria e bloqueio após repetidas falhas de login.</dd></div>
+  <div><dt>Notificações</dt><dd>E-mail, Telegram, Slack, Discord e webhooks assinados com HMAC, em caso de falha ou de sucesso.</dd></div>
+  <div><dt>Bancos atrás de firewall</dt><dd>Um agente no host do banco se conecta ao DumpCat por HTTPS, ou o host entra no WireGuard integrado. Nenhuma porta precisa ser aberta para o banco.</dd></div>
+  <div><dt>Autoatualização</dt><dd><code>dumpcat update</code> confere o <span class="nw">SHA-256</span>, faz backup da configuração, espera os backups em andamento terminarem e reverte em caso de falha.</dd></div>
+</template>
+<template data-i18n="oss-label">Código aberto</template>
+<template data-i18n="oss-title">Grátis, de código aberto, e seus dados continuam seus</template>
+<template data-i18n="oss-intro">O DumpCat é distribuído sob a licença Apache-2.0. Sem conta, sem chave de licença, sem edição paga segurando recursos: tudo o que está nesta página vem na versão que você baixa.</template>
+<template data-i18n="oss-list">
+  <div><dt>Licença Apache-2.0</dt><dd>Use em casa ou no trabalho, modifique e redistribua. O texto completo está em <a href="https://github.com/theweakestharrison/DumpCat/blob/main/LICENSE">LICENSE</a>.</dd></div>
+  <div><dt>Sem telemetria</dt><dd>O DumpCat não envia dados de uso para lugar nenhum. A única chamada que ele faz por conta própria é ler o <code>latest.json</code> uma vez por dia para avisar sobre novas versões, e você pode desligar isso nas configurações.</dd></div>
+  <div><dt>Sem intermediários</dt><dd>Backups, senhas de banco e chaves de criptografia só trafegam do seu servidor para o armazenamento que você escolher.</dd></div>
+  <div><dt>Versões assinadas</dt><dd>Cada atualização é assinada com ed25519 e conferida com <span class="nw">SHA-256</span> antes de ser instalada. Para compilar você mesmo, basta ter Go.</dd></div>
+</template>
+<template data-i18n="oss-build-title">Compilar a partir do código-fonte</template>
+<template data-i18n="oss-contrib">Relatos de bugs, pull requests e traduções são bem-vindos, veja <a href="https://github.com/theweakestharrison/DumpCat/blob/main/CONTRIBUTING.md">CONTRIBUTING.md</a>. Informe problemas de segurança em privado, conforme descrito em <a href="https://github.com/theweakestharrison/DumpCat/blob/main/SECURITY.md">SECURITY.md</a>.</template>
+<template data-i18n="oss-github">Ver no GitHub</template>
+<template data-i18n="oss-issues">Relatar um problema</template>
+<template data-i18n="ai-label">Pronto para IA</template>
+<template data-i18n="ai-title">Pronto para IA: deixe seu assistente de IA de olho nos backups</template>
+<template data-i18n="ai-intro">O DumpCat traz um servidor MCP e uma referência da API escrita em Markdown. Claude Code, Claude Desktop e outros agentes de IA se conectam com um token de API para perguntar quais backups falharam, ler os logs e explicar o motivo; com um token de acesso total, também podem executar backups, verificações e testes de restauração.</template>
+<template data-i18n="ai-list">
+  <div><dt>Servidor MCP integrado</dt><dd>O endpoint <code>/api/mcp</code> faz parte do DumpCat, não há mais nada para instalar: ferramentas para a visão geral, alertas, jobs, backups, logs, restaurações, testes de restauração e prévias de recuperação point-in-time. Clientes que iniciam um servidor local via stdio usam <code>dumpcat mcp</code>.</dd></div>
+  <div><dt>Seguro por padrão</dt><dd>Tokens novos só têm acesso de leitura. Restaurações, exclusões, credenciais e configurações nunca passam pelo MCP; as respostas omitem senhas, chaves e tokens, e tudo o que um assistente inicia fica registrado no log de auditoria.</dd></div>
+  <div><dt>Referência da API em Markdown</dt><dd><code>/api/docs.md</code> é gerado pelo próprio servidor: autenticação, convenções, exemplos com curl e cada rota com o papel e o token que ela exige. Cole num chat de IA, ou deixe um agente ler e chamar a API REST.</dd></div>
+  <div><dt>Pronto em um minuto</dt><dd>A página <em>API &amp; MCP</em> do DumpCat cria o token, entrega o comando do Claude Code e a configuração para o Claude Desktop e outros clientes, e tem um botão <em>Test</em> para conferir a conexão.</dd></div>
+</template>
+<template data-i18n="ai-aside-title">Conecte o Claude Code</template>
+<template data-i18n="ai-aside-text">Depois é só perguntar com suas palavras: <em>“Quais backups falharam ontem à noite, e por quê?”</em>, <em>“O shop-nightly tem algum backup com menos de 24 horas?”</em>, <em>“Consigo recuperar a tabela orders para as 14:37 de ontem?”</em></template>
+<template data-i18n="cmp-label">Comparativo</template>
+<template data-i18n="cmp-title">O DumpCat comparado às outras ferramentas</template>
+<template data-i18n="cmp-intro">Escolha uma ferramenta para ver todos os recursos lado a lado. As informações sobre outros produtos têm fonte e data nas páginas completas de comparação.</template>
+<template data-i18n="d-label">Download</template>
+<template data-i18n="d-title">Última versão</template>
+<template data-i18n="rel-noscript">Veja a versão mais recente e seus arquivos em <a href="https://downloads.dumpcat.cc/latest.json">downloads.dumpcat.cc/latest.json</a>.</template>
+<template data-i18n="d-linux">amd64 e arm64, instalador, serviço systemd e manual</template>
+<template data-i18n="d-windows">64 bits, instalador do serviço do Windows e manual</template>
+<template data-i18n="d-next">Já baixou? Abra o <b>START-HERE.txt</b> no pacote, ou siga o <a href="/install/#downloaded">guia de instalação passo a passo</a> (em inglês).</template>
+<template data-i18n="d-bins">Binários avulsos</template>
+<template data-i18n="d-old">Versões anteriores continuam disponíveis em <code>downloads.dumpcat.cc/&lt;version&gt;/</code>.</template>
+<template data-i18n="i-label">Instalação</template>
+<template data-i18n="i-title">Rodando em um minuto</template>
+<template data-i18n="i-intro">Um comando no Linux; no Windows, baixe e dê um duplo clique. O instalador configura um serviço que inicia junto com a máquina e as ferramentas de backup compatíveis com a versão do seu banco; a interface web vem embutida num único arquivo.</template>
+<template data-i18n="os-aria">Sistema operacional</template>
+<template data-i18n="copy">Copiar</template>
+<template data-i18n="i-linux-lead">No servidor Linux, cole este comando e pressione Enter:</template>
+<template data-i18n="i-linux-note">Ele baixa a versão mais recente, confere o checksum e instala em <code>/opt/dumpcat</code> como serviço systemd, com <code>rclone</code>, o cliente MySQL/MariaDB, o mariabackup ou XtraBackup compatível e o mydumper quando os repositórios o tiverem; <code>--postgres 16</code> adiciona as ferramentas cliente do PostgreSQL 16. As opções vão depois de <code>sh -s --</code>: <code>--port 9090</code>, <code>--listen 127.0.0.1</code>, <code>--tls-auto</code>.</template>
+<template data-i18n="i-win-1"><b>Baixe o .zip</b></template>
+<template data-i18n="i-win-dl">Baixar para Windows</template>
+<template data-i18n="i-win-2"><b>Descompacte</b>: clique com o botão direito no arquivo e escolha <i>Extract All</i>.</template>
+<template data-i18n="i-win-3"><b>Dê um duplo clique em <i>Install DumpCat</i></b> e responda <i>Yes</i>. O navegador abre o DumpCat; a janela de instalação mostra o token de configuração.</template>
+<template data-i18n="i-win-note">Windows 10 / 11 ou Windows Server 2016+ 64 bits, roda como serviço do Windows. Prefere PowerShell? Execute <code>irm https://dumpcat.cc/install.ps1 | iex</code> no PowerShell (Administrador). mydumper e XtraBackup para MySQL não estão disponíveis; use o DumpCat no Linux para bancos de centenas de GB.</template>
+<template data-i18n="i-guide">Novo na linha de comando? <a href="/install/">Siga o guia passo a passo</a> (em inglês), com soluções para os problemas mais comuns.</template>
+<template data-i18n="i-steps-title">Depois de instalar</template>
+<template data-i18n="i-steps">
+  <li><div><b>Abra <code>http://&lt;server-ip&gt;:6369</code></b><span>Crie a conta de administrador com o token de configuração de uso único que o instalador exibe (para vê-lo de novo: <code>dumpcat setup-token</code>).</span></div></li>
+  <li><div><b>Adicione um servidor de banco de dados</b><span>O botão Test connection lista os privilégios que faltam e os métodos que você pode usar.</span></div></li>
+  <li><div><b>Adicione um armazenamento</b><span>O botão Test grava, lê e apaga um arquivo.</span></div></li>
+  <li><div><b>Crie um job de backup</b><span>Escolha agendamento, criptografia, armazenamento e retenção, depois clique em Save &amp; run now.</span></div></li>
+</template>
+<template data-i18n="meow-title">A porta 6369 faz <em>MEOW</em></template>
+<template data-i18n="meow">Digite 6-3-6-9 no teclado de um celular e você tem MEOW, o “miau” em inglês. É a porta padrão da interface web.</template>
+<template data-i18n="foot">Código aberto sob a licença Apache-2.0, com o código-fonte no <a href="https://github.com/theweakestharrison/DumpCat">GitHub</a>. <a href="/compare/">Como ele se compara a outras ferramentas</a>. O manual completo, em inglês e vietnamita, vem dentro de cada pacote.</template>
+<template data-i18n="foot-mail">Suporte: <a href="mailto:fat@dumpcat.cc">fat@dumpcat.cc</a></template>

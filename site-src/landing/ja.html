@@ -1,0 +1,201 @@
+<!-- Japanese (ja) text of the landing page: the keys of en.html, translated. A key missing here stays in English.
+     c-agent-fig and c-wg-fig (data-labels) list "English label => translation" pairs applied to the English figures.
+     python scripts/build-site.py writes site/ja/index.html. -->
+<template data-i18n="title">DumpCat：MySQL、MariaDB、PostgreSQL のバックアップとポイントインタイムリカバリ</template>
+<template data-i18n="description">DumpCat：MySQL、MariaDB、PostgreSQL のバックアップ、リストア、ポイントインタイムリカバリを、Web UI 付きのシングルバイナリで。</template>
+<template data-i18n="share">データベースをロックしないバックアップ。秒単位でピンポイントにリカバリ。Web UI 付きのセルフホスト型シングルバイナリ。</template>
+<template data-i18n="share-alt">DumpCat：データベースをロックしないバックアップと、秒単位のピンポイントリカバリ。ポイントインタイムリカバリのタイムライン。</template>
+<template data-i18n="share-alt-short">DumpCat：データベースをロックしないバックアップと、秒単位のピンポイントリカバリ。</template>
+<template data-i18n="nav-aria">セクション</template>
+<template data-i18n="nav-features">機能</template>
+<template data-i18n="nav-ai">AI</template>
+<template data-i18n="nav-compare">比較</template>
+<template data-i18n="nav-demo">プレビュー</template>
+<template data-i18n="nav-whatsnew">新着情報</template>
+<template data-i18n="nav-install">インストール</template>
+<template data-i18n="lang-aria">言語</template>
+<template data-i18n="eyebrow">オープンソース · MySQL、MariaDB、PostgreSQL のバックアップとリストア</template>
+<template data-i18n="h1">データベースをロックしないバックアップ。<span class="soft">秒単位でピンポイントにリカバリ。</span></template>
+<template data-i18n="lead">DumpCat は Web UI 付きのシングルバイナリです。バックアップをスケジュール実行し、圧縮・暗号化して S3、Google Drive、OneDrive、SFTP にコピーを送り、検証まで行い、いざというときにはデータを確実に取り戻します。Linux と Windows で動作し、完全オフラインでも使えます。</template>
+<template data-i18n="cta-install"><span data-version>1.5.0</span> をインストール</template>
+<template data-i18n="cta-demo">UI をプレビュー</template>
+<template data-i18n="cta-github">GitHub でソースを見る</template>
+<template data-i18n="pitr-title">ポイントインタイムリカバリ</template>
+<template data-i18n="pitr-tag">シミュレーション</template>
+<template data-i18n="pitr-sub">誰かが 14:37:12 に <code>orders</code> テーブルを誤って DROP しました。マーカーをドラッグしてリカバリポイントを選ぶと、DumpCat が最新のベースバックアップと、再生すべき binlog ファイルを選び出します。PostgreSQL でも、アーカイブ済みの WAL を使って同じように動作します。</template>
+<template data-i18n="tl-now">現在</template>
+<template data-i18n="ro-aria">復旧する時点</template>
+<template data-i18n="lg-backup">フルバックアップ（mysqldump）</template>
+<template data-i18n="lg-binlog">アーカイブ済みの binlog（1 ファイルあたり最大 15 分）</template>
+<template data-i18n="lg-replay">リストア時に再生される範囲</template>
+<template data-i18n="lg-incident">障害</template>
+<template data-i18n="ro-to">復旧する時点</template>
+<template data-i18n="ro-base">ベースバックアップ</template>
+<template data-i18n="ro-replay">再生する binlog</template>
+<template data-i18n="ro-base-v">20261018-020000-full<small>mysqldump · 整合性のある時刻 02:00:03</small></template>
+<template data-i18n="ro-replay-v">mysql-bin.000123 → mysql-bin.000173<small>51 ファイル、データに触れる前にすべて検証</small></template>
+<template data-i18n="ro-status-v">障害の前：orders テーブルは無事です</template>
+<template data-i18n="tl-snap">障害の直前へジャンプ</template>
+<template data-i18n="m-label">バックアップ方式</template>
+<template data-i18n="m-title">データベースと規模に合わせて、最適なツールを</template>
+<template data-i18n="m-intro">MySQL と MariaDB では、DumpCat が <code>mysqldump</code>、<code>mydumper</code>、XtraBackup / MariaBackup を使い分けます。サーバーを追加するときに <em>Test connection</em> を押すと、バージョン、datadir、各データベースのサイズ、そのマシンで使える方式が表示されます。</template>
+<template data-i18n="m-table">
+  <thead>
+    <tr><th scope="col"></th><th scope="col">mysqldump<small>論理</small></th><th scope="col">mydumper<small>論理・並列</small></th><th scope="col">XtraBackup / MariaBackup<small>物理・ホット</small></th></tr>
+  </thead>
+  <tbody>
+    <tr><th scope="row">データベースのロック</th><td data-m="mysqldump"><code>--single-transaction</code> により InnoDB ではロックなし</td><td data-m="mydumper">スレッド同期のため数ミリ秒だけグローバルロック、その後はなし</td><td data-m="物理">InnoDB はロックなし。最後にごく短いバックアップロックのみ</td></tr>
+    <tr><th scope="row">バックアップ速度</th><td data-m="mysqldump">データベースごとに 1 スレッド、複数のデータベースを並列処理</td><td data-m="mydumper">マルチスレッド、テーブルを行単位で分割</td><td data-m="物理">最速：マルチスレッドでファイルをコピー</td></tr>
+    <tr><th scope="row">リストア速度</th><td data-m="mysqldump">最も遅い</td><td data-m="mydumper">速い：並列処理、インデックスはロード後に構築</td><td data-m="物理">非常に速い：ファイルコピー + prepare</td></tr>
+    <tr><th scope="row">増分バックアップ</th><td class="no" data-m="mysqldump">非対応</td><td class="no" data-m="mydumper">非対応</td><td class="yes" data-m="物理">対応</td></tr>
+    <tr><th scope="row">単一データベースのリストア（別名も可）</th><td class="yes" data-m="mysqldump">可能</td><td class="yes" data-m="mydumper">可能</td><td class="no" data-m="物理">不可（インスタンス全体のみ）</td></tr>
+    <tr class="fit"><th scope="row">最適な用途</th><td data-m="mysqldump">20〜50 GB 未満のデータベース</td><td data-m="mydumper">1 つずつリストアする大規模データベース</td><td data-m="物理">100 GB〜数 TB、短い RTO</td></tr>
+  </tbody>
+</template>
+<template data-i18n="m-pg"><b>PostgreSQL</b> 10 以降：データベースごとの <code>pg_dump</code>（テーブルを並列でダンプ・リストアでき、別名や別サーバーへのリストアも可能）と、レプリケーション接続でクラスタ全体を取得する <code>pg_basebackup</code>。継続的な WAL アーカイブにより、指定した時刻、リストアポイント、WAL 位置までリカバリできます。</template>
+<template data-i18n="s-label">ストレージ</template>
+<template data-i18n="s-title">1 つのジョブで、コピーを複数の場所に</template>
+<template data-i18n="s-intro">ローカルディスクに書き出してからアップロードすることも、一時ディスクを使わずクラウドへ直接ストリーミングすることもできます。保持する世代数はストレージごとに設定でき、たとえばローカルに 3 世代、S3 に 30 日分を残せます。</template>
+<template data-i18n="s-targets">
+  <li><b>ローカル / NFS</b><span>リストアが最速。datadir とは別のディスクに</span></li>
+  <li><b>S3</b><span>AWS、Cloudflare R2、MinIO、Wasabi、DigitalOcean</span></li>
+  <li><b>Google Drive</b><span>OAuth またはサービスアカウント</span></li>
+  <li><b>OneDrive</b><span>SharePoint にも対応</span></li>
+  <li><b>FTP / FTPS</b><span>明示的 TLS・暗黙的 TLS</span></li>
+  <li><b>SFTP</b><span>パスワードまたは秘密鍵</span></li>
+  <li><b>WebDAV</b><span>Nextcloud など</span></li>
+  <li><b>Backblaze B2</b><span>Azure Blob と Dropbox にも対応</span></li>
+  <li><b>rclone</b><span>さらに 70 以上のバックエンド</span></li>
+</template>
+<template data-i18n="s-aside-title">標準フォーマットだから、ロックインなし</template>
+<template data-i18n="s-aside-text">DumpCat を動かしていたマシンを失っても大丈夫。新しくインストールし、ストレージを追加し直して <em>Import backup catalog</em> をクリックすれば、すべてのバックアップが再び一覧に並びます。DumpCat がなくても、<code>age</code>、<code>zstd</code>、<code>mysql</code> または <code>pg_restore</code> でリストアできます。</template>
+<template data-i18n="c-label">接続</template>
+<template data-i18n="c-title">ポートを開けなくても、バックアップできる。</template>
+<template data-i18n="c-intro">ファイアウォールや NAT、あるいは 127.0.0.1 でしか待ち受けていないといった理由で、バックアップサーバーからデータベースに直接接続できない場合は、逆にデータベースホストから DumpCat へ接続させます。方法は 2 つあり、どちらもデータベースホストのポートを開ける必要はありません。バックアップ、リストア、ポイントインタイムリカバリは直接接続のときと同じように動作します。</template>
+<template data-i18n="c-agent-title">エージェント</template>
+<template data-i18n="c-agent-fig" data-labels>
+  Agent: the database host opens the connection to DumpCat through its firewall => エージェント：データベースホストがファイアウォール越しに DumpCat への接続を開く
+  Backup server => バックアップサーバー
+  Backup &amp; restore => バックアップ/リストア
+  Agent endpoint => エージェント接続口
+  HTTPS · web UI port => HTTPS · Web UI ポート
+  Reachable over HTTPS => HTTPS でアクセス可能
+  Database host => データベースホスト
+  No inbound port => 受信ポートなし
+  Unchanged · 127.0.0.1 only => 変更なし · 127.0.0.1 のみ
+  Allow list 127.0.0.1:3306 => 許可リスト 127.0.0.1:3306
+  Nothing opened on this host => このホストでは何も開けない
+  Firewall / NAT => ファイアウォール / NAT
+  ← HTTPS · opened by the database host => ← HTTPS · データベースホストから接続
+  3306 inbound => 3306 受信
+  blocked, not needed => 遮断・開放不要
+  opened by the database host => データベースホストから接続
+  The database host opens the tunnel => データベースホストがトンネルを開く
+  DumpCat&#x27;s database traffic flows back inside it => DumpCat のデータベース通信はその中を逆向きに流れる
+</template>
+<template data-i18n="c-agent-facts">
+  <div><dt>データベースホストに必要なもの</dt><dd>DumpCat へのアウトバウンド HTTPS</dd></div>
+  <div><dt>データベース</dt><dd>変更不要。127.0.0.1 だけで待ち受けていても大丈夫</dd></div>
+  <div><dt>インストール</dt><dd><code>sudo ./install.sh --agent --server … --key …</code></dd></div>
+  <div><dt>向いているケース</dt><dd>ネットワークや MySQL の設定に手を加えたくない場合</dd></div>
+</template>
+<template data-i18n="c-wg-title">内蔵 WireGuard</template>
+<template data-i18n="c-wg-tag">UDP · デフォルトで無効</template>
+<template data-i18n="c-wg-fig" data-labels>
+  WireGuard: the database host opens the tunnel to DumpCat through its firewall => WireGuard：データベースホストがファイアウォール越しに DumpCat へのトンネルを開く
+  Backup server => バックアップサーバー
+  Backup &amp; restore => バックアップ/リストア
+  WireGuard, built in => 内蔵 WireGuard
+  UDP 51820 open => UDP 51820 を開放
+  Database host => データベースホスト
+  No inbound port => 受信ポートなし
+  Listens on 10.66.0.2 => 10.66.0.2 で待ち受け
+  10.66.0.2 · keepalive 25 s => 10.66.0.2 · keepalive 25 秒
+  Nothing opened on this host => このホストでは何も開けない
+  Firewall / NAT => ファイアウォール / NAT
+  ← WireGuard UDP · opened by the database host => ← WireGuard UDP · データベースホストから接続
+  3306 inbound => 3306 受信
+  blocked, not needed => 遮断・開放不要
+  opened by the database host => データベースホストから接続
+  The database host opens the tunnel => データベースホストがトンネルを開く
+  DumpCat&#x27;s database traffic flows back inside it => DumpCat のデータベース通信はその中を逆向きに流れる
+</template>
+<template data-i18n="c-wg-facts">
+  <div><dt>データベースホストに必要なもの</dt><dd>標準の WireGuard と、DumpCat へのアウトバウンド UDP 51820</dd></div>
+  <div><dt>データベース</dt><dd>VPN アドレスで待ち受け、データベースユーザーに 10.66.0.1 からの接続を許可</dd></div>
+  <div><dt>インストール</dt><dd>WireGuard ページで有効にし、<code>dumpcat.conf</code> をコピーして <code>systemctl enable --now wg-quick@dumpcat</code></dd></div>
+  <div><dt>向いているケース</dt><dd>すでに WireGuard を使っているチーム、またはデータベースネットワーク全体へのゲートウェイとして</dd></div>
+</template>
+<template data-i18n="c-note">接続を開くのはデータベースホスト側で、データはその中を双方向に流れます。物理バックアップ（XtraBackup / MariaBackup）は、<wbr><code>--allow-physical</code> を付けて起動したエージェント経由で動作します。WireGuard 経由の場合は、従来どおりデータベースホストに DumpCat をインストールする必要があります。</template>
+<template data-i18n="o-label">運用</template>
+<template data-i18n="o-title">自前のスクリプトに頼っていた部分も、すべて標準装備</template>
+<template data-i18n="o-intro">どれも DumpCat に標準で含まれ、Web UI からオン・オフや調整ができます。</template>
+<template data-i18n="o-list">
+  <div><dt>アップロード前に暗号化</dt><dd>age（ChaCha20-Poly1305 + scrypt）があなたのサーバー上で動くので、クラウド事業者はデータを読めません。</dd></div>
+  <div><dt>整合性チェック</dt><dd>すべてのファイルに <span class="nw">SHA-256</span>。検証では再読み込み、復号、展開を行い、<code>Dump completed</code> 行があるかを確認します。</dd></div>
+  <div><dt>GFS 世代管理</dt><dd>N 個のバックアップ、N 日分、各日・各週・各月の最後の 1 つを保持。増分チェーンは、元のフルバックアップと一緒にしか削除されません。</dd></div>
+  <div><dt>慎重なリストア</dt><dd>データベースを DROP する前に、すべてのファイルを試験的に復号します。別名でのリストアや、別のサーバー・バージョンへのリストアも可能です（MySQL 8 ↔ MariaDB、PostgreSQL 15 → 16）。</dd></div>
+  <div><dt>アカウントとロール</dt><dd>admin、operator、viewer。TOTP による二要素認証、API トークン、監査ログ、ログイン失敗が続いたときのロックアウト。</dd></div>
+  <div><dt>通知</dt><dd>メール、Telegram、Slack、Discord、HMAC 署名付き Webhook で、失敗時または成功時に通知します。</dd></div>
+  <div><dt>ファイアウォール内のデータベース</dt><dd>データベースホスト上のエージェントが HTTPS で DumpCat に接続するか、ホストが内蔵 WireGuard に参加します。データベース側でポートを開ける必要はありません。</dd></div>
+  <div><dt>セルフアップデート</dt><dd><code>dumpcat update</code> は <span class="nw">SHA-256</span> を検証し、設定をバックアップし、実行中のバックアップの完了を待ち、失敗したらロールバックします。</dd></div>
+</template>
+<template data-i18n="oss-label">オープンソース</template>
+<template data-i18n="oss-title">無料でオープンソース、データはあなたのもの</template>
+<template data-i18n="oss-intro">DumpCat は Apache-2.0 ライセンスで公開されています。アカウント登録もライセンスキーも不要で、機能を出し惜しみする有料版もありません。このページに載っている機能はすべて、ダウンロードしたビルドに入っています。</template>
+<template data-i18n="oss-list">
+  <div><dt>Apache-2.0 ライセンス</dt><dd>個人でも業務でも利用でき、改変も再配布も自由です。全文は <a href="https://github.com/theweakestharrison/DumpCat/blob/main/LICENSE">LICENSE</a> にあります。</dd></div>
+  <div><dt>テレメトリなし</dt><dd>DumpCat は利用データをどこにも送信しません。自分から行う通信は、新バージョンを知らせるために 1 日 1 回 <code>latest.json</code> を読みに行くことだけで、これも Settings 画面でオフにできます。</dd></div>
+  <div><dt>仲介者なし</dt><dd>バックアップ、データベースのパスワード、暗号鍵は、あなたのサーバーからあなたが選んだストレージへ直接届くだけです。</dd></div>
+  <div><dt>署名付きリリース</dt><dd>すべてのアップデートは ed25519 で署名され、インストール前に <span class="nw">SHA-256</span> で検証されます。自分でビルドするのに必要なのは Go だけです。</dd></div>
+</template>
+<template data-i18n="oss-build-title">ソースからビルド</template>
+<template data-i18n="oss-contrib">バグ報告、プルリクエスト、翻訳を歓迎します。詳しくは <a href="https://github.com/theweakestharrison/DumpCat/blob/main/CONTRIBUTING.md">CONTRIBUTING.md</a> をご覧ください。セキュリティ上の問題は、<a href="https://github.com/theweakestharrison/DumpCat/blob/main/SECURITY.md">SECURITY.md</a> の手順に従って非公開でご報告ください。</template>
+<template data-i18n="oss-github">GitHub で見る</template>
+<template data-i18n="oss-issues">問題を報告</template>
+<template data-i18n="ai-label">AI フレンドリー</template>
+<template data-i18n="ai-title">AI フレンドリー：バックアップの見守りは AI アシスタントに</template>
+<template data-i18n="ai-intro">DumpCat には MCP サーバーと、Markdown で書かれた API リファレンスが付属しています。Claude Code、Claude Desktop などの AI エージェントは API トークンで接続し、どのバックアップが失敗したかを調べ、ログを読んで原因を説明できます。フルアクセスのトークンなら、バックアップ、検証、リストア訓練の実行も可能です。</template>
+<template data-i18n="ai-list">
+  <div><dt>MCP サーバーを内蔵</dt><dd>エンドポイント <code>/api/mcp</code> は DumpCat の一部なので、追加のインストールは不要です。概要、アラート、ジョブ、バックアップ、ログ、リストア、リストア訓練、ポイントインタイムリカバリのプレビューのためのツールを備えています。stdio でローカルサーバーを起動するクライアントは <code>dumpcat mcp</code> を使います。</dd></div>
+  <div><dt>デフォルトで安全</dt><dd>新しいトークンは閲覧のみ。リストア、削除、認証情報、設定が MCP 経由で操作されることはありません。応答にパスワード、鍵、トークンは含まれず、アシスタントが開始した操作はすべて監査ログに記録されます。</dd></div>
+  <div><dt>Markdown の API リファレンス</dt><dd><code>/api/docs.md</code> はサーバー自身が生成します。認証、規約、curl の例、そして各ルートに必要なロールとトークンまで網羅。AI チャットに貼り付けるか、エージェントに読ませて REST API を呼び出させましょう。</dd></div>
+  <div><dt>1 分でセットアップ</dt><dd>DumpCat の <em>API &amp; MCP</em> ページでトークンを作成すると、Claude Code 用のコマンドと、Claude Desktop などのクライアント用の設定が表示されます。接続を確かめる <em>Test</em> ボタンもあります。</dd></div>
+</template>
+<template data-i18n="ai-aside-title">Claude Code を接続</template>
+<template data-i18n="ai-aside-text">あとは普段の言葉で聞くだけ：<em>「昨夜失敗したバックアップはどれ？原因は？」</em>、<em>「shop-nightly に 24 時間以内のバックアップはある？」</em>、<em>「orders を昨日の 14:37 の状態に戻せる？」</em></template>
+<template data-i18n="cmp-label">比較</template>
+<template data-i18n="cmp-title">DumpCat と他のツールを比較</template>
+<template data-i18n="cmp-intro">ツールを選ぶと、すべての機能を並べて比較できます。他製品に関する情報は、詳細な比較ページに出典と日付付きで掲載しています。</template>
+<template data-i18n="d-label">ダウンロード</template>
+<template data-i18n="d-title">最新リリース</template>
+<template data-i18n="rel-noscript">最新バージョンとそのファイルは <a href="https://downloads.dumpcat.cc/latest.json">downloads.dumpcat.cc/latest.json</a> で確認できます。</template>
+<template data-i18n="d-linux">amd64 と arm64、インストーラー、systemd サービス、マニュアル付き</template>
+<template data-i18n="d-windows">64 ビット、Windows サービス用インストーラーとマニュアル付き</template>
+<template data-i18n="d-next">ダウンロードしたら、パッケージ内の <b>START-HERE.txt</b> を開くか、<a href="/install/#downloaded">ステップごとのインストールガイド</a>（英語）に従ってください。</template>
+<template data-i18n="d-bins">単体バイナリ</template>
+<template data-i18n="d-old">旧バージョンも <code>downloads.dumpcat.cc/&lt;version&gt;/</code> から入手できます。</template>
+<template data-i18n="i-label">インストール</template>
+<template data-i18n="i-title">1 分で動き出す</template>
+<template data-i18n="i-intro">Linux ならコマンド 1 つ、Windows ならダウンロードしてダブルクリックするだけ。インストーラーが、マシンの起動時に開始するサービスと、データベースのバージョンに合ったバックアップツールをセットアップします。Web UI は 1 つのファイルに組み込まれています。</template>
+<template data-i18n="os-aria">オペレーティングシステム</template>
+<template data-i18n="copy">コピー</template>
+<template data-i18n="i-linux-lead">Linux サーバーで次のコマンドを貼り付け、Enter キーを押します：</template>
+<template data-i18n="i-linux-note">最新リリースをダウンロードしてチェックサムを検証し、systemd サービスとして <code>/opt/dumpcat</code> にインストールします。<code>rclone</code>、MySQL/MariaDB クライアント、対応する mariabackup または XtraBackup に加え、リポジトリにあれば mydumper も導入されます。<wbr><code>--postgres 16</code> を付けると PostgreSQL 16 のクライアントツールが追加されます。オプションは <code>sh -s --</code> の後ろに指定します：<wbr><code>--port 9090</code>、<wbr><code>--listen 127.0.0.1</code>、<wbr><code>--tls-auto</code>。</template>
+<template data-i18n="i-win-1"><b>.zip をダウンロード</b></template>
+<template data-i18n="i-win-dl">Windows 版をダウンロード</template>
+<template data-i18n="i-win-2"><b>展開する</b>：ファイルを右クリックして <i>Extract All</i>（すべて展開）を選びます。</template>
+<template data-i18n="i-win-3"><b><i>Install DumpCat</i> をダブルクリック</b>し、<i>Yes</i>（はい）を選びます。ブラウザーで DumpCat が開き、インストールウィンドウにセットアップトークンが表示されます。</template>
+<template data-i18n="i-win-note">Windows 10 / 11 または Windows Server 2016 以降の 64 ビット版で、Windows サービスとして動作します。PowerShell を使いたい場合は、PowerShell（管理者）で <code>irm https://dumpcat.cc/install.ps1 | iex</code> を実行してください。MySQL 用の mydumper と XtraBackup は使えないため、数百 GB 規模のデータベースには Linux 上の DumpCat をおすすめします。</template>
+<template data-i18n="i-guide">コマンドラインに慣れていない方は、<a href="/install/">ステップごとのガイド</a>（英語）をどうぞ。よくあるトラブルの対処法も載っています。</template>
+<template data-i18n="i-steps-title">インストール後の手順</template>
+<template data-i18n="i-steps">
+  <li><div><b><code>http://&lt;server-ip&gt;:6369</code> を開く</b><span>インストーラーが表示する 1 回限りのセットアップトークンで admin アカウントを作成します（再表示：<code>dumpcat setup-token</code>）。</span></div></li>
+  <li><div><b>データベースサーバーを追加</b><span>Test connection で、不足している権限と使える方式が一覧表示されます。</span></div></li>
+  <li><div><b>ストレージを追加</b><span>Test を押すと、ファイルの書き込み・読み込み・削除を試します。</span></div></li>
+  <li><div><b>バックアップジョブを作成</b><span>スケジュール、暗号化、ストレージ、保持ルールを選んで、Save &amp; run now をクリックします。</span></div></li>
+</template>
+<template data-i18n="meow-title">ポート 6369 は <em>MEOW</em></template>
+<template data-i18n="meow">電話のキーパッドの英字で 6-3-6-9 と打つと MEOW（英語で猫の「ニャー」）。これが Web UI のデフォルトポートです。</template>
+<template data-i18n="foot">Apache-2.0 ライセンスのオープンソースで、ソースは <a href="https://github.com/theweakestharrison/DumpCat">GitHub</a> にあります。<a href="/compare/">他のツールとの比較</a>。英語版とベトナム語版の完全なマニュアルが、すべてのパッケージに同梱されています。</template>
+<template data-i18n="foot-mail">サポート：<a href="mailto:fat@dumpcat.cc">fat@dumpcat.cc</a></template>

@@ -158,7 +158,8 @@ Hai nguyên tắc:
 |---|---|
 | `site-src/landing/index.html` | Khung trang và chữ tiếng Việt. Chỗ nào có chữ thì mang `data-i18n="<khóa>"` (nội dung của phần tử), hoặc `data-i18n-<thuộc tính>="<khóa>"` cho một thuộc tính như `content`, `aria-label` |
 | `site-src/landing/en.html` | Chữ tiếng Anh: mỗi khóa một `<template data-i18n="<khóa>">…</template>` |
-| `site/index.html`, `site/vi/index.html` | Do `scripts/build-site.py` sinh từ hai file trên: `/` tiếng Anh, `/vi/` tiếng Việt. **Không sửa tay**, lần chạy script sau sẽ ghi đè |
+| `site-src/landing/<mã>.html` | Bản dịch các ngôn ngữ khác (`zh`, `ja`, `ko`, `es`, `pt`, `de`, `fr`): cùng các khóa của `en.html`. Riêng hai hình `c-agent-fig` và `c-wg-fig` dùng `<template data-i18n="…" data-labels>`, mỗi dòng `chữ tiếng Anh => bản dịch`, để hình chỉ viết một lần trong `en.html` |
+| `site/index.html`, `site/vi/index.html`, `site/<mã>/index.html` | Do `scripts/build-site.py` sinh từ các file trên: `/` tiếng Anh, `/vi/` tiếng Việt, `/zh/`, `/ja/`… các ngôn ngữ khác. **Không sửa tay**, lần chạy script sau sẽ ghi đè |
 | `site/app.js` | Mô phỏng PITR, tab cài đặt, nút sao chép, chọn công cụ trong mục So sánh, mục Tải về đọc `latest.json`. Ngôn ngữ của các câu nó viết ra lấy theo `<html lang>` của trang |
 | `site/style.css` | Giao diện, tự đổi sáng/tối theo hệ điều hành |
 | `site/_headers` | Content-Security-Policy và các header bảo mật |
@@ -169,23 +170,33 @@ Hai nguyên tắc:
 | `site/og-image.html` | Nguồn của `og.png`. Không được deploy vì có tên trong `site/.assetsignore` |
 | `wrangler.jsonc` | Worker `dumpcat-site`: thư mục `site/` và domain `dumpcat.cc` |
 
-Landing page có hai địa chỉ: `https://dumpcat.cc/` (tiếng Anh, cũng là bản `x-default`) và `https://dumpcat.cc/vi/` (tiếng Việt). Mỗi
-trang là HTML tĩnh đúng một ngôn ngữ: `lang`, title, description, thẻ chia sẻ (Open Graph, X), JSON-LD, canonical riêng và `hreflang`
-trỏ qua lại. Vì vậy công cụ tìm kiếm đọc đúng nội dung mà không cần chạy JavaScript. Nút EN / VI chỉ là link sang trang kia (giữ nguyên
-mục đang xem, ví dụ `#download`). Trang không tự chuyển theo ngôn ngữ trình duyệt, để mỗi địa chỉ luôn trả về đúng một nội dung. Link
-trong trang đi tới bản cùng ngôn ngữ (`/install/` hay `/vi/install/`, `/compare/` hay `/vi/compare/`); **Có gì mới** chỉ có tiếng Anh.
-Font tải từ Google Fonts (Be Vietnam Pro, Bricolage Grotesque, JetBrains Mono).
+Landing page có chín địa chỉ: `https://dumpcat.cc/` (tiếng Anh, cũng là bản `x-default`), `https://dumpcat.cc/vi/` (tiếng Việt) và
+`/zh/` (简体中文), `/ja/` (日本語), `/ko/` (한국어), `/es/` (Español), `/pt/` (Português, `pt-BR`), `/de/` (Deutsch), `/fr/` (Français).
+Danh sách nằm ở `LANDING_LANGS` trong `scripts/build-site.py`. Mỗi trang là HTML tĩnh đúng một ngôn ngữ: `lang`, title, description,
+thẻ chia sẻ (Open Graph, X), JSON-LD, canonical riêng và `hreflang` trỏ qua lại. Vì vậy công cụ tìm kiếm đọc đúng nội dung mà không cần
+chạy JavaScript. Menu ngôn ngữ (biểu tượng quả địa cầu) chỉ là các link sang trang kia (giữ nguyên mục đang xem, ví dụ `#download`).
+Trang không tự chuyển theo ngôn ngữ trình duyệt, để mỗi địa chỉ luôn trả về đúng một nội dung. Link trong trang đi tới bản cùng ngôn ngữ
+nếu có (`/install/` hay `/vi/install/`, `/compare/` hay `/vi/compare/`). Trang so sánh, hướng dẫn cài đặt và **Có gì mới** chỉ có tiếng
+Anh và tiếng Việt (Có gì mới chỉ có tiếng Anh), nên các ngôn ngữ khác link tới bản tiếng Anh, và bảng **So sánh** trên landing của các
+ngôn ngữ đó là bảng tiếng Anh. Font tải từ Google Fonts (Be Vietnam Pro, Bricolage Grotesque, JetBrains Mono); trang tiếng Trung, Nhật,
+Hàn dùng font của hệ điều hành cho chữ CJK (`site/style.css`).
 
 **Sửa chữ trên landing page:**
 
-1. Tiếng Việt: sửa trong `site-src/landing/index.html`. Tiếng Anh: sửa khóa cùng tên trong `site-src/landing/en.html`.
+1. Tiếng Việt: sửa trong `site-src/landing/index.html`. Tiếng Anh: sửa khóa cùng tên trong `site-src/landing/en.html`. Các ngôn ngữ
+   khác: sửa khóa cùng tên trong `site-src/landing/<mã>.html`.
 2. Thêm một đoạn chữ mới: đặt `data-i18n="<khóa mới>"` lên phần tử trong `index.html`, rồi thêm
-   `<template data-i18n="<khóa mới>">…</template>` vào `en.html`. Script dừng và báo lỗi nếu một khóa thiếu bản tiếng Anh, hoặc
-   `en.html` có khóa không dùng tới.
-3. Chạy `python scripts/build-site.py`, xem thử (bên dưới), rồi commit cả file nguồn lẫn `site/index.html` và `site/vi/index.html`
-   trong cùng một commit (để `lastmod` trong sitemap đúng, xem Phần 4).
+   `<template data-i18n="<khóa mới>">…</template>` vào `en.html` và bản dịch vào từng `<mã>.html`. Script dừng và báo lỗi nếu một
+   khóa thiếu bản tiếng Anh, `en.html` có khóa không dùng tới, hoặc một `<mã>.html` có khóa lạ. Khóa mà một ngôn ngữ chưa dịch thì trang
+   đó dùng tạm chữ tiếng Anh, và script in ra danh sách các khóa đó: dịch nốt trước khi deploy.
+3. Chạy `python scripts/build-site.py`, xem thử (bên dưới), rồi commit cả file nguồn lẫn các `site/…/index.html` sinh ra trong cùng
+   một commit (để `lastmod` trong sitemap đúng, xem Phần 4).
 
-Script tự điền những phần còn lại: canonical, `hreflang`, `og:url`, `og:locale`, JSON-LD (câu mô tả trong JSON-LD nằm ở `LANDING_LD`
+Thêm một ngôn ngữ: thêm một dòng vào `LANDING_LANGS` (mã, `hreflang`, tên ngôn ngữ, `og:locale`) và vào `LANDING_T` (câu mô tả JSON-LD,
+nhãn của thẻ Có gì mới) trong `scripts/build-site.py`, tạo `site-src/landing/<mã>.html` từ `en.html`, và thêm chuỗi của ngôn ngữ đó vào
+`STR` trong `site/app.js` (mô phỏng PITR, nút sao chép, mục Tải về).
+
+Script tự điền những phần còn lại: canonical, `hreflang`, `og:url`, `og:locale`, menu ngôn ngữ, JSON-LD (câu mô tả nằm ở `LANDING_T`
 trong `scripts/build-site.py`), mục **So sánh** và thẻ **Có gì mới** (Phần 4).
 
 **Xem thử trên máy:**
@@ -249,8 +260,8 @@ Google Search Console và Bing Webmaster Tools.
   đó đang sửa dở), ngày kiểm tra của trang so sánh, ngày phát hành của trang **Có gì mới**. Với `/` và `/vi/` là ngày commit cuối của
   chính `site/index.html` / `site/vi/index.html` (và `site/app.js`), nên sửa chữ tiếng Anh chỉ đổi `lastmod` của `/`. Vì vậy hãy commit
   cả file nguồn lẫn file sinh ra trong cùng một commit.
-- Landing page `/` và `/vi/` là một cặp `hreflang` (`x-default` là `/`), giống các trang so sánh và hướng dẫn. Trên các trang tiếng
-  Việt, link **Trang chủ**, logo và **Tính năng** đưa về `/vi/`.
+- Chín bản của landing page trỏ `hreflang` lẫn nhau (`x-default` là `/`); các trang so sánh và hướng dẫn là cặp EN/VI. Trên các trang
+  tiếng Việt, link **Trang chủ**, logo và **Tính năng** đưa về `/vi/`.
 - `robots.txt` cho phép crawl mọi trang và chỉ tới sitemap. `install.sh` và `install.ps1` được gửi kèm `X-Robots-Tag: noindex`
   (trong `_headers`), nên không hiện trong kết quả tìm kiếm.
 - `404.html` là trang báo không tìm thấy (`noindex`). `wrangler.jsonc` đặt `not_found_handling: "404-page"` nên mọi đường dẫn không

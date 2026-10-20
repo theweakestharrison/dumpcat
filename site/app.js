@@ -5,19 +5,57 @@
     vi: { aria: "Thời điểm khôi phục", consistent: "mysqldump · nhất quán lúc", files: function (n) { return n + " file, kiểm tra từng file trước khi đụng vào dữ liệu"; }, ok: "Trước sự cố: bảng orders còn nguyên", bad: "Sau sự cố: bảng orders đã bị xóa", copy: "Sao chép", copied: "Đã chép", selected: "Đã chọn, nhấn Ctrl+C",
       relLoading: "Đang tải thông tin bản phát hành…",
       relIntro: "Phiên bản {v}, phát hành ngày {d}. Mỗi gói có file chạy, script cài đặt và hướng dẫn đầy đủ; SHA-256 của mọi file nằm trong {sums}.",
+      relIntroNoDate: "Phiên bản {v}. Mỗi gói có file chạy, script cài đặt và hướng dẫn đầy đủ; SHA-256 của mọi file nằm trong {sums}.",
       relFailed: "Chưa tải được thông tin bản phát hành. Phiên bản mới nhất và các file được liệt kê trong {feed}.", dateLocale: "vi-VN" },
     en: { aria: "Recovery point", consistent: "mysqldump · consistent at", files: function (n) { return n + (n === 1 ? " file" : " files") + ", each checked before any data is touched"; }, ok: "Before the incident: orders is intact", bad: "After the incident: orders is already gone", copy: "Copy", copied: "Copied", selected: "Selected, press Ctrl+C",
       relLoading: "Loading the latest release…",
       relIntro: "Version {v}, released {d}. Each package holds the binaries, the installer and the full manual; SHA-256 checksums of every file are in {sums}.",
-      relFailed: "The release details could not be loaded. The latest version and its files are listed in {feed}.", dateLocale: "en" }
+      relIntroNoDate: "Version {v}. Each package holds the binaries, the installer and the full manual; SHA-256 checksums of every file are in {sums}.",
+      relFailed: "The release details could not be loaded. The latest version and its files are listed in {feed}.", dateLocale: "en" },
+    zh: { aria: "恢复点", consistent: "mysqldump · 一致性时间点", files: function (n) { return "共 " + n + " 个文件，改动任何数据前逐一校验"; }, ok: "事故发生前：orders 表完好无损", bad: "事故发生后：orders 表已被删除", copy: "复制", copied: "已复制", selected: "已选中，请按 Ctrl+C",
+      relLoading: "正在读取最新版本…",
+      relIntro: "版本 {v}，发布于 {d}。每个安装包都包含可执行文件、安装脚本和完整手册；所有文件的 SHA-256 校验值见 {sums}。",
+      relIntroNoDate: "版本 {v}。每个安装包都包含可执行文件、安装脚本和完整手册；所有文件的 SHA-256 校验值见 {sums}。",
+      relFailed: "暂时无法读取版本信息。最新版本及其文件列在 {feed} 中。", dateLocale: "zh-CN" },
+    ja: { aria: "復旧する時点", consistent: "mysqldump · 整合性のある時刻", files: function (n) { return n + " ファイル、データに触れる前にすべて検証"; }, ok: "障害の前：orders テーブルは無事です", bad: "障害の後：orders テーブルはもう削除されています", copy: "コピー", copied: "コピーしました", selected: "選択しました。Ctrl+C を押してください",
+      relLoading: "最新リリースを読み込んでいます…",
+      relIntro: "バージョン {v}（{d} リリース）。各パッケージには実行ファイル、インストーラー、完全なマニュアルが入っています。全ファイルの SHA-256 は {sums} にあります。",
+      relIntroNoDate: "バージョン {v}。各パッケージには実行ファイル、インストーラー、完全なマニュアルが入っています。全ファイルの SHA-256 は {sums} にあります。",
+      relFailed: "リリース情報を読み込めませんでした。最新バージョンとファイルは {feed} に載っています。", dateLocale: "ja-JP" },
+    ko: { aria: "복구 시점", consistent: "mysqldump · 일관성 기준 시각", files: function (n) { return "파일 " + n + "개, 데이터를 건드리기 전에 모두 검사"; }, ok: "사고 이전: orders 테이블 온전함", bad: "사고 이후: orders 테이블 삭제됨", copy: "복사", copied: "복사됨", selected: "선택됨, Ctrl+C를 누르세요",
+      relLoading: "최신 릴리스를 불러오는 중…",
+      relIntro: "버전 {v}, {d} 출시. 각 패키지에는 실행 파일, 설치 스크립트, 전체 매뉴얼이 들어 있고, 모든 파일의 SHA-256은 {sums}에 있습니다.",
+      relIntroNoDate: "버전 {v}. 각 패키지에는 실행 파일, 설치 스크립트, 전체 매뉴얼이 들어 있고, 모든 파일의 SHA-256은 {sums}에 있습니다.",
+      relFailed: "릴리스 정보를 불러오지 못했습니다. 최신 버전과 파일 목록은 {feed}에 있습니다.", dateLocale: "ko-KR" },
+    es: { aria: "Punto de recuperación", consistent: "mysqldump · consistente a las", files: function (n) { return n + (n === 1 ? " archivo, verificado" : " archivos, todos verificados") + " antes de tocar ningún dato"; }, ok: "Antes del incidente: la tabla orders está intacta", bad: "Después del incidente: la tabla orders ya no existe", copy: "Copiar", copied: "Copiado", selected: "Seleccionado, pulsa Ctrl+C",
+      relLoading: "Cargando la última versión…",
+      relIntro: "Versión {v}, publicada el {d}. Cada paquete incluye los binarios, el instalador y el manual completo; las sumas SHA-256 de todos los archivos están en {sums}.",
+      relIntroNoDate: "Versión {v}. Cada paquete incluye los binarios, el instalador y el manual completo; las sumas SHA-256 de todos los archivos están en {sums}.",
+      relFailed: "No se pudieron cargar los datos de la versión. La última versión y sus archivos aparecen en {feed}.", dateLocale: "es" },
+    pt: { aria: "Ponto de recuperação", consistent: "mysqldump · consistente às", files: function (n) { return n + (n === 1 ? " arquivo, verificado" : " arquivos, todos verificados") + " antes de mexer em qualquer dado"; }, ok: "Antes do incidente: orders está intacta", bad: "Depois do incidente: orders já foi apagada", copy: "Copiar", copied: "Copiado", selected: "Selecionado, pressione Ctrl+C",
+      relLoading: "Carregando a versão mais recente…",
+      relIntro: "Versão {v}, lançada em {d}. Cada pacote traz os binários, o instalador e o manual completo; os checksums SHA-256 de todos os arquivos estão em {sums}.",
+      relIntroNoDate: "Versão {v}. Cada pacote traz os binários, o instalador e o manual completo; os checksums SHA-256 de todos os arquivos estão em {sums}.",
+      relFailed: "Não foi possível carregar os dados da versão. A versão mais recente e seus arquivos estão em {feed}.", dateLocale: "pt-BR" },
+    de: { aria: "Wiederherstellungspunkt", consistent: "mysqldump · konsistent um", files: function (n) { return n + (n === 1 ? " Datei" : " Dateien") + ", jede geprüft, bevor Daten angefasst werden"; }, ok: "Vor dem Vorfall: orders ist intakt", bad: "Nach dem Vorfall: orders ist bereits gelöscht", copy: "Kopieren", copied: "Kopiert", selected: "Markiert, Strg+C drücken",
+      relLoading: "Neueste Version wird geladen…",
+      relIntro: "Version {v}, veröffentlicht am {d}. Jedes Paket enthält die Programme, das Installationsskript und das vollständige Handbuch; die SHA-256-Prüfsummen aller Dateien stehen in {sums}.",
+      relIntroNoDate: "Version {v}. Jedes Paket enthält die Programme, das Installationsskript und das vollständige Handbuch; die SHA-256-Prüfsummen aller Dateien stehen in {sums}.",
+      relFailed: "Die Versionsdaten konnten nicht geladen werden. Die neueste Version und ihre Dateien stehen in {feed}.", dateLocale: "de-DE" },
+    fr: { aria: "Point de restauration", consistent: "mysqldump · cohérente à", files: function (n) { return n + (n === 1 ? " fichier" : " fichiers") + ", chacun vérifié avant de toucher aux données"; }, ok: "Avant l’incident\u00a0: la table orders est intacte", bad: "Après l’incident\u00a0: la table orders a disparu", copy: "Copier", copied: "Copié", selected: "Sélectionné, appuyez sur Ctrl+C",
+      relLoading: "Chargement de la dernière version…",
+      relIntro: "Version {v}, publiée le {d}. Chaque paquet contient les binaires, l’installateur et le manuel complet\u00a0; les sommes SHA-256 de tous les fichiers sont dans {sums}.",
+      relIntroNoDate: "Version {v}. Chaque paquet contient les binaires, l’installateur et le manuel complet\u00a0; les sommes SHA-256 de tous les fichiers sont dans {sums}.",
+      relFailed: "Impossible de charger les informations de version. La dernière version et ses fichiers sont listés dans {feed}.", dateLocale: "fr-FR" }
   };
 
   // ---- PITR timeline model (seconds since 00:00 on 18/10/2026) ----
   var AXIS_END = 18 * 3600, NOW = 16 * 3600 + 20 * 60;
   var BACKUP_AT = 2 * 3600, CONSISTENT = BACKUP_AT + 3, INCIDENT = 14 * 3600 + 37 * 60 + 12;
   var FILE_SECONDS = 900, FILE_TODAY = 123, FILE_YESTERDAY = FILE_TODAY - 86400 / FILE_SECONDS;
-  // The page's language: / is English, /vi/ is Vietnamese (both written by scripts/build-site.py).
-  var lang = document.documentElement.lang === "vi" ? "vi" : "en";
+  // The page's language: / is English, /vi/, /zh/, /ja/… the others (all written by scripts/build-site.py).
+  var lang = (document.documentElement.lang || "en").split("-")[0];
+  if (!STR[lang]) lang = "en";
   var t = INCIDENT - 1;
 
   var range = document.getElementById("tl-range");
@@ -65,10 +103,18 @@
   });
   document.getElementById("tl-snap").addEventListener("click", function () { setT(INCIDENT - 1); range.focus(); });
 
-  // ---- language: EN / VI link to the other page; keep the section the visitor is reading ----
-  document.querySelectorAll(".lang a").forEach(function (a) {
+  // ---- language: each language links to its own page; keep the section the visitor is reading ----
+  document.querySelectorAll(".lang a, .lang-menu a").forEach(function (a) {
     a.addEventListener("click", function () { a.hash = location.hash; });
   });
+  // the language menu closes on a click elsewhere and on Escape
+  var langMenu = document.querySelector(".lang-menu");
+  if (langMenu) {
+    document.addEventListener("click", function (e) { if (langMenu.open && !langMenu.contains(e.target)) langMenu.open = false; });
+    document.addEventListener("keydown", function (e) {
+      if (e.key === "Escape" && langMenu.open) { langMenu.open = false; langMenu.querySelector("summary").focus(); }
+    });
+  }
 
   // ---- latest release: read from the update feed, so a new upload shows here without redeploying the site ----
   var relMeta = document.querySelector('meta[name="dumpcat-release-base"]');
@@ -110,7 +156,7 @@
     document.querySelectorAll("[data-base]").forEach(function (e) { e.textContent = relBase.href; });
     var when = new Date(release.released_at);
     var date = isNaN(when) ? "" : new Intl.DateTimeFormat(s.dateLocale, { dateStyle: "long" }).format(when);
-    fill(intro, date ? s.relIntro : s.relIntro.replace(/, [^{]*\{d\}/, ""), {
+    fill(intro, date ? s.relIntro : s.relIntroNoDate, {
       v: node("b", "", v), d: date, sums: link(relURL(v + "/SHA256SUMS"), "SHA256SUMS")
     });
   }

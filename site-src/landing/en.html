@@ -1,6 +1,7 @@
 <!-- English text of the landing page. site-src/landing/index.html is the page itself, in Vietnamese: every element
      with data-i18n="key" gets the English below as its content, and data-i18n-<attribute>="key" sets that attribute.
-     python scripts/build-site.py writes site/index.html (English) and site/vi/index.html (Vietnamese). -->
+     The other languages (<lang>.html) translate these keys; a key they lack stays in English.
+     python scripts/build-site.py writes site/index.html (English), site/vi/index.html and site/<lang>/index.html. -->
 <template data-i18n="title">DumpCat: backup and point-in-time recovery for MySQL, MariaDB and PostgreSQL</template>
 <template data-i18n="description">DumpCat: backup, restore and point-in-time recovery for MySQL, MariaDB and PostgreSQL in a single binary with a web UI.</template>
 <template data-i18n="share">Backups that never lock the database. Recovery to the exact second. One self-hosted binary with a web UI.</template>
@@ -14,7 +15,6 @@
 <template data-i18n="nav-whatsnew">What's new</template>
 <template data-i18n="nav-install">Install</template>
 <template data-i18n="lang-aria">Language</template>
-<template data-i18n="lang-links"><a href="/" hreflang="en" lang="en" aria-current="true">EN</a><a href="/vi/" hreflang="vi" lang="vi">VI</a></template>
 <template data-i18n="eyebrow">Open source · Backup &amp; restore for MySQL, MariaDB and PostgreSQL</template>
 <template data-i18n="h1">Backups that never lock the database. <span class="soft">Recovery to the exact second.</span></template>
 <template data-i18n="lead">DumpCat is a single binary with a web UI. It schedules backups, compresses and encrypts them, ships copies to S3, Google Drive, OneDrive or SFTP, verifies them and brings your data back when you need it. Runs on Linux and Windows, fully offline.</template>

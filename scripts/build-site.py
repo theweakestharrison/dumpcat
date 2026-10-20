@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """Generate the pages of dumpcat.cc.
 
-Writes (English and Vietnamese, linked with hreflang):
-  site/index.html, site/vi/index.html   (the landing page, from site-src/landing/: index.html in Vietnamese, en.html)
+Writes (English and Vietnamese, linked with hreflang; the landing page also in the LANDING_LANGS below):
+  site/index.html, site/<lang>/index.html   (the landing page, from site-src/landing/: index.html in Vietnamese,
+                                             en.html in English, <lang>.html for the other languages)
   site/compare/index.html, site/compare/<slug>/index.html   (the comparisons, from site-src/compare/*.json)
   site/vi/compare/index.html, site/vi/compare/<slug>/index.html
   site/install/index.html, site/vi/install/index.html   (the step-by-step install guide, from site-src/install/)
@@ -29,6 +30,19 @@ REPO = "https://github.com/theweakestharrison/DumpCat"
 SUPPORT = "fat@dumpcat.cc"
 GH = '<svg class="gh" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 0c4.42 0 8 3.58 8 8a8.013 8.013 0 0 1-5.45 7.59c-.4.08-.55-.17-.55-.38 0-.27.01-1.13.01-2.2 0-.75-.25-1.23-.54-1.48 1.78-.2 3.65-.88 3.65-3.95 0-.88-.31-1.59-.82-2.15.08-.2.36-1.02-.08-2.12 0 0-.67-.22-2.2.82-.64-.18-1.32-.27-2-.27-.68 0-1.36.09-2 .27-1.53-1.03-2.2-.82-2.2-.82-.44 1.1-.16 1.92-.08 2.12-.51.56-.82 1.28-.82 2.15 0 3.06 1.86 3.75 3.64 3.95-.23.2-.44.55-.51 1.07-.46.21-1.61.55-2.33-.66-.15-.24-.6-.83-1.23-.82-.67.01-.27.38.01.53.34.19.73.9.82 1.13.16.45.68 1.31 2.69.94 0 .67.01 1.3.01 1.49 0 .21-.15.45-.55.38A7.995 7.995 0 0 1 0 8c0-4.42 3.58-8 8-8Z"/></svg>'
 LANGS = ("en", "vi")
+# The landing page has more languages than the comparisons and the install guide: code (its path, /<code>/) →
+# (hreflang and html lang, the language's own name, og:locale). Its text: site-src/landing/<code>.html.
+LANDING_LANGS = {
+    "en": ("en", "English", "en_US"),
+    "vi": ("vi", "Tiếng Việt", "vi_VN"),
+    "zh": ("zh-Hans", "简体中文", "zh_CN"),
+    "ja": ("ja", "日本語", "ja_JP"),
+    "ko": ("ko", "한국어", "ko_KR"),
+    "es": ("es", "Español", "es_ES"),
+    "pt": ("pt-BR", "Português", "pt_BR"),
+    "de": ("de", "Deutsch", "de_DE"),
+    "fr": ("fr", "Français", "fr_FR"),
+}
 
 # Rows of the comparison table: key, label per language, and DumpCat's own value.
 DIMENSIONS = [
@@ -301,10 +315,28 @@ def inline(s):
     return "".join(f"<code>{p}</code>" if i % 2 else p for i, p in enumerate(parts))
 
 
+MONTHS = {
+    "es": "enero febrero marzo abril mayo junio julio agosto septiembre octubre noviembre diciembre".split(),
+    "pt": "janeiro fevereiro março abril maio junho julho agosto setembro outubro novembro dezembro".split(),
+    "de": "Januar Februar März April Mai Juni Juli August September Oktober November Dezember".split(),
+    "fr": "janvier février mars avril mai juin juillet août septembre octobre novembre décembre".split(),
+}
+
+
 def fmt_date(iso, lang):
     d = datetime.date.fromisoformat(iso)
     if lang == "vi":
         return f"{d.day} {MONTHS_VI[d.month - 1]}, {d.year}"
+    if lang in ("zh", "ja"):
+        return f"{d.year}年{d.month}月{d.day}日"
+    if lang == "ko":
+        return f"{d.year}년 {d.month}월 {d.day}일"
+    if lang in ("es", "pt"):
+        return f"{d.day} de {MONTHS[lang][d.month - 1]} de {d.year}"
+    if lang == "de":
+        return f"{d.day}. {MONTHS[lang][d.month - 1]} {d.year}"
+    if lang == "fr":
+        return f"{'1er' if d.day == 1 else d.day} {MONTHS[lang][d.month - 1]} {d.year}"
     return f"{MONTHS_EN[d.month - 1]} {d.day}, {d.year}"
 
 
@@ -318,7 +350,7 @@ def guide_path(lang):
 
 
 def home_path(lang):
-    return "/" if lang == "en" else "/vi/"
+    return "/" if lang == "en" else f"/{lang}/"
 
 
 def head(lang, title, desc, slug, crumbs, at=None, alternates=True, canonical=True, robots=""):
@@ -678,38 +710,104 @@ def changelog_index(rels):
 def whatsnew_block(rel, lang):
     """The landing page's What's new card: the newest version's summary and groups, linking to its page (in English)."""
     v = rel["version"]
-    vi = lang == "vi"
-    en = ' lang="en"' if vi else ""
+    t = LANDING_T[lang]
+    en = ' lang="en"' if lang != "en" else ""
     date = fmt_date(rel["date"], lang) if rel["date"] else ""
     titled = [g for g in rel["groups"] if g["title"]]
     lis = "".join(f'<li><a href="{cl_path(v)}#{anchor(g["title"])}">{esc(g["title"])}</a></li>' for g in titled)
     return (f'<div class="notes wn" data-wn-version="{esc(v)}">'
-            f'<p class="wn-label">{"Có gì mới" if vi else "What&#x27;s new"}</p>'
+            f'<p class="wn-label">{t["wn_label"]}</p>'
             f'<h3><a href="{cl_path(v)}">DumpCat {esc(v)}</a> <span class="wn-date">{date}</span></h3>'
             f'<p class="wn-lead"{en}>{md_inline(rel["lead"])}</p>'
             + (f'<ul class="wn-list"{en}>{lis}</ul>' if lis else "")
-            + f'<p class="wn-links"><a href="{cl_path(v)}">{"Xem mọi thay đổi" if vi else "See every change"} →</a>'
-              f'<a href="{cl_path()}">{"Các phiên bản trước" if vi else "Earlier versions"}</a></p>'
-            + ('<p class="wn-note">Ghi chú phát hành viết bằng tiếng Anh.</p>' if vi else "")
+            + f'<p class="wn-links"><a href="{cl_path(v)}">{t["wn_all"]} →</a>'
+              f'<a href="{cl_path()}">{t["wn_earlier"]}</a></p>'
+            + (f'<p class="wn-note">{t["wn_note"]}</p>' if t["wn_note"] else "")
             + '</div>')
 
 
-# ---------- the landing page: site-src/landing/index.html (Vietnamese) and en.html (English) ----------
-# Its JSON-LD description; every other text of the page is in site-src/landing/.
-LANDING_LD = {
-    "en": "Open-source backup, restore and point-in-time recovery for MySQL, MariaDB and PostgreSQL: one self-hosted binary with a web UI.",
-    "vi": "Backup, restore và khôi phục theo thời điểm cho MySQL, MariaDB và PostgreSQL, mã nguồn mở: một file chạy tự host, có giao diện web.",
+# ---------- the landing page: site-src/landing/index.html (Vietnamese), en.html (English), <lang>.html ----------
+# What the build writes into the landing page itself: its JSON-LD description, the What's new card's labels (the
+# release notes stay in English) and the note above the comparison (its facts exist in English and Vietnamese only).
+# Every other text of the page is in site-src/landing/.
+LANDING_T = {
+    "en": {"ld": "Open-source backup, restore and point-in-time recovery for MySQL, MariaDB and PostgreSQL: one self-hosted binary with a web UI.",
+           "wn_label": "What&#x27;s new", "wn_all": "See every change", "wn_earlier": "Earlier versions", "wn_note": ""},
+    "vi": {"ld": "Backup, restore và khôi phục theo thời điểm cho MySQL, MariaDB và PostgreSQL, mã nguồn mở: một file chạy tự host, có giao diện web.",
+           "wn_label": "Có gì mới", "wn_all": "Xem mọi thay đổi", "wn_earlier": "Các phiên bản trước", "wn_note": "Ghi chú phát hành viết bằng tiếng Anh."},
+    "zh": {"ld": "开源的 MySQL、MariaDB 和 PostgreSQL 备份、恢复与时间点恢复工具：一个自托管的二进制文件，自带 Web 界面。",
+           "wn_label": "更新内容", "wn_all": "查看全部更新", "wn_earlier": "历史版本", "wn_note": "发布说明为英文。"},
+    "ja": {"ld": "MySQL、MariaDB、PostgreSQL のためのオープンソースのバックアップ、リストア、ポイントインタイムリカバリ。Web UI 付きのセルフホスト型シングルバイナリ。",
+           "wn_label": "新着情報", "wn_all": "すべての変更を見る", "wn_earlier": "過去のバージョン", "wn_note": "リリースノートは英語です。"},
+    "ko": {"ld": "MySQL, MariaDB, PostgreSQL을 위한 오픈 소스 백업, 복원, 특정 시점 복구: 웹 UI가 포함된 셀프 호스팅 단일 바이너리.",
+           "wn_label": "새 소식", "wn_all": "모든 변경 사항 보기", "wn_earlier": "이전 버전", "wn_note": "릴리스 노트는 영어로 작성됩니다."},
+    "es": {"ld": "Copias de seguridad, restauración y recuperación a un punto en el tiempo de código abierto para MySQL, MariaDB y PostgreSQL: un solo binario autoalojado con interfaz web.",
+           "wn_label": "Novedades", "wn_all": "Ver todos los cambios", "wn_earlier": "Versiones anteriores", "wn_note": "Las notas de la versión están en inglés."},
+    "pt": {"ld": "Backup, restauração e recuperação point-in-time de código aberto para MySQL, MariaDB e PostgreSQL: um único binário auto-hospedado com interface web.",
+           "wn_label": "Novidades", "wn_all": "Ver todas as mudanças", "wn_earlier": "Versões anteriores", "wn_note": "As notas de versão estão em inglês."},
+    "de": {"ld": "Open-Source-Backup, -Wiederherstellung und Point-in-Time-Recovery für MySQL, MariaDB und PostgreSQL: eine selbst gehostete Binärdatei mit Weboberfläche.",
+           "wn_label": "Neuigkeiten", "wn_all": "Alle Änderungen ansehen", "wn_earlier": "Frühere Versionen", "wn_note": "Die Versionshinweise sind auf Englisch."},
+    "fr": {"ld": "Sauvegarde, restauration et récupération à un instant précis open source pour MySQL, MariaDB et PostgreSQL : un seul binaire auto-hébergé avec interface web.",
+           "wn_label": "Nouveautés", "wn_all": "Voir tous les changements", "wn_earlier": "Versions précédentes", "wn_note": "Les notes de version sont en anglais."},
 }
+GLOBE = ('<svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">'
+         '<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.6 3.8 5.6 3.8 9s-1.3 6.4-3.8 9c-2.5-2.6-3.8-5.6-3.8-9S9.5 5.6 12 3z"/></svg>')
 
 
-def landing_strings():
-    """site-src/landing/en.html: <template data-i18n="key">English</template> for every key of the page."""
+def landing_templates(lang):
+    """site-src/landing/<lang>.html: {key: (labels, text)} from its <template data-i18n="key"> elements."""
+    f = LANDING / f"{lang}.html"
+    if not f.exists():
+        raise SystemExit(f"site-src/landing/{lang}.html is missing: every language of LANDING_LANGS needs one (start from en.html)")
     out = {}
-    for key, text in re.findall(r'<template data-i18n="([^"]+)">(.*?)</template>', (LANDING / "en.html").read_text(encoding="utf-8"), re.S):
+    for key, labels, text in re.findall(r'<template data-i18n="([^"]+)"( data-labels)?>(.*?)</template>', f.read_text(encoding="utf-8"), re.S):
         if key in out:
-            raise SystemExit(f"site-src/landing/en.html: {key} is there twice")
-        out[key] = textwrap.dedent(text.strip("\n").rstrip()) if "\n" in text.strip() else text.strip()
+            raise SystemExit(f"site-src/landing/{lang}.html: {key} is there twice")
+        out[key] = (bool(labels), textwrap.dedent(text.strip("\n").rstrip()) if "\n" in text.strip() else text.strip())
     return out
+
+
+def relabel(text, pairs, where):
+    """A figure in another language: each "English label => translation" line replaces that text (and an aria-label
+    equal to it) in the English figure, so the figures themselves are written once, in en.html."""
+    for line in pairs.splitlines():
+        if not line.strip():
+            continue
+        a, sep, b = line.partition(" => ")
+        if not sep:
+            raise SystemExit(f"{where}: a label line needs \" => \": {line!r}")
+        a, b = a.strip(), b.strip()
+        new = text.replace(f">{a}<", f">{b}<").replace(f'"{a}"', f'"{b}"')
+        if new == text:
+            raise SystemExit(f"{where}: {a!r} is not a label of the English figure")
+        text = new
+    return text
+
+
+def landing_strings(lang="en"):
+    """Every key of the page in lang: en.html, with <lang>.html over it. A key a language has not translated yet stays
+    in English (the build lists them); a key en.html does not have is an error."""
+    en = {k: t for k, (_, t) in landing_templates("en").items()}
+    if lang == "en":
+        return en
+    out = dict(en)
+    own = landing_templates(lang)
+    for key, (labels, text) in own.items():
+        if key not in en:
+            raise SystemExit(f"site-src/landing/{lang}.html: {key} is not a key of en.html")
+        out[key] = relabel(en[key], text, f"site-src/landing/{lang}.html: {key}") if labels else text
+    missing = sorted(set(en) - set(own))
+    if missing:
+        print(f"site-src/landing/{lang}.html: {len(missing)} keys still in English: {', '.join(missing)}")
+    return out
+
+
+def lang_menu(lang):
+    """The landing page's language menu (summary and list), every language linking to its own page."""
+    items = "".join(
+        f'<li><a href="{home_path(l)}" hreflang="{h}" lang="{h}"{" aria-current=\"true\"" if l == lang else ""}>{name}<span>{l.upper()}</span></a></li>'
+        for l, (h, name, _) in LANDING_LANGS.items())
+    return GLOBE + f"<span>{lang.upper()}</span>", f'<ul class="lang-list">{items}</ul>'
 
 
 def closing_tag(page, name, pos):
@@ -767,26 +865,32 @@ def localize(page, strings):
 
 
 def landing_page(lang, tools, rel):
-    page = localize((LANDING / "index.html").read_text(encoding="utf-8"), landing_strings() if lang == "en" else None)
+    page = localize((LANDING / "index.html").read_text(encoding="utf-8"), None if lang == "vi" else landing_strings(lang))
     url = BASE + home_path(lang)
+    hl, _, locale = LANDING_LANGS[lang]
+    current, menu = lang_menu(lang)
+    # the comparison's facts exist in English and Vietnamese: other languages show the English table
+    compare = landing_block(tools, lang) if lang in LANGS else landing_block(tools, "en").replace('<div class="lc">', '<div class="lc" lang="en">', 1)
     ld = {"@context": "https://schema.org", "@type": "SoftwareApplication", "name": "DumpCat", "url": url,
-          "description": LANDING_LD[lang], "applicationCategory": "DeveloperApplication", "operatingSystem": "Linux, Windows",
+          "description": LANDING_T[lang]["ld"], "applicationCategory": "DeveloperApplication", "operatingSystem": "Linux, Windows",
           "license": "https://www.apache.org/licenses/LICENSE-2.0", "isAccessibleForFree": True,
           "offers": {"@type": "Offer", "price": "0", "priceCurrency": "USD"}, "downloadUrl": url + "#download",
           "image": f"{BASE}/og.png", "sameAs": [REPO],
           "author": {"@type": "Person", "name": "theweakestharrison", "url": "https://github.com/theweakestharrison"}}
     parts = [
         (re.compile(r"<!-- The landing page, in Vietnamese;.*?-->", re.S),
-         "<!-- Written by scripts/build-site.py from site-src/landing/ (index.html and en.html): edit those, then run it. -->"),
-        ('<html lang="vi">', f'<html lang="{lang}">'),
+         "<!-- Written by scripts/build-site.py from site-src/landing/ (index.html, en.html, <lang>.html): edit those, then run it. -->"),
+        ('<html lang="vi">', f'<html lang="{hl}">'),
         ("<!-- urls (scripts/build-site.py): canonical, hreflang, og:url, og:locale -->\n",
          f'<link rel="canonical" href="{url}">\n'
-         + "".join(f'<link rel="alternate" hreflang="{l}" href="{BASE + home_path(l)}">\n' for l in LANGS)
+         + "".join(f'<link rel="alternate" hreflang="{h}" href="{BASE + home_path(l)}">\n' for l, (h, _, _) in LANDING_LANGS.items())
          + f'<link rel="alternate" hreflang="x-default" href="{BASE + home_path("en")}">\n'
-         + f'<meta property="og:url" content="{url}">\n<meta property="og:locale" content="{"en_US" if lang == "en" else "vi_VN"}">\n'),
+         + f'<meta property="og:url" content="{url}">\n<meta property="og:locale" content="{locale}">\n'),
+        ("<!-- lang-current (scripts/build-site.py) -->", current),
+        ("<!-- lang-list (scripts/build-site.py) -->", menu),
         ("<!-- ld+json (scripts/build-site.py) -->",
          '<script type="application/ld+json">\n' + json.dumps(ld, ensure_ascii=False, indent=2) + "\n</script>"),
-        ("<!-- compare (scripts/build-site.py) -->", landing_block(tools, lang)),
+        ("<!-- compare (scripts/build-site.py) -->", compare),
         ("<!-- whatsnew (scripts/build-site.py) -->", whatsnew_block(rel, lang)),
     ]
     for marker, text in parts:
@@ -868,7 +972,7 @@ def main():
     for r in rels:
         write(cl_path(r["version"]).lstrip("/") + "index.html", release_page(r, rels))
 
-    for lang in LANGS:
+    for lang in LANDING_LANGS:
         write(home_path(lang).lstrip("/") + "index.html", landing_page(lang, tools, rels[0]))
 
     write("404.html", not_found_page())
@@ -876,7 +980,8 @@ def main():
     # sitemap: every canonical page once, its language versions as hreflang alternates (x-default: English),
     # and a lastmod that changes only when the page's content does
     tool_dates = {o["slug"]: max(o["checked"], git_date(f"site-src/compare/{o['slug']}.json")) for o in tools}
-    urls = ([(None, home_path, lambda l: git_date(f"site{home_path(l)}index.html", "site/app.js")),
+    # (a fixed URL, or a path per language; lastmod; the languages, when not LANGS)
+    urls = ([(None, home_path, lambda l: git_date(f"site{home_path(l)}index.html", "site/app.js"), tuple(LANDING_LANGS)),
              (None, lambda l: path(l), max(tool_dates.values())),
              (None, guide_path, git_date("site-src/install")),
              ("/demo/", None, git_date("web/index.html", "web/assets", "site-src/demo"))]
@@ -884,13 +989,14 @@ def main():
             + [(cl_path(), None, rels[0]["date"] or git_date("CHANGELOG.md"))]
             + [(cl_path(r["version"]), None, r["date"] or git_date("CHANGELOG.md")) for r in rels])
     items = []
-    for fixed, at, mod in urls:
+    for fixed, at, mod, *langs in urls:
         if fixed:
             items.append(f"  <url><loc>{BASE}{fixed}</loc><lastmod>{mod}</lastmod></url>")
             continue
-        alts = "".join(f'<xhtml:link rel="alternate" hreflang="{l}" href="{BASE + at(l)}"/>' for l in LANGS)
+        langs = langs[0] if langs else LANGS
+        alts = "".join(f'<xhtml:link rel="alternate" hreflang="{LANDING_LANGS[l][0]}" href="{BASE + at(l)}"/>' for l in langs)
         alts += f'<xhtml:link rel="alternate" hreflang="x-default" href="{BASE + at("en")}"/>'
-        for lang in LANGS:
+        for lang in langs:
             items.append(f"  <url><loc>{BASE + at(lang)}</loc><lastmod>{mod(lang) if callable(mod) else mod}</lastmod>{alts}</url>")
     write("sitemap.xml", '<?xml version="1.0" encoding="UTF-8"?>\n'
           '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">\n'
@@ -898,8 +1004,8 @@ def main():
     write("robots.txt", "# dumpcat.cc: every page may be crawled; the pages to index are listed in the sitemap.\n"
           "# The one-line installers (/install.sh, /install.ps1) are scripts: they are sent with X-Robots-Tag: noindex.\n"
           f"User-agent: *\nAllow: /\n\nSitemap: {BASE}/sitemap.xml\n")
-    print(f"built {len(tools)} comparisons and the install guide x {len(LANGS)} languages, {len(rels)} release pages, "
-          f"sitemap with {len(items)} URLs")
+    print(f"built the landing page x {len(LANDING_LANGS)} languages, {len(tools)} comparisons and the install guide x "
+          f"{len(LANGS)} languages, {len(rels)} release pages, sitemap with {len(items)} URLs")
 
 
 if __name__ == "__main__":

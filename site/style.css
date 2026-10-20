@@ -149,7 +149,18 @@ p code, li code, dd code, td code { background: var(--accent-soft); color: var(-
 .lang { display: inline-flex; border: 1px solid var(--on-brand-line); border-radius: 999px; padding: 2px; }
 .lang a { color: var(--on-brand-2); font: 600 0.75rem/1 var(--font-mono); letter-spacing: 0.06em; padding: 7px 10px; border-radius: 999px; text-decoration: none; }
 .lang a[aria-current="true"] { background: var(--on-brand); color: var(--brand-deep); }
+.lang-menu { position: relative; flex: none; }
+.lang-menu summary { list-style: none; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; color: var(--on-brand-2); font: 600 0.75rem/1 var(--font-mono); letter-spacing: 0.06em; padding: 8px 11px; border: 1px solid var(--on-brand-line); border-radius: 999px; }
+.lang-menu summary::-webkit-details-marker { display: none; }
+.lang-menu summary:hover, .lang-menu[open] summary { color: var(--on-brand); border-color: var(--on-brand-2); }
+.lang-menu summary svg { width: 15px; height: 15px; flex: none; }
+.lang-list { position: absolute; right: 0; top: calc(100% + 8px); z-index: 30; margin: 0; padding: 6px; list-style: none; min-width: 190px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--card-shadow); }
+.lang-list a { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; padding: 8px 10px; border-radius: 8px; color: var(--ink); text-decoration: none; font-size: 0.9375rem; }
+.lang-list a:hover { background: var(--sunken); }
+.lang-list a[aria-current="true"] { color: var(--accent-ink); font-weight: 650; }
+.lang-list a span { color: var(--muted); font: 600 0.6875rem/1 var(--font-mono); letter-spacing: 0.06em; }
 @media (max-width: 760px) { .nav { display: none; } .nav-cta { margin-left: auto; } }
+@media (max-width: 420px) { .topbar { gap: 12px; } }
 
 .hero-main { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 40px; align-items: center; }
 .hero-copy { min-width: 0; max-width: 760px; }
@@ -691,3 +702,13 @@ tr.fit td { font-weight: 600; }
 .cl-tags { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
 .cl-tags span { font-size: 0.78rem; font-weight: 600; color: var(--accent-ink); background: var(--accent-soft); padding: 4px 10px; border-radius: 999px; }
 @media (max-width: 560px) { .cl-list a { grid-template-columns: minmax(0, 1fr); } .cl-date { text-align: left; line-height: 1.4; } .cl-pager { grid-template-columns: minmax(0, 1fr); } }
+
+/* ---------- Chinese, Japanese and Korean pages: the web fonts above have no CJK glyphs ---------- */
+:root:lang(zh) { --font-display: "Bricolage Grotesque", "PingFang SC", "Microsoft YaHei", "Noto Sans SC", "Noto Sans CJK SC", system-ui, sans-serif;
+  --font-body: "Be Vietnam Pro", "PingFang SC", "Microsoft YaHei", "Noto Sans SC", "Noto Sans CJK SC", system-ui, sans-serif; }
+:root:lang(ja) { --font-display: "Bricolage Grotesque", "Hiragino Sans", "Yu Gothic", "Meiryo", "Noto Sans JP", "Noto Sans CJK JP", system-ui, sans-serif;
+  --font-body: "Be Vietnam Pro", "Hiragino Sans", "Yu Gothic", "Meiryo", "Noto Sans JP", "Noto Sans CJK JP", system-ui, sans-serif; }
+:root:lang(ko) { --font-display: "Bricolage Grotesque", "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans KR", "Noto Sans CJK KR", system-ui, sans-serif;
+  --font-body: "Be Vietnam Pro", "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans KR", "Noto Sans CJK KR", system-ui, sans-serif; }
+:root:lang(zh) .hero h1, :root:lang(ja) .hero h1, :root:lang(ko) .hero h1 { letter-spacing: 0; line-height: 1.15; }
+:root:lang(zh) .eyebrow, :root:lang(ja) .eyebrow, :root:lang(ko) .eyebrow { letter-spacing: 0.04em; }

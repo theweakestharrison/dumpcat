@@ -1,0 +1,200 @@
+<!-- Simplified Chinese (zh) text of the landing page, written for developers in mainland China: the same keys as
+     en.html, in the same order, translated. A key missing here stays in English. -->
+<template data-i18n="title">DumpCat：MySQL、MariaDB 和 PostgreSQL 的备份与时间点恢复</template>
+<template data-i18n="description">DumpCat：为 MySQL、MariaDB 和 PostgreSQL 提供备份、恢复与时间点恢复，单个二进制文件，自带 Web 界面。</template>
+<template data-i18n="share">备份从不锁库，恢复精确到秒。一个自托管的二进制文件，自带 Web 界面。</template>
+<template data-i18n="share-alt">DumpCat：备份从不锁库，恢复精确到秒。时间点恢复时间线。</template>
+<template data-i18n="share-alt-short">DumpCat：备份从不锁库，恢复精确到秒。</template>
+<template data-i18n="nav-aria">栏目</template>
+<template data-i18n="nav-features">功能</template>
+<template data-i18n="nav-ai">AI</template>
+<template data-i18n="nav-compare">对比</template>
+<template data-i18n="nav-demo">界面预览</template>
+<template data-i18n="nav-whatsnew">更新内容</template>
+<template data-i18n="nav-install">安装</template>
+<template data-i18n="lang-aria">语言</template>
+<template data-i18n="eyebrow">开源 · MySQL、MariaDB 和 PostgreSQL 的备份与恢复</template>
+<template data-i18n="h1">备份从不锁库。<span class="soft">恢复精确到秒。</span></template>
+<template data-i18n="lead">DumpCat 是一个自带 Web 界面的单文件程序。它按计划执行备份，压缩并加密，把副本传到 S3、Google Drive、OneDrive 或 SFTP，校验备份，并在你需要时把数据恢复回来。支持 Linux 和 Windows，可完全离线运行。</template>
+<template data-i18n="cta-install">安装 <span data-version>1.5.0</span></template>
+<template data-i18n="cta-demo">预览界面</template>
+<template data-i18n="cta-github">GitHub 源码</template>
+<template data-i18n="pitr-title">时间点恢复</template>
+<template data-i18n="pitr-tag">模拟演示</template>
+<template data-i18n="pitr-sub">有人在 14:37:12 误删了 <code>orders</code> 表。拖动标记选择恢复点：DumpCat 会挑选最新的基础备份，以及需要重放的 binlog 文件。PostgreSQL 同理，使用的是归档的 WAL。</template>
+<template data-i18n="tl-now">现在</template>
+<template data-i18n="ro-aria">恢复点</template>
+<template data-i18n="lg-backup">全量备份（mysqldump）</template>
+<template data-i18n="lg-binlog">归档的 binlog，每个文件最多 15 分钟</template>
+<template data-i18n="lg-replay">恢复时重放</template>
+<template data-i18n="lg-incident">事故</template>
+<template data-i18n="ro-to">恢复到</template>
+<template data-i18n="ro-base">基础备份</template>
+<template data-i18n="ro-replay">重放 binlog</template>
+<template data-i18n="ro-base-v">20261018-020000-full<small>mysqldump · 一致性时间点 02:00:03</small></template>
+<template data-i18n="ro-replay-v">mysql-bin.000123 → mysql-bin.000173<small>共 51 个文件，改动任何数据前逐一校验</small></template>
+<template data-i18n="ro-status-v">事故发生前：orders 表完好无损</template>
+<template data-i18n="tl-snap">跳到事故发生前一刻</template>
+<template data-i18n="m-label">备份方式</template>
+<template data-i18n="m-title">不同数据库、不同规模，各有合适的工具</template>
+<template data-i18n="m-intro">对于 MySQL 和 MariaDB，DumpCat 可调用 <code>mysqldump</code>、<code>mydumper</code> 以及 XtraBackup / MariaBackup。添加服务器时，<em>Test connection</em> 会显示版本、datadir、每个数据库的大小，以及这台机器上可用的备份方式。</template>
+<template data-i18n="m-table">
+  <thead>
+    <tr><th scope="col"></th><th scope="col">mysqldump<small>逻辑备份</small></th><th scope="col">mydumper<small>逻辑备份，并行</small></th><th scope="col">XtraBackup / MariaBackup<small>物理备份，热备</small></th></tr>
+  </thead>
+  <tbody>
+    <tr><th scope="row">会锁库吗？</th><td data-m="mysqldump">InnoDB 不锁，靠的是 <code>--single-transaction</code></td><td data-m="mydumper">为同步各线程加几毫秒全局锁，之后不再加锁</td><td data-m="物理备份">不锁 InnoDB；结束时有极短暂的备份锁</td></tr>
+    <tr><th scope="row">备份速度</th><td data-m="mysqldump">每个数据库 1 个线程，多个数据库并行</td><td data-m="mydumper">多线程，表按行分块</td><td data-m="物理备份">最快：多线程复制文件</td></tr>
+    <tr><th scope="row">恢复速度</th><td data-m="mysqldump">最慢</td><td data-m="mydumper">快：并行，加载完成后再建索引</td><td data-m="物理备份">非常快：复制文件 + prepare</td></tr>
+    <tr><th scope="row">增量备份</th><td class="no" data-m="mysqldump">不支持</td><td class="no" data-m="mydumper">不支持</td><td class="yes" data-m="物理备份">支持</td></tr>
+    <tr><th scope="row">单库恢复、改名</th><td class="yes" data-m="mysqldump">支持</td><td class="yes" data-m="mydumper">支持</td><td class="no" data-m="物理备份">不支持，只能恢复整个实例</td></tr>
+    <tr class="fit"><th scope="row">最适合</th><td data-m="mysqldump">20–50 GB 以下的数据库</td><td data-m="mydumper">需要逐个恢复的大型数据库</td><td data-m="物理备份">100 GB 到数 TB，要求低 RTO</td></tr>
+  </tbody>
+</template>
+<template data-i18n="m-pg"><b>PostgreSQL</b> 10 及以上：<code>pg_dump</code> 按数据库备份，表并行导出和恢复，可恢复为新名称或恢复到另一台服务器；<code>pg_basebackup</code> 通过复制连接备份整个集群，配合持续 WAL 归档，可恢复到某个时间、某个还原点或某个 WAL 位置。</template>
+<template data-i18n="s-label">存储</template>
+<template data-i18n="s-title">一个任务，多处副本</template>
+<template data-i18n="s-intro">可以先写入本地磁盘再上传，也可以不占用临时磁盘、直接流式上传到云端。每个存储各自设定保留份数，例如本地保留 3 份备份，S3 上保留 30 天。</template>
+<template data-i18n="s-targets">
+  <li><b>本地 / NFS</b><span>恢复最快；别和 datadir 放在同一块盘上</span></li>
+  <li><b>S3</b><span>AWS、Cloudflare R2、MinIO、Wasabi、DigitalOcean</span></li>
+  <li><b>Google Drive</b><span>OAuth 或服务账号</span></li>
+  <li><b>OneDrive</b><span>包括 SharePoint</span></li>
+  <li><b>FTP / FTPS</b><span>显式或隐式 TLS</span></li>
+  <li><b>SFTP</b><span>密码或私钥</span></li>
+  <li><b>WebDAV</b><span>Nextcloud 等</span></li>
+  <li><b>Backblaze B2</b><span>另有 Azure Blob 和 Dropbox</span></li>
+  <li><b>rclone</b><span>另外 70 多种后端</span></li>
+</template>
+<template data-i18n="s-aside-title">标准格式，不被锁定</template>
+<template data-i18n="s-aside-text">运行 DumpCat 的机器没了？重新装一份，再次添加存储，点击 <em>Import backup catalog</em>：所有备份都会重新列出来。即使没有 DumpCat，也能用 <code>age</code>、<code>zstd</code> 加上 <code>mysql</code> 或 <code>pg_restore</code> 完成恢复。</template>
+<template data-i18n="c-label">网络连接</template>
+<template data-i18n="c-title">数据库没开端口？照样能备份。</template>
+<template data-i18n="c-intro">当备份服务器无法直接连上数据库时（比如有防火墙、NAT，或数据库只监听 127.0.0.1），可以反过来让数据库主机主动连接 DumpCat。有两种方式，都不需要在数据库主机上开放端口。备份、恢复和时间点恢复都与直连时完全一样。</template>
+<template data-i18n="c-agent-title">Agent</template>
+<template data-i18n="c-agent-fig" data-labels>
+  Agent: the database host opens the connection to DumpCat through its firewall => Agent：数据库主机穿过自身防火墙，主动连接 DumpCat
+  Backup server => 备份服务器
+  Backup &amp; restore => 备份与恢复
+  Agent endpoint => Agent 端点
+  HTTPS · web UI port => HTTPS · Web 界面端口
+  Reachable over HTTPS => 可通过 HTTPS 访问
+  Database host => 数据库主机
+  No inbound port => 无入站端口
+  Unchanged · 127.0.0.1 only => 无需改动 · 仅监听 127.0.0.1
+  Allow list 127.0.0.1:3306 => 白名单 127.0.0.1:3306
+  Nothing opened on this host => 本机不开放任何端口
+  Firewall / NAT => 防火墙 / NAT
+  ← HTTPS · opened by the database host => ← HTTPS · 由数据库主机发起
+  3306 inbound => 3306 入站
+  blocked, not needed => 已拦截，也无需开放
+  opened by the database host => 由数据库主机发起
+  The database host opens the tunnel => 数据库主机建立隧道
+  DumpCat&#x27;s database traffic flows back inside it => DumpCat 的数据库流量在隧道内反向传输
+</template>
+<template data-i18n="c-agent-facts">
+  <div><dt>数据库主机需要</dt><dd>能通过出站 HTTPS 访问 DumpCat</dd></div>
+  <div><dt>数据库</dt><dd>无需改动，即使只监听 127.0.0.1</dd></div>
+  <div><dt>安装</dt><dd><code>sudo ./install.sh --agent --server … --key …</code></dd></div>
+  <div><dt>适合</dt><dd>不想改动网络和 MySQL 配置的场景</dd></div>
+</template>
+<template data-i18n="c-wg-title">内置 WireGuard</template>
+<template data-i18n="c-wg-tag">UDP · 默认关闭</template>
+<template data-i18n="c-wg-fig" data-labels>
+  WireGuard: the database host opens the tunnel to DumpCat through its firewall => WireGuard：数据库主机穿过自身防火墙，主动建立到 DumpCat 的隧道
+  Backup server => 备份服务器
+  Backup &amp; restore => 备份与恢复
+  WireGuard, built in => 内置 WireGuard
+  UDP 51820 open => 开放 UDP 51820
+  Database host => 数据库主机
+  No inbound port => 无入站端口
+  Listens on 10.66.0.2 => 监听 10.66.0.2
+  10.66.0.2 · keepalive 25 s => 10.66.0.2 · keepalive 25 秒
+  Nothing opened on this host => 本机不开放任何端口
+  Firewall / NAT => 防火墙 / NAT
+  ← WireGuard UDP · opened by the database host => ← WireGuard UDP · 由数据库主机发起
+  3306 inbound => 3306 入站
+  blocked, not needed => 已拦截，也无需开放
+  opened by the database host => 由数据库主机发起
+  The database host opens the tunnel => 数据库主机建立隧道
+  DumpCat&#x27;s database traffic flows back inside it => DumpCat 的数据库流量在隧道内反向传输
+</template>
+<template data-i18n="c-wg-facts">
+  <div><dt>数据库主机需要</dt><dd>标准 WireGuard，出站 UDP 51820 到 DumpCat</dd></div>
+  <div><dt>数据库</dt><dd>监听 VPN 地址，数据库账号允许来自 10.66.0.1 的连接</dd></div>
+  <div><dt>安装</dt><dd>在 WireGuard 页面启用，复制 <code>dumpcat.conf</code>，执行 <code>systemctl enable --now wg-quick@dumpcat</code></dd></div>
+  <div><dt>适合</dt><dd>已在使用 WireGuard 的团队，或用作通往整个数据库网段的网关</dd></div>
+</template>
+<template data-i18n="c-note">连接由数据库主机发起，数据在连接内双向传输。物理备份（XtraBackup / MariaBackup）可以通过以 <code>--allow-physical</code> 启动的 Agent 进行；走 WireGuard 时，仍需在数据库主机上安装 DumpCat。</template>
+<template data-i18n="o-label">运维</template>
+<template data-i18n="o-title">那些本该自己写脚本的活，都替你做好了</template>
+<template data-i18n="o-intro">全部内置于 DumpCat，在 Web 界面中开启和调整。</template>
+<template data-i18n="o-list">
+  <div><dt>上传前加密</dt><dd>age（ChaCha20-Poly1305 + scrypt）在你自己的服务器上运行，云服务商无法读取你的数据。</dd></div>
+  <div><dt>完整性校验</dt><dd>每个文件都有 <span class="nw">SHA-256</span>。校验时会重新读取、解密、解压，并检查是否有 <code>Dump completed</code> 这一行。</dd></div>
+  <div><dt>GFS 保留策略</dt><dd>保留 N 份备份、N 天，或每天、每周、每月的最后一份。增量链只会随其全量备份一起删除。</dd></div>
+  <div><dt>稳妥的恢复</dt><dd>删除任何数据库之前，先对每个文件做试解密。可以恢复为新名称，或恢复到另一台服务器、另一个版本（MySQL 8 ↔ MariaDB，PostgreSQL 15 → 16）。</dd></div>
+  <div><dt>账号与角色</dt><dd>admin、operator、viewer 三种角色。支持 TOTP 双因素认证、API 令牌、审计日志，多次登录失败后锁定账号。</dd></div>
+  <div><dt>通知</dt><dd>邮件、Telegram、Slack、Discord 以及 HMAC 签名的 Webhook，可在失败或成功时发送。</dd></div>
+  <div><dt>防火墙后的数据库</dt><dd>数据库主机上的 Agent 通过 HTTPS 主动连接 DumpCat，或者让主机加入内置的 WireGuard。无需为数据库开放任何端口。</dd></div>
+  <div><dt>自我更新</dt><dd><code>dumpcat update</code> 会校验 <span class="nw">SHA-256</span>、备份配置、等待正在运行的备份完成，失败时自动回滚。</dd></div>
+</template>
+<template data-i18n="oss-label">开源</template>
+<template data-i18n="oss-title">免费、开源，数据始终归你所有</template>
+<template data-i18n="oss-intro">DumpCat 以 Apache-2.0 许可证发布。无需注册账号，无需许可证密钥，也没有把功能藏起来的付费版：本页介绍的一切，都包含在你下载的版本里。</template>
+<template data-i18n="oss-list">
+  <div><dt>Apache-2.0 许可证</dt><dd>个人和公司均可使用，可以修改和再分发。完整条款见 <a href="https://github.com/theweakestharrison/DumpCat/blob/main/LICENSE">LICENSE</a>。</dd></div>
+  <div><dt>无遥测</dt><dd>DumpCat 不向任何地方发送使用数据。它唯一主动发起的请求，是每天读取一次 <code>latest.json</code> 以提示新版本，而且可以在设置（Settings）中关闭。</dd></div>
+  <div><dt>没有中间商</dt><dd>备份、数据库密码和加密密钥只会从你的服务器传到你选择的存储。</dd></div>
+  <div><dt>签名发布</dt><dd>每次更新都使用 ed25519 签名，安装前会校验 <span class="nw">SHA-256</span>。自行构建只需要 Go。</dd></div>
+</template>
+<template data-i18n="oss-build-title">从源码构建</template>
+<template data-i18n="oss-contrib">欢迎提交 Bug 报告、Pull Request 和翻译，详见 <a href="https://github.com/theweakestharrison/DumpCat/blob/main/CONTRIBUTING.md">CONTRIBUTING.md</a>。安全问题请按 <a href="https://github.com/theweakestharrison/DumpCat/blob/main/SECURITY.md">SECURITY.md</a> 中的说明私下报告。</template>
+<template data-i18n="oss-github">在 GitHub 查看</template>
+<template data-i18n="oss-issues">报告问题</template>
+<template data-i18n="ai-label">AI 友好</template>
+<template data-i18n="ai-title">AI 友好：让 AI 助手替你盯着备份</template>
+<template data-i18n="ai-intro">DumpCat 内置 MCP 服务器，并提供 Markdown 格式的 API 参考文档。Claude Code、Claude Desktop 和其他 AI Agent 用 API 令牌接入后，可以查询哪些备份失败了、读取日志并解释原因；使用完全权限的令牌，还能运行备份、校验和恢复演练。</template>
+<template data-i18n="ai-list">
+  <div><dt>内置 MCP 服务器</dt><dd>端点 <code>/api/mcp</code> 是 DumpCat 的一部分，无需额外安装：提供概览、告警、任务、备份、日志、恢复、演练以及时间点恢复预览等工具。通过 stdio 启动本地服务器的客户端可使用 <code>dumpcat mcp</code>。</dd></div>
+  <div><dt>默认安全</dt><dd>新建的令牌只能查看。恢复、删除、凭据和设置永远不经过 MCP；返回结果中不含密码、密钥和令牌，AI 助手发起的任何操作都会写入审计日志。</dd></div>
+  <div><dt>Markdown 格式的 API 参考</dt><dd><code>/api/docs.md</code> 由服务器自动生成：包括认证方式、约定、curl 示例，以及每个路由所需的角色和令牌。可以直接粘贴到 AI 对话中，也可以让 Agent 读取后调用 REST API。</dd></div>
+  <div><dt>一分钟完成配置</dt><dd>DumpCat 中的 <em>API &amp; MCP</em> 页面会创建令牌，给出 Claude Code 命令以及 Claude Desktop 和其他客户端的配置，还有一个 <em>Test</em> 按钮用来检查连接。</dd></div>
+</template>
+<template data-i18n="ai-aside-title">接入 Claude Code</template>
+<template data-i18n="ai-aside-text">然后直接用大白话提问：<em>“昨晚哪些备份失败了？为什么？”</em>、<em>“shop-nightly 有 24 小时内的备份吗？”</em>、<em>“能把 orders 恢复到昨天 14:37 吗？”</em></template>
+<template data-i18n="cmp-label">对比</template>
+<template data-i18n="cmp-title">DumpCat 与同类工具对比</template>
+<template data-i18n="cmp-intro">选择一个工具，逐项对比所有功能。关于其他产品的信息，在完整对比页面上均注明了来源和日期。</template>
+<template data-i18n="d-label">下载</template>
+<template data-i18n="d-title">最新版本</template>
+<template data-i18n="rel-noscript">在 <a href="https://downloads.dumpcat.cc/latest.json">downloads.dumpcat.cc/latest.json</a> 查看最新版本及其文件。</template>
+<template data-i18n="d-linux">amd64 和 arm64，含安装程序、systemd 服务和使用手册</template>
+<template data-i18n="d-windows">64 位，含 Windows 服务安装程序和使用手册</template>
+<template data-i18n="d-next">下载好了？打开压缩包里的 <b>START-HERE.txt</b>，或按照<a href="/install/#downloaded">分步安装指南</a>（英文）操作。</template>
+<template data-i18n="d-bins">单文件二进制</template>
+<template data-i18n="d-old">旧版本仍可在 <code>downloads.dumpcat.cc/&lt;version&gt;/</code> 下载。</template>
+<template data-i18n="i-label">安装</template>
+<template data-i18n="i-title">一分钟跑起来</template>
+<template data-i18n="i-intro">Linux 上只需一条命令，Windows 上下载后双击即可。安装程序会注册一个开机自启的服务，并安装与你的数据库版本匹配的备份工具；Web 界面已打包在同一个文件里。</template>
+<template data-i18n="os-aria">操作系统</template>
+<template data-i18n="copy">复制</template>
+<template data-i18n="i-linux-lead">在 Linux 服务器上粘贴这条命令并按回车：</template>
+<template data-i18n="i-linux-note">它会下载最新版本、核对校验和，并以 systemd 服务的形式安装到 <code>/opt/dumpcat</code>，同时安装 <code>rclone</code>、MySQL/MariaDB 客户端、对应版本的 mariabackup 或 XtraBackup，软件源里有 mydumper 时也会一并安装；<wbr><code>--postgres 16</code> 会额外安装 PostgreSQL 16 客户端工具。选项写在 <code>sh -s --</code> 之后：<wbr><code>--port 9090</code>、<wbr><code>--listen 127.0.0.1</code>、<wbr><code>--tls-auto</code>。</template>
+<template data-i18n="i-win-1"><b>下载 .zip 文件</b></template>
+<template data-i18n="i-win-dl">下载 Windows 版</template>
+<template data-i18n="i-win-2"><b>解压</b>：右键点击该文件，选择 <i>Extract All</i>（全部解压缩）。</template>
+<template data-i18n="i-win-3"><b>双击 <i>Install DumpCat</i></b>，在提示中选择 <i>Yes</i>（是）。浏览器会打开 DumpCat；安装窗口中会显示初始化令牌（setup token）。</template>
+<template data-i18n="i-win-note">支持 Windows 10 / 11 或 Windows Server 2016+ 64 位，以 Windows 服务运行。更习惯 PowerShell？在 PowerShell（管理员）中运行 <code>irm https://dumpcat.cc/install.ps1 | iex</code>。Windows 版不提供 MySQL 的 mydumper 和 XtraBackup；数百 GB 的数据库请在 Linux 上运行 DumpCat。</template>
+<template data-i18n="i-guide">刚接触命令行？<a href="/install/">按照分步指南操作</a>（英文），里面还有常见问题的解决方法。</template>
+<template data-i18n="i-steps-title">安装之后</template>
+<template data-i18n="i-steps">
+  <li><div><b>打开 <code>http://&lt;server-ip&gt;:6369</code></b><span>使用安装程序打印的一次性初始化令牌创建管理员账号（再次显示：<code>dumpcat setup-token</code>）。</span></div></li>
+  <li><div><b>添加数据库服务器</b><span>Test connection 会列出缺少的权限以及可用的备份方式。</span></div></li>
+  <li><div><b>添加存储</b><span>Test 会写入、读取并删除一个测试文件。</span></div></li>
+  <li><div><b>创建备份任务</b><span>选择计划、加密、存储和保留策略，然后点击 Save &amp; run now。</span></div></li>
+</template>
+<template data-i18n="meow-title">端口 6369 拼出 <em>MEOW</em></template>
+<template data-i18n="meow">在手机九宫格键盘上按 6-3-6-9，对应的字母正好拼出 MEOW（喵）。这就是 Web 界面的默认端口。</template>
+<template data-i18n="foot">基于 Apache-2.0 许可证开源，源码托管在 <a href="https://github.com/theweakestharrison/DumpCat">GitHub</a>。<a href="/compare/">与其他工具的对比</a>。完整的使用手册（英文和越南语）随每个安装包附带。</template>
+<template data-i18n="foot-mail">技术支持：<a href="mailto:fat@dumpcat.cc">fat@dumpcat.cc</a></template>
