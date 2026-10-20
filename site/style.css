@@ -704,7 +704,7 @@ tr.fit td { font-weight: 600; }
 @media (max-width: 560px) { .cl-list a { grid-template-columns: minmax(0, 1fr); } .cl-date { text-align: left; line-height: 1.4; } .cl-pager { grid-template-columns: minmax(0, 1fr); } }
 
 /* ---------- AI-friendly: the hero chip, an example chat, what an assistant may do, setup ---------- */
-.hero-ai { display: inline-flex; align-items: center; gap: 10px; max-width: 100%; margin: 0 0 20px; padding: 5px 14px 5px 5px; border: 1px solid var(--on-brand-line); border-radius: 999px; background: rgba(255, 255, 255, 0.08); color: var(--on-brand); text-decoration: none; font-size: 0.875rem; font-weight: 500; line-height: 1.35; transition: background-color .12s ease; }
+.hero-ai { display: inline-flex; align-items: center; gap: 10px; max-width: 100%; margin: 0 0 20px; padding: 5px 14px 5px 5px; border: 1px solid var(--on-brand-line); border-radius: 18px; background: rgba(255, 255, 255, 0.08); color: var(--on-brand); text-decoration: none; font-size: 0.875rem; font-weight: 500; line-height: 1.35; transition: background-color .12s ease; }
 .hero-ai:hover { background: rgba(255, 255, 255, 0.16); }
 .hero-ai::after { content: "\2192"; flex: none; color: var(--on-brand-2); }
 .hero-ai-tag { flex: none; font: 700 0.6875rem/1 var(--font-mono); letter-spacing: 0.08em; color: var(--brand-deep); background: var(--on-brand); padding: 6px 9px; border-radius: 999px; }
@@ -749,6 +749,7 @@ tr.fit td { font-weight: 600; }
 @media (max-width: 900px) { .ai-setup { grid-template-columns: minmax(0, 1fr); } }
 .ai-setup-steps, .ai-setup-code { min-width: 0; }
 .ai-setup .tabs { flex-wrap: wrap; max-width: 100%; }
+@media (max-width: 420px) { .ai-setup .tabs button { padding-inline: 12px; } }
 .ai-setup .steps em { font-style: normal; font-weight: 600; color: var(--ink); }
 
 /* ---------- Chinese, Japanese and Korean pages: the web fonts above have no CJK glyphs ---------- */
