@@ -102,6 +102,7 @@
 
     <div class="hero-main">
       <div class="hero-copy">
+        <a class="hero-ai" href="#ai"><span class="hero-ai-tag">MCP</span><span>Compatible IA&nbsp;: demandez à Claude ou à un autre assistant IA où en sont vos sauvegardes</span></a>
         <p class="eyebrow">Open source · Sauvegarde et restauration pour MySQL, MariaDB et PostgreSQL</p>
         <h1>Sauvegardez sans jamais verrouiller la base. <span class="soft">Restaurez à la seconde près.</span></h1>
         <p class="lead">DumpCat est un binaire unique doté d’une interface web. Il planifie les sauvegardes, les compresse et les chiffre, en envoie des copies vers S3, Google Drive, OneDrive ou SFTP, les vérifie et restaure vos données le moment venu. Fonctionne sous Linux et Windows, entièrement hors ligne.</p>
@@ -214,6 +215,109 @@
           <div class="meow-text">
             <p class="meow-title">Le port 6369 s’écrit <em>MEOW</em></p>
             <p>Tapez 6-3-6-9 sur le clavier d’un téléphone et vous obtenez MEOW, «&nbsp;miaou&nbsp;» en anglais. C’est le port par défaut de l’interface web.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="ai" aria-labelledby="ai-title">
+    <div class="wrap">
+      <div class="head">
+        <div>
+          <p class="label">Compatible IA · MCP</p>
+          <h2 id="ai-title">Confiez la surveillance des sauvegardes à un assistant IA, sans lui donner les clés</h2>
+        </div>
+        <p class="intro">DumpCat est un serveur MCP. Connectez Claude Code, Claude Desktop ou un autre client MCP avec un jeton d’API, puis posez vos questions en langage courant&nbsp;: l’assistant cherche ce qui a échoué ou pris du retard, lit le journal et vous explique pourquoi. Les autres agents IA lisent la référence d’API en Markdown que votre propre serveur rédige pour eux.</p>
+      </div>
+      <div class="section-body ai-grid">
+        <figure class="ai-chat">
+          <div class="ai-chat-bar"><span class="ai-dots" aria-hidden="true"><i></i><i></i><i></i></span><span>Claude Code</span><span class="ai-chat-mcp">MCP · dumpcat</span></div>
+          <div class="ai-chat-body">
+            <p class="msg you">Quelles sauvegardes ont échoué cette nuit, et pourquoi&nbsp;?</p>
+            <p class="ai-tools" aria-label="Outils MCP appelés"><span class="tool">get_monitoring</span><span class="tool">list_backups <i>status=failed</i></span><span class="tool">get_log <i>4812</i></span></p>
+            <p class="msg ai">Une tâche sur 12&nbsp;: <b>shop-nightly</b> s’est arrêtée à 02:14 avec <code>errno 28</code>, autrement dit <code>/var/backups</code> sur db-01 est plein. Les 11 autres ont réussi. Libérez de la place, ou gardez moins de copies locales depuis l’interface web, et je la relance.</p>
+            <p class="msg you">C’est fait, relance-la.</p>
+            <div class="ai-ask"><p>Autoriser <code>run_backup</code> (shop-nightly, complète)&nbsp;?</p><span class="ai-ask-btns" aria-hidden="true"><span class="on">Autoriser</span><span>Refuser</span></span></div>
+            <p class="ai-tools" aria-label="Outils MCP appelés"><span class="tool">run_backup <i>shop-nightly</i></span><span class="tool">get_backup <i>4813</i></span></p>
+            <p class="msg ai">La sauvegarde 4813 est en cours, à 41&nbsp;%. Je vérifierai le résultat à la fin.</p>
+          </div>
+          <figcaption>Exemple avec un jeton à accès complet. Avec un jeton en lecture seule, celui par défaut, l’assistant peut regarder mais ne peut rien lancer.</figcaption>
+        </figure>
+        <div class="ai-side">
+          <h3>Ce qu’un assistant peut faire</h3>
+          <ul class="ai-perm">
+            <li><span class="mk mk-yes"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5.5 12.5l4 4L18.5 7.5"/></svg></span><div><b>Regarder</b><small>Jeton en lecture seule, par défaut</small><span>Vue d’ensemble et alertes, tâches, sauvegardes, erreurs et journaux, archivage binlog / WAL, résultats des restaurations et des exercices, aperçus de restauration à un instant précis.</span></div></li>
+            <li><span class="mk mk-run"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6.5l8.5 5.5L9 17.5z"/></svg></span><div><b>Lancer</b><small>Jeton à accès complet, operator ou admin</small><span>Lancer une sauvegarde, vérifier une sauvegarde, démarrer un exercice de restauration. Le client IA vous demande avant chaque action.</span></div></li>
+            <li><span class="mk mk-no"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7.5 7.5l9 9M16.5 7.5l-9 9"/></svg></span><div><b>Jamais via MCP</b><small>Quel que soit le jeton</small><span>Restaurations, suppressions, identifiants et réglages. Aucune option ne les active&nbsp;: tout cela se fait dans l’interface web.</span></div></li>
+          </ul>
+          <p class="ai-perm-note">Les réponses ne contiennent jamais de mots de passe, de clés ni de jetons, et les identifiants présents dans les erreurs et les journaux sont masqués. Chaque appel passe par l’API REST avec votre jeton&nbsp;: il est donc contrôlé comme n’importe quelle requête et inscrit au journal d’audit.</p>
+        </div>
+      </div>
+      <div class="ai-setup">
+        <div class="ai-setup-steps">
+          <h3 class="steps-title">Connecté en une minute</h3>
+          <ol class="steps">
+            <li><div><b>Créez un jeton</b><span>Page <em>API &amp; MCP</em> de DumpCat, <em>New token</em>. Les jetons sont en lecture seule par défaut&nbsp;; choisissez <em>Full</em> pour que l’assistant puisse lancer des sauvegardes.</span></div></li>
+            <li><div><b>Copiez la configuration</b><span>La page insère l’adresse de votre serveur et le jeton dans la commande Claude Code, la configuration Claude Desktop et celle des autres clients.</span></div></li>
+            <li><div><b>Testez, puis demandez</b><span><em>Test MCP connection</em> affiche le compte, l’accès et les outils dont l’assistant disposera.</span></div></li>
+          </ol>
+        </div>
+        <div class="ai-setup-code">
+          <div class="tabs" role="tablist" aria-label="Client IA">
+            <button type="button" role="tab" id="tab-cc" aria-controls="panel-cc" aria-selected="true">Claude Code</button>
+            <button type="button" role="tab" id="tab-cd" aria-controls="panel-cd" aria-selected="false" tabindex="-1">Claude Desktop</button>
+            <button type="button" role="tab" id="tab-mcp" aria-controls="panel-mcp" aria-selected="false" tabindex="-1">Autres clients MCP</button>
+            <button type="button" role="tab" id="tab-md" aria-controls="panel-md" aria-selected="false" tabindex="-1">Autres agents</button>
+          </div>
+          <div role="tabpanel" id="panel-cc" aria-labelledby="tab-cc">
+            <div class="code">
+              <div class="code-bar"><span>bash</span><button type="button" class="copy" data-target="cmd-mcp">Copier</button></div>
+              <pre><code id="cmd-mcp">claude mcp add --transport http dumpcat \
+  https://backup.example.com/api/mcp \
+  --header "Authorization: Bearer mv_…"</code></pre>
+            </div>
+            <p class="panel-note">Mettez votre adresse et votre jeton, ou copiez la commande déjà remplie depuis la page <em>API &amp; MCP</em>. Pour partager le serveur dans un projet sans le jeton, cette page propose aussi un <code>.mcp.json</code> qui lit le jeton dans l’environnement.</p>
+          </div>
+          <div role="tabpanel" id="panel-cd" aria-labelledby="tab-cd" hidden>
+            <div class="code">
+              <div class="code-bar"><span>claude_desktop_config.json</span><button type="button" class="copy" data-target="cmd-mcp-desktop">Copier</button></div>
+              <pre><code id="cmd-mcp-desktop">{
+  "mcpServers": {
+    "dumpcat": {
+      "command": "C:\\Program Files\\DumpCat\\dumpcat.exe",
+      "args": ["mcp"],
+      "env": {
+        "DUMPCAT_MCP_URL": "https://backup.example.com",
+        "DUMPCAT_MCP_TOKEN": "mv_…"
+      }
+    }
+  }
+}</code></pre>
+            </div>
+            <p class="panel-note">Ouvrez <em>Settings → Developer → Edit Config</em>, collez, puis redémarrez Claude Desktop. <code>dumpcat mcp</code> est une petite passerelle stdio qui tourne sur l’ordinateur où se trouve Claude Desktop&nbsp;; sous Linux, <code>command</code> est le chemin du binaire <code>dumpcat</code>, et sous macOS vous le compilez avec Go.</p>
+          </div>
+          <div role="tabpanel" id="panel-mcp" aria-labelledby="tab-mcp" hidden>
+            <div class="code">
+              <div class="code-bar"><span>json</span><button type="button" class="copy" data-target="cmd-mcp-other">Copier</button></div>
+              <pre><code id="cmd-mcp-other">{
+  "mcpServers": {
+    "dumpcat": {
+      "url": "https://backup.example.com/api/mcp",
+      "headers": { "Authorization": "Bearer mv_…" }
+    }
+  }
+}</code></pre>
+            </div>
+            <p class="panel-note">L’endpoint <code>/api/mcp</code> (streamable HTTP) fait partie de DumpCat, rien d’autre à installer. Les clients qui ne savent lancer qu’une commande locale utilisent <code>dumpcat mcp</code>, avec <code>DUMPCAT_MCP_URL</code> et <code>DUMPCAT_MCP_TOKEN</code> dans l’environnement.</p>
+          </div>
+          <div role="tabpanel" id="panel-md" aria-labelledby="tab-md" hidden>
+            <div class="code">
+              <div class="code-bar"><span>bash</span><button type="button" class="copy" data-target="cmd-mcp-docs">Copier</button></div>
+              <pre><code id="cmd-mcp-docs">curl -H "Authorization: Bearer $TOKEN" \
+  https://backup.example.com/api/docs.md</code></pre>
+            </div>
+            <p class="panel-note"><code>/api/docs.md</code> est toute la référence d’API en Markdown, rédigée par le serveur lui-même, donc toujours conforme à la version que vous utilisez&nbsp;: authentification, conventions, exemples curl et chaque route avec l’accès requis. Laissez un agent la lire et appeler l’API REST, ou collez-la dans un chat (<em>API &amp; MCP → Copy Markdown</em>). <code>/api/mcp/tools</code> liste les outils MCP en JSON.</p>
           </div>
         </div>
       </div>
@@ -342,36 +446,6 @@
         <div><dt>Bases derrière un pare-feu</dt><dd>Un agent sur le serveur de base de données se connecte à DumpCat en HTTPS, ou le serveur rejoint le WireGuard intégré. Aucun port à ouvrir vers la base.</dd></div>
         <div><dt>Mise à jour intégrée</dt><dd><code>dumpcat update</code> vérifie le <span class="nw">SHA-256</span>, sauvegarde la configuration, attend la fin des sauvegardes en cours et revient en arrière en cas d’échec.</dd></div>
       </dl>
-    </div>
-  </section>
-
-  <section class="section" id="ai" aria-labelledby="ai-title">
-    <div class="wrap">
-      <div class="head">
-        <div>
-          <p class="label">Compatible IA</p>
-          <h2 id="ai-title">Compatible IA&nbsp;: votre assistant veille sur vos sauvegardes</h2>
-        </div>
-        <p class="intro">DumpCat embarque un serveur MCP et une référence d’API rédigée en Markdown. Claude Code, Claude Desktop et d’autres agents IA s’y connectent avec un jeton d’API pour savoir quelles sauvegardes ont échoué, lire les journaux et expliquer pourquoi&nbsp;; avec un jeton à accès complet, ils peuvent aussi lancer des sauvegardes, des vérifications et des exercices de restauration.</p>
-      </div>
-      <div class="section-body storage-grid">
-        <dl class="oss-list">
-          <div><dt>Serveur MCP intégré</dt><dd>L’endpoint <code>/api/mcp</code> fait partie de DumpCat, rien d’autre à installer&nbsp;: des outils pour la vue d’ensemble, les alertes, les tâches, les sauvegardes, les journaux, les restaurations, les exercices et les aperçus de restauration à un instant précis. Les clients qui lancent un serveur local via stdio utilisent <code>dumpcat mcp</code>.</dd></div>
-          <div><dt>Sûr par défaut</dt><dd>Les nouveaux jetons ne peuvent que consulter. Restaurations, suppressions, identifiants et paramètres ne passent jamais par MCP&nbsp;; les réponses omettent mots de passe, clés et jetons, et tout ce qu’un assistant lance est inscrit au journal d’audit.</dd></div>
-          <div><dt>Une référence d’API en Markdown</dt><dd><code>/api/docs.md</code> est générée par le serveur lui-même&nbsp;: authentification, conventions, exemples curl et chaque route avec le rôle et le jeton requis. Collez-la dans un chat IA, ou laissez un agent la lire et appeler l’API REST.</dd></div>
-          <div><dt>Prêt en une minute</dt><dd>La page <em>API &amp; MCP</em> de DumpCat crée le jeton, vous donne la commande Claude Code et la configuration pour Claude Desktop et d’autres clients, ainsi qu’un bouton <em>Test</em> pour vérifier la connexion.</dd></div>
-        </dl>
-        <div class="aside">
-          <h3>Connecter Claude Code</h3>
-          <div class="code">
-            <div class="code-bar"><span>bash</span><button type="button" class="copy" data-target="cmd-mcp">Copier</button></div>
-            <pre><code id="cmd-mcp">claude mcp add --transport http dumpcat \
-  https://backup.example.com/api/mcp \
-  --header "Authorization: Bearer mv_…"</code></pre>
-          </div>
-          <p>Puis demandez simplement&nbsp;: <em>«&nbsp;Quelles sauvegardes ont échoué cette nuit, et pourquoi&nbsp;?&nbsp;»</em>, <em>«&nbsp;La tâche shop-nightly a-t-elle une sauvegarde de moins de 24 heures&nbsp;?&nbsp;»</em>, <em>«&nbsp;Puis-je restaurer la table orders telle qu’elle était hier à 14:37&nbsp;?&nbsp;»</em></p>
-        </div>
-      </div>
     </div>
   </section>
 

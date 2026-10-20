@@ -102,6 +102,7 @@
 
     <div class="hero-main">
       <div class="hero-copy">
+        <a class="hero-ai" href="#ai"><span class="hero-ai-tag">MCP</span><span>AI フレンドリー：バックアップの状況を Claude などの AI アシスタントに聞けます</span></a>
         <p class="eyebrow">オープンソース · MySQL、MariaDB、PostgreSQL のバックアップとリストア</p>
         <h1>データベースをロックしないバックアップ。<span class="soft">秒単位でピンポイントにリカバリ。</span></h1>
         <p class="lead">DumpCat は Web UI 付きのシングルバイナリです。バックアップをスケジュール実行し、圧縮・暗号化して S3、Google Drive、OneDrive、SFTP にコピーを送り、検証まで行い、いざというときにはデータを確実に取り戻します。Linux と Windows で動作し、完全オフラインでも使えます。</p>
@@ -214,6 +215,109 @@
           <div class="meow-text">
             <p class="meow-title">ポート 6369 は <em>MEOW</em></p>
             <p>電話のキーパッドの英字で 6-3-6-9 と打つと MEOW（英語で猫の「ニャー」）。これが Web UI のデフォルトポートです。</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="ai" aria-labelledby="ai-title">
+    <div class="wrap">
+      <div class="head">
+        <div>
+          <p class="label">AI フレンドリー · MCP</p>
+          <h2 id="ai-title">バックアップの見守りは AI アシスタントに。鍵は渡さずに</h2>
+        </div>
+        <p class="intro">DumpCat は MCP サーバーです。Claude Code、Claude Desktop などの MCP クライアントを API トークンでつなぎ、ふだんの言葉で尋ねるだけ。アシスタントが失敗や遅れているバックアップを調べ、ログを読んで原因を説明します。ほかの AI エージェントは、サーバー自身が書き出す Markdown の API リファレンスを読んで使います。</p>
+      </div>
+      <div class="section-body ai-grid">
+        <figure class="ai-chat">
+          <div class="ai-chat-bar"><span class="ai-dots" aria-hidden="true"><i></i><i></i><i></i></span><span>Claude Code</span><span class="ai-chat-mcp">MCP · dumpcat</span></div>
+          <div class="ai-chat-body">
+            <p class="msg you">昨夜失敗したバックアップは？原因は？</p>
+            <p class="ai-tools" aria-label="呼び出された MCP ツール"><span class="tool">get_monitoring</span><span class="tool">list_backups <i>status=failed</i></span><span class="tool">get_log <i>4812</i></span></p>
+            <p class="msg ai">12 ジョブ中 1 件です。<b>shop-nightly</b> が 02:14 に <code>errno 28</code> で止まりました。db-01 の <code>/var/backups</code> に空き容量がありません。残りの 11 件は成功しています。空きを作るか、Web UI でローカルに残す世代数を減らしてもらえれば、もう一度実行します。</p>
+            <p class="msg you">片付けたよ。もう一回実行して。</p>
+            <div class="ai-ask"><p><code>run_backup</code>（shop-nightly、フル）の実行を許可しますか？</p><span class="ai-ask-btns" aria-hidden="true"><span class="on">許可</span><span>拒否</span></span></div>
+            <p class="ai-tools" aria-label="呼び出された MCP ツール"><span class="tool">run_backup <i>shop-nightly</i></span><span class="tool">get_backup <i>4813</i></span></p>
+            <p class="msg ai">バックアップ 4813 を実行中です（41%）。終わったら結果を確認します。</p>
+          </div>
+          <figcaption>フルアクセスのトークンを使った例です。閲覧のみのトークン（デフォルト）では、アシスタントは見ることしかできず、何も開始できません。</figcaption>
+        </figure>
+        <div class="ai-side">
+          <h3>AI アシスタントにできること</h3>
+          <ul class="ai-perm">
+            <li><span class="mk mk-yes"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5.5 12.5l4 4L18.5 7.5"/></svg></span><div><b>見る</b><small>閲覧のみのトークン（デフォルト）</small><span>概要とアラート、ジョブ、バックアップ、エラーとログ、binlog / WAL のアーカイブ、リストアとリストア訓練の結果、ポイントインタイムリカバリのプレビュー。</span></div></li>
+            <li><span class="mk mk-run"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6.5l8.5 5.5L9 17.5z"/></svg></span><div><b>開始する</b><small>フルアクセスのトークン、operator か admin</small><span>バックアップの実行、バックアップの検証、リストア訓練の開始。AI クライアントが毎回あなたに確認します。</span></div></li>
+            <li><span class="mk mk-no"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7.5 7.5l9 9M16.5 7.5l-9 9"/></svg></span><div><b>MCP では決してできない</b><small>どのトークンでも</small><span>リストア、削除、認証情報、設定。有効にするオプションもありません。これらは Web UI でのみ行います。</span></div></li>
+          </ul>
+          <p class="ai-perm-note">応答にパスワード、鍵、トークンが含まれることはなく、エラーやログに紛れた認証情報も伏せられます。すべての呼び出しはあなたのトークンで REST API を通るため、ほかのリクエストと同じく権限が確認され、監査ログに記録されます。</p>
+        </div>
+      </div>
+      <div class="ai-setup">
+        <div class="ai-setup-steps">
+          <h3 class="steps-title">1 分で接続</h3>
+          <ol class="steps">
+            <li><div><b>トークンを作る</b><span>DumpCat の <em>API &amp; MCP</em> ページで <em>New token</em>。デフォルトは閲覧のみです。アシスタントにバックアップを実行させるなら <em>Full</em> を選びます。</span></div></li>
+            <li><div><b>設定をコピー</b><span>サーバーのアドレスとトークンを埋め込んだ Claude Code 用コマンド、Claude Desktop 用設定、その他のクライアント用設定がそのページに表示されます。</span></div></li>
+            <li><div><b>テストして質問</b><span><em>Test MCP connection</em> で、アシスタントが使うアカウント、権限、ツールを確認できます。</span></div></li>
+          </ol>
+        </div>
+        <div class="ai-setup-code">
+          <div class="tabs" role="tablist" aria-label="AI クライアント">
+            <button type="button" role="tab" id="tab-cc" aria-controls="panel-cc" aria-selected="true">Claude Code</button>
+            <button type="button" role="tab" id="tab-cd" aria-controls="panel-cd" aria-selected="false" tabindex="-1">Claude Desktop</button>
+            <button type="button" role="tab" id="tab-mcp" aria-controls="panel-mcp" aria-selected="false" tabindex="-1">その他の MCP クライアント</button>
+            <button type="button" role="tab" id="tab-md" aria-controls="panel-md" aria-selected="false" tabindex="-1">その他のエージェント</button>
+          </div>
+          <div role="tabpanel" id="panel-cc" aria-labelledby="tab-cc">
+            <div class="code">
+              <div class="code-bar"><span>bash</span><button type="button" class="copy" data-target="cmd-mcp">コピー</button></div>
+              <pre><code id="cmd-mcp">claude mcp add --transport http dumpcat \
+  https://backup.example.com/api/mcp \
+  --header "Authorization: Bearer mv_…"</code></pre>
+            </div>
+            <p class="panel-note">アドレスとトークンを自分のものに置き換えるか、<em>API &amp; MCP</em> ページで値が入ったコマンドをコピーします。トークンを見せずにプロジェクトで共有したい場合は、環境変数からトークンを読む <code>.mcp.json</code> も同じページにあります。</p>
+          </div>
+          <div role="tabpanel" id="panel-cd" aria-labelledby="tab-cd" hidden>
+            <div class="code">
+              <div class="code-bar"><span>claude_desktop_config.json</span><button type="button" class="copy" data-target="cmd-mcp-desktop">コピー</button></div>
+              <pre><code id="cmd-mcp-desktop">{
+  "mcpServers": {
+    "dumpcat": {
+      "command": "C:\\Program Files\\DumpCat\\dumpcat.exe",
+      "args": ["mcp"],
+      "env": {
+        "DUMPCAT_MCP_URL": "https://backup.example.com",
+        "DUMPCAT_MCP_TOKEN": "mv_…"
+      }
+    }
+  }
+}</code></pre>
+            </div>
+            <p class="panel-note"><em>Settings → Developer → Edit Config</em> を開いて貼り付け、Claude Desktop を再起動します。<code>dumpcat mcp</code> は Claude Desktop のあるコンピューターで動く小さな stdio ブリッジです。Linux では <code>command</code> に <code>dumpcat</code> のパスを指定し、macOS では Go でビルドします。</p>
+          </div>
+          <div role="tabpanel" id="panel-mcp" aria-labelledby="tab-mcp" hidden>
+            <div class="code">
+              <div class="code-bar"><span>json</span><button type="button" class="copy" data-target="cmd-mcp-other">コピー</button></div>
+              <pre><code id="cmd-mcp-other">{
+  "mcpServers": {
+    "dumpcat": {
+      "url": "https://backup.example.com/api/mcp",
+      "headers": { "Authorization": "Bearer mv_…" }
+    }
+  }
+}</code></pre>
+            </div>
+            <p class="panel-note">エンドポイント <code>/api/mcp</code>（streamable HTTP）は DumpCat に組み込まれており、追加のインストールは不要です。ローカルのコマンドしか起動できないクライアントは、環境変数 <code>DUMPCAT_MCP_URL</code> と <code>DUMPCAT_MCP_TOKEN</code> を設定して <code>dumpcat mcp</code> を使います。</p>
+          </div>
+          <div role="tabpanel" id="panel-md" aria-labelledby="tab-md" hidden>
+            <div class="code">
+              <div class="code-bar"><span>bash</span><button type="button" class="copy" data-target="cmd-mcp-docs">コピー</button></div>
+              <pre><code id="cmd-mcp-docs">curl -H "Authorization: Bearer $TOKEN" \
+  https://backup.example.com/api/docs.md</code></pre>
+            </div>
+            <p class="panel-note"><code>/api/docs.md</code> は Markdown で書かれた API リファレンスの全体です。サーバー自身が生成するので、動かしているバージョンと常に一致します。認証、規約、curl の例、各ルートに必要な権限まで載っています。エージェントに読ませて REST API を呼ばせるか、チャットに貼り付けます（<em>API &amp; MCP → Copy Markdown</em>）。<code>/api/mcp/tools</code> は MCP ツールを JSON で一覧にします。</p>
           </div>
         </div>
       </div>
@@ -342,36 +446,6 @@
         <div><dt>ファイアウォール内のデータベース</dt><dd>データベースホスト上のエージェントが HTTPS で DumpCat に接続するか、ホストが内蔵 WireGuard に参加します。データベース側でポートを開ける必要はありません。</dd></div>
         <div><dt>セルフアップデート</dt><dd><code>dumpcat update</code> は <span class="nw">SHA-256</span> を検証し、設定をバックアップし、実行中のバックアップの完了を待ち、失敗したらロールバックします。</dd></div>
       </dl>
-    </div>
-  </section>
-
-  <section class="section" id="ai" aria-labelledby="ai-title">
-    <div class="wrap">
-      <div class="head">
-        <div>
-          <p class="label">AI フレンドリー</p>
-          <h2 id="ai-title">AI フレンドリー：バックアップの見守りは AI アシスタントに</h2>
-        </div>
-        <p class="intro">DumpCat には MCP サーバーと、Markdown で書かれた API リファレンスが付属しています。Claude Code、Claude Desktop などの AI エージェントは API トークンで接続し、どのバックアップが失敗したかを調べ、ログを読んで原因を説明できます。フルアクセスのトークンなら、バックアップ、検証、リストア訓練の実行も可能です。</p>
-      </div>
-      <div class="section-body storage-grid">
-        <dl class="oss-list">
-          <div><dt>MCP サーバーを内蔵</dt><dd>エンドポイント <code>/api/mcp</code> は DumpCat の一部なので、追加のインストールは不要です。概要、アラート、ジョブ、バックアップ、ログ、リストア、リストア訓練、ポイントインタイムリカバリのプレビューのためのツールを備えています。stdio でローカルサーバーを起動するクライアントは <code>dumpcat mcp</code> を使います。</dd></div>
-          <div><dt>デフォルトで安全</dt><dd>新しいトークンは閲覧のみ。リストア、削除、認証情報、設定が MCP 経由で操作されることはありません。応答にパスワード、鍵、トークンは含まれず、アシスタントが開始した操作はすべて監査ログに記録されます。</dd></div>
-          <div><dt>Markdown の API リファレンス</dt><dd><code>/api/docs.md</code> はサーバー自身が生成します。認証、規約、curl の例、そして各ルートに必要なロールとトークンまで網羅。AI チャットに貼り付けるか、エージェントに読ませて REST API を呼び出させましょう。</dd></div>
-          <div><dt>1 分でセットアップ</dt><dd>DumpCat の <em>API &amp; MCP</em> ページでトークンを作成すると、Claude Code 用のコマンドと、Claude Desktop などのクライアント用の設定が表示されます。接続を確かめる <em>Test</em> ボタンもあります。</dd></div>
-        </dl>
-        <div class="aside">
-          <h3>Claude Code を接続</h3>
-          <div class="code">
-            <div class="code-bar"><span>bash</span><button type="button" class="copy" data-target="cmd-mcp">コピー</button></div>
-            <pre><code id="cmd-mcp">claude mcp add --transport http dumpcat \
-  https://backup.example.com/api/mcp \
-  --header "Authorization: Bearer mv_…"</code></pre>
-          </div>
-          <p>あとは普段の言葉で聞くだけ：<em>「昨夜失敗したバックアップはどれ？原因は？」</em>、<em>「shop-nightly に 24 時間以内のバックアップはある？」</em>、<em>「orders を昨日の 14:37 の状態に戻せる？」</em></p>
-        </div>
-      </div>
     </div>
   </section>
 

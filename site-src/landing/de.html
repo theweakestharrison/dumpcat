@@ -14,6 +14,7 @@
 <template data-i18n="nav-whatsnew">Neuigkeiten</template>
 <template data-i18n="nav-install">Installation</template>
 <template data-i18n="lang-aria">Sprache</template>
+<template data-i18n="hero-ai">KI-freundlich: Fragen Sie Claude oder einen anderen KI-Assistenten, wie es um Ihre Backups steht</template>
 <template data-i18n="eyebrow">Open Source · Backup &amp; Wiederherstellung für MySQL, MariaDB und PostgreSQL</template>
 <template data-i18n="h1">Backups ohne Datenbanksperre. <span class="soft">Wiederherstellung auf die Sekunde genau.</span></template>
 <template data-i18n="lead">DumpCat ist eine einzige Binärdatei mit Weboberfläche. Es plant Backups, komprimiert und verschlüsselt sie, überträgt Kopien zu S3, Google Drive, OneDrive oder per SFTP, prüft sie und holt Ihre Daten zurück, wenn Sie sie brauchen. Läuft unter Linux und Windows, vollständig offline.</template>
@@ -150,17 +151,36 @@
 <template data-i18n="oss-contrib">Fehlerberichte, Pull Requests und Übersetzungen sind willkommen, siehe <a href="https://github.com/theweakestharrison/DumpCat/blob/main/CONTRIBUTING.md">CONTRIBUTING.md</a>. Sicherheitsprobleme melden Sie bitte vertraulich, wie in <a href="https://github.com/theweakestharrison/DumpCat/blob/main/SECURITY.md">SECURITY.md</a> beschrieben.</template>
 <template data-i18n="oss-github">Auf GitHub ansehen</template>
 <template data-i18n="oss-issues">Problem melden</template>
-<template data-i18n="ai-label">KI-freundlich</template>
-<template data-i18n="ai-title">KI-freundlich: Ihr KI-Assistent hat die Backups im Blick</template>
-<template data-i18n="ai-intro">DumpCat bringt einen MCP-Server und eine in Markdown geschriebene API-Referenz mit. Claude Code, Claude Desktop und andere KI-Agenten verbinden sich mit einem API-Token, fragen nach fehlgeschlagenen Backups, lesen die Logs und erklären die Ursache; mit einem Token mit Vollzugriff können sie auch Backups, Verifizierungen und Wiederherstellungstests starten.</template>
-<template data-i18n="ai-list">
-  <div><dt>Integrierter MCP-Server</dt><dd>Der Endpunkt <code>/api/mcp</code> ist Teil von DumpCat, es muss nichts weiter installiert werden: Tools für Übersicht, Warnungen, Jobs, Backups, Logs, Wiederherstellungen, Wiederherstellungstests und Vorschauen der Point-in-Time-Recovery. Clients, die einen lokalen Server über stdio starten, nutzen <code>dumpcat mcp</code>.</dd></div>
-  <div><dt>Standardmäßig sicher</dt><dd>Neue Tokens dürfen nur lesen. Wiederherstellungen, Löschvorgänge, Zugangsdaten und Einstellungen laufen nie über MCP; Antworten enthalten keine Passwörter, Schlüssel oder Tokens, und alles, was ein Assistent startet, landet im Audit-Log.</dd></div>
-  <div><dt>Eine API-Referenz in Markdown</dt><dd><code>/api/docs.md</code> schreibt der Server selbst: Authentifizierung, Konventionen, curl-Beispiele und jede Route mit der nötigen Rolle und dem nötigen Token. Fügen Sie sie in einen KI-Chat ein oder lassen Sie einen Agenten sie lesen und die REST-API aufrufen.</dd></div>
-  <div><dt>In einer Minute eingerichtet</dt><dd>Die Seite <em>API &amp; MCP</em> in DumpCat erstellt das Token, liefert den Befehl für Claude Code und die Konfiguration für Claude Desktop und andere Clients, und mit der Schaltfläche <em>Test</em> prüfen Sie die Verbindung.</dd></div>
+<template data-i18n="ai-label">KI-freundlich · MCP</template>
+<template data-i18n="ai-title">Ein KI-Assistent behält die Backups im Blick, ohne dass Sie ihm die Schlüssel geben</template>
+<template data-i18n="ai-intro">DumpCat ist ein MCP-Server. Verbinden Sie Claude Code, Claude Desktop oder einen anderen MCP-Client mit einem API-Token und fragen Sie in normalen Worten: Der Assistent sieht nach, was fehlgeschlagen oder überfällig ist, liest das Log und erklärt die Ursache. Andere KI-Agenten lesen die API-Referenz in Markdown, die Ihr eigener Server für sie schreibt.</template>
+<template data-i18n="ai-q1">Welche Backups sind letzte Nacht fehlgeschlagen, und warum?</template>
+<template data-i18n="ai-tools-aria">Aufgerufene MCP-Tools</template>
+<template data-i18n="ai-a1">Einer von 12 Jobs: <b>shop-nightly</b> brach um 02:14 mit <code>errno 28</code> ab, also ist <code>/var/backups</code> auf db-01 voll. Die anderen 11 liefen erfolgreich. Schaffen Sie etwas Platz oder behalten Sie in der Weboberfläche weniger lokale Kopien, dann starte ich ihn erneut.</template>
+<template data-i18n="ai-q2">Erledigt, starte ihn noch einmal.</template>
+<template data-i18n="ai-ask"><code>run_backup</code> (shop-nightly, voll) erlauben?</template>
+<template data-i18n="ai-allow">Erlauben</template>
+<template data-i18n="ai-deny">Ablehnen</template>
+<template data-i18n="ai-a2">Backup 4813 läuft, 41 % erledigt. Ich prüfe das Ergebnis, sobald es fertig ist.</template>
+<template data-i18n="ai-chat-note">Ein Beispiel mit einem Token mit Vollzugriff. Mit einem Nur-Lese-Token, der Voreinstellung, kann der Assistent nur nachsehen und nichts starten.</template>
+<template data-i18n="ai-perm-title">Was ein Assistent darf</template>
+<template data-i18n="ai-perm-look"><b>Nachsehen</b><small>Nur-Lese-Token, die Voreinstellung</small><span>Übersicht und Warnungen, Jobs, Backups, Fehler und Logs, Binlog- / WAL-Archivierung, Ergebnisse von Wiederherstellungen und Wiederherstellungstests, Vorschauen der Point-in-Time-Recovery.</span></template>
+<template data-i18n="ai-perm-run"><b>Starten</b><small>Token mit Vollzugriff, operator oder admin</small><span>Ein Backup ausführen, ein Backup verifizieren, einen Wiederherstellungstest starten. Der KI-Client fragt Sie jedes Mal vorher.</span></template>
+<template data-i18n="ai-perm-never"><b>Niemals über MCP</b><small>Mit keinem Token</small><span>Wiederherstellungen, Löschungen, Zugangsdaten und Einstellungen. Keine Option schaltet sie frei: Das bleibt der Weboberfläche vorbehalten.</span></template>
+<template data-i18n="ai-perm-note">Antworten enthalten nie Passwörter, Schlüssel oder Tokens, und Zugangsdaten in Fehlermeldungen und Logs werden maskiert. Jeder Aufruf läuft mit Ihrem Token über die REST-API, wird also wie jede andere Anfrage geprüft und im Audit-Log festgehalten.</template>
+<template data-i18n="ai-setup-title">In einer Minute verbunden</template>
+<template data-i18n="ai-steps">
+  <li><div><b>Token anlegen</b><span>Seite <em>API &amp; MCP</em> in DumpCat, <em>New token</em>. Tokens sind standardmäßig nur lesend; wählen Sie <em>Full</em>, damit der Assistent Backups starten kann.</span></div></li>
+  <li><div><b>Konfiguration kopieren</b><span>Die Seite trägt die Adresse Ihres Servers und den Token in den Befehl für Claude Code, die Konfiguration für Claude Desktop und die für andere Clients ein.</span></div></li>
+  <li><div><b>Testen, dann fragen</b><span><em>Test MCP connection</em> zeigt das Konto, den Zugriff und die Tools, die der Assistent bekommt.</span></div></li>
 </template>
-<template data-i18n="ai-aside-title">Claude Code verbinden</template>
-<template data-i18n="ai-aside-text">Dann fragen Sie ganz normal: <em>„Welche Backups sind letzte Nacht fehlgeschlagen, und warum?“</em>, <em>„Hat shop-nightly ein Backup, das jünger als 24 Stunden ist?“</em>, <em>„Kann ich orders auf gestern 14:37 wiederherstellen?“</em></template>
+<template data-i18n="ai-tabs-aria">KI-Client</template>
+<template data-i18n="ai-tab-other">Andere MCP-Clients</template>
+<template data-i18n="ai-tab-agent">Andere Agenten</template>
+<template data-i18n="ai-cc-note">Setzen Sie Ihre eigene Adresse und Ihren Token ein, oder kopieren Sie den ausgefüllten Befehl von der Seite <em>API &amp; MCP</em>. Um den Server ohne Token in einem Projekt zu teilen, bietet die Seite auch eine <code>.mcp.json</code>, die den Token aus der Umgebung liest.</template>
+<template data-i18n="ai-cd-note">Öffnen Sie <em>Settings → Developer → Edit Config</em>, fügen Sie ein und starten Sie Claude Desktop neu. <code>dumpcat mcp</code> ist eine kleine stdio-Brücke, die auf dem Rechner mit Claude Desktop läuft; unter Linux ist <code>command</code> der Pfad zum <code>dumpcat</code>-Programm, unter macOS bauen Sie es selbst mit Go.</template>
+<template data-i18n="ai-mcp-note">Der Endpunkt <code>/api/mcp</code> (streamable HTTP) ist Teil von DumpCat, es muss nichts weiter installiert werden. Clients, die nur einen lokalen Befehl starten, nutzen <code>dumpcat mcp</code> mit <code>DUMPCAT_MCP_URL</code> und <code>DUMPCAT_MCP_TOKEN</code> in der Umgebung.</template>
+<template data-i18n="ai-md-note"><code>/api/docs.md</code> ist die vollständige API-Referenz in Markdown, vom Server selbst geschrieben und daher immer passend zur laufenden Version: Authentifizierung, Konventionen, curl-Beispiele und jede Route mit dem nötigen Zugriff. Lassen Sie einen Agenten sie lesen und die REST-API aufrufen, oder fügen Sie sie in einen Chat ein (<em>API &amp; MCP → Copy Markdown</em>). <code>/api/mcp/tools</code> listet die MCP-Tools als JSON.</template>
 <template data-i18n="cmp-label">Vergleich</template>
 <template data-i18n="cmp-title">DumpCat im Vergleich mit anderen Tools</template>
 <template data-i18n="cmp-intro">Wählen Sie ein Tool, um alle Funktionen nebeneinander zu sehen. Angaben zu anderen Produkten sind auf den vollständigen Vergleichsseiten mit Quelle und Datum belegt.</template>

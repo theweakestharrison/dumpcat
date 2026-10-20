@@ -15,6 +15,7 @@
 <template data-i18n="nav-whatsnew">What's new</template>
 <template data-i18n="nav-install">Install</template>
 <template data-i18n="lang-aria">Language</template>
+<template data-i18n="hero-ai">AI-friendly: ask Claude or another AI assistant how your backups are doing</template>
 <template data-i18n="eyebrow">Open source · Backup &amp; restore for MySQL, MariaDB and PostgreSQL</template>
 <template data-i18n="h1">Backups that never lock the database. <span class="soft">Recovery to the exact second.</span></template>
 <template data-i18n="lead">DumpCat is a single binary with a web UI. It schedules backups, compresses and encrypts them, ships copies to S3, Google Drive, OneDrive or SFTP, verifies them and brings your data back when you need it. Runs on Linux and Windows, fully offline.</template>
@@ -117,17 +118,36 @@
 <template data-i18n="oss-contrib">Bug reports, pull requests and translations are welcome, see <a href="https://github.com/theweakestharrison/DumpCat/blob/main/CONTRIBUTING.md">CONTRIBUTING.md</a>. Please report security problems privately, as described in <a href="https://github.com/theweakestharrison/DumpCat/blob/main/SECURITY.md">SECURITY.md</a>.</template>
 <template data-i18n="oss-github">View on GitHub</template>
 <template data-i18n="oss-issues">Report an issue</template>
-<template data-i18n="ai-label">AI-friendly</template>
-<template data-i18n="ai-title">AI-friendly: let your AI assistant watch the backups</template>
-<template data-i18n="ai-intro">DumpCat ships an MCP server and an API reference written in Markdown. Claude Code, Claude Desktop and other AI agents connect with an API token to ask which backups failed, read the logs and explain why; with a full-access token they can also run backups, verifications and restore drills.</template>
-<template data-i18n="ai-list">
-  <div><dt>Built-in MCP server</dt><dd>The endpoint <code>/api/mcp</code> is part of DumpCat, nothing else to install: tools for the overview, alerts, jobs, backups, logs, restores, drills and point-in-time recovery previews. Clients that start a local server over stdio use <code>dumpcat mcp</code>.</dd></div>
-  <div><dt>Safe by default</dt><dd>New tokens can only look. Restores, deletions, credentials and settings never go through MCP; answers leave out passwords, keys and tokens, and whatever an assistant starts is written to the audit log.</dd></div>
-  <div><dt>An API reference in Markdown</dt><dd><code>/api/docs.md</code> is written by the server itself: authentication, conventions, curl examples and every route with the role and token it needs. Paste it into an AI chat, or let an agent read it and call the REST API.</dd></div>
-  <div><dt>Set up in a minute</dt><dd>The <em>API &amp; MCP</em> page in DumpCat creates the token, gives you the Claude Code command and the config for Claude Desktop and other clients, and a <em>Test</em> button to check the connection.</dd></div>
+<template data-i18n="ai-label">AI-friendly · MCP</template>
+<template data-i18n="ai-title">Let an AI assistant watch your backups, without handing over the keys</template>
+<template data-i18n="ai-intro">DumpCat is an MCP server. Connect Claude Code, Claude Desktop or any other MCP client with an API token and ask in plain words: the assistant looks up what failed or is overdue, reads the log and tells you why. Other AI agents read the API reference in Markdown that your own server writes for them.</template>
+<template data-i18n="ai-q1">Which backups failed last night, and why?</template>
+<template data-i18n="ai-tools-aria">MCP tools called</template>
+<template data-i18n="ai-a1">One of 12 jobs: <b>shop-nightly</b> stopped at 02:14 with <code>errno 28</code>, which means <code>/var/backups</code> on db-01 is out of space. The other 11 succeeded. Free some space, or keep fewer local copies in the web UI, and I’ll run it again.</template>
+<template data-i18n="ai-q2">Done, run it again.</template>
+<template data-i18n="ai-ask">Allow <code>run_backup</code> (shop-nightly, full)?</template>
+<template data-i18n="ai-allow">Allow</template>
+<template data-i18n="ai-deny">Deny</template>
+<template data-i18n="ai-a2">Backup 4813 is running, 41% done. I’ll check the result when it finishes.</template>
+<template data-i18n="ai-chat-note">An example with a full-access token. With a read-only token, the default, the assistant can look but cannot start anything.</template>
+<template data-i18n="ai-perm-title">What an assistant may do</template>
+<template data-i18n="ai-perm-look"><b>Look</b><small>Read-only token, the default</small><span>Overview and alerts, jobs, backups, errors and logs, binlog / WAL archiving, restore and drill results, point-in-time recovery previews.</span></template>
+<template data-i18n="ai-perm-run"><b>Start</b><small>Full-access token, operator or admin</small><span>Run a backup, verify a backup, start a restore drill. The AI client asks you before each one.</span></template>
+<template data-i18n="ai-perm-never"><b>Never over MCP</b><small>With any token</small><span>Restores, deletions, credentials and settings. No option turns them on: these stay in the web UI.</span></template>
+<template data-i18n="ai-perm-note">Answers never contain passwords, keys or tokens, and credentials that turn up in errors and logs are masked. Every call goes through the REST API with your token, so it is checked like any other request and written to the audit log.</template>
+<template data-i18n="ai-setup-title">Connect in a minute</template>
+<template data-i18n="ai-steps">
+  <li><div><b>Create a token</b><span>The <em>API &amp; MCP</em> page in DumpCat, <em>New token</em>. Tokens are read-only by default; pick <em>Full</em> to let the assistant run backups.</span></div></li>
+  <li><div><b>Copy the setup</b><span>The page fills your server’s address and the token into the Claude Code command, the Claude Desktop config and the setup for other clients.</span></div></li>
+  <li><div><b>Test, then ask</b><span><em>Test MCP connection</em> shows the account, the access and the tools the assistant will get.</span></div></li>
 </template>
-<template data-i18n="ai-aside-title">Connect Claude Code</template>
-<template data-i18n="ai-aside-text">Then ask in plain words: <em>“Which backups failed last night, and why?”</em>, <em>“Does shop-nightly have a backup newer than 24 hours?”</em>, <em>“Can I recover orders to 14:37 yesterday?”</em></template>
+<template data-i18n="ai-tabs-aria">AI client</template>
+<template data-i18n="ai-tab-other">Other MCP clients</template>
+<template data-i18n="ai-tab-agent">Other agents</template>
+<template data-i18n="ai-cc-note">Put in your own address and token, or copy the filled-in command from the <em>API &amp; MCP</em> page. To share the server in a project without the token, that page also has a <code>.mcp.json</code> that reads the token from your environment.</template>
+<template data-i18n="ai-cd-note">Open <em>Settings → Developer → Edit Config</em>, paste, and restart Claude Desktop. <code>dumpcat mcp</code> is a small stdio bridge that runs on the computer with Claude Desktop; on Linux, <code>command</code> is the path of the <code>dumpcat</code> binary, and on macOS you build it with Go.</template>
+<template data-i18n="ai-mcp-note">The <code>/api/mcp</code> endpoint (streamable HTTP) is part of DumpCat, nothing else to install. Clients that only start a local command use <code>dumpcat mcp</code>, with <code>DUMPCAT_MCP_URL</code> and <code>DUMPCAT_MCP_TOKEN</code> in the environment.</template>
+<template data-i18n="ai-md-note"><code>/api/docs.md</code> is the whole API reference in Markdown, written by the server itself so it always matches the version you run: authentication, conventions, curl examples and every route with the access it needs. Let an agent read it and call the REST API, or paste it into a chat (<em>API &amp; MCP → Copy Markdown</em>). <code>/api/mcp/tools</code> lists the MCP tools as JSON.</template>
 <template data-i18n="cmp-label">Compare</template>
 <template data-i18n="cmp-title">DumpCat next to the other tools</template>
 <template data-i18n="cmp-intro">Pick a tool to see every feature side by side. Facts about other products are sourced and dated on the full comparison pages.</template>

@@ -102,6 +102,7 @@
 
     <div class="hero-main">
       <div class="hero-copy">
+        <a class="hero-ai" href="#ai"><span class="hero-ai-tag">MCP</span><span>AI 友好：问问 Claude 或其他 AI 助手，你的备份状况如何</span></a>
         <p class="eyebrow">开源 · MySQL、MariaDB 和 PostgreSQL 的备份与恢复</p>
         <h1>备份从不锁库。<span class="soft">恢复精确到秒。</span></h1>
         <p class="lead">DumpCat 是一个自带 Web 界面的单文件程序。它按计划执行备份，压缩并加密，把副本传到 S3、Google Drive、OneDrive 或 SFTP，校验备份，并在你需要时把数据恢复回来。支持 Linux 和 Windows，可完全离线运行。</p>
@@ -214,6 +215,109 @@
           <div class="meow-text">
             <p class="meow-title">端口 6369 拼出 <em>MEOW</em></p>
             <p>在手机九宫格键盘上按 6-3-6-9，对应的字母正好拼出 MEOW（喵）。这就是 Web 界面的默认端口。</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="ai" aria-labelledby="ai-title">
+    <div class="wrap">
+      <div class="head">
+        <div>
+          <p class="label">AI 友好 · MCP</p>
+          <h2 id="ai-title">让 AI 助手替你盯着备份，却不必交出钥匙</h2>
+        </div>
+        <p class="intro">DumpCat 本身就是一个 MCP 服务器。用 API 令牌接入 Claude Code、Claude Desktop 或其他 MCP 客户端，然后用日常语言提问：助手会自己查出哪些备份失败或逾期、读取日志并告诉你原因。其他 AI Agent 则可以阅读你的服务器专门为它们生成的 Markdown 格式 API 参考文档。</p>
+      </div>
+      <div class="section-body ai-grid">
+        <figure class="ai-chat">
+          <div class="ai-chat-bar"><span class="ai-dots" aria-hidden="true"><i></i><i></i><i></i></span><span>Claude Code</span><span class="ai-chat-mcp">MCP · dumpcat</span></div>
+          <div class="ai-chat-body">
+            <p class="msg you">昨晚哪些备份失败了？为什么？</p>
+            <p class="ai-tools" aria-label="调用的 MCP 工具"><span class="tool">get_monitoring</span><span class="tool">list_backups <i>status=failed</i></span><span class="tool">get_log <i>4812</i></span></p>
+            <p class="msg ai">12 个任务中有 1 个：<b>shop-nightly</b> 在 02:14 因 <code>errno 28</code> 中止，也就是 db-01 上的 <code>/var/backups</code> 已经没有剩余空间。其余 11 个都成功了。腾出一些空间，或在 Web 界面里减少本地保留的份数，我就重新运行它。</p>
+            <p class="msg you">清理好了，再跑一次吧。</p>
+            <div class="ai-ask"><p>允许调用 <code>run_backup</code>（shop-nightly，全量）吗？</p><span class="ai-ask-btns" aria-hidden="true"><span class="on">允许</span><span>拒绝</span></span></div>
+            <p class="ai-tools" aria-label="调用的 MCP 工具"><span class="tool">run_backup <i>shop-nightly</i></span><span class="tool">get_backup <i>4813</i></span></p>
+            <p class="msg ai">备份 4813 正在运行，已完成 41%。完成后我会检查结果。</p>
+          </div>
+          <figcaption>示例使用完全权限的令牌。使用只读令牌（默认）时，助手只能查看，无法启动任何操作。</figcaption>
+        </figure>
+        <div class="ai-side">
+          <h3>AI 助手能做什么</h3>
+          <ul class="ai-perm">
+            <li><span class="mk mk-yes"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5.5 12.5l4 4L18.5 7.5"/></svg></span><div><b>查看</b><small>只读令牌，默认</small><span>概览和告警、任务、备份、错误和日志、binlog / WAL 归档、恢复和演练结果、时间点恢复预览。</span></div></li>
+            <li><span class="mk mk-run"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6.5l8.5 5.5L9 17.5z"/></svg></span><div><b>启动</b><small>完全权限令牌，operator 或 admin</small><span>运行备份、校验备份、启动恢复演练。每次执行前，AI 客户端都会先征求你的同意。</span></div></li>
+            <li><span class="mk mk-no"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7.5 7.5l9 9M16.5 7.5l-9 9"/></svg></span><div><b>永远不经过 MCP</b><small>无论使用什么令牌</small><span>恢复、删除、凭据和设置。没有任何选项能开启它们：这些操作只在 Web 界面中进行。</span></div></li>
+          </ul>
+          <p class="ai-perm-note">回答中绝不包含密码、密钥或令牌，错误和日志中出现的凭据也会被遮盖。每次调用都以你的令牌经由 REST API 执行，因此会像其他请求一样检查权限，并写入审计日志。</p>
+        </div>
+      </div>
+      <div class="ai-setup">
+        <div class="ai-setup-steps">
+          <h3 class="steps-title">一分钟完成连接</h3>
+          <ol class="steps">
+            <li><div><b>创建令牌</b><span>在 DumpCat 的 <em>API &amp; MCP</em> 页面点击 <em>New token</em>。令牌默认只读；选择 <em>Full</em> 可让助手运行备份。</span></div></li>
+            <li><div><b>复制配置</b><span>该页面会把服务器地址和令牌填入 Claude Code 命令、Claude Desktop 配置以及其他客户端的配置中。</span></div></li>
+            <li><div><b>测试后开始提问</b><span><em>Test MCP connection</em> 会显示助手将获得的账户、权限和工具。</span></div></li>
+          </ol>
+        </div>
+        <div class="ai-setup-code">
+          <div class="tabs" role="tablist" aria-label="AI 客户端">
+            <button type="button" role="tab" id="tab-cc" aria-controls="panel-cc" aria-selected="true">Claude Code</button>
+            <button type="button" role="tab" id="tab-cd" aria-controls="panel-cd" aria-selected="false" tabindex="-1">Claude Desktop</button>
+            <button type="button" role="tab" id="tab-mcp" aria-controls="panel-mcp" aria-selected="false" tabindex="-1">其他 MCP 客户端</button>
+            <button type="button" role="tab" id="tab-md" aria-controls="panel-md" aria-selected="false" tabindex="-1">其他 Agent</button>
+          </div>
+          <div role="tabpanel" id="panel-cc" aria-labelledby="tab-cc">
+            <div class="code">
+              <div class="code-bar"><span>bash</span><button type="button" class="copy" data-target="cmd-mcp">复制</button></div>
+              <pre><code id="cmd-mcp">claude mcp add --transport http dumpcat \
+  https://backup.example.com/api/mcp \
+  --header "Authorization: Bearer mv_…"</code></pre>
+            </div>
+            <p class="panel-note">换成你自己的地址和令牌，或直接复制 <em>API &amp; MCP</em> 页面上已填好的命令。想在项目中共享而不暴露令牌，该页面还提供从环境变量读取令牌的 <code>.mcp.json</code>。</p>
+          </div>
+          <div role="tabpanel" id="panel-cd" aria-labelledby="tab-cd" hidden>
+            <div class="code">
+              <div class="code-bar"><span>claude_desktop_config.json</span><button type="button" class="copy" data-target="cmd-mcp-desktop">复制</button></div>
+              <pre><code id="cmd-mcp-desktop">{
+  "mcpServers": {
+    "dumpcat": {
+      "command": "C:\\Program Files\\DumpCat\\dumpcat.exe",
+      "args": ["mcp"],
+      "env": {
+        "DUMPCAT_MCP_URL": "https://backup.example.com",
+        "DUMPCAT_MCP_TOKEN": "mv_…"
+      }
+    }
+  }
+}</code></pre>
+            </div>
+            <p class="panel-note">打开 <em>Settings → Developer → Edit Config</em>，粘贴后重启 Claude Desktop。<code>dumpcat mcp</code> 是一个小型 stdio 桥接程序，运行在装有 Claude Desktop 的电脑上；在 Linux 上，<code>command</code> 填 <code>dumpcat</code> 可执行文件的路径，macOS 则需用 Go 自行编译。</p>
+          </div>
+          <div role="tabpanel" id="panel-mcp" aria-labelledby="tab-mcp" hidden>
+            <div class="code">
+              <div class="code-bar"><span>json</span><button type="button" class="copy" data-target="cmd-mcp-other">复制</button></div>
+              <pre><code id="cmd-mcp-other">{
+  "mcpServers": {
+    "dumpcat": {
+      "url": "https://backup.example.com/api/mcp",
+      "headers": { "Authorization": "Bearer mv_…" }
+    }
+  }
+}</code></pre>
+            </div>
+            <p class="panel-note"><code>/api/mcp</code> 端点（streamable HTTP）是 DumpCat 的一部分，无需额外安装。只能启动本地命令的客户端使用 <code>dumpcat mcp</code>，并在环境变量中设置 <code>DUMPCAT_MCP_URL</code> 和 <code>DUMPCAT_MCP_TOKEN</code>。</p>
+          </div>
+          <div role="tabpanel" id="panel-md" aria-labelledby="tab-md" hidden>
+            <div class="code">
+              <div class="code-bar"><span>bash</span><button type="button" class="copy" data-target="cmd-mcp-docs">复制</button></div>
+              <pre><code id="cmd-mcp-docs">curl -H "Authorization: Bearer $TOKEN" \
+  https://backup.example.com/api/docs.md</code></pre>
+            </div>
+            <p class="panel-note"><code>/api/docs.md</code> 是完整的 Markdown 格式 API 参考，由服务器自己生成，因此始终与你运行的版本一致：认证、约定、curl 示例，以及每个路由所需的权限。让 Agent 自己读取后调用 REST API，或粘贴到聊天中（<em>API &amp; MCP → Copy Markdown</em>）。<code>/api/mcp/tools</code> 以 JSON 列出 MCP 工具。</p>
           </div>
         </div>
       </div>
@@ -342,36 +446,6 @@
         <div><dt>防火墙后的数据库</dt><dd>数据库主机上的 Agent 通过 HTTPS 主动连接 DumpCat，或者让主机加入内置的 WireGuard。无需为数据库开放任何端口。</dd></div>
         <div><dt>自我更新</dt><dd><code>dumpcat update</code> 会校验 <span class="nw">SHA-256</span>、备份配置、等待正在运行的备份完成，失败时自动回滚。</dd></div>
       </dl>
-    </div>
-  </section>
-
-  <section class="section" id="ai" aria-labelledby="ai-title">
-    <div class="wrap">
-      <div class="head">
-        <div>
-          <p class="label">AI 友好</p>
-          <h2 id="ai-title">AI 友好：让 AI 助手替你盯着备份</h2>
-        </div>
-        <p class="intro">DumpCat 内置 MCP 服务器，并提供 Markdown 格式的 API 参考文档。Claude Code、Claude Desktop 和其他 AI Agent 用 API 令牌接入后，可以查询哪些备份失败了、读取日志并解释原因；使用完全权限的令牌，还能运行备份、校验和恢复演练。</p>
-      </div>
-      <div class="section-body storage-grid">
-        <dl class="oss-list">
-          <div><dt>内置 MCP 服务器</dt><dd>端点 <code>/api/mcp</code> 是 DumpCat 的一部分，无需额外安装：提供概览、告警、任务、备份、日志、恢复、演练以及时间点恢复预览等工具。通过 stdio 启动本地服务器的客户端可使用 <code>dumpcat mcp</code>。</dd></div>
-          <div><dt>默认安全</dt><dd>新建的令牌只能查看。恢复、删除、凭据和设置永远不经过 MCP；返回结果中不含密码、密钥和令牌，AI 助手发起的任何操作都会写入审计日志。</dd></div>
-          <div><dt>Markdown 格式的 API 参考</dt><dd><code>/api/docs.md</code> 由服务器自动生成：包括认证方式、约定、curl 示例，以及每个路由所需的角色和令牌。可以直接粘贴到 AI 对话中，也可以让 Agent 读取后调用 REST API。</dd></div>
-          <div><dt>一分钟完成配置</dt><dd>DumpCat 中的 <em>API &amp; MCP</em> 页面会创建令牌，给出 Claude Code 命令以及 Claude Desktop 和其他客户端的配置，还有一个 <em>Test</em> 按钮用来检查连接。</dd></div>
-        </dl>
-        <div class="aside">
-          <h3>接入 Claude Code</h3>
-          <div class="code">
-            <div class="code-bar"><span>bash</span><button type="button" class="copy" data-target="cmd-mcp">复制</button></div>
-            <pre><code id="cmd-mcp">claude mcp add --transport http dumpcat \
-  https://backup.example.com/api/mcp \
-  --header "Authorization: Bearer mv_…"</code></pre>
-          </div>
-          <p>然后直接用大白话提问：<em>“昨晚哪些备份失败了？为什么？”</em>、<em>“shop-nightly 有 24 小时内的备份吗？”</em>、<em>“能把 orders 恢复到昨天 14:37 吗？”</em></p>
-        </div>
-      </div>
     </div>
   </section>
 

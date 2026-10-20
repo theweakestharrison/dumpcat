@@ -102,6 +102,7 @@
 
     <div class="hero-main">
       <div class="hero-copy">
+        <a class="hero-ai" href="#ai"><span class="hero-ai-tag">MCP</span><span>Pronto para IA: pergunte ao Claude ou a outro assistente de IA como estão seus backups</span></a>
         <p class="eyebrow">Código aberto · Backup e restauração para MySQL, MariaDB e PostgreSQL</p>
         <h1>Backups que nunca bloqueiam o banco. <span class="soft">Recuperação até o segundo exato.</span></h1>
         <p class="lead">O DumpCat é um único binário com interface web. Ele agenda backups, compacta e criptografa os arquivos, envia cópias para S3, Google Drive, OneDrive ou SFTP, verifica cada uma e traz seus dados de volta quando você precisar. Roda em Linux e Windows, totalmente offline.</p>
@@ -214,6 +215,109 @@
           <div class="meow-text">
             <p class="meow-title">A porta 6369 faz <em>MEOW</em></p>
             <p>Digite 6-3-6-9 no teclado de um celular e você tem MEOW, o “miau” em inglês. É a porta padrão da interface web.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="ai" aria-labelledby="ai-title">
+    <div class="wrap">
+      <div class="head">
+        <div>
+          <p class="label">Pronto para IA · MCP</p>
+          <h2 id="ai-title">Deixe um assistente de IA de olho nos backups, sem entregar as chaves</h2>
+        </div>
+        <p class="intro">O DumpCat é um servidor MCP. Conecte o Claude Code, o Claude Desktop ou qualquer outro cliente MCP com um token de API e pergunte com suas palavras: o assistente descobre o que falhou ou está atrasado, lê o log e explica o motivo. Outros agentes de IA leem a referência da API em Markdown que o seu próprio servidor escreve para eles.</p>
+      </div>
+      <div class="section-body ai-grid">
+        <figure class="ai-chat">
+          <div class="ai-chat-bar"><span class="ai-dots" aria-hidden="true"><i></i><i></i><i></i></span><span>Claude Code</span><span class="ai-chat-mcp">MCP · dumpcat</span></div>
+          <div class="ai-chat-body">
+            <p class="msg you">Quais backups falharam ontem à noite, e por quê?</p>
+            <p class="ai-tools" aria-label="Ferramentas MCP chamadas"><span class="tool">get_monitoring</span><span class="tool">list_backups <i>status=failed</i></span><span class="tool">get_log <i>4812</i></span></p>
+            <p class="msg ai">Um de 12 jobs: o <b>shop-nightly</b> parou às 02:14 com <code>errno 28</code>, ou seja, <code>/var/backups</code> no db-01 ficou sem espaço. Os outros 11 deram certo. Libere um pouco de espaço, ou guarde menos cópias locais pela interface web, e eu rodo de novo.</p>
+            <p class="msg you">Pronto, roda de novo.</p>
+            <div class="ai-ask"><p>Permitir <code>run_backup</code> (shop-nightly, completo)?</p><span class="ai-ask-btns" aria-hidden="true"><span class="on">Permitir</span><span>Negar</span></span></div>
+            <p class="ai-tools" aria-label="Ferramentas MCP chamadas"><span class="tool">run_backup <i>shop-nightly</i></span><span class="tool">get_backup <i>4813</i></span></p>
+            <p class="msg ai">O backup 4813 está rodando, em 41%. Vou conferir o resultado quando terminar.</p>
+          </div>
+          <figcaption>Exemplo com um token de acesso total. Com um token somente leitura, o padrão, o assistente pode olhar, mas não consegue iniciar nada.</figcaption>
+        </figure>
+        <div class="ai-side">
+          <h3>O que um assistente pode fazer</h3>
+          <ul class="ai-perm">
+            <li><span class="mk mk-yes"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5.5 12.5l4 4L18.5 7.5"/></svg></span><div><b>Olhar</b><small>Token somente leitura, o padrão</small><span>Visão geral e alertas, jobs, backups, erros e logs, arquivamento de binlog / WAL, resultados de restaurações e testes de restauração, prévias de recuperação point-in-time.</span></div></li>
+            <li><span class="mk mk-run"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6.5l8.5 5.5L9 17.5z"/></svg></span><div><b>Iniciar</b><small>Token de acesso total, operator ou admin</small><span>Executar um backup, verificar um backup, iniciar um teste de restauração. O cliente de IA pergunta a você antes de cada um.</span></div></li>
+            <li><span class="mk mk-no"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7.5 7.5l9 9M16.5 7.5l-9 9"/></svg></span><div><b>Nunca pelo MCP</b><small>Com nenhum token</small><span>Restaurações, exclusões, credenciais e configurações. Nenhuma opção libera isso: essas ações ficam só na interface web.</span></div></li>
+          </ul>
+          <p class="ai-perm-note">As respostas nunca trazem senhas, chaves ou tokens, e credenciais que aparecem em erros e logs são mascaradas. Cada chamada passa pela API REST com o seu token, então é verificada como qualquer outra requisição e registrada no log de auditoria.</p>
+        </div>
+      </div>
+      <div class="ai-setup">
+        <div class="ai-setup-steps">
+          <h3 class="steps-title">Conecte em um minuto</h3>
+          <ol class="steps">
+            <li><div><b>Crie um token</b><span>Página <em>API &amp; MCP</em> do DumpCat, <em>New token</em>. Os tokens são somente leitura por padrão; escolha <em>Full</em> para o assistente poder executar backups.</span></div></li>
+            <li><div><b>Copie a configuração</b><span>A página preenche o endereço do seu servidor e o token no comando do Claude Code, na configuração do Claude Desktop e na de outros clientes.</span></div></li>
+            <li><div><b>Teste e pergunte</b><span><em>Test MCP connection</em> mostra a conta, o acesso e as ferramentas que o assistente vai receber.</span></div></li>
+          </ol>
+        </div>
+        <div class="ai-setup-code">
+          <div class="tabs" role="tablist" aria-label="Cliente de IA">
+            <button type="button" role="tab" id="tab-cc" aria-controls="panel-cc" aria-selected="true">Claude Code</button>
+            <button type="button" role="tab" id="tab-cd" aria-controls="panel-cd" aria-selected="false" tabindex="-1">Claude Desktop</button>
+            <button type="button" role="tab" id="tab-mcp" aria-controls="panel-mcp" aria-selected="false" tabindex="-1">Outros clientes MCP</button>
+            <button type="button" role="tab" id="tab-md" aria-controls="panel-md" aria-selected="false" tabindex="-1">Outros agentes</button>
+          </div>
+          <div role="tabpanel" id="panel-cc" aria-labelledby="tab-cc">
+            <div class="code">
+              <div class="code-bar"><span>bash</span><button type="button" class="copy" data-target="cmd-mcp">Copiar</button></div>
+              <pre><code id="cmd-mcp">claude mcp add --transport http dumpcat \
+  https://backup.example.com/api/mcp \
+  --header "Authorization: Bearer mv_…"</code></pre>
+            </div>
+            <p class="panel-note">Troque pelo seu endereço e token, ou copie o comando já preenchido na página <em>API &amp; MCP</em>. Para compartilhar o servidor em um projeto sem expor o token, essa página também traz um <code>.mcp.json</code> que lê o token do ambiente.</p>
+          </div>
+          <div role="tabpanel" id="panel-cd" aria-labelledby="tab-cd" hidden>
+            <div class="code">
+              <div class="code-bar"><span>claude_desktop_config.json</span><button type="button" class="copy" data-target="cmd-mcp-desktop">Copiar</button></div>
+              <pre><code id="cmd-mcp-desktop">{
+  "mcpServers": {
+    "dumpcat": {
+      "command": "C:\\Program Files\\DumpCat\\dumpcat.exe",
+      "args": ["mcp"],
+      "env": {
+        "DUMPCAT_MCP_URL": "https://backup.example.com",
+        "DUMPCAT_MCP_TOKEN": "mv_…"
+      }
+    }
+  }
+}</code></pre>
+            </div>
+            <p class="panel-note">Abra <em>Settings → Developer → Edit Config</em>, cole e reinicie o Claude Desktop. <code>dumpcat mcp</code> é uma pequena ponte stdio que roda no computador do Claude Desktop; no Linux, <code>command</code> é o caminho do binário <code>dumpcat</code>, e no macOS você compila com Go.</p>
+          </div>
+          <div role="tabpanel" id="panel-mcp" aria-labelledby="tab-mcp" hidden>
+            <div class="code">
+              <div class="code-bar"><span>json</span><button type="button" class="copy" data-target="cmd-mcp-other">Copiar</button></div>
+              <pre><code id="cmd-mcp-other">{
+  "mcpServers": {
+    "dumpcat": {
+      "url": "https://backup.example.com/api/mcp",
+      "headers": { "Authorization": "Bearer mv_…" }
+    }
+  }
+}</code></pre>
+            </div>
+            <p class="panel-note">O endpoint <code>/api/mcp</code> (streamable HTTP) faz parte do DumpCat, não há mais nada para instalar. Clientes que só iniciam um comando local usam <code>dumpcat mcp</code>, com <code>DUMPCAT_MCP_URL</code> e <code>DUMPCAT_MCP_TOKEN</code> no ambiente.</p>
+          </div>
+          <div role="tabpanel" id="panel-md" aria-labelledby="tab-md" hidden>
+            <div class="code">
+              <div class="code-bar"><span>bash</span><button type="button" class="copy" data-target="cmd-mcp-docs">Copiar</button></div>
+              <pre><code id="cmd-mcp-docs">curl -H "Authorization: Bearer $TOKEN" \
+  https://backup.example.com/api/docs.md</code></pre>
+            </div>
+            <p class="panel-note"><code>/api/docs.md</code> é a referência completa da API em Markdown, escrita pelo próprio servidor, então sempre bate com a versão que você roda: autenticação, convenções, exemplos com curl e cada rota com o acesso que exige. Deixe um agente ler e chamar a API REST, ou cole em um chat (<em>API &amp; MCP → Copy Markdown</em>). <code>/api/mcp/tools</code> lista as ferramentas MCP em JSON.</p>
           </div>
         </div>
       </div>
@@ -342,36 +446,6 @@
         <div><dt>Bancos atrás de firewall</dt><dd>Um agente no host do banco se conecta ao DumpCat por HTTPS, ou o host entra no WireGuard integrado. Nenhuma porta precisa ser aberta para o banco.</dd></div>
         <div><dt>Autoatualização</dt><dd><code>dumpcat update</code> confere o <span class="nw">SHA-256</span>, faz backup da configuração, espera os backups em andamento terminarem e reverte em caso de falha.</dd></div>
       </dl>
-    </div>
-  </section>
-
-  <section class="section" id="ai" aria-labelledby="ai-title">
-    <div class="wrap">
-      <div class="head">
-        <div>
-          <p class="label">Pronto para IA</p>
-          <h2 id="ai-title">Pronto para IA: deixe seu assistente de IA de olho nos backups</h2>
-        </div>
-        <p class="intro">O DumpCat traz um servidor MCP e uma referência da API escrita em Markdown. Claude Code, Claude Desktop e outros agentes de IA se conectam com um token de API para perguntar quais backups falharam, ler os logs e explicar o motivo; com um token de acesso total, também podem executar backups, verificações e testes de restauração.</p>
-      </div>
-      <div class="section-body storage-grid">
-        <dl class="oss-list">
-          <div><dt>Servidor MCP integrado</dt><dd>O endpoint <code>/api/mcp</code> faz parte do DumpCat, não há mais nada para instalar: ferramentas para a visão geral, alertas, jobs, backups, logs, restaurações, testes de restauração e prévias de recuperação point-in-time. Clientes que iniciam um servidor local via stdio usam <code>dumpcat mcp</code>.</dd></div>
-          <div><dt>Seguro por padrão</dt><dd>Tokens novos só têm acesso de leitura. Restaurações, exclusões, credenciais e configurações nunca passam pelo MCP; as respostas omitem senhas, chaves e tokens, e tudo o que um assistente inicia fica registrado no log de auditoria.</dd></div>
-          <div><dt>Referência da API em Markdown</dt><dd><code>/api/docs.md</code> é gerado pelo próprio servidor: autenticação, convenções, exemplos com curl e cada rota com o papel e o token que ela exige. Cole num chat de IA, ou deixe um agente ler e chamar a API REST.</dd></div>
-          <div><dt>Pronto em um minuto</dt><dd>A página <em>API &amp; MCP</em> do DumpCat cria o token, entrega o comando do Claude Code e a configuração para o Claude Desktop e outros clientes, e tem um botão <em>Test</em> para conferir a conexão.</dd></div>
-        </dl>
-        <div class="aside">
-          <h3>Conecte o Claude Code</h3>
-          <div class="code">
-            <div class="code-bar"><span>bash</span><button type="button" class="copy" data-target="cmd-mcp">Copiar</button></div>
-            <pre><code id="cmd-mcp">claude mcp add --transport http dumpcat \
-  https://backup.example.com/api/mcp \
-  --header "Authorization: Bearer mv_…"</code></pre>
-          </div>
-          <p>Depois é só perguntar com suas palavras: <em>“Quais backups falharam ontem à noite, e por quê?”</em>, <em>“O shop-nightly tem algum backup com menos de 24 horas?”</em>, <em>“Consigo recuperar a tabela orders para as 14:37 de ontem?”</em></p>
-        </div>
-      </div>
     </div>
   </section>
 

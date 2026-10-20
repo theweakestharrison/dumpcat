@@ -703,6 +703,54 @@ tr.fit td { font-weight: 600; }
 .cl-tags span { font-size: 0.78rem; font-weight: 600; color: var(--accent-ink); background: var(--accent-soft); padding: 4px 10px; border-radius: 999px; }
 @media (max-width: 560px) { .cl-list a { grid-template-columns: minmax(0, 1fr); } .cl-date { text-align: left; line-height: 1.4; } .cl-pager { grid-template-columns: minmax(0, 1fr); } }
 
+/* ---------- AI-friendly: the hero chip, an example chat, what an assistant may do, setup ---------- */
+.hero-ai { display: inline-flex; align-items: center; gap: 10px; max-width: 100%; margin: 0 0 20px; padding: 5px 14px 5px 5px; border: 1px solid var(--on-brand-line); border-radius: 999px; background: rgba(255, 255, 255, 0.08); color: var(--on-brand); text-decoration: none; font-size: 0.875rem; font-weight: 500; line-height: 1.35; transition: background-color .12s ease; }
+.hero-ai:hover { background: rgba(255, 255, 255, 0.16); }
+.hero-ai::after { content: "\2192"; flex: none; color: var(--on-brand-2); }
+.hero-ai-tag { flex: none; font: 700 0.6875rem/1 var(--font-mono); letter-spacing: 0.08em; color: var(--brand-deep); background: var(--on-brand); padding: 6px 9px; border-radius: 999px; }
+
+.ai-grid { display: grid; grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); gap: clamp(24px, 4vw, 48px); align-items: start; }
+@media (max-width: 960px) { .ai-grid { grid-template-columns: minmax(0, 1fr); } }
+.ai-chat { margin: 0; min-width: 0; background: var(--surface); border: 1px solid var(--line); border-radius: 16px; overflow: hidden; box-shadow: 0 14px 36px rgba(9, 30, 66, 0.08); }
+.ai-chat-bar { display: flex; align-items: center; gap: 12px; padding: 11px 16px; background: var(--sunken); border-bottom: 1px solid var(--line); font-size: 0.8125rem; font-weight: 600; color: var(--ink-2); }
+.ai-dots { display: inline-flex; gap: 6px; }
+.ai-dots i { width: 10px; height: 10px; border-radius: 50%; background: var(--line-strong); }
+.ai-chat-mcp { display: inline-flex; align-items: center; gap: 6px; margin-left: auto; font: 600 0.6875rem/1 var(--font-mono); letter-spacing: 0.06em; text-transform: uppercase; color: var(--good-ink); background: var(--good-soft); padding: 5px 9px; border-radius: 999px; white-space: nowrap; }
+.ai-chat-mcp::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.ai-chat-body { display: grid; gap: 12px; padding: clamp(16px, 2.6vw, 26px); }
+.msg { margin: 0; font-size: 0.9375rem; line-height: 1.6; min-width: 0; }
+.msg.you { justify-self: end; max-width: 82%; padding: 9px 14px; border-radius: 14px 14px 4px 14px; background: var(--accent); color: #fff; }
+.msg.ai { max-width: 94%; color: var(--ink); }
+.msg.ai b { font-weight: 650; }
+.ai-tools { display: flex; flex-wrap: wrap; gap: 6px; margin: 0; }
+.tool { display: inline-flex; align-items: center; gap: 6px; padding: 6px 9px; border: 1px solid var(--line); border-radius: 7px; background: var(--bg); color: var(--ink-2); font: 500 0.75rem/1 var(--font-mono); }
+.tool::before { content: ""; flex: none; width: 6px; height: 6px; border-radius: 50%; background: var(--good-ink); }
+.tool i { font-style: normal; color: var(--muted); }
+.ai-ask { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 16px; padding: 11px 12px 11px 14px; border: 1px dashed color-mix(in srgb, var(--accent) 55%, transparent); border-radius: 12px; background: var(--accent-soft); }
+.ai-ask p { margin: 0; font-size: 0.875rem; font-weight: 600; min-width: 0; }
+.ai-ask-btns { display: inline-flex; gap: 6px; }
+.ai-ask-btns span { padding: 7px 11px; border: 1px solid var(--line-strong); border-radius: 7px; background: var(--surface); color: var(--ink-2); font-size: 0.78rem; font-weight: 600; line-height: 1; }
+.ai-ask-btns .on { background: var(--ink); border-color: var(--ink); color: var(--bg); }
+.ai-chat figcaption { padding: 12px 18px; border-top: 1px solid var(--line); color: var(--muted); font-size: 0.8125rem; }
+
+.ai-side { min-width: 0; }
+.ai-side h3 { font-family: var(--font-display); font-variation-settings: "wdth" 90; font-size: 1.2rem; font-weight: 700; letter-spacing: -0.01em; margin: 0 0 14px; }
+.ai-perm { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--line-strong); }
+.ai-perm li { display: grid; grid-template-columns: 24px minmax(0, 1fr); gap: 14px; padding: 16px 0 18px; border-bottom: 1px solid var(--line); }
+.ai-perm .mk { margin-top: 1px; }
+.ai-perm div { min-width: 0; }
+.ai-perm b { display: block; font-weight: 700; font-size: 1.0625rem; line-height: 1.35; }
+.ai-perm small { display: block; margin-top: 3px; font: 600 0.72rem/1.4 var(--font-mono); letter-spacing: 0.06em; text-transform: uppercase; color: var(--accent-ink); }
+.ai-perm div span { display: block; margin-top: 6px; color: var(--ink-2); font-size: 0.9375rem; line-height: 1.6; }
+.mk-run { background: var(--accent-soft); color: var(--accent-ink); }
+.ai-perm-note { margin: 14px 0 0; color: var(--muted); font-size: 0.875rem; }
+
+.ai-setup { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: 28px clamp(28px, 4vw, 56px); align-items: start; margin-top: clamp(40px, 6vw, 64px); }
+@media (max-width: 900px) { .ai-setup { grid-template-columns: minmax(0, 1fr); } }
+.ai-setup-steps, .ai-setup-code { min-width: 0; }
+.ai-setup .tabs { flex-wrap: wrap; max-width: 100%; }
+.ai-setup .steps em { font-style: normal; font-weight: 600; color: var(--ink); }
+
 /* ---------- Chinese, Japanese and Korean pages: the web fonts above have no CJK glyphs ---------- */
 :root:lang(zh) { --font-display: "Bricolage Grotesque", "PingFang SC", "Microsoft YaHei", "Noto Sans SC", "Noto Sans CJK SC", system-ui, sans-serif;
   --font-body: "Be Vietnam Pro", "PingFang SC", "Microsoft YaHei", "Noto Sans SC", "Noto Sans CJK SC", system-ui, sans-serif; }

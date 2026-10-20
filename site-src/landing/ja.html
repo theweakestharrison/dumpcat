@@ -14,6 +14,7 @@
 <template data-i18n="nav-whatsnew">新着情報</template>
 <template data-i18n="nav-install">インストール</template>
 <template data-i18n="lang-aria">言語</template>
+<template data-i18n="hero-ai">AI フレンドリー：バックアップの状況を Claude などの AI アシスタントに聞けます</template>
 <template data-i18n="eyebrow">オープンソース · MySQL、MariaDB、PostgreSQL のバックアップとリストア</template>
 <template data-i18n="h1">データベースをロックしないバックアップ。<span class="soft">秒単位でピンポイントにリカバリ。</span></template>
 <template data-i18n="lead">DumpCat は Web UI 付きのシングルバイナリです。バックアップをスケジュール実行し、圧縮・暗号化して S3、Google Drive、OneDrive、SFTP にコピーを送り、検証まで行い、いざというときにはデータを確実に取り戻します。Linux と Windows で動作し、完全オフラインでも使えます。</template>
@@ -153,17 +154,36 @@
 <template data-i18n="oss-contrib">バグ報告、プルリクエスト、翻訳を歓迎します。詳しくは <a href="https://github.com/theweakestharrison/DumpCat/blob/main/CONTRIBUTING.md">CONTRIBUTING.md</a> をご覧ください。セキュリティ上の問題は、<a href="https://github.com/theweakestharrison/DumpCat/blob/main/SECURITY.md">SECURITY.md</a> の手順に従って非公開でご報告ください。</template>
 <template data-i18n="oss-github">GitHub で見る</template>
 <template data-i18n="oss-issues">問題を報告</template>
-<template data-i18n="ai-label">AI フレンドリー</template>
-<template data-i18n="ai-title">AI フレンドリー：バックアップの見守りは AI アシスタントに</template>
-<template data-i18n="ai-intro">DumpCat には MCP サーバーと、Markdown で書かれた API リファレンスが付属しています。Claude Code、Claude Desktop などの AI エージェントは API トークンで接続し、どのバックアップが失敗したかを調べ、ログを読んで原因を説明できます。フルアクセスのトークンなら、バックアップ、検証、リストア訓練の実行も可能です。</template>
-<template data-i18n="ai-list">
-  <div><dt>MCP サーバーを内蔵</dt><dd>エンドポイント <code>/api/mcp</code> は DumpCat の一部なので、追加のインストールは不要です。概要、アラート、ジョブ、バックアップ、ログ、リストア、リストア訓練、ポイントインタイムリカバリのプレビューのためのツールを備えています。stdio でローカルサーバーを起動するクライアントは <code>dumpcat mcp</code> を使います。</dd></div>
-  <div><dt>デフォルトで安全</dt><dd>新しいトークンは閲覧のみ。リストア、削除、認証情報、設定が MCP 経由で操作されることはありません。応答にパスワード、鍵、トークンは含まれず、アシスタントが開始した操作はすべて監査ログに記録されます。</dd></div>
-  <div><dt>Markdown の API リファレンス</dt><dd><code>/api/docs.md</code> はサーバー自身が生成します。認証、規約、curl の例、そして各ルートに必要なロールとトークンまで網羅。AI チャットに貼り付けるか、エージェントに読ませて REST API を呼び出させましょう。</dd></div>
-  <div><dt>1 分でセットアップ</dt><dd>DumpCat の <em>API &amp; MCP</em> ページでトークンを作成すると、Claude Code 用のコマンドと、Claude Desktop などのクライアント用の設定が表示されます。接続を確かめる <em>Test</em> ボタンもあります。</dd></div>
+<template data-i18n="ai-label">AI フレンドリー · MCP</template>
+<template data-i18n="ai-title">バックアップの見守りは AI アシスタントに。鍵は渡さずに</template>
+<template data-i18n="ai-intro">DumpCat は MCP サーバーです。Claude Code、Claude Desktop などの MCP クライアントを API トークンでつなぎ、ふだんの言葉で尋ねるだけ。アシスタントが失敗や遅れているバックアップを調べ、ログを読んで原因を説明します。ほかの AI エージェントは、サーバー自身が書き出す Markdown の API リファレンスを読んで使います。</template>
+<template data-i18n="ai-q1">昨夜失敗したバックアップは？原因は？</template>
+<template data-i18n="ai-tools-aria">呼び出された MCP ツール</template>
+<template data-i18n="ai-a1">12 ジョブ中 1 件です。<b>shop-nightly</b> が 02:14 に <code>errno 28</code> で止まりました。db-01 の <code>/var/backups</code> に空き容量がありません。残りの 11 件は成功しています。空きを作るか、Web UI でローカルに残す世代数を減らしてもらえれば、もう一度実行します。</template>
+<template data-i18n="ai-q2">片付けたよ。もう一回実行して。</template>
+<template data-i18n="ai-ask"><code>run_backup</code>（shop-nightly、フル）の実行を許可しますか？</template>
+<template data-i18n="ai-allow">許可</template>
+<template data-i18n="ai-deny">拒否</template>
+<template data-i18n="ai-a2">バックアップ 4813 を実行中です（41%）。終わったら結果を確認します。</template>
+<template data-i18n="ai-chat-note">フルアクセスのトークンを使った例です。閲覧のみのトークン（デフォルト）では、アシスタントは見ることしかできず、何も開始できません。</template>
+<template data-i18n="ai-perm-title">AI アシスタントにできること</template>
+<template data-i18n="ai-perm-look"><b>見る</b><small>閲覧のみのトークン（デフォルト）</small><span>概要とアラート、ジョブ、バックアップ、エラーとログ、binlog / WAL のアーカイブ、リストアとリストア訓練の結果、ポイントインタイムリカバリのプレビュー。</span></template>
+<template data-i18n="ai-perm-run"><b>開始する</b><small>フルアクセスのトークン、operator か admin</small><span>バックアップの実行、バックアップの検証、リストア訓練の開始。AI クライアントが毎回あなたに確認します。</span></template>
+<template data-i18n="ai-perm-never"><b>MCP では決してできない</b><small>どのトークンでも</small><span>リストア、削除、認証情報、設定。有効にするオプションもありません。これらは Web UI でのみ行います。</span></template>
+<template data-i18n="ai-perm-note">応答にパスワード、鍵、トークンが含まれることはなく、エラーやログに紛れた認証情報も伏せられます。すべての呼び出しはあなたのトークンで REST API を通るため、ほかのリクエストと同じく権限が確認され、監査ログに記録されます。</template>
+<template data-i18n="ai-setup-title">1 分で接続</template>
+<template data-i18n="ai-steps">
+  <li><div><b>トークンを作る</b><span>DumpCat の <em>API &amp; MCP</em> ページで <em>New token</em>。デフォルトは閲覧のみです。アシスタントにバックアップを実行させるなら <em>Full</em> を選びます。</span></div></li>
+  <li><div><b>設定をコピー</b><span>サーバーのアドレスとトークンを埋め込んだ Claude Code 用コマンド、Claude Desktop 用設定、その他のクライアント用設定がそのページに表示されます。</span></div></li>
+  <li><div><b>テストして質問</b><span><em>Test MCP connection</em> で、アシスタントが使うアカウント、権限、ツールを確認できます。</span></div></li>
 </template>
-<template data-i18n="ai-aside-title">Claude Code を接続</template>
-<template data-i18n="ai-aside-text">あとは普段の言葉で聞くだけ：<em>「昨夜失敗したバックアップはどれ？原因は？」</em>、<em>「shop-nightly に 24 時間以内のバックアップはある？」</em>、<em>「orders を昨日の 14:37 の状態に戻せる？」</em></template>
+<template data-i18n="ai-tabs-aria">AI クライアント</template>
+<template data-i18n="ai-tab-other">その他の MCP クライアント</template>
+<template data-i18n="ai-tab-agent">その他のエージェント</template>
+<template data-i18n="ai-cc-note">アドレスとトークンを自分のものに置き換えるか、<em>API &amp; MCP</em> ページで値が入ったコマンドをコピーします。トークンを見せずにプロジェクトで共有したい場合は、環境変数からトークンを読む <code>.mcp.json</code> も同じページにあります。</template>
+<template data-i18n="ai-cd-note"><em>Settings → Developer → Edit Config</em> を開いて貼り付け、Claude Desktop を再起動します。<code>dumpcat mcp</code> は Claude Desktop のあるコンピューターで動く小さな stdio ブリッジです。Linux では <code>command</code> に <code>dumpcat</code> のパスを指定し、macOS では Go でビルドします。</template>
+<template data-i18n="ai-mcp-note">エンドポイント <code>/api/mcp</code>（streamable HTTP）は DumpCat に組み込まれており、追加のインストールは不要です。ローカルのコマンドしか起動できないクライアントは、環境変数 <code>DUMPCAT_MCP_URL</code> と <code>DUMPCAT_MCP_TOKEN</code> を設定して <code>dumpcat mcp</code> を使います。</template>
+<template data-i18n="ai-md-note"><code>/api/docs.md</code> は Markdown で書かれた API リファレンスの全体です。サーバー自身が生成するので、動かしているバージョンと常に一致します。認証、規約、curl の例、各ルートに必要な権限まで載っています。エージェントに読ませて REST API を呼ばせるか、チャットに貼り付けます（<em>API &amp; MCP → Copy Markdown</em>）。<code>/api/mcp/tools</code> は MCP ツールを JSON で一覧にします。</template>
 <template data-i18n="cmp-label">比較</template>
 <template data-i18n="cmp-title">DumpCat と他のツールを比較</template>
 <template data-i18n="cmp-intro">ツールを選ぶと、すべての機能を並べて比較できます。他製品に関する情報は、詳細な比較ページに出典と日付付きで掲載しています。</template>

@@ -102,6 +102,7 @@
 
     <div class="hero-main">
       <div class="hero-copy">
+        <a class="hero-ai" href="#ai"><span class="hero-ai-tag">MCP</span><span>AI 친화적: Claude 등 AI 어시스턴트에게 백업 상태를 물어보세요</span></a>
         <p class="eyebrow">오픈 소스 · MySQL, MariaDB, PostgreSQL을 위한 백업 및 복원</p>
         <h1>데이터베이스를 잠그지 않는 백업. <span class="soft">1초 단위까지 정확한 복구.</span></h1>
         <p class="lead">DumpCat은 웹 UI를 갖춘 단일 바이너리입니다. 백업을 예약하고, 압축하고 암호화해 S3, Google Drive, OneDrive, SFTP로 사본을 보내고, 검증까지 마친 뒤, 필요할 때 데이터를 되살려 줍니다. Linux와 Windows에서 완전히 오프라인으로 동작합니다.</p>
@@ -214,6 +215,109 @@
           <div class="meow-text">
             <p class="meow-title">포트 6369는 곧 <em>MEOW</em></p>
             <p>전화 키패드의 영문자로 6-3-6-9를 누르면 고양이 울음소리 MEOW(야옹)가 됩니다. 웹 UI의 기본 포트입니다.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="ai" aria-labelledby="ai-title">
+    <div class="wrap">
+      <div class="head">
+        <div>
+          <p class="label">AI 친화적 · MCP</p>
+          <h2 id="ai-title">백업 감시는 AI 어시스턴트에게, 열쇠는 넘기지 않고</h2>
+        </div>
+        <p class="intro">DumpCat은 MCP 서버입니다. Claude Code, Claude Desktop 또는 다른 MCP 클라이언트를 API 토큰으로 연결하고 평소 말투로 물어보세요. 어시스턴트가 실패했거나 밀린 백업을 찾아보고, 로그를 읽고, 원인을 알려 줍니다. 다른 AI 에이전트는 서버가 직접 만들어 주는 Markdown API 레퍼런스를 읽습니다.</p>
+      </div>
+      <div class="section-body ai-grid">
+        <figure class="ai-chat">
+          <div class="ai-chat-bar"><span class="ai-dots" aria-hidden="true"><i></i><i></i><i></i></span><span>Claude Code</span><span class="ai-chat-mcp">MCP · dumpcat</span></div>
+          <div class="ai-chat-body">
+            <p class="msg you">어젯밤 실패한 백업이 있어? 이유는?</p>
+            <p class="ai-tools" aria-label="호출된 MCP 도구"><span class="tool">get_monitoring</span><span class="tool">list_backups <i>status=failed</i></span><span class="tool">get_log <i>4812</i></span></p>
+            <p class="msg ai">작업 12개 중 1개입니다. <b>shop-nightly</b>가 02:14에 <code>errno 28</code>로 멈췄습니다. db-01의 <code>/var/backups</code>에 남은 공간이 없다는 뜻입니다. 나머지 11개는 성공했습니다. 공간을 확보하거나 웹 UI에서 로컬에 보관하는 개수를 줄이시면 다시 실행하겠습니다.</p>
+            <p class="msg you">정리했어. 다시 돌려 줘.</p>
+            <div class="ai-ask"><p><code>run_backup</code>(shop-nightly, 전체)을 허용할까요?</p><span class="ai-ask-btns" aria-hidden="true"><span class="on">허용</span><span>거부</span></span></div>
+            <p class="ai-tools" aria-label="호출된 MCP 도구"><span class="tool">run_backup <i>shop-nightly</i></span><span class="tool">get_backup <i>4813</i></span></p>
+            <p class="msg ai">백업 4813이 실행 중이며 41% 진행됐습니다. 끝나면 결과를 확인하겠습니다.</p>
+          </div>
+          <figcaption>전체 권한 토큰을 사용한 예시입니다. 읽기 전용 토큰(기본값)이면 어시스턴트는 볼 수만 있고 아무것도 시작할 수 없습니다.</figcaption>
+        </figure>
+        <div class="ai-side">
+          <h3>AI 어시스턴트가 할 수 있는 일</h3>
+          <ul class="ai-perm">
+            <li><span class="mk mk-yes"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5.5 12.5l4 4L18.5 7.5"/></svg></span><div><b>보기</b><small>읽기 전용 토큰, 기본값</small><span>개요와 경고, 작업, 백업, 오류와 로그, binlog / WAL 보관, 복원과 복원 훈련 결과, 특정 시점 복구 미리 보기.</span></div></li>
+            <li><span class="mk mk-run"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6.5l8.5 5.5L9 17.5z"/></svg></span><div><b>시작하기</b><small>전체 권한 토큰, operator 또는 admin</small><span>백업 실행, 백업 검증, 복원 훈련 시작. AI 클라이언트가 매번 먼저 물어봅니다.</span></div></li>
+            <li><span class="mk mk-no"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7.5 7.5l9 9M16.5 7.5l-9 9"/></svg></span><div><b>MCP로는 절대 불가</b><small>어떤 토큰이든</small><span>복원, 삭제, 자격 증명, 설정. 켜는 옵션도 없습니다. 이런 작업은 웹 UI에서만 합니다.</span></div></li>
+          </ul>
+          <p class="ai-perm-note">답변에는 비밀번호, 키, 토큰이 절대 들어가지 않으며, 오류와 로그에 섞인 자격 증명도 가려집니다. 모든 호출은 여러분의 토큰으로 REST API를 거치므로 다른 요청과 똑같이 권한이 확인되고 감사 로그에 기록됩니다.</p>
+        </div>
+      </div>
+      <div class="ai-setup">
+        <div class="ai-setup-steps">
+          <h3 class="steps-title">1분이면 연결</h3>
+          <ol class="steps">
+            <li><div><b>토큰 만들기</b><span>DumpCat의 <em>API &amp; MCP</em> 페이지에서 <em>New token</em>. 기본은 읽기 전용이며, 어시스턴트가 백업을 실행하게 하려면 <em>Full</em>을 고릅니다.</span></div></li>
+            <li><div><b>설정 복사</b><span>그 페이지가 서버 주소와 토큰을 채워 Claude Code 명령, Claude Desktop 설정, 다른 클라이언트용 설정을 보여 줍니다.</span></div></li>
+            <li><div><b>테스트하고 질문하기</b><span><em>Test MCP connection</em>이 어시스턴트가 받게 될 계정, 권한, 도구를 보여 줍니다.</span></div></li>
+          </ol>
+        </div>
+        <div class="ai-setup-code">
+          <div class="tabs" role="tablist" aria-label="AI 클라이언트">
+            <button type="button" role="tab" id="tab-cc" aria-controls="panel-cc" aria-selected="true">Claude Code</button>
+            <button type="button" role="tab" id="tab-cd" aria-controls="panel-cd" aria-selected="false" tabindex="-1">Claude Desktop</button>
+            <button type="button" role="tab" id="tab-mcp" aria-controls="panel-mcp" aria-selected="false" tabindex="-1">다른 MCP 클라이언트</button>
+            <button type="button" role="tab" id="tab-md" aria-controls="panel-md" aria-selected="false" tabindex="-1">다른 에이전트</button>
+          </div>
+          <div role="tabpanel" id="panel-cc" aria-labelledby="tab-cc">
+            <div class="code">
+              <div class="code-bar"><span>bash</span><button type="button" class="copy" data-target="cmd-mcp">복사</button></div>
+              <pre><code id="cmd-mcp">claude mcp add --transport http dumpcat \
+  https://backup.example.com/api/mcp \
+  --header "Authorization: Bearer mv_…"</code></pre>
+            </div>
+            <p class="panel-note">주소와 토큰을 여러분의 것으로 바꾸거나, <em>API &amp; MCP</em> 페이지에서 값이 채워진 명령을 복사하세요. 토큰을 드러내지 않고 프로젝트에서 공유하려면, 같은 페이지에 환경 변수에서 토큰을 읽는 <code>.mcp.json</code>도 있습니다.</p>
+          </div>
+          <div role="tabpanel" id="panel-cd" aria-labelledby="tab-cd" hidden>
+            <div class="code">
+              <div class="code-bar"><span>claude_desktop_config.json</span><button type="button" class="copy" data-target="cmd-mcp-desktop">복사</button></div>
+              <pre><code id="cmd-mcp-desktop">{
+  "mcpServers": {
+    "dumpcat": {
+      "command": "C:\\Program Files\\DumpCat\\dumpcat.exe",
+      "args": ["mcp"],
+      "env": {
+        "DUMPCAT_MCP_URL": "https://backup.example.com",
+        "DUMPCAT_MCP_TOKEN": "mv_…"
+      }
+    }
+  }
+}</code></pre>
+            </div>
+            <p class="panel-note"><em>Settings → Developer → Edit Config</em>를 열어 붙여 넣고 Claude Desktop을 다시 시작하세요. <code>dumpcat mcp</code>는 Claude Desktop이 있는 컴퓨터에서 실행되는 작은 stdio 브리지입니다. Linux에서는 <code>command</code>에 <code>dumpcat</code> 실행 파일 경로를 넣고, macOS에서는 Go로 직접 빌드합니다.</p>
+          </div>
+          <div role="tabpanel" id="panel-mcp" aria-labelledby="tab-mcp" hidden>
+            <div class="code">
+              <div class="code-bar"><span>json</span><button type="button" class="copy" data-target="cmd-mcp-other">복사</button></div>
+              <pre><code id="cmd-mcp-other">{
+  "mcpServers": {
+    "dumpcat": {
+      "url": "https://backup.example.com/api/mcp",
+      "headers": { "Authorization": "Bearer mv_…" }
+    }
+  }
+}</code></pre>
+            </div>
+            <p class="panel-note">엔드포인트 <code>/api/mcp</code>(streamable HTTP)는 DumpCat에 들어 있어 따로 설치할 것이 없습니다. 로컬 명령만 실행할 수 있는 클라이언트는 환경 변수 <code>DUMPCAT_MCP_URL</code>과 <code>DUMPCAT_MCP_TOKEN</code>을 설정하고 <code>dumpcat mcp</code>를 사용합니다.</p>
+          </div>
+          <div role="tabpanel" id="panel-md" aria-labelledby="tab-md" hidden>
+            <div class="code">
+              <div class="code-bar"><span>bash</span><button type="button" class="copy" data-target="cmd-mcp-docs">복사</button></div>
+              <pre><code id="cmd-mcp-docs">curl -H "Authorization: Bearer $TOKEN" \
+  https://backup.example.com/api/docs.md</code></pre>
+            </div>
+            <p class="panel-note"><code>/api/docs.md</code>는 Markdown으로 된 전체 API 레퍼런스입니다. 서버가 직접 만들기 때문에 실행 중인 버전과 항상 일치합니다. 인증, 규칙, curl 예시, 그리고 각 라우트에 필요한 권한까지 담겨 있습니다. 에이전트가 읽고 REST API를 호출하게 하거나, 채팅에 붙여 넣으세요(<em>API &amp; MCP → Copy Markdown</em>). <code>/api/mcp/tools</code>는 MCP 도구를 JSON으로 나열합니다.</p>
           </div>
         </div>
       </div>
@@ -342,36 +446,6 @@
         <div><dt>방화벽 뒤의 데이터베이스</dt><dd>데이터베이스 호스트의 에이전트가 HTTPS로 DumpCat에 연결하거나, 호스트가 내장 WireGuard에 참여합니다. 데이터베이스 쪽에 포트를 열 필요가 없습니다.</dd></div>
         <div><dt>자체 업데이트</dt><dd><code>dumpcat update</code>는 <span class="nw">SHA-256</span>을 확인하고, 설정을 백업하고, 실행 중인 백업이 끝나기를 기다렸다가, 실패하면 롤백합니다.</dd></div>
       </dl>
-    </div>
-  </section>
-
-  <section class="section" id="ai" aria-labelledby="ai-title">
-    <div class="wrap">
-      <div class="head">
-        <div>
-          <p class="label">AI 친화적</p>
-          <h2 id="ai-title">AI 친화적: 백업 감시는 AI 어시스턴트에게 맡기세요</h2>
-        </div>
-        <p class="intro">DumpCat에는 MCP 서버와 Markdown으로 작성된 API 레퍼런스가 들어 있습니다. Claude Code, Claude Desktop 등의 AI 에이전트가 API 토큰으로 연결해 어떤 백업이 실패했는지 묻고, 로그를 읽고, 원인을 설명할 수 있습니다. 전체 권한 토큰이 있으면 백업, 검증, 복원 훈련까지 실행할 수 있습니다.</p>
-      </div>
-      <div class="section-body storage-grid">
-        <dl class="oss-list">
-          <div><dt>내장 MCP 서버</dt><dd>엔드포인트 <code>/api/mcp</code>는 DumpCat의 일부라 따로 설치할 것이 없습니다. 개요, 경고, 작업, 백업, 로그, 복원, 복원 훈련, 특정 시점 복구 미리 보기를 위한 도구를 제공합니다. stdio로 로컬 서버를 실행하는 클라이언트는 <code>dumpcat mcp</code>를 사용합니다.</dd></div>
-          <div><dt>기본값은 안전하게</dt><dd>새 토큰은 조회만 할 수 있습니다. 복원, 삭제, 자격 증명, 설정은 절대 MCP를 거치지 않으며, 응답에서는 비밀번호, 키, 토큰이 빠집니다. 어시스턴트가 시작한 작업은 모두 감사 로그에 기록됩니다.</dd></div>
-          <div><dt>Markdown으로 된 API 레퍼런스</dt><dd><code>/api/docs.md</code>는 서버가 직접 작성합니다. 인증, 규칙, curl 예제, 그리고 모든 라우트와 각각에 필요한 역할 및 토큰이 담겨 있습니다. AI 채팅에 붙여 넣거나, 에이전트가 읽고 REST API를 호출하게 하세요.</dd></div>
-          <div><dt>1분이면 설정 완료</dt><dd>DumpCat의 <em>API &amp; MCP</em> 페이지에서 토큰을 만들고, Claude Code 명령어와 Claude Desktop 및 기타 클라이언트용 설정을 받은 뒤, <em>Test</em> 버튼으로 연결을 확인할 수 있습니다.</dd></div>
-        </dl>
-        <div class="aside">
-          <h3>Claude Code 연결하기</h3>
-          <div class="code">
-            <div class="code-bar"><span>bash</span><button type="button" class="copy" data-target="cmd-mcp">복사</button></div>
-            <pre><code id="cmd-mcp">claude mcp add --transport http dumpcat \
-  https://backup.example.com/api/mcp \
-  --header "Authorization: Bearer mv_…"</code></pre>
-          </div>
-          <p>그다음 평소 말투로 물어보세요: <em>“어젯밤 실패한 백업은 무엇이고, 왜 실패했나요?”</em>, <em>“shop-nightly에 24시간 이내의 백업이 있나요?”</em>, <em>“orders 테이블을 어제 14:37로 복구할 수 있나요?”</em></p>
-        </div>
-      </div>
     </div>
   </section>
 

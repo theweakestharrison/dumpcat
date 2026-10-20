@@ -102,6 +102,7 @@
 
     <div class="hero-main">
       <div class="hero-copy">
+        <a class="hero-ai" href="#ai"><span class="hero-ai-tag">MCP</span><span>AI-friendly: hỏi Claude hay trợ lý AI khác xem backup của bạn ra sao</span></a>
         <p class="eyebrow">Mã nguồn mở · Backup &amp; restore cho MySQL, MariaDB và PostgreSQL</p>
         <h1>Backup không khóa database. <span class="soft">Khôi phục đến đúng giây bạn cần.</span></h1>
         <p class="lead">DumpCat là một file chạy duy nhất kèm giao diện web. Nó lên lịch backup, nén và mã hóa, đẩy bản sao lên S3, Google Drive, OneDrive hay SFTP, tự kiểm tra toàn vẹn và đưa dữ liệu về khi bạn cần. Chạy trên Linux lẫn Windows, không cần internet.</p>
@@ -220,6 +221,109 @@
     </div>
   </section>
 
+  <section class="section" id="ai" aria-labelledby="ai-title">
+    <div class="wrap">
+      <div class="head">
+        <div>
+          <p class="label">AI-friendly · MCP</p>
+          <h2 id="ai-title">Để trợ lý AI trông backup, mà không phải giao chìa khóa</h2>
+        </div>
+        <p class="intro">DumpCat là một MCP server. Kết nối Claude Code, Claude Desktop hay MCP client khác bằng một API token rồi hỏi bằng lời thường: trợ lý tự xem backup nào lỗi hay quá hạn, đọc log và giải thích vì sao. Agent AI khác thì đọc tài liệu API bằng Markdown do chính server của bạn viết ra.</p>
+      </div>
+      <div class="section-body ai-grid">
+        <figure class="ai-chat">
+          <div class="ai-chat-bar"><span class="ai-dots" aria-hidden="true"><i></i><i></i><i></i></span><span>Claude Code</span><span class="ai-chat-mcp">MCP · dumpcat</span></div>
+          <div class="ai-chat-body">
+            <p class="msg you">Đêm qua backup nào lỗi, vì sao?</p>
+            <p class="ai-tools" aria-label="Công cụ MCP được gọi"><span class="tool">get_monitoring</span><span class="tool">list_backups <i>status=failed</i></span><span class="tool">get_log <i>4812</i></span></p>
+            <p class="msg ai">Một trong 12 job: <b>shop-nightly</b> dừng lúc 02:14 với lỗi <code>errno 28</code>, tức là <code>/var/backups</code> trên db-01 đã hết chỗ trống. 11 job còn lại đều thành công. Bạn dọn bớt chỗ, hoặc giảm số bản giữ ở local trên giao diện web, rồi tôi chạy lại cho.</p>
+            <p class="msg you">Dọn xong rồi, chạy lại đi.</p>
+            <div class="ai-ask"><p>Cho phép gọi <code>run_backup</code> (shop-nightly, full)?</p><span class="ai-ask-btns" aria-hidden="true"><span class="on">Cho phép</span><span>Từ chối</span></span></div>
+            <p class="ai-tools" aria-label="Công cụ MCP được gọi"><span class="tool">run_backup <i>shop-nightly</i></span><span class="tool">get_backup <i>4813</i></span></p>
+            <p class="msg ai">Backup 4813 đang chạy, đã được 41%. Xong tôi sẽ xem lại kết quả và báo bạn.</p>
+          </div>
+          <figcaption>Ví dụ với token toàn quyền. Với token chỉ xem (mặc định), trợ lý chỉ xem được, không khởi chạy được gì.</figcaption>
+        </figure>
+        <div class="ai-side">
+          <h3>Trợ lý AI được làm gì</h3>
+          <ul class="ai-perm">
+            <li><span class="mk mk-yes"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5.5 12.5l4 4L18.5 7.5"/></svg></span><div><b>Xem</b><small>Token chỉ xem, mặc định</small><span>Tổng quan và cảnh báo, job, backup, lỗi và log, việc lưu binlog / WAL, kết quả restore và diễn tập, xem trước một lần khôi phục theo thời điểm.</span></div></li>
+            <li><span class="mk mk-run"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6.5l8.5 5.5L9 17.5z"/></svg></span><div><b>Khởi chạy</b><small>Token toàn quyền, operator hoặc admin</small><span>Chạy backup, verify một bản backup, chạy diễn tập restore. Client AI hỏi bạn trước mỗi lần.</span></div></li>
+            <li><span class="mk mk-no"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7.5 7.5l9 9M16.5 7.5l-9 9"/></svg></span><div><b>Không bao giờ qua MCP</b><small>Với bất kỳ token nào</small><span>Restore, xóa, mật khẩu và settings. Không có tùy chọn nào bật chúng lên: những việc này chỉ làm trên giao diện web.</span></div></li>
+          </ul>
+          <p class="ai-perm-note">Câu trả lời không bao giờ chứa mật khẩu, khóa hay token; thông tin đăng nhập lẫn trong lỗi và log đều bị che. Mỗi lần gọi đi qua REST API bằng token của bạn, nên được kiểm tra quyền như mọi request và ghi vào nhật ký thao tác.</p>
+        </div>
+      </div>
+      <div class="ai-setup">
+        <div class="ai-setup-steps">
+          <h3 class="steps-title">Kết nối trong một phút</h3>
+          <ol class="steps">
+            <li><div><b>Tạo token</b><span>Trang <em>API &amp; MCP</em> trong DumpCat, nút <em>New token</em>. Mặc định token chỉ xem; chọn <em>Full</em> nếu muốn trợ lý chạy được backup.</span></div></li>
+            <li><div><b>Chép cấu hình</b><span>Trang đó điền sẵn địa chỉ server và token vào lệnh cho Claude Code, file cấu hình cho Claude Desktop và các client khác.</span></div></li>
+            <li><div><b>Bấm Test rồi hỏi</b><span><em>Test MCP connection</em> cho biết tài khoản, quyền và các công cụ mà trợ lý sẽ nhận được.</span></div></li>
+          </ol>
+        </div>
+        <div class="ai-setup-code">
+          <div class="tabs" role="tablist" aria-label="Client AI">
+            <button type="button" role="tab" id="tab-cc" aria-controls="panel-cc" aria-selected="true">Claude Code</button>
+            <button type="button" role="tab" id="tab-cd" aria-controls="panel-cd" aria-selected="false" tabindex="-1">Claude Desktop</button>
+            <button type="button" role="tab" id="tab-mcp" aria-controls="panel-mcp" aria-selected="false" tabindex="-1">MCP client khác</button>
+            <button type="button" role="tab" id="tab-md" aria-controls="panel-md" aria-selected="false" tabindex="-1">Agent khác</button>
+          </div>
+          <div role="tabpanel" id="panel-cc" aria-labelledby="tab-cc">
+            <div class="code">
+              <div class="code-bar"><span>bash</span><button type="button" class="copy" data-target="cmd-mcp">Sao chép</button></div>
+              <pre><code id="cmd-mcp">claude mcp add --transport http dumpcat \
+  https://backup.example.com/api/mcp \
+  --header "Authorization: Bearer mv_…"</code></pre>
+            </div>
+            <p class="panel-note">Thay địa chỉ và token bằng của bạn, hoặc chép lệnh đã điền sẵn trên trang <em>API &amp; MCP</em>. Muốn dùng chung trong một project mà không lộ token: trang đó có sẵn file <code>.mcp.json</code> lấy token từ biến môi trường.</p>
+          </div>
+          <div role="tabpanel" id="panel-cd" aria-labelledby="tab-cd" hidden>
+            <div class="code">
+              <div class="code-bar"><span>claude_desktop_config.json</span><button type="button" class="copy" data-target="cmd-mcp-desktop">Sao chép</button></div>
+              <pre><code id="cmd-mcp-desktop">{
+  "mcpServers": {
+    "dumpcat": {
+      "command": "C:\\Program Files\\DumpCat\\dumpcat.exe",
+      "args": ["mcp"],
+      "env": {
+        "DUMPCAT_MCP_URL": "https://backup.example.com",
+        "DUMPCAT_MCP_TOKEN": "mv_…"
+      }
+    }
+  }
+}</code></pre>
+            </div>
+            <p class="panel-note">Mở <em>Settings → Developer → Edit Config</em>, dán vào rồi khởi động lại Claude Desktop. <code>dumpcat mcp</code> là cầu nối stdio nhỏ chạy trên máy có Claude Desktop; trên Linux, <code>command</code> là đường dẫn tới file <code>dumpcat</code>, còn macOS thì tự build bằng Go.</p>
+          </div>
+          <div role="tabpanel" id="panel-mcp" aria-labelledby="tab-mcp" hidden>
+            <div class="code">
+              <div class="code-bar"><span>json</span><button type="button" class="copy" data-target="cmd-mcp-other">Sao chép</button></div>
+              <pre><code id="cmd-mcp-other">{
+  "mcpServers": {
+    "dumpcat": {
+      "url": "https://backup.example.com/api/mcp",
+      "headers": { "Authorization": "Bearer mv_…" }
+    }
+  }
+}</code></pre>
+            </div>
+            <p class="panel-note">Endpoint <code>/api/mcp</code> (streamable HTTP) nằm sẵn trong DumpCat, không cài thêm gì. Client chỉ biết chạy lệnh local thì dùng <code>dumpcat mcp</code>, với <code>DUMPCAT_MCP_URL</code> và <code>DUMPCAT_MCP_TOKEN</code> trong biến môi trường.</p>
+          </div>
+          <div role="tabpanel" id="panel-md" aria-labelledby="tab-md" hidden>
+            <div class="code">
+              <div class="code-bar"><span>bash</span><button type="button" class="copy" data-target="cmd-mcp-docs">Sao chép</button></div>
+              <pre><code id="cmd-mcp-docs">curl -H "Authorization: Bearer $TOKEN" \
+  https://backup.example.com/api/docs.md</code></pre>
+            </div>
+            <p class="panel-note"><code>/api/docs.md</code> là toàn bộ tài liệu API bằng Markdown, do chính server viết ra nên luôn khớp phiên bản bạn chạy: xác thực, quy ước, ví dụ curl và từng route kèm quyền cần có. Để agent tự đọc rồi gọi REST API, hoặc dán vào khung chat (<em>API &amp; MCP → Copy Markdown</em>). <code>/api/mcp/tools</code> liệt kê các công cụ MCP dạng JSON.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
   <section class="section" id="methods" aria-labelledby="methods-title">
     <div class="wrap">
       <div class="head">
@@ -332,36 +436,6 @@
         <div><dt>Database sau firewall</dt><dd>Agent trên server database tự kết nối ra DumpCat qua HTTPS, hoặc dùng WireGuard tích hợp. Không cần mở port nào tới database.</dd></div>
         <div><dt>Tự cập nhật</dt><dd><code>dumpcat update</code> kiểm tra <span class="nw">SHA-256</span>, backup cấu hình, chờ backup đang chạy xong và tự rollback nếu lỗi.</dd></div>
       </dl>
-    </div>
-  </section>
-
-  <section class="section" id="ai" aria-labelledby="ai-title">
-    <div class="wrap">
-      <div class="head">
-        <div>
-          <p class="label">Cho AI</p>
-          <h2 id="ai-title">AI-friendly: để trợ lý AI trông backup cùng bạn</h2>
-        </div>
-        <p class="intro">DumpCat có sẵn MCP server và tài liệu API viết bằng Markdown. Claude Code, Claude Desktop hay agent AI khác kết nối bằng một API token để hỏi backup nào lỗi, đọc log và giải thích vì sao; với token toàn quyền, chúng chạy được backup, verify và diễn tập restore.</p>
-      </div>
-      <div class="section-body storage-grid">
-        <dl class="oss-list">
-          <div><dt>MCP server có sẵn</dt><dd>Endpoint <code>/api/mcp</code> nằm ngay trong DumpCat, không cài thêm gì: công cụ để xem tổng quan, cảnh báo, job, backup, log, restore, diễn tập và xem trước khôi phục theo thời điểm. Client tự chạy server qua stdio thì dùng <code>dumpcat mcp</code>.</dd></div>
-          <div><dt>An toàn mặc định</dt><dd>Token mới chỉ được xem. Restore, xóa, mật khẩu và settings không bao giờ đi qua MCP; câu trả lời đã lọc bỏ mật khẩu, khóa và token, và những gì AI khởi chạy đều ghi vào nhật ký thao tác.</dd></div>
-          <div><dt>API mô tả bằng Markdown</dt><dd><code>/api/docs.md</code> do chính server viết ra: xác thực, quy ước, ví dụ curl và từng route kèm quyền, loại token cần dùng. Dán vào khung chat AI, hoặc để agent tự đọc rồi gọi REST API.</dd></div>
-          <div><dt>Cài trong một phút</dt><dd>Trang <em>API &amp; MCP</em> trong DumpCat tạo token, cho sẵn lệnh cho Claude Code, cấu hình cho Claude Desktop và các client khác, rồi bấm <em>Test</em> để thử kết nối.</dd></div>
-        </dl>
-        <div class="aside">
-          <h3>Kết nối Claude Code</h3>
-          <div class="code">
-            <div class="code-bar"><span>bash</span><button type="button" class="copy" data-target="cmd-mcp">Sao chép</button></div>
-            <pre><code id="cmd-mcp">claude mcp add --transport http dumpcat \
-  https://backup.example.com/api/mcp \
-  --header "Authorization: Bearer mv_…"</code></pre>
-          </div>
-          <p>Rồi hỏi bằng lời thường: <em>“Đêm qua backup nào lỗi, vì sao?”</em>, <em>“Job shop-nightly có bản nào mới hơn 24 giờ không?”</em>, <em>“Khôi phục bảng orders về 14:37 hôm qua được không?”</em></p>
-        </div>
-      </div>
     </div>
   </section>
 

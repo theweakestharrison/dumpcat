@@ -102,6 +102,7 @@
 
     <div class="hero-main">
       <div class="hero-copy">
+        <a class="hero-ai" href="#ai"><span class="hero-ai-tag">MCP</span><span>AI-friendly: ask Claude or another AI assistant how your backups are doing</span></a>
         <p class="eyebrow">Open source · Backup &amp; restore for MySQL, MariaDB and PostgreSQL</p>
         <h1>Backups that never lock the database. <span class="soft">Recovery to the exact second.</span></h1>
         <p class="lead">DumpCat is a single binary with a web UI. It schedules backups, compresses and encrypts them, ships copies to S3, Google Drive, OneDrive or SFTP, verifies them and brings your data back when you need it. Runs on Linux and Windows, fully offline.</p>
@@ -214,6 +215,109 @@
           <div class="meow-text">
             <p class="meow-title">Port 6369 spells <em>MEOW</em></p>
             <p>Type 6-3-6-9 on a phone keypad and you get MEOW. It is the default port of the web UI.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="ai" aria-labelledby="ai-title">
+    <div class="wrap">
+      <div class="head">
+        <div>
+          <p class="label">AI-friendly · MCP</p>
+          <h2 id="ai-title">Let an AI assistant watch your backups, without handing over the keys</h2>
+        </div>
+        <p class="intro">DumpCat is an MCP server. Connect Claude Code, Claude Desktop or any other MCP client with an API token and ask in plain words: the assistant looks up what failed or is overdue, reads the log and tells you why. Other AI agents read the API reference in Markdown that your own server writes for them.</p>
+      </div>
+      <div class="section-body ai-grid">
+        <figure class="ai-chat">
+          <div class="ai-chat-bar"><span class="ai-dots" aria-hidden="true"><i></i><i></i><i></i></span><span>Claude Code</span><span class="ai-chat-mcp">MCP · dumpcat</span></div>
+          <div class="ai-chat-body">
+            <p class="msg you">Which backups failed last night, and why?</p>
+            <p class="ai-tools" aria-label="MCP tools called"><span class="tool">get_monitoring</span><span class="tool">list_backups <i>status=failed</i></span><span class="tool">get_log <i>4812</i></span></p>
+            <p class="msg ai">One of 12 jobs: <b>shop-nightly</b> stopped at 02:14 with <code>errno 28</code>, which means <code>/var/backups</code> on db-01 is out of space. The other 11 succeeded. Free some space, or keep fewer local copies in the web UI, and I’ll run it again.</p>
+            <p class="msg you">Done, run it again.</p>
+            <div class="ai-ask"><p>Allow <code>run_backup</code> (shop-nightly, full)?</p><span class="ai-ask-btns" aria-hidden="true"><span class="on">Allow</span><span>Deny</span></span></div>
+            <p class="ai-tools" aria-label="MCP tools called"><span class="tool">run_backup <i>shop-nightly</i></span><span class="tool">get_backup <i>4813</i></span></p>
+            <p class="msg ai">Backup 4813 is running, 41% done. I’ll check the result when it finishes.</p>
+          </div>
+          <figcaption>An example with a full-access token. With a read-only token, the default, the assistant can look but cannot start anything.</figcaption>
+        </figure>
+        <div class="ai-side">
+          <h3>What an assistant may do</h3>
+          <ul class="ai-perm">
+            <li><span class="mk mk-yes"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5.5 12.5l4 4L18.5 7.5"/></svg></span><div><b>Look</b><small>Read-only token, the default</small><span>Overview and alerts, jobs, backups, errors and logs, binlog / WAL archiving, restore and drill results, point-in-time recovery previews.</span></div></li>
+            <li><span class="mk mk-run"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6.5l8.5 5.5L9 17.5z"/></svg></span><div><b>Start</b><small>Full-access token, operator or admin</small><span>Run a backup, verify a backup, start a restore drill. The AI client asks you before each one.</span></div></li>
+            <li><span class="mk mk-no"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7.5 7.5l9 9M16.5 7.5l-9 9"/></svg></span><div><b>Never over MCP</b><small>With any token</small><span>Restores, deletions, credentials and settings. No option turns them on: these stay in the web UI.</span></div></li>
+          </ul>
+          <p class="ai-perm-note">Answers never contain passwords, keys or tokens, and credentials that turn up in errors and logs are masked. Every call goes through the REST API with your token, so it is checked like any other request and written to the audit log.</p>
+        </div>
+      </div>
+      <div class="ai-setup">
+        <div class="ai-setup-steps">
+          <h3 class="steps-title">Connect in a minute</h3>
+          <ol class="steps">
+            <li><div><b>Create a token</b><span>The <em>API &amp; MCP</em> page in DumpCat, <em>New token</em>. Tokens are read-only by default; pick <em>Full</em> to let the assistant run backups.</span></div></li>
+            <li><div><b>Copy the setup</b><span>The page fills your server’s address and the token into the Claude Code command, the Claude Desktop config and the setup for other clients.</span></div></li>
+            <li><div><b>Test, then ask</b><span><em>Test MCP connection</em> shows the account, the access and the tools the assistant will get.</span></div></li>
+          </ol>
+        </div>
+        <div class="ai-setup-code">
+          <div class="tabs" role="tablist" aria-label="AI client">
+            <button type="button" role="tab" id="tab-cc" aria-controls="panel-cc" aria-selected="true">Claude Code</button>
+            <button type="button" role="tab" id="tab-cd" aria-controls="panel-cd" aria-selected="false" tabindex="-1">Claude Desktop</button>
+            <button type="button" role="tab" id="tab-mcp" aria-controls="panel-mcp" aria-selected="false" tabindex="-1">Other MCP clients</button>
+            <button type="button" role="tab" id="tab-md" aria-controls="panel-md" aria-selected="false" tabindex="-1">Other agents</button>
+          </div>
+          <div role="tabpanel" id="panel-cc" aria-labelledby="tab-cc">
+            <div class="code">
+              <div class="code-bar"><span>bash</span><button type="button" class="copy" data-target="cmd-mcp">Copy</button></div>
+              <pre><code id="cmd-mcp">claude mcp add --transport http dumpcat \
+  https://backup.example.com/api/mcp \
+  --header "Authorization: Bearer mv_…"</code></pre>
+            </div>
+            <p class="panel-note">Put in your own address and token, or copy the filled-in command from the <em>API &amp; MCP</em> page. To share the server in a project without the token, that page also has a <code>.mcp.json</code> that reads the token from your environment.</p>
+          </div>
+          <div role="tabpanel" id="panel-cd" aria-labelledby="tab-cd" hidden>
+            <div class="code">
+              <div class="code-bar"><span>claude_desktop_config.json</span><button type="button" class="copy" data-target="cmd-mcp-desktop">Copy</button></div>
+              <pre><code id="cmd-mcp-desktop">{
+  "mcpServers": {
+    "dumpcat": {
+      "command": "C:\\Program Files\\DumpCat\\dumpcat.exe",
+      "args": ["mcp"],
+      "env": {
+        "DUMPCAT_MCP_URL": "https://backup.example.com",
+        "DUMPCAT_MCP_TOKEN": "mv_…"
+      }
+    }
+  }
+}</code></pre>
+            </div>
+            <p class="panel-note">Open <em>Settings → Developer → Edit Config</em>, paste, and restart Claude Desktop. <code>dumpcat mcp</code> is a small stdio bridge that runs on the computer with Claude Desktop; on Linux, <code>command</code> is the path of the <code>dumpcat</code> binary, and on macOS you build it with Go.</p>
+          </div>
+          <div role="tabpanel" id="panel-mcp" aria-labelledby="tab-mcp" hidden>
+            <div class="code">
+              <div class="code-bar"><span>json</span><button type="button" class="copy" data-target="cmd-mcp-other">Copy</button></div>
+              <pre><code id="cmd-mcp-other">{
+  "mcpServers": {
+    "dumpcat": {
+      "url": "https://backup.example.com/api/mcp",
+      "headers": { "Authorization": "Bearer mv_…" }
+    }
+  }
+}</code></pre>
+            </div>
+            <p class="panel-note">The <code>/api/mcp</code> endpoint (streamable HTTP) is part of DumpCat, nothing else to install. Clients that only start a local command use <code>dumpcat mcp</code>, with <code>DUMPCAT_MCP_URL</code> and <code>DUMPCAT_MCP_TOKEN</code> in the environment.</p>
+          </div>
+          <div role="tabpanel" id="panel-md" aria-labelledby="tab-md" hidden>
+            <div class="code">
+              <div class="code-bar"><span>bash</span><button type="button" class="copy" data-target="cmd-mcp-docs">Copy</button></div>
+              <pre><code id="cmd-mcp-docs">curl -H "Authorization: Bearer $TOKEN" \
+  https://backup.example.com/api/docs.md</code></pre>
+            </div>
+            <p class="panel-note"><code>/api/docs.md</code> is the whole API reference in Markdown, written by the server itself so it always matches the version you run: authentication, conventions, curl examples and every route with the access it needs. Let an agent read it and call the REST API, or paste it into a chat (<em>API &amp; MCP → Copy Markdown</em>). <code>/api/mcp/tools</code> lists the MCP tools as JSON.</p>
           </div>
         </div>
       </div>
@@ -342,36 +446,6 @@
         <div><dt>Databases behind a firewall</dt><dd>An agent on the database host connects out to DumpCat over HTTPS, or the host joins the built-in WireGuard. No port has to be opened to the database.</dd></div>
         <div><dt>Self-update</dt><dd><code>dumpcat update</code> checks <span class="nw">SHA-256</span>, backs up the configuration, waits for running backups and rolls back on failure.</dd></div>
       </dl>
-    </div>
-  </section>
-
-  <section class="section" id="ai" aria-labelledby="ai-title">
-    <div class="wrap">
-      <div class="head">
-        <div>
-          <p class="label">AI-friendly</p>
-          <h2 id="ai-title">AI-friendly: let your AI assistant watch the backups</h2>
-        </div>
-        <p class="intro">DumpCat ships an MCP server and an API reference written in Markdown. Claude Code, Claude Desktop and other AI agents connect with an API token to ask which backups failed, read the logs and explain why; with a full-access token they can also run backups, verifications and restore drills.</p>
-      </div>
-      <div class="section-body storage-grid">
-        <dl class="oss-list">
-          <div><dt>Built-in MCP server</dt><dd>The endpoint <code>/api/mcp</code> is part of DumpCat, nothing else to install: tools for the overview, alerts, jobs, backups, logs, restores, drills and point-in-time recovery previews. Clients that start a local server over stdio use <code>dumpcat mcp</code>.</dd></div>
-          <div><dt>Safe by default</dt><dd>New tokens can only look. Restores, deletions, credentials and settings never go through MCP; answers leave out passwords, keys and tokens, and whatever an assistant starts is written to the audit log.</dd></div>
-          <div><dt>An API reference in Markdown</dt><dd><code>/api/docs.md</code> is written by the server itself: authentication, conventions, curl examples and every route with the role and token it needs. Paste it into an AI chat, or let an agent read it and call the REST API.</dd></div>
-          <div><dt>Set up in a minute</dt><dd>The <em>API &amp; MCP</em> page in DumpCat creates the token, gives you the Claude Code command and the config for Claude Desktop and other clients, and a <em>Test</em> button to check the connection.</dd></div>
-        </dl>
-        <div class="aside">
-          <h3>Connect Claude Code</h3>
-          <div class="code">
-            <div class="code-bar"><span>bash</span><button type="button" class="copy" data-target="cmd-mcp">Copy</button></div>
-            <pre><code id="cmd-mcp">claude mcp add --transport http dumpcat \
-  https://backup.example.com/api/mcp \
-  --header "Authorization: Bearer mv_…"</code></pre>
-          </div>
-          <p>Then ask in plain words: <em>“Which backups failed last night, and why?”</em>, <em>“Does shop-nightly have a backup newer than 24 hours?”</em>, <em>“Can I recover orders to 14:37 yesterday?”</em></p>
-        </div>
-      </div>
     </div>
   </section>
 
