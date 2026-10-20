@@ -1,6 +1,6 @@
-import { get, post, put } from '../api.js';
-import { html, setHTML, icon, toast, toastErr, busy, validate, formError, modal, confirmBox, copyText } from '../ui.js';
-import { setLeaveGuard } from '../app.js';
+import { get, post, put, del } from '../api.js';
+import { html, setHTML, icon, toast, toastErr, busy, validate, formError, modal, confirmBox, copyText, SECRET_MASK } from '../ui.js';
+import { setLeaveGuard, app, setBrand } from '../app.js';
 
 export const title = 'Settings';
 
@@ -10,12 +10,24 @@ const TOOLS = ['mysqldump', 'mariadb-dump', 'mysql', 'mariadb', 'mydumper', 'myl
 
 export async function render(ctx) {
   const { el } = ctx;
-  const s = await get('/settings');
+  const [s, sso] = await Promise.all([get('/settings'), get('/settings/sso')]);
+  let ssoSaved = sso.client_secret === SECRET_MASK;
+  const roleOpts = (v) => [['viewer', 'Viewer'], ['operator', 'Operator'], ['admin', 'Admin']].map(([r, n]) => html`<option value="${r}" ${v === r ? 'selected' : ''}>${n}</option>`);
   const metricsURL = (s.base_url || location.origin) + '/metrics';
   const tokenState = (prefix) => (prefix ? html`<code>${prefix}…</code>` : html`<span class="muted">none yet</span>`);
   setHTML(el, html`
     <div class="page-head"><div><h1>System settings</h1></div></div>
     <form id="set-form" autocomplete="off">
+    <div class="card" id="sec-branding"><div class="card-head"><h2>Branding</h2></div><div class="card-body"><div class="form-grid">
+      <div class="field"><label for="instance_name">Instance name</label><input type="text" id="instance_name" name="instance_name" value="${s.instance_name || ''}" maxlength="60" placeholder="DumpCat">
+        <div class="help">Shown in the sidebar, the browser tab, the sign-in page and notifications; email subjects start with it. Leave blank for DumpCat.</div></div>
+      <div class="field"><label>Logo</label>
+        <div class="inline"><img class="logo-preview" id="logo-preview" src="${app.brand.logo || '/demo/assets/favicon.svg'}" alt="Current logo" width="40" height="40">
+          <button type="button" class="btn" id="logo-upload">${icon('upload')}Upload logo</button>
+          <button type="button" class="btn btn-ghost" id="brand-reset">${icon('refresh')}Reset to default</button>
+          <input type="file" id="logo-file" class="hidden" accept="image/png,image/svg+xml,image/webp,.png,.svg,.webp" aria-label="Logo file"></div>
+        <div class="help">PNG, SVG or WebP, at most 256 KB; a square image looks best. SVGs with scripts or links to other files are refused. Emails show a PNG logo (with SVG or WebP they keep the cat). <b>Reset to default</b> brings back the name DumpCat and the cat.</div></div>
+    </div></div></div>
     <div class="card"><div class="card-head"><h2>General</h2></div><div class="card-body"><div class="form-grid">
       <div class="field"><label>Time zone (schedules &amp; backup directory names)</label><input type="text" name="timezone" value="${s.timezone}" list="tz-list" placeholder="default: the server's time zone">
         <datalist id="tz-list">${TZ.map((t) => html`<option value="${t}">`)}</datalist></div>
@@ -57,6 +69,37 @@ export async function render(ctx) {
     <div class="card"><div class="card-head"><h2>Security</h2></div><div class="card-body"><div class="form-grid">
       <div class="field"><label>Idle session timeout (hours)</label><input type="number" name="session_hours" value="${s.session_hours}" min="1" max="720"></div>
       <div class="field"><label class="check" style="margin-top:26px"><input type="checkbox" name="require_2fa_admins" ${s.require_2fa_admins ? 'checked' : ''}><span>Remind admins to enable two-factor authentication at sign-in</span></label></div>
+      <div class="field full"><label class="check"><input type="checkbox" name="allow_indexing" ${s.allow_indexing ? 'checked' : ''}><span>Let search engines index this instance<span class="help">Off (recommended): <code>/robots.txt</code> disallows everything, every answer carries <code>X-Robots-Tag: noindex, nofollow</code> and the page has a robots meta tag, so the sign-in page does not show up in search results. Turn on only for a public demo.</span></span></label></div>
+    </div></div></div>
+    <div class="card" id="sec-sso"><div class="card-head"><h2>Authentication: single sign-on (OpenID Connect)</h2></div><div class="card-body">
+      <div class="help" style="margin:0 0 12px">Sign in with Google, Microsoft Entra ID, Keycloak, Authentik or any OpenID Connect provider. Users are found by their email address (verified at the provider) and linked to their provider account at the first sign-in. Password sign-in stays available as the fallback, and accounts with two-factor authentication still enter their code after SSO.</div>
+      <div class="form-grid">
+      <div class="field full"><label class="check"><input type="checkbox" name="sso_enabled" ${sso.enabled ? 'checked' : ''}><span>Allow single sign-on<span class="help">Shows the SSO button on the sign-in page. Saving checks that the provider answers.</span></span></label></div>
+      <div class="field full"><label for="sso_issuer">Issuer URL</label><input type="url" id="sso_issuer" name="sso_issuer" value="${sso.issuer || ''}" placeholder="https://accounts.google.com" spellcheck="false">
+        <div class="help">Google: <code>https://accounts.google.com</code> · Microsoft Entra ID: <code>https://login.microsoftonline.com/&lt;tenant-id&gt;/v2.0</code> · Keycloak: <code>https://&lt;host&gt;/realms/&lt;realm&gt;</code> · Authentik: <code>https://&lt;host&gt;/application/o/&lt;slug&gt;/</code>. DumpCat reads <code>/.well-known/openid-configuration</code> from it.</div></div>
+      <div class="field"><label for="sso_client_id">Client ID</label><input type="text" id="sso_client_id" name="sso_client_id" value="${sso.client_id || ''}" autocomplete="off" spellcheck="false"></div>
+      <div class="field"><label for="sso_client_secret">Client secret</label><input type="password" id="sso_client_secret" name="sso_client_secret" value="" placeholder="${ssoSaved ? '•••••• saved — leave blank to keep' : ''}" autocomplete="new-password">
+        <div class="help">Stored encrypted with the master key, like other secrets.</div></div>
+      <div class="field full"><label>Redirect URL</label><div class="copy-box"><code id="sso-redirect">${sso.redirect_url}</code><button type="button" class="btn" id="sso-copy" title="Copy">${icon('copy')}</button></div>
+        <div class="help">Register it at the provider as the redirect (callback) URL of a web application. It follows the <b>Base URL</b> above: set that when DumpCat is behind a reverse proxy.</div></div>
+      <div class="field"><label for="sso_scopes">Scopes</label><input type="text" id="sso_scopes" name="sso_scopes" value="${sso.scopes || 'openid email profile'}" spellcheck="false"></div>
+      <div class="field"><label for="sso_button_label">Button label</label><input type="text" id="sso_button_label" name="sso_button_label" value="${sso.button_label || ''}" maxlength="60" placeholder="Sign in with SSO"></div>
+      <div class="field"><label for="sso_email_claim">Email claim</label><input type="text" id="sso_email_claim" name="sso_email_claim" value="${sso.email_claim || ''}" placeholder="email" spellcheck="false">
+        <div class="help">Where the email address is. Entra ID without the optional <code>email</code> claim: <code>preferred_username</code>.</div></div>
+      <div class="field"><label for="sso_allowed_domains">Allowed email domains</label><input type="text" id="sso_allowed_domains" name="sso_allowed_domains" value="${sso.allowed_domains || ''}" placeholder="any — e.g. example.com, example.org" spellcheck="false">
+        <div class="help">Only these addresses may sign in with SSO.</div></div>
+      <div class="field"><label class="check" style="margin-top:26px"><input type="checkbox" name="sso_auto_create" ${sso.auto_create ? 'checked' : ''}><span>Create accounts for new users<span class="help">Without it, an admin adds the user in Users first (a password is optional then).</span></span></label></div>
+      <div class="field"><label for="sso_default_role">Role of new accounts</label><select id="sso_default_role" name="sso_default_role">${roleOpts(sso.default_role || 'viewer')}</select></div>
+      <div class="field"><label for="sso_role_claim">Role from a claim (optional)</label><input type="text" id="sso_role_claim" name="sso_role_claim" value="${sso.role_claim || ''}" placeholder="groups, roles, realm_access.roles" spellcheck="false">
+        <div class="help">When set, every SSO sign-in takes the role from this claim: the highest that matches below. Users in none of these groups cannot sign in with SSO.</div></div>
+      <div class="field"><label for="sso_admin_values">Admin values</label><input type="text" id="sso_admin_values" name="sso_admin_values" value="${sso.admin_values || ''}" placeholder="e.g. dumpcat-admins" spellcheck="false"></div>
+      <div class="field"><label for="sso_operator_values">Operator values</label><input type="text" id="sso_operator_values" name="sso_operator_values" value="${sso.operator_values || ''}" placeholder="comma-separated" spellcheck="false"></div>
+      <div class="field"><label for="sso_viewer_values">Viewer values</label><input type="text" id="sso_viewer_values" name="sso_viewer_values" value="${sso.viewer_values || ''}" placeholder="comma-separated" spellcheck="false"></div>
+      <div class="field"><label for="sso_password_admins_only">Password sign-in</label><select id="sso_password_admins_only" name="sso_password_admins_only">
+        <option value="all" ${!sso.password_admins_only ? 'selected' : ''}>Everyone may still use a password</option>
+        <option value="admins" ${sso.password_admins_only ? 'selected' : ''}>Admins only: everyone else uses SSO</option></select>
+        <div class="help">Admins can always sign in with their password: the way in when the provider is down.</div></div>
+      <div class="field full"><div class="inline"><button type="button" class="btn" id="sso-test">${icon('play')}Test SSO</button><span class="help" style="margin:0">Opens the provider in a new tab with the settings above (saved or not) and shows what it sent and what a sign-in would do. Nobody is signed in.</span></div></div>
     </div></div></div>
     <div class="card"><div class="card-head"><h2>Tool paths (optional)</h2></div><div class="card-body">
       <div class="help" style="margin-bottom:12px">Leave blank to search PATH. Set these when several versions are installed (e.g. xtrabackup 8.0 and 8.4).</div>
@@ -103,6 +146,72 @@ export async function render(ctx) {
       m.el.querySelector('iframe').srcdoc = r.html;
     } catch (er) { toastErr(er); }
   });
+  const ssoBody = () => ({
+    enabled: form.sso_enabled.checked, issuer: form.sso_issuer.value.trim(), client_id: form.sso_client_id.value.trim(),
+    client_secret: form.sso_client_secret.value === '' && ssoSaved ? SECRET_MASK : form.sso_client_secret.value,
+    scopes: form.sso_scopes.value.trim(), button_label: form.sso_button_label.value.trim(), email_claim: form.sso_email_claim.value.trim(),
+    allowed_domains: form.sso_allowed_domains.value.trim(), auto_create: form.sso_auto_create.checked, default_role: form.sso_default_role.value,
+    role_claim: form.sso_role_claim.value.trim(), admin_values: form.sso_admin_values.value.trim(), operator_values: form.sso_operator_values.value.trim(),
+    viewer_values: form.sso_viewer_values.value.trim(), password_admins_only: form.sso_password_admins_only.value === 'admins',
+  });
+  el.querySelector('#sso-copy').onclick = () => copyText(el.querySelector('#sso-redirect').textContent);
+  el.querySelector('#sso-test').onclick = async (e) => {
+    // the tab opens during the click (popup blockers), then goes to the provider
+    const win = window.open('', '_blank');
+    if (win) win.opener = null;
+    await busy(e.currentTarget, async () => {
+      try {
+        const r = await post('/settings/sso/test', ssoBody());
+        if (!win) {
+          // pop-ups blocked: a link the admin clicks opens it
+          modal({ title: 'Test SSO', body: html`<p style="margin-top:0">The browser blocked the new tab. Open the provider's sign-in page: after signing in, it shows what the provider sent and what a sign-in would do.</p>
+            <a class="btn btn-primary" href="${r.url}" target="_blank" rel="noopener" data-close>${icon('play')}Open the test sign-in</a>`, footer: html`<button class="btn" data-close>Close</button>` });
+          return;
+        }
+        win.location.href = r.url;
+        toast('Sign in at the provider in the new tab: it shows the result', 'info', 8000);
+      } catch (er) {
+        if (win) win.close();
+        toastErr(er);
+      }
+    });
+  };
+  const preview = el.querySelector('#logo-preview');
+  const fileInput = el.querySelector('#logo-file');
+  // the logo is saved at once: picking a file does not leave the form with unsaved changes
+  ['input', 'change'].forEach((t) => fileInput.addEventListener(t, (e) => e.stopPropagation()));
+  el.querySelector('#logo-upload').onclick = () => fileInput.click();
+  fileInput.addEventListener('change', async () => {
+    const f = fileInput.files[0];
+    fileInput.value = '';
+    if (!f) return;
+    if (f.size > 256 * 1024) { toast('The logo must be at most 256 KB', 'bad'); return; }
+    const data = await new Promise((res, rej) => { const rd = new FileReader(); rd.onload = () => res(rd.result); rd.onerror = () => rej(rd.error); rd.readAsDataURL(f); });
+    await busy(el.querySelector('#logo-upload'), async () => {
+      try {
+        const b = await put('/branding/logo', { data });
+        setBrand(b);
+        preview.src = b.logo;
+        toast('Logo updated');
+      } catch (er) { toastErr(er); }
+    });
+  });
+  el.querySelector('#brand-reset').onclick = async (e) => {
+    const btn = e.currentTarget;
+    if (!(await confirmBox({ title: 'Reset branding', message: 'Go back to the name DumpCat and the cat logo?', okText: 'Reset' }))) return;
+    await busy(btn, async () => {
+      try {
+        const cur = await get('/settings');
+        await put('/settings', { ...cur, instance_name: '' });
+        const b = await del('/branding/logo');
+        form.instance_name.value = '';
+        s.instance_name = '';
+        setBrand(b);
+        preview.src = '/demo/assets/favicon.svg';
+        toast('Branding reset to default');
+      } catch (er) { toastErr(er); }
+    });
+  };
   let dirty = false;
   const setDirty = (v) => { dirty = v; el.querySelector('#dirty-note').textContent = v ? 'Unsaved changes' : ''; };
   form.addEventListener('input', () => setDirty(true));
@@ -116,14 +225,28 @@ export async function render(ctx) {
       const tp = {};
       form.querySelectorAll('[data-tool]').forEach((i) => { if (i.value.trim()) tp[i.dataset.tool] = i.value.trim(); });
       const body = {
+        instance_name: form.instance_name.value.trim(),
         timezone: form.timezone.value.trim(), base_url: form.base_url.value.trim(), max_concurrent: +form.max_concurrent.value,
         default_threads: +form.default_threads.value, staging_dir: form.staging_dir.value.trim(), history_days: +form.history_days.value,
         rclone_flags: form.rclone_flags.value.trim(), session_hours: +form.session_hours.value, require_2fa_admins: form.require_2fa_admins.checked, tool_paths: tp,
+        allow_indexing: form.allow_indexing.checked,
         update_url: form.update_url.value.trim(), update_auto_check: form.update_auto_check.checked,
         freshness_alerts: form.freshness_alerts.checked, stale_grace_minutes: +form.stale_grace_minutes.value, binlog_lag_minutes: +form.binlog_lag_minutes.value,
         digest_weekday: +form.digest_weekday.value, digest_hour: +form.digest_hour.value, metrics_access: form.metrics_access.value,
       };
-      try { await put('/settings', body); setDirty(false); toast('Settings saved'); } catch (er) { formError(form, er.message); }
+      try {
+        try {
+          const sv = await put('/settings/sso', ssoBody());
+          ssoSaved = sv.client_secret === SECRET_MASK;
+          app.sso = sv.enabled ? { enabled: true, label: sv.button_label || 'Sign in with SSO' } : null;
+          form.sso_client_secret.value = '';
+          form.sso_client_secret.placeholder = ssoSaved ? '•••••• saved — leave blank to keep' : '';
+        } catch (er) { formError(form, 'Single sign-on: ' + er.message); return; }
+        const saved = await put('/settings', body);
+        setDirty(false);
+        setBrand({ name: saved.instance_name || 'DumpCat' });
+        toast('Settings saved');
+      } catch (er) { formError(form, er.message); }
     });
   });
 }

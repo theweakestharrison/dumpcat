@@ -1,7 +1,7 @@
 import { get, post, setCsrf, setUnauthorizedHandler, setNewBuildHandler } from './api.js';
 import { html, setHTML, icon, on, toast, toastErr, busy, formData, closeDropdowns, dropdown, linkLabels } from './ui.js';
 
-export const app = { user: null, version: '', csrf: '' };
+export const app = { user: null, version: '', csrf: '', brand: { name: 'DumpCat', logo: '' } };
 
 const isAdmin = () => app.user && app.user.role === 'admin';
 const canOperate = () => app.user && (app.user.role === 'admin' || app.user.role === 'operator');
@@ -27,6 +27,7 @@ const NAV = [
     { path: '/users', label: 'Users', icon: 'users', admin: true },
     { path: '/settings', label: 'Settings', icon: 'sliders', admin: true },
     { path: '/system', label: 'System', icon: 'cpu' },
+    { path: '/api', label: 'API & MCP', icon: 'code' },
     { path: '/audit', label: 'Audit log', icon: 'list', admin: true },
   ] },
 ];
@@ -57,6 +58,7 @@ const ROUTES = [
   ['/system', 'system'],
   ['/audit', 'audit'],
   ['/profile', 'profile'],
+  ['/api', 'apimcp'],
 ];
 
 function matchRoute(path) {
@@ -127,7 +129,25 @@ export function setTitle(t) {
       return html`${sep}<a class="crumb" href="${p.href}">${p.label}</a>`;
     }));
   }
-  document.title = lastLabel + ' · DumpCat';
+  pageLabel = lastLabel;
+  document.title = lastLabel + ' · ' + app.brand.name;
+}
+let pageLabel = '';
+
+// ---------- branding: the instance name and logo (Settings → Branding) ----------
+const DEFAULT_LOGO = '/demo/assets/favicon.svg';
+function brandHTML() {
+  return html`<div class="brand"><img class="brand-logo" src="${app.brand.logo || DEFAULT_LOGO}" alt="" width="30" height="30"><div>${app.brand.name}<small>MySQL · MariaDB · PostgreSQL</small></div></div>`;
+}
+/** Shows a new instance name or logo in the sidebar, the tab's title and its icon. */
+export function setBrand(b) {
+  if (b) app.brand = { ...app.brand, ...b };
+  const link = document.querySelector('link[rel="icon"]');
+  if (link) {
+    if (app.brand.logo) { link.href = app.brand.logo; link.removeAttribute('type'); } else if (!link.href.endsWith('favicon.svg')) { link.href = DEFAULT_LOGO; link.type = 'image/svg+xml'; }
+  }
+  document.querySelectorAll('.brand').forEach((el) => { el.outerHTML = String(brandHTML()); });
+  document.title = pageLabel ? pageLabel + ' · ' + app.brand.name : app.brand.name;
 }
 
 let setNav = () => {};
@@ -204,7 +224,7 @@ async function route() {
       cleanup: (fn) => cleanups.push(fn),
       alive: () => seq === routeSeq,
     };
-    setTitle(mod.title || 'DumpCat');
+    setTitle(mod.title || app.brand.name);
     await mod.render(ctx);
     window.scrollTo(0, 0);
   } catch (e) {
@@ -257,7 +277,7 @@ function renderLayout() {
   const t = currentTheme();
   setHTML(root, html`<div class="app">
     <aside class="sidebar" id="sidebar">
-      <div class="brand"><img class="brand-logo" src="/demo/assets/favicon.svg" alt="" width="30" height="30"><div>DumpCat<small>MySQL · MariaDB · PostgreSQL</small></div></div>
+      ${brandHTML()}
       <nav class="nav">${navHtml}</nav>
       <div class="sidebar-foot">v${app.version} <a href="#/system" class="badge info hidden" id="upd-ind">${icon('download')}<span></span></a></div>
     </aside>
@@ -333,8 +353,10 @@ async function logout() {
 
 // ---------- auth screens ----------
 function authShell(body) {
+  pageLabel = '';
+  document.title = app.brand.name;
   return html`<div class="auth-wrap"><div class="auth-card">
-    <div class="brand"><img class="brand-logo" src="/demo/assets/favicon.svg" alt="" width="30" height="30"><div>DumpCat<small>MySQL · MariaDB · PostgreSQL</small></div></div>
+    ${brandHTML()}
     <div class="card"><div class="card-body">${body}</div></div>
     <p class="muted small" style="text-align:center;margin-top:14px">v${app.version}</p>
   </div></div>`;
@@ -358,8 +380,12 @@ function renderLogin(msg) {
       </div>
       <div id="lg-err" class="alert bad hidden" style="margin-top:14px"></div>
       <button class="btn btn-primary" style="width:100%;margin-top:18px;height:38px" type="submit">Sign in</button>
-    </form>`));
+    </form>
+    ${app.sso ? html`<div class="auth-or"><span>or</span></div>
+      <a class="btn" id="sso-btn" style="width:100%;height:38px;justify-content:center" href="/api/auth/sso/start">${icon('key')}${app.sso.label}</a>` : ''}`));
   const form = root.querySelector('#login-form');
+  const ssoBtn = root.querySelector('#sso-btn');
+  if (ssoBtn) ssoBtn.onclick = () => { ssoBtn.href = '/api/auth/sso/start' + (form.remember.checked ? '?remember=1' : ''); };
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
     const data = formData(form);
@@ -377,6 +403,37 @@ function renderLogin(msg) {
         await afterLogin(res);
         if (res.require_2fa_setup) toast('Policy requires admins to enable two-factor authentication — set it up in your Profile.', 'warn', 9000);
       } catch (err) {
+        setHTML(errEl, html`${icon('alert')}<div>${err.message}</div>`);
+        errEl.classList.remove('hidden');
+      }
+    });
+  });
+}
+
+/** The second step of a single sign-on: the account has two-factor authentication. */
+function renderSSOTOTP() {
+  const root = document.getElementById('root');
+  setHTML(root, authShell(html`
+    <h1 style="margin-bottom:4px">Two-factor code</h1>
+    <p class="muted" style="margin:0 0 18px">You signed in with single sign-on. Your account also asks for the 6-digit code from your authenticator app.</p>
+    <form id="sso-totp-form">
+      <div class="field"><label for="sso-totp">Two-factor code</label><input type="text" id="sso-totp" name="totp" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9]*" required></div>
+      <div id="st-err" class="alert bad hidden" style="margin-top:14px"></div>
+      <button class="btn btn-primary" style="width:100%;margin-top:18px;height:38px" type="submit">Continue</button>
+    </form>
+    <p class="muted small" style="text-align:center;margin:14px 0 0"><a href="#" id="sso-cancel">Sign in another way</a></p>`));
+  const form = root.querySelector('#sso-totp-form');
+  root.querySelector('#sso-totp').focus();
+  root.querySelector('#sso-cancel').onclick = (e) => { e.preventDefault(); renderLogin(); };
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const errEl = root.querySelector('#st-err');
+    errEl.classList.add('hidden');
+    await busy(form.querySelector('button[type=submit]'), async () => {
+      try {
+        await afterLogin(await post('/auth/sso/totp', { totp: form.totp.value.trim() }));
+      } catch (err) {
+        if (err.status === 401 && /expired/.test(err.message)) { renderLogin(err.message); return; }
         setHTML(errEl, html`${icon('alert')}<div>${err.message}</div>`);
         errEl.classList.remove('hidden');
       }
@@ -485,8 +542,10 @@ async function boot() {
   }
   app.version = st.version;
   app.platform = st.platform;
+  if (st.brand) setBrand(st.brand);
+  app.sso = st.sso || null;
   if (st.setup_required) return renderSetup();
-  if (!st.authenticated) return renderLogin();
+  if (!st.authenticated) return st.sso_totp ? renderSSOTOTP() : renderLogin();
   await afterLogin(st);
 }
 

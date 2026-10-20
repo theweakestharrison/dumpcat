@@ -1093,6 +1093,30 @@ route('PUT', '/users/:id', ({ p, body }) => { const u = find(db.users, p.id, 'us
 route('DELETE', '/users/:id', ({ p }) => { if (+p.id === 1) fail('you cannot delete yourself'); db.users = db.users.filter((u) => u.id !== +p.id); return { ok: true }; });
 route('POST', '/users/:id/reset-2fa', ({ p }) => { find(db.users, p.id, 'user').totp_enabled = false; return { ok: true }; });
 route('GET', '/settings', () => db.settings);
+// single sign-on: the form saves in the demo; a provider is never contacted
+const SSO_MASK = '__SECRET_UNCHANGED__';
+let sso = { enabled: false, issuer: '', client_id: '', client_secret: '', scopes: 'openid email profile', button_label: '', email_claim: '',
+  allowed_domains: '', auto_create: false, default_role: 'viewer', role_claim: '', admin_values: '', operator_values: '', viewer_values: '',
+  password_admins_only: false };
+const ssoView = () => ({ ...sso, client_secret: sso.client_secret ? SSO_MASK : '', redirect_url: 'https://backup.example.com/api/auth/sso/callback' });
+route('GET', '/settings/sso', () => ssoView());
+route('PUT', '/settings/sso', ({ body }) => {
+  if (body.enabled) notInDemo('Signing in with an identity provider');
+  const secret = body.client_secret === SSO_MASK ? sso.client_secret : (body.client_secret || '');
+  sso = { ...sso, ...body, client_secret: secret };
+  audit('sso_settings', 'settings');
+  return ssoView();
+});
+route('POST', '/settings/sso/test', () => notInDemo('Testing single sign-on'));
+// branding: the logo stays in this page (a data: URL), like everything else in the demo
+const brand = (logo) => ({ name: db.settings.instance_name || 'DumpCat', custom_name: !!db.settings.instance_name, logo });
+route('PUT', '/branding/logo', ({ body }) => {
+  const data = String(body.data || '');
+  if (!/^data:image\/(png|webp|svg\+xml);base64,/.test(data)) fail('the logo must be a PNG, SVG or WebP image');
+  audit('branding_logo', 'settings');
+  return brand(data);
+});
+route('DELETE', '/branding/logo', () => { audit('branding_logo_reset', 'settings'); return brand(''); });
 route('PUT', '/settings', ({ body }) => { Object.assign(db.settings, body); audit('settings_update', 'settings'); return db.settings; });
 route('POST', '/settings/metrics-token', () => {
   db.settings.metrics_token_prefix = 'dcm_' + Math.random().toString(36).slice(2, 8);

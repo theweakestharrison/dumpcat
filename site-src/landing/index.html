@@ -69,7 +69,7 @@
         <h1 data-i18n="h1">Backup không khóa database. <span class="soft">Khôi phục đến đúng giây bạn cần.</span></h1>
         <p class="lead" data-i18n="lead">DumpCat là một file chạy duy nhất kèm giao diện web. Nó lên lịch backup, nén và mã hóa, đẩy bản sao lên S3, Google Drive, OneDrive hay SFTP, tự kiểm tra toàn vẹn và đưa dữ liệu về khi bạn cần. Chạy trên Linux lẫn Windows, không cần internet.</p>
         <div class="cta">
-          <a class="btn btn-light" href="#install" data-i18n="cta-install">Cài đặt bản <span data-version>1.5.0</span></a>
+          <a class="btn btn-light" href="#install" data-i18n="cta-install">Cài đặt bản <span data-version>1.6.0</span></a>
           <a class="btn btn-ghost" href="/demo/" data-i18n="cta-demo">Xem giao diện</a>
           <a class="btn btn-ghost" href="https://github.com/theweakestharrison/DumpCat"><svg class="gh" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 0c4.42 0 8 3.58 8 8a8.013 8.013 0 0 1-5.45 7.59c-.4.08-.55-.17-.55-.38 0-.27.01-1.13.01-2.2 0-.75-.25-1.23-.54-1.48 1.78-.2 3.65-.88 3.65-3.95 0-.88-.31-1.59-.82-2.15.08-.2.36-1.02-.08-2.12 0 0-.67-.22-2.2.82-.64-.18-1.32-.27-2-.27-.68 0-1.36.09-2 .27-1.53-1.03-2.2-.82-2.2-.82-.44 1.1-.16 1.92-.08 2.12-.51.56-.82 1.28-.82 2.15 0 3.06 1.86 3.75 3.64 3.95-.23.2-.44.55-.51 1.07-.46.21-1.61.55-2.33-.66-.15-.24-.6-.83-1.23-.82-.67.01-.27.38.01.53.34.19.73.9.82 1.13.16.45.68 1.31 2.69.94 0 .67.01 1.3.01 1.49 0 .21-.15.45-.55.38A7.995 7.995 0 0 1 0 8c0-4.42 3.58-8 8-8Z"/></svg><span data-i18n="cta-github">Mã nguồn trên GitHub</span></a>
         </div>
@@ -150,7 +150,7 @@
           </div>
           <div role="tabpanel" id="panel-windows" aria-labelledby="tab-windows" hidden>
             <ol class="win-steps">
-              <li><span data-i18n="i-win-1"><b>Tải file .zip</b></span> <a class="btn btn-solid dl" data-pkg="windows" href="https://downloads.dumpcat.cc/1.5.0/dumpcat-1.5.0-windows-amd64.zip"><span data-i18n="i-win-dl">Tải cho Windows</span> <small data-version>1.5.0</small></a></li>
+              <li><span data-i18n="i-win-1"><b>Tải file .zip</b></span> <a class="btn btn-solid dl" data-pkg="windows" href="https://downloads.dumpcat.cc/1.6.0/dumpcat-1.6.0-windows-amd64.zip"><span data-i18n="i-win-dl">Tải cho Windows</span> <small data-version>1.6.0</small></a></li>
               <li data-i18n="i-win-2"><b>Giải nén</b>: chuột phải vào file, chọn <i>Extract All</i>.</li>
               <li data-i18n="i-win-3"><b>Bấm đúp <i>Install DumpCat</i></b> rồi chọn <i>Yes</i>. Trình duyệt tự mở DumpCat, cửa sổ cài đặt hiện mã thiết lập.</li>
             </ol>
@@ -388,14 +388,14 @@ go build -o dumpcat ./cmd/dumpcat</code></pre>
       <div class="section-body release" id="release" hidden>
         <div class="release-files">
           <div class="pkgs">
-            <a class="pkg" id="pkg-linux" href="https://downloads.dumpcat.cc/1.5.0/dumpcat-1.5.0-linux.tar.gz">
+            <a class="pkg" id="pkg-linux" href="https://downloads.dumpcat.cc/1.6.0/dumpcat-1.6.0-linux.tar.gz">
               <span class="pkg-os">Linux</span>
-              <span class="pkg-file" id="pkg-linux-file">dumpcat-1.5.0-linux.tar.gz</span>
+              <span class="pkg-file" id="pkg-linux-file">dumpcat-1.6.0-linux.tar.gz</span>
               <span class="pkg-desc" data-i18n="d-linux">amd64 và arm64, script cài đặt, service systemd và hướng dẫn</span>
             </a>
-            <a class="pkg" id="pkg-windows" href="https://downloads.dumpcat.cc/1.5.0/dumpcat-1.5.0-windows-amd64.zip">
+            <a class="pkg" id="pkg-windows" href="https://downloads.dumpcat.cc/1.6.0/dumpcat-1.6.0-windows-amd64.zip">
               <span class="pkg-os">Windows</span>
-              <span class="pkg-file" id="pkg-windows-file">dumpcat-1.5.0-windows-amd64.zip</span>
+              <span class="pkg-file" id="pkg-windows-file">dumpcat-1.6.0-windows-amd64.zip</span>
               <span class="pkg-desc" data-i18n="d-windows">64-bit, script cài Windows service và hướng dẫn</span>
             </a>
           </div>
@@ -413,7 +413,7 @@ go build -o dumpcat ./cmd/dumpcat</code></pre>
 
 <footer class="foot">
   <div class="wrap">
-    <a class="brand" href="#top"><svg aria-hidden="true"><use href="#dc-logo"/></svg>DumpCat <span data-version>1.5.0</span></a>
+    <a class="brand" href="#top"><svg aria-hidden="true"><use href="#dc-logo"/></svg>DumpCat <span data-version>1.6.0</span></a>
     <p data-i18n="foot">Mã nguồn mở theo giấy phép Apache-2.0, mã nguồn trên <a href="https://github.com/theweakestharrison/DumpCat">GitHub</a>. <a href="/vi/compare/">So sánh với các công cụ khác</a>. Hướng dẫn đầy đủ bằng tiếng Anh và tiếng Việt có sẵn trong mọi gói cài đặt.</p>
     <p class="foot-mail" data-i18n="foot-mail">Hỗ trợ: <a href="mailto:fat@dumpcat.cc">fat@dumpcat.cc</a></p>
   </div>

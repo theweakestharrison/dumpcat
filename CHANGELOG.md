@@ -6,7 +6,7 @@ page at dumpcat.cc/changelog/ (see `scripts/build-site.py`). Newest version
 first. Each section: `## <version> (<date>)`, a one-line summary, then `###`
 groups of bullets.
 
-## 1.6.0
+## 1.6.0 (2026-10-20)
 
 An API & MCP page to connect AI assistants and scripts, the API reference in Markdown, single sign-on with OpenID
 Connect, an instance name and logo, and installed instances kept out of search engines.

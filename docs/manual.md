@@ -156,9 +156,9 @@ Or download the package yourself: the latest version, its release notes and chec
 [dumpcat.cc](https://dumpcat.cc/#download), and the packages are served from `https://downloads.dumpcat.cc/<version>/`.
 
 ```bash
-curl -fLO https://downloads.dumpcat.cc/1.5.0/dumpcat-1.5.0-linux.tar.gz
-tar xzf dumpcat-1.5.0-linux.tar.gz
-cd dumpcat-1.5.0-linux
+curl -fLO https://downloads.dumpcat.cc/1.6.0/dumpcat-1.6.0-linux.tar.gz
+tar xzf dumpcat-1.6.0-linux.tar.gz
+cd dumpcat-1.6.0-linux
 sudo ./install.sh
 ```
 
@@ -228,9 +228,9 @@ irm https://dumpcat.cc/install.ps1 | iex
 or the same steps by hand:
 
 ```powershell
-Invoke-WebRequest https://downloads.dumpcat.cc/1.5.0/dumpcat-1.5.0-windows-amd64.zip -OutFile dumpcat-1.5.0-windows-amd64.zip
-Expand-Archive dumpcat-1.5.0-windows-amd64.zip -DestinationPath .
-cd dumpcat-1.5.0-windows-amd64
+Invoke-WebRequest https://downloads.dumpcat.cc/1.6.0/dumpcat-1.6.0-windows-amd64.zip -OutFile dumpcat-1.6.0-windows-amd64.zip
+Expand-Archive dumpcat-1.6.0-windows-amd64.zip -DestinationPath .
+cd dumpcat-1.6.0-windows-amd64
 powershell -ExecutionPolicy Bypass -File .\install.ps1
 ```
 
@@ -288,7 +288,7 @@ UPDATE_URL=https://downloads.dumpcat.cc ./build.sh
 
 ```
 https://downloads.dumpcat.cc/latest.json
-https://downloads.dumpcat.cc/1.5.0/dumpcat-linux-amd64    (… -linux-arm64, -windows-amd64.exe, SHA256SUMS, packages)
+https://downloads.dumpcat.cc/1.6.0/dumpcat-linux-amd64    (… -linux-arm64, -windows-amd64.exe, SHA256SUMS, packages)
 ```
 
 Upload the version folder first and `latest.json` last, so that installations never see a release whose files are not there yet.
@@ -1264,7 +1264,7 @@ starts a local server. Check the settings first:
 
 ```bash
 dumpcat mcp -check
-# OK: DumpCat 1.5.0 at https://backup.example.com/api/mcp (MCP 2025-11-25)
+# OK: DumpCat 1.6.0 at https://backup.example.com/api/mcp (MCP 2025-11-25)
 # Signed in as alice (role operator) with a read-only token: you can see what the account can see and change nothing
 # 15 tools: get_overview, get_monitoring, list_servers, …
 ```

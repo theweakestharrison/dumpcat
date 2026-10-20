@@ -600,6 +600,10 @@ route('POST', '/me/tokens', ({ body }) => {
   return { item, token: item.prefix + 'xDemoTokenNotUsable0000000000000' };
 });
 route('DELETE', '/me/tokens/:id', ({ p }) => { db.tokens = db.tokens.filter((x) => x.id !== +p.id); return { ok: true }; });
+// API & MCP: the tools and the Markdown reference come from the Go code (scripts/demotypes)
+const DEMO_ORIGIN = 'https://backup.example.com';
+route('GET', '/mcp/tools', () => ({ endpoint: DEMO_ORIGIN + '/api/mcp', docs: DEMO_ORIGIN + '/api/docs.md', origin: DEMO_ORIGIN, version: VERSION,
+  protocol_versions: ['2025-11-25'], tools: TYPES.mcp_tools || [] }));
 route('POST', '/me/totp/setup', () => notInDemo('Two-factor setup'));
 route('POST', '/me/totp/enable', () => notInDemo('Two-factor setup'));
 route('POST', '/me/totp/disable', () => notInDemo('Two-factor setup'));
@@ -1089,6 +1093,30 @@ route('PUT', '/users/:id', ({ p, body }) => { const u = find(db.users, p.id, 'us
 route('DELETE', '/users/:id', ({ p }) => { if (+p.id === 1) fail('you cannot delete yourself'); db.users = db.users.filter((u) => u.id !== +p.id); return { ok: true }; });
 route('POST', '/users/:id/reset-2fa', ({ p }) => { find(db.users, p.id, 'user').totp_enabled = false; return { ok: true }; });
 route('GET', '/settings', () => db.settings);
+// single sign-on: the form saves in the demo; a provider is never contacted
+const SSO_MASK = '__SECRET_UNCHANGED__';
+let sso = { enabled: false, issuer: '', client_id: '', client_secret: '', scopes: 'openid email profile', button_label: '', email_claim: '',
+  allowed_domains: '', auto_create: false, default_role: 'viewer', role_claim: '', admin_values: '', operator_values: '', viewer_values: '',
+  password_admins_only: false };
+const ssoView = () => ({ ...sso, client_secret: sso.client_secret ? SSO_MASK : '', redirect_url: 'https://backup.example.com/api/auth/sso/callback' });
+route('GET', '/settings/sso', () => ssoView());
+route('PUT', '/settings/sso', ({ body }) => {
+  if (body.enabled) notInDemo('Signing in with an identity provider');
+  const secret = body.client_secret === SSO_MASK ? sso.client_secret : (body.client_secret || '');
+  sso = { ...sso, ...body, client_secret: secret };
+  audit('sso_settings', 'settings');
+  return ssoView();
+});
+route('POST', '/settings/sso/test', () => notInDemo('Testing single sign-on'));
+// branding: the logo stays in this page (a data: URL), like everything else in the demo
+const brand = (logo) => ({ name: db.settings.instance_name || 'DumpCat', custom_name: !!db.settings.instance_name, logo });
+route('PUT', '/branding/logo', ({ body }) => {
+  const data = String(body.data || '');
+  if (!/^data:image\/(png|webp|svg\+xml);base64,/.test(data)) fail('the logo must be a PNG, SVG or WebP image');
+  audit('branding_logo', 'settings');
+  return brand(data);
+});
+route('DELETE', '/branding/logo', () => { audit('branding_logo_reset', 'settings'); return brand(''); });
 route('PUT', '/settings', ({ body }) => { Object.assign(db.settings, body); audit('settings_update', 'settings'); return db.settings; });
 route('POST', '/settings/metrics-token', () => {
   db.settings.metrics_token_prefix = 'dcm_' + Math.random().toString(36).slice(2, 8);
@@ -1149,6 +1177,27 @@ export async function api(method, path, body) {
     }
   }
   throw new ApiError(`${method} ${p} is not part of the demo`, 404);
+}
+
+/** The Markdown API reference (/docs.md), as the server writes it. */
+export async function getText(path) {
+  await new Promise((res) => setTimeout(res, 60));
+  if (path === '/docs.md' && TYPES.api_reference) return TYPES.api_reference;
+  throw new ApiError(`GET ${path} is not part of the demo`, 404);
+}
+
+/** The MCP endpoint, as an assistant with a demo token sees it. */
+export async function mcpRequest(token, method) {
+  await new Promise((res) => setTimeout(res, 200));
+  const t = db.tokens.find((x) => token.startsWith(x.prefix));
+  if (!t) throw new ApiError('invalid API token', 401);
+  const tools = (TYPES.mcp_tools || []).filter((x) => t.access === 'full' || !x.write);
+  if (method === 'initialize') {
+    const access = t.access === 'full' ? 'with full access' : 'with a read-only token';
+    return { protocolVersion: '2025-11-25', serverInfo: { name: 'dumpcat', title: 'DumpCat', version: VERSION }, instructions: `Signed in as demo (role admin) ${access}.` };
+  }
+  if (method === 'tools/list') return { tools: tools.map((x) => ({ name: x.name, title: x.title, description: x.description })) };
+  throw new ApiError(`${method} is not part of the demo`, 400);
 }
 
 export const get = (p) => api('GET', p);

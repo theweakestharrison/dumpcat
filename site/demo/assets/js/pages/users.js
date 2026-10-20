@@ -13,11 +13,13 @@ const ROLES = [
 export async function render(ctx) {
   const { el } = ctx;
   let list = await get('/users');
+  const sso = await get('/settings/sso').catch(() => null);
+  const ssoOn = !!(sso && sso.enabled);
   const draw = () => {
     setHTML(el, html`
       <div class="page-head"><div><h1>Users</h1><div class="sub">Sign-in accounts and permissions</div></div><button class="btn btn-primary" id="add">${icon('plus')}Add user</button></div>
       <div class="card"><div class="table-wrap"><table class="table"><thead><tr><th>Username</th><th>Role</th><th>2FA</th><th>Status</th><th class="hide-sm">Last sign-in</th><th></th></tr></thead><tbody>
-        ${list.map((u) => html`<tr><td><b>${u.username}</b>${u.id === app.user.id ? html` <span class="badge info">you</span>` : ''}<div class="sub">${u.email}</div></td>
+        ${list.map((u) => html`<tr><td><b>${u.username}</b>${u.id === app.user.id ? html` <span class="badge info">you</span>` : ''}${u.sso ? html` <span class="badge outline" title="Linked to a single sign-on account${u.has_password ? '' : ' (no password)'}">SSO</span>` : ''}<div class="sub">${u.email}</div></td>
           <td><span class="badge outline">${ROLES.find((r) => r[0] === u.role)?.[1] || u.role}</span></td>
           <td>${u.totp_enabled ? html`<span class="badge good">${icon('shield')}On</span>` : html`<span class="muted">Off</span>`}</td>
           <td>${u.disabled ? html`<span class="badge bad">${icon('lock')}Locked</span>` : html`<span class="badge good">${icon('check')}Active</span>`}</td>
@@ -36,17 +38,18 @@ export async function render(ctx) {
       title: u ? `Edit: ${u.username}` : 'Add user',
       body: html`<form id="u-form" autocomplete="off">
         <div class="field"><label class="req">Username</label><input type="text" name="username" value="${u ? u.username : ''}" ${u ? 'disabled' : 'required'}></div>
-        <div class="field" style="margin-top:12px"><label>Email</label><input type="email" name="email" value="${u ? u.email : ''}"></div>
+        <div class="field" style="margin-top:12px"><label>Email</label><input type="email" name="email" value="${u ? u.email : ''}">${ssoOn ? html`<div class="help">Single sign-on finds the account by this address.</div>` : ''}</div>
         <div class="field" style="margin-top:12px"><label>Role</label><select name="role">${ROLES.map(([v, n]) => html`<option value="${v}" ${u && u.role === v ? 'selected' : ''} ${!u && v === 'operator' ? 'selected' : ''}>${n}</option>`)}</select></div>
-        <div class="field" style="margin-top:12px"><label class="${u ? '' : 'req'}">${u ? 'New password (leave blank to keep)' : 'Password (min. 8 characters)'}</label><input type="password" name="password" autocomplete="new-password" minlength="8" ${u ? '' : 'required'}></div>
+        <div class="field" style="margin-top:12px"><label class="${u || ssoOn ? '' : 'req'}">${u ? 'New password (leave blank to keep)' : ssoOn ? 'Password (optional: without one, the user signs in with SSO)' : 'Password (min. 8 characters)'}</label><input type="password" name="password" autocomplete="new-password" minlength="8" ${u || ssoOn ? '' : 'required'}></div>
         ${u ? html`<label class="check" style="margin-top:12px"><input type="checkbox" name="disabled" ${u.disabled ? 'checked' : ''}><span>Lock account</span></label>` : ''}
+        ${u && u.sso ? html`<label class="check" style="margin-top:12px"><input type="checkbox" name="unlink_sso"><span>Unlink the single sign-on account<span class="help">The next SSO sign-in finds the user by email address again (e.g. after the account was recreated at the provider).</span></span></label>` : ''}
       </form>`,
       footer: html`<button class="btn" data-close>Cancel</button><button class="btn btn-primary" id="save">${icon('check')}Save</button>`,
     });
     const form = m.el.querySelector('#u-form');
     bindModalForm(form, m.el.querySelector('#save'), async () => {
       const d = formData(form);
-      if (u) await put(`/users/${u.id}`, { email: d.email, role: d.role, disabled: !!d.disabled, password: d.password });
+      if (u) await put(`/users/${u.id}`, { email: d.email, role: d.role, disabled: !!d.disabled, password: d.password, unlink_sso: !!d.unlink_sso });
       else await post('/users', d);
       m.close();
       toast('Saved');

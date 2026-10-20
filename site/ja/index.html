@@ -1,0 +1,468 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<!-- Written by scripts/build-site.py from site-src/landing/ (index.html, en.html, <lang>.html): edit those, then run it. -->
+<title>DumpCat：MySQL、MariaDB、PostgreSQL のバックアップとポイントインタイムリカバリ</title>
+<meta name="description" content="DumpCat：MySQL、MariaDB、PostgreSQL のバックアップ、リストア、ポイントインタイムリカバリを、Web UI 付きのシングルバイナリで。">
+<!-- Release server read by app.js. If you move it, also update connect-src in _headers. -->
+<meta name="dumpcat-release-base" content="https://downloads.dumpcat.cc/">
+<link rel="canonical" href="https://dumpcat.cc/ja/">
+<link rel="alternate" hreflang="en" href="https://dumpcat.cc/">
+<link rel="alternate" hreflang="vi" href="https://dumpcat.cc/vi/">
+<link rel="alternate" hreflang="zh-Hans" href="https://dumpcat.cc/zh/">
+<link rel="alternate" hreflang="ja" href="https://dumpcat.cc/ja/">
+<link rel="alternate" hreflang="ko" href="https://dumpcat.cc/ko/">
+<link rel="alternate" hreflang="es" href="https://dumpcat.cc/es/">
+<link rel="alternate" hreflang="pt-BR" href="https://dumpcat.cc/pt/">
+<link rel="alternate" hreflang="de" href="https://dumpcat.cc/de/">
+<link rel="alternate" hreflang="fr" href="https://dumpcat.cc/fr/">
+<link rel="alternate" hreflang="x-default" href="https://dumpcat.cc/">
+<meta property="og:url" content="https://dumpcat.cc/ja/">
+<meta property="og:locale" content="ja_JP">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<meta property="og:type" content="website">
+<meta property="og:title" content="DumpCat：MySQL、MariaDB、PostgreSQL のバックアップとポイントインタイムリカバリ">
+<meta property="og:description" content="データベースをロックしないバックアップ。秒単位でピンポイントにリカバリ。Web UI 付きのセルフホスト型シングルバイナリ。">
+<meta property="og:site_name" content="DumpCat">
+<!-- og.png is rendered from og-image.html; see docs/website.vi.md -->
+<meta property="og:image" content="https://dumpcat.cc/og.png">
+<meta property="og:image:type" content="image/png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="DumpCat：データベースをロックしないバックアップと、秒単位のピンポイントリカバリ。ポイントインタイムリカバリのタイムライン。">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="DumpCat：MySQL、MariaDB、PostgreSQL のバックアップとポイントインタイムリカバリ">
+<meta name="twitter:description" content="データベースをロックしないバックアップ。秒単位でピンポイントにリカバリ。Web UI 付きのセルフホスト型シングルバイナリ。">
+<meta name="twitter:image" content="https://dumpcat.cc/og.png">
+<meta name="twitter:image:alt" content="DumpCat：データベースをロックしないバックアップと、秒単位のピンポイントリカバリ。">
+<meta name="theme-color" content="#1f5fbf">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=Bricolage+Grotesque:opsz,wdth,wght@12..96,75..100,400..800&family=JetBrains+Mono:wght@400;600&display=swap">
+<link rel="stylesheet" href="/style.css">
+<script src="/app.js" defer></script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "DumpCat",
+  "url": "https://dumpcat.cc/ja/",
+  "description": "MySQL、MariaDB、PostgreSQL のためのオープンソースのバックアップ、リストア、ポイントインタイムリカバリ。Web UI 付きのセルフホスト型シングルバイナリ。",
+  "applicationCategory": "DeveloperApplication",
+  "operatingSystem": "Linux, Windows",
+  "license": "https://www.apache.org/licenses/LICENSE-2.0",
+  "isAccessibleForFree": true,
+  "offers": {
+    "@type": "Offer",
+    "price": "0",
+    "priceCurrency": "USD"
+  },
+  "downloadUrl": "https://dumpcat.cc/ja/#download",
+  "image": "https://dumpcat.cc/og.png",
+  "sameAs": [
+    "https://github.com/theweakestharrison/DumpCat"
+  ],
+  "author": {
+    "@type": "Person",
+    "name": "theweakestharrison",
+    "url": "https://github.com/theweakestharrison"
+  }
+}
+</script>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <linearGradient id="dc-bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#3a86e8"/><stop offset="1" stop-color="#1c56b0"/></linearGradient>
+    <symbol id="dc-logo" viewBox="0 0 64 64"><rect width="64" height="64" rx="15" fill="url(#dc-bg)"/><path d="M47.5 45.5c7.5 0 10.5-5.5 7.8-11.5" fill="none" stroke="#fff" stroke-width="4.2" stroke-linecap="round"/><path d="M15.6 25 18.4 7.6 30.5 17.5z" fill="#fff"/><path d="M48.4 25 45.6 7.6 33.5 17.5z" fill="#fff"/><path d="M19.4 18.6 20.4 12.4 25.6 16.4z" fill="#f9a8c9"/><path d="M44.6 18.6 43.6 12.4 38.4 16.4z" fill="#f9a8c9"/><path d="M15 21v24c0 3.9 7.6 7 17 7s17-3.1 17-7V21z" fill="#fff"/><ellipse cx="32" cy="21" rx="17" ry="7" fill="#d6e6fb"/><path d="M15 38c0 3.9 7.6 7 17 7s17-3.1 17-7" fill="none" stroke="#1c56b0" stroke-opacity=".28" stroke-width="2.4"/><circle cx="25.4" cy="31" r="2.5" fill="#1b2433"/><circle cx="38.6" cy="31" r="2.5" fill="#1b2433"/><path d="M30.1 34.2h3.8L32 36.4z" fill="#f27aa8"/></symbol>
+  </defs>
+</svg>
+
+<header class="hero">
+  <div class="wrap">
+    <div class="topbar">
+      <a class="brand" href="#top" id="top"><svg aria-hidden="true"><use href="#dc-logo"/></svg>DumpCat</a>
+      <nav class="nav" aria-label="セクション">
+        <a href="#methods">機能</a>
+        <a href="#ai">AI</a>
+        <a href="#compare">比較</a>
+        <a href="/demo/">プレビュー</a>
+        <a href="/changelog/">新着情報</a>
+        <a class="nav-gh" href="https://github.com/theweakestharrison/DumpCat" aria-label="GitHub" title="GitHub"><svg class="gh" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 0c4.42 0 8 3.58 8 8a8.013 8.013 0 0 1-5.45 7.59c-.4.08-.55-.17-.55-.38 0-.27.01-1.13.01-2.2 0-.75-.25-1.23-.54-1.48 1.78-.2 3.65-.88 3.65-3.95 0-.88-.31-1.59-.82-2.15.08-.2.36-1.02-.08-2.12 0 0-.67-.22-2.2.82-.64-.18-1.32-.27-2-.27-.68 0-1.36.09-2 .27-1.53-1.03-2.2-.82-2.2-.82-.44 1.1-.16 1.92-.08 2.12-.51.56-.82 1.28-.82 2.15 0 3.06 1.86 3.75 3.64 3.95-.23.2-.44.55-.51 1.07-.46.21-1.61.55-2.33-.66-.15-.24-.6-.83-1.23-.82-.67.01-.27.38.01.53.34.19.73.9.82 1.13.16.45.68 1.31 2.69.94 0 .67.01 1.3.01 1.49 0 .21-.15.45-.55.38A7.995 7.995 0 0 1 0 8c0-4.42 3.58-8 8-8Z"/></svg></a>
+      </nav>
+      <a class="nav-cta" href="#install">インストール</a>
+      <details class="lang-menu">
+        <summary aria-label="言語" title="言語"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.6 3.8 5.6 3.8 9s-1.3 6.4-3.8 9c-2.5-2.6-3.8-5.6-3.8-9S9.5 5.6 12 3z"/></svg><span>JA</span></summary>
+        <ul class="lang-list"><li><a href="/" hreflang="en" lang="en">English<span>EN</span></a></li><li><a href="/vi/" hreflang="vi" lang="vi">Tiếng Việt<span>VI</span></a></li><li><a href="/zh/" hreflang="zh-Hans" lang="zh-Hans">简体中文<span>ZH</span></a></li><li><a href="/ja/" hreflang="ja" lang="ja" aria-current="true">日本語<span>JA</span></a></li><li><a href="/ko/" hreflang="ko" lang="ko">한국어<span>KO</span></a></li><li><a href="/es/" hreflang="es" lang="es">Español<span>ES</span></a></li><li><a href="/pt/" hreflang="pt-BR" lang="pt-BR">Português<span>PT</span></a></li><li><a href="/de/" hreflang="de" lang="de">Deutsch<span>DE</span></a></li><li><a href="/fr/" hreflang="fr" lang="fr">Français<span>FR</span></a></li></ul>
+      </details>
+    </div>
+
+    <div class="hero-main">
+      <div class="hero-copy">
+        <p class="eyebrow">オープンソース · MySQL、MariaDB、PostgreSQL のバックアップとリストア</p>
+        <h1>データベースをロックしないバックアップ。<span class="soft">秒単位でピンポイントにリカバリ。</span></h1>
+        <p class="lead">DumpCat は Web UI 付きのシングルバイナリです。バックアップをスケジュール実行し、圧縮・暗号化して S3、Google Drive、OneDrive、SFTP にコピーを送り、検証まで行い、いざというときにはデータを確実に取り戻します。Linux と Windows で動作し、完全オフラインでも使えます。</p>
+        <div class="cta">
+          <a class="btn btn-light" href="#install"><span data-version>1.6.0</span> をインストール</a>
+          <a class="btn btn-ghost" href="/demo/">UI をプレビュー</a>
+          <a class="btn btn-ghost" href="https://github.com/theweakestharrison/DumpCat"><svg class="gh" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 0c4.42 0 8 3.58 8 8a8.013 8.013 0 0 1-5.45 7.59c-.4.08-.55-.17-.55-.38 0-.27.01-1.13.01-2.2 0-.75-.25-1.23-.54-1.48 1.78-.2 3.65-.88 3.65-3.95 0-.88-.31-1.59-.82-2.15.08-.2.36-1.02-.08-2.12 0 0-.67-.22-2.2.82-.64-.18-1.32-.27-2-.27-.68 0-1.36.09-2 .27-1.53-1.03-2.2-.82-2.2-.82-.44 1.1-.16 1.92-.08 2.12-.51.56-.82 1.28-.82 2.15 0 3.06 1.86 3.75 3.64 3.95-.23.2-.44.55-.51 1.07-.46.21-1.61.55-2.33-.66-.15-.24-.6-.83-1.23-.82-.67.01-.27.38.01.53.34.19.73.9.82 1.13.16.45.68 1.31 2.69.94 0 .67.01 1.3.01 1.49 0 .21-.15.45-.55.38A7.995 7.995 0 0 1 0 8c0-4.42 3.58-8 8-8Z"/></svg><span>GitHub でソースを見る</span></a>
+        </div>
+        <p class="compat"><b>MySQL</b> 5.7 · 8.0 · 8.4 &nbsp;/&nbsp; <b>Percona Server</b> &nbsp;/&nbsp; <b>MariaDB</b> 10.x · 11.x &nbsp;/&nbsp; <b>PostgreSQL</b> 10+</p>
+      </div>
+      <div class="hero-mark" aria-hidden="true"><svg viewBox="0 0 64 64"><use href="#dc-logo"/></svg></div>
+    </div>
+
+    <section class="pitr" id="pitr" aria-labelledby="pitr-title">
+      <div class="pitr-head">
+        <h2 id="pitr-title">ポイントインタイムリカバリ</h2>
+        <span class="tag">シミュレーション</span>
+      </div>
+      <p class="pitr-sub">誰かが 14:37:12 に <code>orders</code> テーブルを誤って DROP しました。マーカーをドラッグしてリカバリポイントを選ぶと、DumpCat が最新のベースバックアップと、再生すべき binlog ファイルを選び出します。PostgreSQL でも、アーカイブ済みの WAL を使って同じように動作します。</p>
+
+      <div class="tl">
+        <div class="tl-track" id="tl-track">
+          <div class="tl-stream" style="width:90.7407%"></div>
+          <div class="tl-replay" id="tl-replay" style="left:11.1111%;width:70.1096%"></div>
+          <div class="tl-pin" style="left:11.1111%"><span>full · 02:00</span></div>
+          <div class="tl-incident" style="left:81.2222%"><span>DROP TABLE orders · 14:37:12</span></div>
+          <div class="tl-now" style="left:90.7407%"><span>現在</span></div>
+          <input class="tl-range" id="tl-range" type="range" min="0" max="58800" step="1" value="52631" style="width:calc(90.7407% + 14px)" aria-label="復旧する時点" aria-valuetext="14:37:11">
+        </div>
+        <div class="tl-axis" aria-hidden="true">
+          <span style="left:0%">00:00</span><span style="left:16.6667%">03:00</span><span style="left:33.3333%">06:00</span><span style="left:50%">09:00</span><span style="left:66.6667%">12:00</span><span style="left:83.3333%">15:00</span><span style="left:100%">18:00</span>
+        </div>
+      </div>
+
+      <ul class="legend">
+        <li><span class="sw sw-backup"></span><span>フルバックアップ（mysqldump）</span></li>
+        <li><span class="sw sw-binlog"></span><span>アーカイブ済みの binlog（1 ファイルあたり最大 15 分）</span></li>
+        <li><span class="sw sw-replay"></span><span>リストア時に再生される範囲</span></li>
+        <li><span class="sw sw-incident"></span><span>障害</span></li>
+      </ul>
+
+      <div class="readout" aria-live="polite">
+        <dl>
+          <dt>復旧する時点</dt>
+          <dd id="ro-to">18/10/2026 14:37:11</dd>
+          <dt>ベースバックアップ</dt>
+          <dd id="ro-base">20261018-020000-full<small>mysqldump · 整合性のある時刻 02:00:03</small></dd>
+          <dt>再生する binlog</dt>
+          <dd id="ro-replay">mysql-bin.000123 → mysql-bin.000173<small>51 ファイル、データに触れる前にすべて検証</small></dd>
+        </dl>
+        <div class="readout-side">
+          <span class="status ok" id="ro-status">障害の前：orders テーブルは無事です</span>
+          <button type="button" class="btn-small" id="tl-snap">障害の直前へジャンプ</button>
+        </div>
+      </div>
+    </section>
+  </div>
+</header>
+
+<main>
+  <section class="section" id="install" aria-labelledby="install-title">
+    <div class="wrap">
+      <div class="head">
+        <div>
+          <p class="label">インストール</p>
+          <h2 id="install-title">1 分で動き出す</h2>
+        </div>
+        <p class="intro">Linux ならコマンド 1 つ、Windows ならダウンロードしてダブルクリックするだけ。インストーラーが、マシンの起動時に開始するサービスと、データベースのバージョンに合ったバックアップツールをセットアップします。Web UI は 1 つのファイルに組み込まれています。</p>
+      </div>
+      <div class="section-body install-grid">
+        <div class="install-cmd">
+          <div class="tabs" role="tablist" aria-label="オペレーティングシステム">
+            <button type="button" role="tab" id="tab-linux" aria-controls="panel-linux" aria-selected="true">Linux</button>
+            <button type="button" role="tab" id="tab-windows" aria-controls="panel-windows" aria-selected="false" tabindex="-1">Windows</button>
+          </div>
+          <div role="tabpanel" id="panel-linux" aria-labelledby="tab-linux">
+            <p class="panel-lead">Linux サーバーで次のコマンドを貼り付け、Enter キーを押します：</p>
+            <div class="code">
+              <div class="code-bar"><span>bash</span><button type="button" class="copy" data-target="cmd-linux">コピー</button></div>
+              <pre><code id="cmd-linux">curl -fsSL https://dumpcat.cc/install.sh | sudo sh</code></pre>
+            </div>
+            <p class="panel-note">最新リリースをダウンロードしてチェックサムを検証し、systemd サービスとして <code>/opt/dumpcat</code> にインストールします。<code>rclone</code>、MySQL/MariaDB クライアント、対応する mariabackup または XtraBackup に加え、リポジトリにあれば mydumper も導入されます。<wbr><code>--postgres 16</code> を付けると PostgreSQL 16 のクライアントツールが追加されます。オプションは <code>sh -s --</code> の後ろに指定します：<wbr><code>--port 9090</code>、<wbr><code>--listen 127.0.0.1</code>、<wbr><code>--tls-auto</code>。</p>
+          </div>
+          <div role="tabpanel" id="panel-windows" aria-labelledby="tab-windows" hidden>
+            <ol class="win-steps">
+              <li><span><b>.zip をダウンロード</b></span> <a class="btn btn-solid dl" data-pkg="windows" href="https://downloads.dumpcat.cc/1.6.0/dumpcat-1.6.0-windows-amd64.zip"><span>Windows 版をダウンロード</span> <small data-version>1.6.0</small></a></li>
+              <li><b>展開する</b>：ファイルを右クリックして <i>Extract All</i>（すべて展開）を選びます。</li>
+              <li><b><i>Install DumpCat</i> をダブルクリック</b>し、<i>Yes</i>（はい）を選びます。ブラウザーで DumpCat が開き、インストールウィンドウにセットアップトークンが表示されます。</li>
+            </ol>
+            <p class="panel-note">Windows 10 / 11 または Windows Server 2016 以降の 64 ビット版で、Windows サービスとして動作します。PowerShell を使いたい場合は、PowerShell（管理者）で <code>irm https://dumpcat.cc/install.ps1 | iex</code> を実行してください。MySQL 用の mydumper と XtraBackup は使えないため、数百 GB 規模のデータベースには Linux 上の DumpCat をおすすめします。</p>
+          </div>
+          <p class="guide-link">コマンドラインに慣れていない方は、<a href="/install/">ステップごとのガイド</a>（英語）をどうぞ。よくあるトラブルの対処法も載っています。</p>
+        </div>
+        <div class="install-steps">
+          <h3 class="steps-title">インストール後の手順</h3>
+          <ol class="steps">
+            <li><div><b><code>http://&lt;server-ip&gt;:6369</code> を開く</b><span>インストーラーが表示する 1 回限りのセットアップトークンで admin アカウントを作成します（再表示：<code>dumpcat setup-token</code>）。</span></div></li>
+            <li><div><b>データベースサーバーを追加</b><span>Test connection で、不足している権限と使える方式が一覧表示されます。</span></div></li>
+            <li><div><b>ストレージを追加</b><span>Test を押すと、ファイルの書き込み・読み込み・削除を試します。</span></div></li>
+            <li><div><b>バックアップジョブを作成</b><span>スケジュール、暗号化、ストレージ、保持ルールを選んで、Save &amp; run now をクリックします。</span></div></li>
+          </ol>
+        </div>
+        <div class="meow">
+          <div class="keys" aria-hidden="true">
+            <div class="key"><b>6</b><i><em>M</em>NO</i></div>
+            <div class="key"><b>3</b><i>D<em>E</em>F</i></div>
+            <div class="key"><b>6</b><i>MN<em>O</em></i></div>
+            <div class="key"><b>9</b><i><em>W</em>XYZ</i></div>
+          </div>
+          <div class="meow-text">
+            <p class="meow-title">ポート 6369 は <em>MEOW</em></p>
+            <p>電話のキーパッドの英字で 6-3-6-9 と打つと MEOW（英語で猫の「ニャー」）。これが Web UI のデフォルトポートです。</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="methods" aria-labelledby="methods-title">
+    <div class="wrap">
+      <div class="head">
+        <div>
+          <p class="label">バックアップ方式</p>
+          <h2 id="methods-title">データベースと規模に合わせて、最適なツールを</h2>
+        </div>
+        <p class="intro">MySQL と MariaDB では、DumpCat が <code>mysqldump</code>、<code>mydumper</code>、XtraBackup / MariaBackup を使い分けます。サーバーを追加するときに <em>Test connection</em> を押すと、バージョン、datadir、各データベースのサイズ、そのマシンで使える方式が表示されます。</p>
+      </div>
+      <div class="section-body table-scroll">
+        <table>
+          <thead>
+            <tr><th scope="col"></th><th scope="col">mysqldump<small>論理</small></th><th scope="col">mydumper<small>論理・並列</small></th><th scope="col">XtraBackup / MariaBackup<small>物理・ホット</small></th></tr>
+          </thead>
+          <tbody>
+            <tr><th scope="row">データベースのロック</th><td data-m="mysqldump"><code>--single-transaction</code> により InnoDB ではロックなし</td><td data-m="mydumper">スレッド同期のため数ミリ秒だけグローバルロック、その後はなし</td><td data-m="物理">InnoDB はロックなし。最後にごく短いバックアップロックのみ</td></tr>
+            <tr><th scope="row">バックアップ速度</th><td data-m="mysqldump">データベースごとに 1 スレッド、複数のデータベースを並列処理</td><td data-m="mydumper">マルチスレッド、テーブルを行単位で分割</td><td data-m="物理">最速：マルチスレッドでファイルをコピー</td></tr>
+            <tr><th scope="row">リストア速度</th><td data-m="mysqldump">最も遅い</td><td data-m="mydumper">速い：並列処理、インデックスはロード後に構築</td><td data-m="物理">非常に速い：ファイルコピー + prepare</td></tr>
+            <tr><th scope="row">増分バックアップ</th><td class="no" data-m="mysqldump">非対応</td><td class="no" data-m="mydumper">非対応</td><td class="yes" data-m="物理">対応</td></tr>
+            <tr><th scope="row">単一データベースのリストア（別名も可）</th><td class="yes" data-m="mysqldump">可能</td><td class="yes" data-m="mydumper">可能</td><td class="no" data-m="物理">不可（インスタンス全体のみ）</td></tr>
+            <tr class="fit"><th scope="row">最適な用途</th><td data-m="mysqldump">20〜50 GB 未満のデータベース</td><td data-m="mydumper">1 つずつリストアする大規模データベース</td><td data-m="物理">100 GB〜数 TB、短い RTO</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="conn-note"><b>PostgreSQL</b> 10 以降：データベースごとの <code>pg_dump</code>（テーブルを並列でダンプ・リストアでき、別名や別サーバーへのリストアも可能）と、レプリケーション接続でクラスタ全体を取得する <code>pg_basebackup</code>。継続的な WAL アーカイブにより、指定した時刻、リストアポイント、WAL 位置までリカバリできます。</p>
+    </div>
+  </section>
+
+  <section class="section" id="storage" aria-labelledby="storage-title">
+    <div class="wrap">
+      <div class="head">
+        <div>
+          <p class="label">ストレージ</p>
+          <h2 id="storage-title">1 つのジョブで、コピーを複数の場所に</h2>
+        </div>
+        <p class="intro">ローカルディスクに書き出してからアップロードすることも、一時ディスクを使わずクラウドへ直接ストリーミングすることもできます。保持する世代数はストレージごとに設定でき、たとえばローカルに 3 世代、S3 に 30 日分を残せます。</p>
+      </div>
+      <div class="section-body storage-grid">
+        <ul class="targets">
+          <li><b>ローカル / NFS</b><span>リストアが最速。datadir とは別のディスクに</span></li>
+          <li><b>S3</b><span>AWS、Cloudflare R2、MinIO、Wasabi、DigitalOcean</span></li>
+          <li><b>Google Drive</b><span>OAuth またはサービスアカウント</span></li>
+          <li><b>OneDrive</b><span>SharePoint にも対応</span></li>
+          <li><b>FTP / FTPS</b><span>明示的 TLS・暗黙的 TLS</span></li>
+          <li><b>SFTP</b><span>パスワードまたは秘密鍵</span></li>
+          <li><b>WebDAV</b><span>Nextcloud など</span></li>
+          <li><b>Backblaze B2</b><span>Azure Blob と Dropbox にも対応</span></li>
+          <li><b>rclone</b><span>さらに 70 以上のバックエンド</span></li>
+        </ul>
+        <div class="aside">
+          <h3>標準フォーマットだから、ロックインなし</h3>
+          <div class="code">
+            <pre><code><span class="c">&lt;storage&gt;/</span>
+  shop-nightly/
+    20261018-020000-full/
+      manifest.json      <span class="c"># sha256, binlog, GTID</span>
+      shop.sql.zst.age
+      crm.sql.zst.age
+      _users.sql.zst.age <span class="c"># users &amp; grants</span>
+    binlog/20261018/
+      mysql-bin.000123.zst.age</code></pre>
+          </div>
+          <p>DumpCat を動かしていたマシンを失っても大丈夫。新しくインストールし、ストレージを追加し直して <em>Import backup catalog</em> をクリックすれば、すべてのバックアップが再び一覧に並びます。DumpCat がなくても、<code>age</code>、<code>zstd</code>、<code>mysql</code> または <code>pg_restore</code> でリストアできます。</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="connect" aria-labelledby="connect-title">
+    <div class="wrap">
+      <div class="head">
+        <div>
+          <p class="label">接続</p>
+          <h2 id="connect-title">ポートを開けなくても、バックアップできる。</h2>
+        </div>
+        <p class="intro">ファイアウォールや NAT、あるいは 127.0.0.1 でしか待ち受けていないといった理由で、バックアップサーバーからデータベースに直接接続できない場合は、逆にデータベースホストから DumpCat へ接続させます。方法は 2 つあり、どちらもデータベースホストのポートを開ける必要はありません。バックアップ、リストア、ポイントインタイムリカバリは直接接続のときと同じように動作します。</p>
+      </div>
+      <div class="section-body connect-grid">
+        <article class="conn">
+          <h3><span>エージェント</span> <span class="conn-tag">HTTPS</span></h3>
+          <figure class="topo-canvas"><svg class="tp tp-h" viewBox="0 0 760 300" role="img" aria-label="エージェント：データベースホストがファイアウォール越しに DumpCat への接続を開く"><defs><pattern id="br-agent-h" width="24" height="14" patternUnits="userSpaceOnUse"><rect class="tp-brick-bg" width="24" height="14"/><path class="tp-brick-line" d="M0 .7H24M0 7.7H24M6 .7V7.7M18 7.7V14"/></pattern></defs><rect class="tp-panel" x="12" y="24" width="228" height="252" rx="18"/><use href="#dc-logo" x="28" y="40" width="34" height="34"/><text class="tp-title" x="74" y="55">DumpCat</text><text class="tp-sub" x="74" y="71">バックアップサーバー</text><rect class="tp-chip" x="28" y="92" width="196" height="54" rx="12"/><rect class="tp-ico-bg" x="38" y="104" width="30" height="30" rx="8"/><svg class="tp-ico" x="44" y="110" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="5" rx="1"/><path d="M5 9v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V9M10 13h4"/></svg><text class="tp-chip-t" x="78" y="115">バックアップ/リストア</text><text class="tp-chip-s" x="78" y="132">mysqldump · mydumper</text><path class="tp-conn" d="M126 146V168"/><text class="tp-mono" x="134" y="161">127.0.0.1:port</text><rect class="tp-chip accent" x="28" y="168" width="196" height="54" rx="12"/><rect class="tp-ico-bg" x="38" y="180" width="30" height="30" rx="8"/><svg class="tp-ico" x="44" y="186" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 14a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1"/><path d="M14 10a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1"/></svg><text class="tp-chip-t" x="78" y="191">エージェント接続口</text><text class="tp-chip-s" x="78" y="208">HTTPS · Web UI ポート</text><circle class="tp-ok-dot" cx="33" cy="252" r="3.5"/><text class="tp-foot" x="43" y="256">HTTPS でアクセス可能</text><rect class="tp-panel" x="520" y="24" width="228" height="252" rx="18"/><rect class="tp-ico-bg big" x="536" y="40" width="34" height="34" rx="9"/><svg class="tp-ico" x="544" y="48" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="7" rx="2"/><rect x="3" y="13" width="18" height="7" rx="2"/><path d="M7 7.5h.01M7 16.5h.01"/></svg><text class="tp-title" x="582" y="55">データベースホスト</text><text class="tp-sub" x="582" y="71">受信ポートなし</text><rect class="tp-chip" x="536" y="92" width="196" height="54" rx="12"/><g class="tp-cyl"><path d="M548 107v22c0 3.3 5.8 6 13 6s13-2.7 13-6v-22"/><ellipse cx="561" cy="107" rx="13" ry="5"/><path d="M548 118c0 3.3 5.8 6 13 6s13-2.7 13-6"/></g><text class="tp-chip-t" x="586" y="115">MySQL / MariaDB</text><text class="tp-chip-s" x="586" y="132">変更なし · 127.0.0.1 のみ</text><path class="tp-conn" d="M634 146V168"/><text class="tp-mono" x="642" y="161">127.0.0.1:3306</text><rect class="tp-chip accent" x="536" y="168" width="196" height="54" rx="12"/><rect class="tp-ico-bg" x="546" y="180" width="30" height="30" rx="8"/><svg class="tp-ico" x="552" y="186" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 14a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1"/><path d="M14 10a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1"/></svg><text class="tp-chip-t" x="586" y="191">dumpcat agent</text><text class="tp-chip-s" x="586" y="208">許可リスト 127.0.0.1:3306</text><svg class="tp-ico" x="536" y="245" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="10" width="16" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg><text class="tp-foot" x="556" y="256">このホストでは何も開けない</text><text class="tp-wall-t" x="380" y="30" text-anchor="middle">ファイアウォール / NAT</text><rect class="tp-wall" x="362" y="38" width="36" height="226" rx="6" fill="url(#br-agent-h)"/><rect class="tp-pipe" x="222" y="185" width="316" height="20" rx="10"/><rect class="tp-rim" x="357" y="180" width="7" height="30" rx="3.5"/><rect class="tp-rim" x="396" y="180" width="7" height="30" rx="3.5"/><g class="tp-dots"><circle class="tp-dot out" r="4" cx="530" cy="195" opacity="0"><set attributeName="opacity" to="1" begin="0.0s"/><animateMotion dur="2.7s" begin="0.0s" repeatCount="indefinite" path="M0 0L-300 0"/></circle><circle class="tp-dot in" r="3" cx="230" cy="195" opacity="0"><set attributeName="opacity" to="1" begin="0.45s"/><animateMotion dur="2.7s" begin="0.45s" repeatCount="indefinite" path="M0 0L300 0"/></circle><circle class="tp-dot out" r="4" cx="530" cy="195" opacity="0"><set attributeName="opacity" to="1" begin="0.9s"/><animateMotion dur="2.7s" begin="0.9s" repeatCount="indefinite" path="M0 0L-300 0"/></circle><circle class="tp-dot in" r="3" cx="230" cy="195" opacity="0"><set attributeName="opacity" to="1" begin="1.35s"/><animateMotion dur="2.7s" begin="1.35s" repeatCount="indefinite" path="M0 0L300 0"/></circle><circle class="tp-dot out" r="4" cx="530" cy="195" opacity="0"><set attributeName="opacity" to="1" begin="1.8s"/><animateMotion dur="2.7s" begin="1.8s" repeatCount="indefinite" path="M0 0L-300 0"/></circle><circle class="tp-dot in" r="3" cx="230" cy="195" opacity="0"><set attributeName="opacity" to="1" begin="2.25s"/><animateMotion dur="2.7s" begin="2.25s" repeatCount="indefinite" path="M0 0L300 0"/></circle></g><rect class="tp-pill" x="244" y="148" width="272" height="24" rx="12"/><text class="tp-pill-t" x="380" y="164" text-anchor="middle">← HTTPS · データベースホストから接続</text><path class="tp-block" d="M240 244H346"/><circle class="tp-x-bg" cx="356" cy="244" r="10"/><path class="tp-x" d="M352 240l8 8M360 240l-8 8"/><text class="tp-block-t" x="293" y="236" text-anchor="middle">3306 受信</text><text class="tp-block-s" x="293" y="262" text-anchor="middle">遮断・開放不要</text></svg><svg class="tp tp-v" viewBox="0 0 340 640" role="img" aria-label="エージェント：データベースホストがファイアウォール越しに DumpCat への接続を開く"><defs><pattern id="br-agent-v" width="24" height="14" patternUnits="userSpaceOnUse"><rect class="tp-brick-bg" width="24" height="14"/><path class="tp-brick-line" d="M0 .7H24M0 7.7H24M6 .7V7.7M18 7.7V14"/></pattern></defs><rect class="tp-panel" x="10" y="10" width="320" height="240" rx="18"/><use href="#dc-logo" x="26" y="26" width="34" height="34"/><text class="tp-title" x="72" y="41">DumpCat</text><text class="tp-sub" x="72" y="57">バックアップサーバー</text><rect class="tp-chip" x="26" y="78" width="288" height="54" rx="12"/><rect class="tp-ico-bg" x="36" y="90" width="30" height="30" rx="8"/><svg class="tp-ico" x="42" y="96" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="5" rx="1"/><path d="M5 9v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V9M10 13h4"/></svg><text class="tp-chip-t" x="76" y="101">バックアップ/リストア</text><text class="tp-chip-s" x="76" y="118">mysqldump · mydumper</text><path class="tp-conn" d="M120 132V154"/><text class="tp-mono" x="128" y="147">127.0.0.1:port</text><rect class="tp-chip accent" x="26" y="154" width="288" height="54" rx="12"/><rect class="tp-ico-bg" x="36" y="166" width="30" height="30" rx="8"/><svg class="tp-ico" x="42" y="172" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 14a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1"/><path d="M14 10a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1"/></svg><text class="tp-chip-t" x="76" y="177">エージェント接続口</text><text class="tp-chip-s" x="76" y="194">HTTPS · Web UI ポート</text><circle class="tp-ok-dot" cx="31" cy="232" r="3.5"/><text class="tp-foot" x="41" y="236">HTTPS でアクセス可能</text><rect class="tp-wall" x="20" y="298" width="300" height="32" rx="6" fill="url(#br-agent-v)"/><text class="tp-wall-t" x="318" y="350" text-anchor="end">ファイアウォール / NAT</text><rect class="tp-pipe" x="160" y="204" width="20" height="248" rx="10"/><rect class="tp-rim" x="155" y="293" width="30" height="7" rx="3.5"/><rect class="tp-rim" x="155" y="328" width="30" height="7" rx="3.5"/><g class="tp-dots"><circle class="tp-dot out" r="4" cx="170" cy="446" opacity="0"><set attributeName="opacity" to="1" begin="0.0s"/><animateMotion dur="2.7s" begin="0.0s" repeatCount="indefinite" path="M0 0L0 -234"/></circle><circle class="tp-dot in" r="3" cx="170" cy="212" opacity="0"><set attributeName="opacity" to="1" begin="0.45s"/><animateMotion dur="2.7s" begin="0.45s" repeatCount="indefinite" path="M0 0L0 234"/></circle><circle class="tp-dot out" r="4" cx="170" cy="446" opacity="0"><set attributeName="opacity" to="1" begin="0.9s"/><animateMotion dur="2.7s" begin="0.9s" repeatCount="indefinite" path="M0 0L0 -234"/></circle><circle class="tp-dot in" r="3" cx="170" cy="212" opacity="0"><set attributeName="opacity" to="1" begin="1.35s"/><animateMotion dur="2.7s" begin="1.35s" repeatCount="indefinite" path="M0 0L0 234"/></circle><circle class="tp-dot out" r="4" cx="170" cy="446" opacity="0"><set attributeName="opacity" to="1" begin="1.8s"/><animateMotion dur="2.7s" begin="1.8s" repeatCount="indefinite" path="M0 0L0 -234"/></circle><circle class="tp-dot in" r="3" cx="170" cy="212" opacity="0"><set attributeName="opacity" to="1" begin="2.25s"/><animateMotion dur="2.7s" begin="2.25s" repeatCount="indefinite" path="M0 0L0 234"/></circle></g><rect class="tp-pill" x="62" y="256" width="216" height="34" rx="12"/><text class="tp-pill-t" x="170" y="270" text-anchor="middle">↑ HTTPS</text><text class="tp-pill-s" x="170" y="284" text-anchor="middle">データベースホストから接続</text><path class="tp-block" d="M40 250V288"/><circle class="tp-x-bg" cx="40" cy="298" r="10"/><path class="tp-x" d="M36 294l8 8M44 294l-8 8"/><text class="tp-block-t" x="22" y="352">3306 受信</text><text class="tp-block-s" x="22" y="367">遮断・開放不要</text><rect class="tp-panel" x="10" y="380" width="320" height="250" rx="18"/><rect class="tp-ico-bg big" x="26" y="396" width="34" height="34" rx="9"/><svg class="tp-ico" x="34" y="404" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="7" rx="2"/><rect x="3" y="13" width="18" height="7" rx="2"/><path d="M7 7.5h.01M7 16.5h.01"/></svg><text class="tp-title" x="72" y="411">データベースホスト</text><text class="tp-sub" x="72" y="427">受信ポートなし</text><rect class="tp-chip accent" x="26" y="448" width="288" height="54" rx="12"/><rect class="tp-ico-bg" x="36" y="460" width="30" height="30" rx="8"/><svg class="tp-ico" x="42" y="466" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 14a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1"/><path d="M14 10a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1"/></svg><text class="tp-chip-t" x="76" y="471">dumpcat agent</text><text class="tp-chip-s" x="76" y="488">許可リスト 127.0.0.1:3306</text><path class="tp-conn" d="M120 502V524"/><text class="tp-mono" x="128" y="517">127.0.0.1:3306</text><rect class="tp-chip" x="26" y="524" width="288" height="54" rx="12"/><g class="tp-cyl"><path d="M38 539v22c0 3.3 5.8 6 13 6s13-2.7 13-6v-22"/><ellipse cx="51" cy="539" rx="13" ry="5"/><path d="M38 550c0 3.3 5.8 6 13 6s13-2.7 13-6"/></g><text class="tp-chip-t" x="76" y="547">MySQL / MariaDB</text><text class="tp-chip-s" x="76" y="564">変更なし · 127.0.0.1 のみ</text><svg class="tp-ico" x="26" y="599" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="10" width="16" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg><text class="tp-foot" x="46" y="610">このホストでは何も開けない</text></svg><figcaption class="tp-legend"><span><i class="out"></i>データベースホストがトンネルを開く</span><span><i class="in"></i>DumpCat のデータベース通信はその中を逆向きに流れる</span></figcaption></figure>
+          <dl class="conn-facts">
+            <div><dt>データベースホストに必要なもの</dt><dd>DumpCat へのアウトバウンド HTTPS</dd></div>
+            <div><dt>データベース</dt><dd>変更不要。127.0.0.1 だけで待ち受けていても大丈夫</dd></div>
+            <div><dt>インストール</dt><dd><code>sudo ./install.sh --agent --server … --key …</code></dd></div>
+            <div><dt>向いているケース</dt><dd>ネットワークや MySQL の設定に手を加えたくない場合</dd></div>
+          </dl>
+        </article>
+        <article class="conn">
+          <h3><span>内蔵 WireGuard</span> <span class="conn-tag">UDP · デフォルトで無効</span></h3>
+          <figure class="topo-canvas"><svg class="tp tp-h" viewBox="0 0 760 300" role="img" aria-label="WireGuard：データベースホストがファイアウォール越しに DumpCat へのトンネルを開く"><defs><pattern id="br-wg-h" width="24" height="14" patternUnits="userSpaceOnUse"><rect class="tp-brick-bg" width="24" height="14"/><path class="tp-brick-line" d="M0 .7H24M0 7.7H24M6 .7V7.7M18 7.7V14"/></pattern></defs><rect class="tp-panel" x="12" y="24" width="228" height="252" rx="18"/><use href="#dc-logo" x="28" y="40" width="34" height="34"/><text class="tp-title" x="74" y="55">DumpCat</text><text class="tp-sub" x="74" y="71">バックアップサーバー</text><rect class="tp-chip" x="28" y="92" width="196" height="54" rx="12"/><rect class="tp-ico-bg" x="38" y="104" width="30" height="30" rx="8"/><svg class="tp-ico" x="44" y="110" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="5" rx="1"/><path d="M5 9v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V9M10 13h4"/></svg><text class="tp-chip-t" x="78" y="115">バックアップ/リストア</text><text class="tp-chip-s" x="78" y="132">mysqldump · mydumper</text><path class="tp-conn" d="M126 146V168"/><text class="tp-mono" x="134" y="161">127.0.0.1:port</text><rect class="tp-chip accent" x="28" y="168" width="196" height="54" rx="12"/><rect class="tp-ico-bg" x="38" y="180" width="30" height="30" rx="8"/><svg class="tp-ico" x="44" y="186" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l8 3v6c0 4.5-3.4 8.4-8 9-4.6-.6-8-4.5-8-9V6z"/><path d="M9 12l2 2 4-4"/></svg><text class="tp-chip-t" x="78" y="191">内蔵 WireGuard</text><text class="tp-chip-s" x="78" y="208">10.66.0.1 · UDP 51820</text><circle class="tp-ok-dot" cx="33" cy="252" r="3.5"/><text class="tp-foot" x="43" y="256">UDP 51820 を開放</text><rect class="tp-panel" x="520" y="24" width="228" height="252" rx="18"/><rect class="tp-ico-bg big" x="536" y="40" width="34" height="34" rx="9"/><svg class="tp-ico" x="544" y="48" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="7" rx="2"/><rect x="3" y="13" width="18" height="7" rx="2"/><path d="M7 7.5h.01M7 16.5h.01"/></svg><text class="tp-title" x="582" y="55">データベースホスト</text><text class="tp-sub" x="582" y="71">受信ポートなし</text><rect class="tp-chip" x="536" y="92" width="196" height="54" rx="12"/><g class="tp-cyl"><path d="M548 107v22c0 3.3 5.8 6 13 6s13-2.7 13-6v-22"/><ellipse cx="561" cy="107" rx="13" ry="5"/><path d="M548 118c0 3.3 5.8 6 13 6s13-2.7 13-6"/></g><text class="tp-chip-t" x="586" y="115">MySQL / MariaDB</text><text class="tp-chip-s" x="586" y="132">10.66.0.2 で待ち受け</text><path class="tp-conn" d="M634 146V168"/><text class="tp-mono" x="642" y="161">10.66.0.2:3306</text><rect class="tp-chip accent" x="536" y="168" width="196" height="54" rx="12"/><rect class="tp-ico-bg" x="546" y="180" width="30" height="30" rx="8"/><svg class="tp-ico" x="552" y="186" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l8 3v6c0 4.5-3.4 8.4-8 9-4.6-.6-8-4.5-8-9V6z"/><path d="M9 12l2 2 4-4"/></svg><text class="tp-chip-t" x="586" y="191">wg-quick@dumpcat</text><text class="tp-chip-s" x="586" y="208">10.66.0.2 · keepalive 25 秒</text><svg class="tp-ico" x="536" y="245" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="10" width="16" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg><text class="tp-foot" x="556" y="256">このホストでは何も開けない</text><text class="tp-wall-t" x="380" y="30" text-anchor="middle">ファイアウォール / NAT</text><rect class="tp-wall" x="362" y="38" width="36" height="226" rx="6" fill="url(#br-wg-h)"/><rect class="tp-pipe" x="222" y="185" width="316" height="20" rx="10"/><rect class="tp-rim" x="357" y="180" width="7" height="30" rx="3.5"/><rect class="tp-rim" x="396" y="180" width="7" height="30" rx="3.5"/><g class="tp-dots"><circle class="tp-dot out" r="4" cx="530" cy="195" opacity="0"><set attributeName="opacity" to="1" begin="0.0s"/><animateMotion dur="2.7s" begin="0.0s" repeatCount="indefinite" path="M0 0L-300 0"/></circle><circle class="tp-dot in" r="3" cx="230" cy="195" opacity="0"><set attributeName="opacity" to="1" begin="0.45s"/><animateMotion dur="2.7s" begin="0.45s" repeatCount="indefinite" path="M0 0L300 0"/></circle><circle class="tp-dot out" r="4" cx="530" cy="195" opacity="0"><set attributeName="opacity" to="1" begin="0.9s"/><animateMotion dur="2.7s" begin="0.9s" repeatCount="indefinite" path="M0 0L-300 0"/></circle><circle class="tp-dot in" r="3" cx="230" cy="195" opacity="0"><set attributeName="opacity" to="1" begin="1.35s"/><animateMotion dur="2.7s" begin="1.35s" repeatCount="indefinite" path="M0 0L300 0"/></circle><circle class="tp-dot out" r="4" cx="530" cy="195" opacity="0"><set attributeName="opacity" to="1" begin="1.8s"/><animateMotion dur="2.7s" begin="1.8s" repeatCount="indefinite" path="M0 0L-300 0"/></circle><circle class="tp-dot in" r="3" cx="230" cy="195" opacity="0"><set attributeName="opacity" to="1" begin="2.25s"/><animateMotion dur="2.7s" begin="2.25s" repeatCount="indefinite" path="M0 0L300 0"/></circle></g><rect class="tp-pill" x="244" y="148" width="272" height="24" rx="12"/><text class="tp-pill-t" x="380" y="164" text-anchor="middle">← WireGuard UDP · データベースホストから接続</text><path class="tp-block" d="M240 244H346"/><circle class="tp-x-bg" cx="356" cy="244" r="10"/><path class="tp-x" d="M352 240l8 8M360 240l-8 8"/><text class="tp-block-t" x="293" y="236" text-anchor="middle">3306 受信</text><text class="tp-block-s" x="293" y="262" text-anchor="middle">遮断・開放不要</text></svg><svg class="tp tp-v" viewBox="0 0 340 640" role="img" aria-label="WireGuard：データベースホストがファイアウォール越しに DumpCat へのトンネルを開く"><defs><pattern id="br-wg-v" width="24" height="14" patternUnits="userSpaceOnUse"><rect class="tp-brick-bg" width="24" height="14"/><path class="tp-brick-line" d="M0 .7H24M0 7.7H24M6 .7V7.7M18 7.7V14"/></pattern></defs><rect class="tp-panel" x="10" y="10" width="320" height="240" rx="18"/><use href="#dc-logo" x="26" y="26" width="34" height="34"/><text class="tp-title" x="72" y="41">DumpCat</text><text class="tp-sub" x="72" y="57">バックアップサーバー</text><rect class="tp-chip" x="26" y="78" width="288" height="54" rx="12"/><rect class="tp-ico-bg" x="36" y="90" width="30" height="30" rx="8"/><svg class="tp-ico" x="42" y="96" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="5" rx="1"/><path d="M5 9v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V9M10 13h4"/></svg><text class="tp-chip-t" x="76" y="101">バックアップ/リストア</text><text class="tp-chip-s" x="76" y="118">mysqldump · mydumper</text><path class="tp-conn" d="M120 132V154"/><text class="tp-mono" x="128" y="147">127.0.0.1:port</text><rect class="tp-chip accent" x="26" y="154" width="288" height="54" rx="12"/><rect class="tp-ico-bg" x="36" y="166" width="30" height="30" rx="8"/><svg class="tp-ico" x="42" y="172" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l8 3v6c0 4.5-3.4 8.4-8 9-4.6-.6-8-4.5-8-9V6z"/><path d="M9 12l2 2 4-4"/></svg><text class="tp-chip-t" x="76" y="177">内蔵 WireGuard</text><text class="tp-chip-s" x="76" y="194">10.66.0.1 · UDP 51820</text><circle class="tp-ok-dot" cx="31" cy="232" r="3.5"/><text class="tp-foot" x="41" y="236">UDP 51820 を開放</text><rect class="tp-wall" x="20" y="298" width="300" height="32" rx="6" fill="url(#br-wg-v)"/><text class="tp-wall-t" x="318" y="350" text-anchor="end">ファイアウォール / NAT</text><rect class="tp-pipe" x="160" y="204" width="20" height="248" rx="10"/><rect class="tp-rim" x="155" y="293" width="30" height="7" rx="3.5"/><rect class="tp-rim" x="155" y="328" width="30" height="7" rx="3.5"/><g class="tp-dots"><circle class="tp-dot out" r="4" cx="170" cy="446" opacity="0"><set attributeName="opacity" to="1" begin="0.0s"/><animateMotion dur="2.7s" begin="0.0s" repeatCount="indefinite" path="M0 0L0 -234"/></circle><circle class="tp-dot in" r="3" cx="170" cy="212" opacity="0"><set attributeName="opacity" to="1" begin="0.45s"/><animateMotion dur="2.7s" begin="0.45s" repeatCount="indefinite" path="M0 0L0 234"/></circle><circle class="tp-dot out" r="4" cx="170" cy="446" opacity="0"><set attributeName="opacity" to="1" begin="0.9s"/><animateMotion dur="2.7s" begin="0.9s" repeatCount="indefinite" path="M0 0L0 -234"/></circle><circle class="tp-dot in" r="3" cx="170" cy="212" opacity="0"><set attributeName="opacity" to="1" begin="1.35s"/><animateMotion dur="2.7s" begin="1.35s" repeatCount="indefinite" path="M0 0L0 234"/></circle><circle class="tp-dot out" r="4" cx="170" cy="446" opacity="0"><set attributeName="opacity" to="1" begin="1.8s"/><animateMotion dur="2.7s" begin="1.8s" repeatCount="indefinite" path="M0 0L0 -234"/></circle><circle class="tp-dot in" r="3" cx="170" cy="212" opacity="0"><set attributeName="opacity" to="1" begin="2.25s"/><animateMotion dur="2.7s" begin="2.25s" repeatCount="indefinite" path="M0 0L0 234"/></circle></g><rect class="tp-pill" x="62" y="256" width="216" height="34" rx="12"/><text class="tp-pill-t" x="170" y="270" text-anchor="middle">↑ WireGuard UDP</text><text class="tp-pill-s" x="170" y="284" text-anchor="middle">データベースホストから接続</text><path class="tp-block" d="M40 250V288"/><circle class="tp-x-bg" cx="40" cy="298" r="10"/><path class="tp-x" d="M36 294l8 8M44 294l-8 8"/><text class="tp-block-t" x="22" y="352">3306 受信</text><text class="tp-block-s" x="22" y="367">遮断・開放不要</text><rect class="tp-panel" x="10" y="380" width="320" height="250" rx="18"/><rect class="tp-ico-bg big" x="26" y="396" width="34" height="34" rx="9"/><svg class="tp-ico" x="34" y="404" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="7" rx="2"/><rect x="3" y="13" width="18" height="7" rx="2"/><path d="M7 7.5h.01M7 16.5h.01"/></svg><text class="tp-title" x="72" y="411">データベースホスト</text><text class="tp-sub" x="72" y="427">受信ポートなし</text><rect class="tp-chip accent" x="26" y="448" width="288" height="54" rx="12"/><rect class="tp-ico-bg" x="36" y="460" width="30" height="30" rx="8"/><svg class="tp-ico" x="42" y="466" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l8 3v6c0 4.5-3.4 8.4-8 9-4.6-.6-8-4.5-8-9V6z"/><path d="M9 12l2 2 4-4"/></svg><text class="tp-chip-t" x="76" y="471">wg-quick@dumpcat</text><text class="tp-chip-s" x="76" y="488">10.66.0.2 · keepalive 25 秒</text><path class="tp-conn" d="M120 502V524"/><text class="tp-mono" x="128" y="517">10.66.0.2:3306</text><rect class="tp-chip" x="26" y="524" width="288" height="54" rx="12"/><g class="tp-cyl"><path d="M38 539v22c0 3.3 5.8 6 13 6s13-2.7 13-6v-22"/><ellipse cx="51" cy="539" rx="13" ry="5"/><path d="M38 550c0 3.3 5.8 6 13 6s13-2.7 13-6"/></g><text class="tp-chip-t" x="76" y="547">MySQL / MariaDB</text><text class="tp-chip-s" x="76" y="564">10.66.0.2 で待ち受け</text><svg class="tp-ico" x="26" y="599" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="10" width="16" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg><text class="tp-foot" x="46" y="610">このホストでは何も開けない</text></svg><figcaption class="tp-legend"><span><i class="out"></i>データベースホストがトンネルを開く</span><span><i class="in"></i>DumpCat のデータベース通信はその中を逆向きに流れる</span></figcaption></figure>
+          <dl class="conn-facts">
+            <div><dt>データベースホストに必要なもの</dt><dd>標準の WireGuard と、DumpCat へのアウトバウンド UDP 51820</dd></div>
+            <div><dt>データベース</dt><dd>VPN アドレスで待ち受け、データベースユーザーに 10.66.0.1 からの接続を許可</dd></div>
+            <div><dt>インストール</dt><dd>WireGuard ページで有効にし、<code>dumpcat.conf</code> をコピーして <code>systemctl enable --now wg-quick@dumpcat</code></dd></div>
+            <div><dt>向いているケース</dt><dd>すでに WireGuard を使っているチーム、またはデータベースネットワーク全体へのゲートウェイとして</dd></div>
+          </dl>
+        </article>
+      </div>
+      <p class="conn-note">接続を開くのはデータベースホスト側で、データはその中を双方向に流れます。物理バックアップ（XtraBackup / MariaBackup）は、<wbr><code>--allow-physical</code> を付けて起動したエージェント経由で動作します。WireGuard 経由の場合は、従来どおりデータベースホストに DumpCat をインストールする必要があります。</p>
+    </div>
+  </section>
+
+  <section class="section" id="ops" aria-labelledby="ops-title">
+    <div class="wrap">
+      <div class="head">
+        <div>
+          <p class="label">運用</p>
+          <h2 id="ops-title">自前のスクリプトに頼っていた部分も、すべて標準装備</h2>
+        </div>
+        <p class="intro">どれも DumpCat に標準で含まれ、Web UI からオン・オフや調整ができます。</p>
+      </div>
+      <dl class="section-body ops">
+        <div><dt>アップロード前に暗号化</dt><dd>age（ChaCha20-Poly1305 + scrypt）があなたのサーバー上で動くので、クラウド事業者はデータを読めません。</dd></div>
+        <div><dt>整合性チェック</dt><dd>すべてのファイルに <span class="nw">SHA-256</span>。検証では再読み込み、復号、展開を行い、<code>Dump completed</code> 行があるかを確認します。</dd></div>
+        <div><dt>GFS 世代管理</dt><dd>N 個のバックアップ、N 日分、各日・各週・各月の最後の 1 つを保持。増分チェーンは、元のフルバックアップと一緒にしか削除されません。</dd></div>
+        <div><dt>慎重なリストア</dt><dd>データベースを DROP する前に、すべてのファイルを試験的に復号します。別名でのリストアや、別のサーバー・バージョンへのリストアも可能です（MySQL 8 ↔ MariaDB、PostgreSQL 15 → 16）。</dd></div>
+        <div><dt>アカウントとロール</dt><dd>admin、operator、viewer。TOTP による二要素認証、API トークン、監査ログ、ログイン失敗が続いたときのロックアウト。</dd></div>
+        <div><dt>通知</dt><dd>メール、Telegram、Slack、Discord、HMAC 署名付き Webhook で、失敗時または成功時に通知します。</dd></div>
+        <div><dt>ファイアウォール内のデータベース</dt><dd>データベースホスト上のエージェントが HTTPS で DumpCat に接続するか、ホストが内蔵 WireGuard に参加します。データベース側でポートを開ける必要はありません。</dd></div>
+        <div><dt>セルフアップデート</dt><dd><code>dumpcat update</code> は <span class="nw">SHA-256</span> を検証し、設定をバックアップし、実行中のバックアップの完了を待ち、失敗したらロールバックします。</dd></div>
+      </dl>
+    </div>
+  </section>
+
+  <section class="section" id="ai" aria-labelledby="ai-title">
+    <div class="wrap">
+      <div class="head">
+        <div>
+          <p class="label">AI フレンドリー</p>
+          <h2 id="ai-title">AI フレンドリー：バックアップの見守りは AI アシスタントに</h2>
+        </div>
+        <p class="intro">DumpCat には MCP サーバーと、Markdown で書かれた API リファレンスが付属しています。Claude Code、Claude Desktop などの AI エージェントは API トークンで接続し、どのバックアップが失敗したかを調べ、ログを読んで原因を説明できます。フルアクセスのトークンなら、バックアップ、検証、リストア訓練の実行も可能です。</p>
+      </div>
+      <div class="section-body storage-grid">
+        <dl class="oss-list">
+          <div><dt>MCP サーバーを内蔵</dt><dd>エンドポイント <code>/api/mcp</code> は DumpCat の一部なので、追加のインストールは不要です。概要、アラート、ジョブ、バックアップ、ログ、リストア、リストア訓練、ポイントインタイムリカバリのプレビューのためのツールを備えています。stdio でローカルサーバーを起動するクライアントは <code>dumpcat mcp</code> を使います。</dd></div>
+          <div><dt>デフォルトで安全</dt><dd>新しいトークンは閲覧のみ。リストア、削除、認証情報、設定が MCP 経由で操作されることはありません。応答にパスワード、鍵、トークンは含まれず、アシスタントが開始した操作はすべて監査ログに記録されます。</dd></div>
+          <div><dt>Markdown の API リファレンス</dt><dd><code>/api/docs.md</code> はサーバー自身が生成します。認証、規約、curl の例、そして各ルートに必要なロールとトークンまで網羅。AI チャットに貼り付けるか、エージェントに読ませて REST API を呼び出させましょう。</dd></div>
+          <div><dt>1 分でセットアップ</dt><dd>DumpCat の <em>API &amp; MCP</em> ページでトークンを作成すると、Claude Code 用のコマンドと、Claude Desktop などのクライアント用の設定が表示されます。接続を確かめる <em>Test</em> ボタンもあります。</dd></div>
+        </dl>
+        <div class="aside">
+          <h3>Claude Code を接続</h3>
+          <div class="code">
+            <div class="code-bar"><span>bash</span><button type="button" class="copy" data-target="cmd-mcp">コピー</button></div>
+            <pre><code id="cmd-mcp">claude mcp add --transport http dumpcat \
+  https://backup.example.com/api/mcp \
+  --header "Authorization: Bearer mv_…"</code></pre>
+          </div>
+          <p>あとは普段の言葉で聞くだけ：<em>「昨夜失敗したバックアップはどれ？原因は？」</em>、<em>「shop-nightly に 24 時間以内のバックアップはある？」</em>、<em>「orders を昨日の 14:37 の状態に戻せる？」</em></p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="compare" aria-labelledby="compare-title">
+    <div class="wrap">
+      <div class="head">
+        <div>
+          <p class="label">比較</p>
+          <h2 id="compare-title">DumpCat と他のツールを比較</h2>
+        </div>
+        <p class="intro">ツールを選ぶと、すべての機能を並べて比較できます。他製品に関する情報は、詳細な比較ページに出典と日付付きで掲載しています。</p>
+      </div>
+      <div class="section-body">
+          <div class="lc" lang="en"><div class="lc-chips" role="group" aria-label="Compare with"><button type="button" class="lc-chip" data-tool="sqlbackupandftp" aria-pressed="true">SQLBackupAndFTP</button><button type="button" class="lc-chip" data-tool="simplebackups" aria-pressed="false">SimpleBackups</button><button type="button" class="lc-chip" data-tool="databasus" aria-pressed="false">Databasus</button><button type="button" class="lc-chip" data-tool="sqlbak" aria-pressed="false">SqlBak</button><button type="button" class="lc-chip" data-tool="automysqlbackup" aria-pressed="false">AutoMySQLBackup</button><button type="button" class="lc-chip" data-tool="percona-xtrabackup" aria-pressed="false">Percona XtraBackup</button><button type="button" class="lc-chip" data-tool="mysql-enterprise-backup" aria-pressed="false">MySQL Enterprise Backup</button><button type="button" class="lc-chip" data-tool="snapshooter" aria-pressed="false">SnapShooter</button><button type="button" class="lc-chip" data-tool="navicat" aria-pressed="false">Navicat</button><button type="button" class="lc-chip" data-tool="ottomatik" aria-pressed="false">Ottomatik</button><button type="button" class="lc-chip" data-tool="backupsheep" aria-pressed="false">BackupSheep</button></div><div class="vs"><table><thead><tr><th scope="col"></th><th scope="col" class="us"><span class="vs-name"><svg aria-hidden="true"><use href="#dc-logo"/></svg>DumpCat</span></th><th scope="col"><span class="vs-name" data-tool="sqlbackupandftp">SQL<wbr>Backup<wbr>And<wbr>FTP</span><span class="vs-name" data-tool="simplebackups" hidden>Simple<wbr>Backups</span><span class="vs-name" data-tool="databasus" hidden>Databasus</span><span class="vs-name" data-tool="sqlbak" hidden>Sql<wbr>Bak</span><span class="vs-name" data-tool="automysqlbackup" hidden>Auto<wbr>MySQL<wbr>Backup</span><span class="vs-name" data-tool="percona-xtrabackup" hidden>Percona Xtra<wbr>Backup</span><span class="vs-name" data-tool="mysql-enterprise-backup" hidden>MySQL Enterprise Backup</span><span class="vs-name" data-tool="snapshooter" hidden>Snap<wbr>Shooter</span><span class="vs-name" data-tool="navicat" hidden>Navicat</span><span class="vs-name" data-tool="ottomatik" hidden>Ottomatik</span><span class="vs-name" data-tool="backupsheep" hidden>Backup<wbr>Sheep</span></th></tr></thead><tbody><tr><th scope="row">Every feature free</th><td class="us"><span class="mk mk-yes" title="Yes: No paid tier"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5.5 12.5l4 4L18.5 7.5"/></svg><span class="sr">Yes</span></span><span class="vs-note">No paid tier</span></td><td><span class="lc-cell" data-tool="sqlbackupandftp"><span class="mk mk-partial" title="Partly: Free: 2 DBs, basic features"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 12h10"/></svg><span class="sr">Partly</span></span><span class="vs-note">Free: 2 DBs, basic features</span></span><span class="lc-cell" data-tool="simplebackups" hidden><span class="mk mk-partial" title="Partly: Free: 1 job, daily, 1 GB"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 12h10"/></svg><span class="sr">Partly</span></span><span class="vs-note">Free: 1 job, daily, 1 GB</span></span><span class="lc-cell" data-tool="databasus" hidden><span class="mk mk-yes" title="Yes"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5.5 12.5l4 4L18.5 7.5"/></svg><span class="sr">Yes</span></span></span><span class="lc-cell" data-tool="sqlbak" hidden><span class="mk mk-partial" title="Partly: 1 server, 2 DBs; S3/AES paid"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 12h10"/></svg><span class="sr">Partly</span></span><span class="vs-note">1 server, 2 DBs; S3/AES paid</span></span><span class="lc-cell" data-tool="automysqlbackup" hidden><span class="mk mk-yes" title="Yes"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5.5 12.5l4 4L18.5 7.5"/></svg><span class="sr">Yes</span></span></span><span class="lc-cell" data-tool="percona-xtrabackup" hidden><span class="mk mk-yes" title="Yes"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5.5 12.5l4 4L18.5 7.5"/></svg><span class="sr">Yes</span></span></span><span class="lc-cell" data-tool="mysql-enterprise-backup" hidden><span class="mk mk-no" title="No: Enterprise subscription"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7.5 7.5l9 9M16.5 7.5l-9 9"/></svg><span class="sr">No</span></span><span class="vs-note">Enterprise subscription</span></span><span class="lc-cell" data-tool="snapshooter" hidden><span class="mk mk-partial" title="Partly: Free: 1 job, daily, 500 MB"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 12h10"/></svg><span class="sr">Partly</span></span><span class="vs-note">Free: 1 job, daily, 500 MB</span></span><span class="lc-cell" data-tool="navicat" hidden><span class="mk mk-no" title="No: Paid licence or subscription"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7.5 7.5l9 9M16.5 7.5l-9 9"/></svg><span class="sr">No</span></span><span class="vs-note">Paid licence or subscription</span></span><span class="lc-cell" data-tool="ottomatik" hidden><span class="mk mk-no" title="No: From $14/mo; 14-day trial"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7.5 7.5l9 9M16.5 7.5l-9 9"/></svg><span class="sr">No</span></span><span class="vs-note">From $14/mo; 14-day trial</span></span><span class="lc-cell" data-tool="backupsheep" hidden><span class="mk mk-yes" title="Yes"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5.5 12.5l4 4L18.5 7.5"/></svg><span class="sr">Yes</span></span></span></td></tr><tr><th scope="row">Runs on your own servers</th><td class="us"><span class="mk mk-yes" title="Yes: One binary"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5.5 12.5l4 4L18.5 7.5"/></svg><span class="sr">Yes</span></span><span class="vs-note">One binary</span></td><td><span class="lc-cell" data-tool="sqlbackupandftp"><span class="mk mk-yes" title="Yes: Windows only"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5.5 12.5l4 4L18.5 7.5"/></svg><span class="sr">Yes</span></span><span class="vs-note">Windows only</span></span><span class="lc-cell" data-tool="simplebackups" hidden><span class="mk mk-no" title="No: Vendor SaaS (agent optional)"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7.5 7.5l9 9M16.5 7.5l-9 9"/></svg><span class="sr">No</span></span><span class="vs-note">Vendor SaaS (agent optional)</span></span><span class="lc-cell" data-tool="databasus" hidden><span class="mk mk-yes" title="Yes: Docker or Helm"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5.5 12.5l4 4L18.5 7.5"/></svg><span class="sr">Yes</span></span><span class="vs-note">Docker or Helm</span></span><span class="lc-cell" data-tool="sqlbak" hidden><span class="mk mk-partial" title="Partly: Agent here, dashboard in cloud"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 12h10"/></svg><span class="sr">Partly</span></span><span class="vs-note">Agent here, dashboard in cloud</span></span><span class="lc-cell" data-tool="automysqlbackup" hidden><span class="mk mk-yes" title="Yes"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5.5 12.5l4 4L18.5 7.5"/></svg><span class="sr">Yes</span></span></span><span class="lc-cell" data-tool="percona-xtrabackup" hidden><span class="mk mk-yes" title="Yes"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5.5 12.5l4 4L18.5 7.5"/></svg><span class="sr">Yes</span></span></span><span class="lc-cell" data-tool="mysql-enterprise-backup" hidden><span class="mk mk-yes" title="Yes"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5.5 12.5l4 4L18.5 7.5"/></svg><span class="sr">Yes</span></span></span><span class="lc-cell" data-tool="snapshooter" hidden><span class="mk mk-no" title="No: Vendor SaaS (SSH or agent)"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7.5 7.5l9 9M16.5 7.5l-9 9"/></svg><span class="sr">No</span></span><span class="vs-note">Vendor SaaS (SSH or agent)</span></span><span class="lc-cell" data-tool="navicat" hidden><span class="mk mk-yes" title="Yes: Desktop app"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5.5 12.5l4 4L18.5 7.5"/></svg><span class="sr">Yes</span></span><span class="vs-note">Desktop app</span></span><span class="lc-cell" data-tool="ottomatik" hidden><span class="mk mk-no" title="No: Vendor SaaS over SSH"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7.5 7.5l9 9M16.5 7.5l-9 9"/></svg><span class="sr">No</span></span><span class="vs-note">Vendor SaaS over SSH</span></span><span class="lc-cell" data-tool="backupsheep" hidden><span class="mk mk-yes" title="Yes: Docker Compose"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5.5 12.5l4 4L18.5 7.5"/></svg><span class="sr">Yes</span></span><span class="vs-note">Docker Compose</span></span></td></tr><tr><th scope="row">Linux</th><td class="us"><span class="mk mk-yes" title="Yes: amd64, arm64"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5.5 12.5l4 4L18.5 7.5"/></svg><span class="sr">Yes</span></span><span class="vs-note">amd64, arm64</span></td><td><span class="lc-cell" data-tool="sqlbackupandftp"><span class="mk mk-partial" title="Partly: Remote full backups only"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 12h10"/></svg><span class="sr">Partly</span></span><span class="vs-note">Remote full backups only</span></span><span class="lc-cell" data-tool="simplebackups" hidden><span class="mk mk-yes" title="Yes: Over SSH or agent"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5.5 12.5l4 4L18.5 7.5"/></svg><span class="sr">Yes</span></span><span class="vs-note">Over SSH or agent</span></span><span class="lc-cell" data-tool="databasus" hidden><span class="mk mk-yes" title="Yes: Docker or Helm"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5.5 12.5l4 4L18.5 7.5"/></svg><span class="sr">Yes</span></span><span class="vs-note">Docker or Helm</span></span><span class="lc-cell" data-tool="sqlbak" hidden><span class="mk mk-yes" title="Yes: Agent"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5.5 12.5l4 4L18.5 7.5"/></svg><span class="sr">Yes</span></span><span class="vs-note">Agent</span></span><span class="lc-cell" data-tool="automysqlbackup" hidden><span class="mk mk-yes" title="Yes"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5.5 12.5l4 4L18.5 7.5"/></svg><span class="sr">Yes</span></span></span><span class="lc-cell" data-tool="percona-xtrabackup" hidden><span class="mk mk-yes" title="Yes"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5.5 12.5l4 4L18.5 7.5"/></svg><span class="sr">Yes</span></span></span><span class="lc-cell" data-tool="mysql-enterprise-backup" hidden><span class="mk mk-yes" title="Yes"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5.5 12.5l4 4L18.5 7.5"/></svg><span class="sr">Yes</span></span></span><span class="lc-cell" data-tool="snapshooter" hidden><span class="mk mk-yes" title="Yes: Over SSH or agent"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5.5 12.5l4 4L18.5 7.5"/></svg><span class="sr">Yes</span></span><span class="vs-note">Over SSH or agent</span></span><span class="lc-cell" data-tool="navicat" hidden><span class="mk mk-yes" title="Yes"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5.5 12.5l4 4L18.5 7.5"/></svg><span class="sr">Yes</span></span></span><span class="lc-cell" data-tool="ottomatik" hidden><span class="mk mk-yes" title="Yes: Over SSH"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5.5 12.5l4 4L18.5 7.5"/></svg><span class="sr">Yes</span></span><span class="vs-note">Over SSH</span></span><span class="lc-cell" data-tool="backupsheep" hidden><span class="mk mk-yes" title="Yes: Docker Compose"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5.5 12.5l4 4L18.5 7.5"/></svg><span class="sr">Yes</span></span><span class="vs-note">Docker Compose</span></span></td></tr><tr><th scope="row">Hot physical backups</th><td class="us"><span class="mk mk-yes" title="Yes: XtraBackup, MariaBackup"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5.5 12.5l4 4L18.5 7.5"/></svg><span class="sr">Yes</span></span><span class="vs-note">XtraBackup, MariaBackup</span></td><td><span class="lc-cell" data-tool="sqlbackupandftp"><span class="mk mk-no" title="No: No physical backups"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7.5 7.5l9 9M16.5 7.5l-9 9"/></svg><span class="sr">No</span></span><span class="vs-note">No physical backups</span></span><span class="lc-cell" data-tool="simplebackups" hidden><span class="mk mk-partial" title="Partly: Own XtraBackup script, Plus"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 12h10"/></svg><span class="sr">Partly</span></span><span class="vs-note">Own XtraBackup script, Plus</span></span><span class="lc-cell" data-tool="databasus" hidden><span class="mk mk-no" title="No: PostgreSQL only"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7.5 7.5l9 9M16.5 7.5l-9 9"/></svg><span class="sr">No</span></span><span class="vs-note">PostgreSQL only</span></span><span class="lc-cell" data-tool="sqlbak" hidden><span class="mk mk-no" title="No: mysqldump + binlogs only"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7.5 7.5l9 9M16.5 7.5l-9 9"/></svg><span class="sr">No</span></span><span class="vs-note">mysqldump + binlogs only</span></span><span class="lc-cell" data-tool="automysqlbackup" hidden><span class="mk mk-no" title="No: Logical dumps only (mysqldump)"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7.5 7.5l9 9M16.5 7.5l-9 9"/></svg><span class="sr">No</span></span><span class="vs-note">Logical dumps only (mysqldump)</span></span><span class="lc-cell" data-tool="percona-xtrabackup" hidden><span class="mk mk-yes" title="Yes"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5.5 12.5l4 4L18.5 7.5"/></svg><span class="sr">Yes</span></span></span><span class="lc-cell" data-tool="mysql-enterprise-backup" hidden><span class="mk mk-yes" title="Yes"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5.5 12.5l4 4L18.5 7.5"/></svg><span class="sr">Yes</span></span></span><span class="lc-cell" data-tool="snapshooter" hidden><span class="mk mk-no" title="No: Logical dumps only (mysqldump)"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7.5 7.5l9 9M16.5 7.5l-9 9"/></svg><span class="sr">No</span></span><span class="vs-note">Logical dumps only (mysqldump)</span></span><span class="lc-cell" data-tool="navicat" hidden><span class="mk mk-no" title="No: Logical, client-side only"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7.5 7.5l9 9M16.5 7.5l-9 9"/></svg><span class="sr">No</span></span><span class="vs-note">Logical, client-side only</span></span><span class="lc-cell" data-tool="ottomatik" hidden><span class="mk mk-no" title="No: Logical dumps only (mysqldump)"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7.5 7.5l9 9M16.5 7.5l-9 9"/></svg><span class="sr">No</span></span><span class="vs-note">Logical dumps only (mysqldump)</span></span><span class="lc-cell" data-tool="backupsheep" hidden><span class="mk mk-no" title="No: Logical dumps only (mysqldump)"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7.5 7.5l9 9M16.5 7.5l-9 9"/></svg><span class="sr">No</span></span><span class="vs-note">Logical dumps only (mysqldump)</span></span></td></tr><tr><th scope="row">Point-in-time recovery</th><td class="us"><span class="mk mk-yes" title="Yes: To the second or a GTID"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5.5 12.5l4 4L18.5 7.5"/></svg><span class="sr">Yes</span></span><span class="vs-note">To the second or a GTID</span></td><td><span class="lc-cell" data-tool="sqlbackupandftp"><span class="mk mk-partial" title="Partly: Chosen-time restore undocumented"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 12h10"/></svg><span class="sr">Partly</span></span><span class="vs-note">Chosen-time restore undocumented</span></span><span class="lc-cell" data-tool="simplebackups" hidden><span class="mk mk-partial" title="Partly: Replay not documented"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 12h10"/></svg><span class="sr">Partly</span></span><span class="vs-note">Replay not documented</span></span><span class="lc-cell" data-tool="databasus" hidden><span class="mk mk-no" title="No: PostgreSQL only"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7.5 7.5l9 9M16.5 7.5l-9 9"/></svg><span class="sr">No</span></span><span class="vs-note">PostgreSQL only</span></span><span class="lc-cell" data-tool="sqlbak" hidden><span class="mk mk-yes" title="Yes"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5.5 12.5l4 4L18.5 7.5"/></svg><span class="sr">Yes</span></span></span><span class="lc-cell" data-tool="automysqlbackup" hidden><span class="mk mk-no" title="No: Dumps only, no binlogs"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7.5 7.5l9 9M16.5 7.5l-9 9"/></svg><span class="sr">No</span></span><span class="vs-note">Dumps only, no binlogs</span></span><span class="lc-cell" data-tool="percona-xtrabackup" hidden><span class="mk mk-partial" title="Partly: Manual; binlogs not archived"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 12h10"/></svg><span class="sr">Partly</span></span><span class="vs-note">Manual; binlogs not archived</span></span><span class="lc-cell" data-tool="mysql-enterprise-backup" hidden><span class="mk mk-partial" title="Partly: Manual mysqlbinlog replay"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 12h10"/></svg><span class="sr">Partly</span></span><span class="vs-note">Manual mysqlbinlog replay</span></span><span class="lc-cell" data-tool="snapshooter" hidden><span class="mk mk-partial" title="Partly: Binlogs; replay not documented"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 12h10"/></svg><span class="sr">Partly</span></span><span class="vs-note">Binlogs; replay not documented</span></span><span class="lc-cell" data-tool="navicat" hidden><span class="mk mk-no" title="No: No binlog backups"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7.5 7.5l9 9M16.5 7.5l-9 9"/></svg><span class="sr">No</span></span><span class="vs-note">No binlog backups</span></span><span class="lc-cell" data-tool="ottomatik" hidden><span class="mk mk-partial" title="Partly: Binlogs kept; manual replay"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 12h10"/></svg><span class="sr">Partly</span></span><span class="vs-note">Binlogs kept; manual replay</span></span><span class="lc-cell" data-tool="backupsheep" hidden><span class="mk mk-partial" title="Partly: Vultr managed DBs only"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 12h10"/></svg><span class="sr">Partly</span></span><span class="vs-note">Vultr managed DBs only</span></span></td></tr><tr><th scope="row">Encryption</th><td class="us"><span class="mk mk-yes" title="Yes: age, before upload"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5.5 12.5l4 4L18.5 7.5"/></svg><span class="sr">Yes</span></span><span class="vs-note">age, before upload</span></td><td><span class="lc-cell" data-tool="sqlbackupandftp"><span class="mk mk-paid" title="Paid plan: Professional edition"><b aria-hidden="true">$</b><span class="sr">Paid plan</span></span><span class="vs-note">Professional edition</span></span><span class="lc-cell" data-tool="simplebackups" hidden><span class="mk mk-yes" title="Yes: AES-256 with your RSA key"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5.5 12.5l4 4L18.5 7.5"/></svg><span class="sr">Yes</span></span><span class="vs-note">AES-256 with your RSA key</span></span><span class="lc-cell" data-tool="databasus" hidden><span class="mk mk-yes" title="Yes: AES-256-GCM"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5.5 12.5l4 4L18.5 7.5"/></svg><span class="sr">Yes</span></span><span class="vs-note">AES-256-GCM</span></span><span class="lc-cell" data-tool="sqlbak" hidden><span class="mk mk-paid" title="Paid plan: Professional plan"><b aria-hidden="true">$</b><span class="sr">Paid plan</span></span><span class="vs-note">Professional plan</span></span><span class="lc-cell" data-tool="automysqlbackup" hidden><span class="mk mk-yes" title="Yes: OpenSSL (not in Debian pkg)"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5.5 12.5l4 4L18.5 7.5"/></svg><span class="sr">Yes</span></span><span class="vs-note">OpenSSL (not in Debian pkg)</span></span><span class="lc-cell" data-tool="percona-xtrabackup" hidden><span class="mk mk-yes" title="Yes: AES-256 (--encrypt)"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5.5 12.5l4 4L18.5 7.5"/></svg><span class="sr">Yes</span></span><span class="vs-note">AES-256 (--encrypt)</span></span><span class="lc-cell" data-tool="mysql-enterprise-backup" hidden><span class="mk mk-yes" title="Yes: AES-256"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5.5 12.5l4 4L18.5 7.5"/></svg><span class="sr">Yes</span></span><span class="vs-note">AES-256</span></span><span class="lc-cell" data-tool="snapshooter" hidden><span class="mk mk-paid" title="Paid plan: Paid plans (tier unclear)"><b aria-hidden="true">$</b><span class="sr">Paid plan</span></span><span class="vs-note">Paid plans (tier unclear)</span></span><span class="lc-cell" data-tool="navicat" hidden><span class="mk mk-unknown" title="Not documented"><b aria-hidden="true">?</b><span class="sr">Not documented</span></span><span class="vs-note">Not documented</span></span><span class="lc-cell" data-tool="ottomatik" hidden><span class="mk mk-unknown" title="Not documented: File encryption not described"><b aria-hidden="true">?</b><span class="sr">Not documented</span></span><span class="vs-note">File encryption not described</span></span><span class="lc-cell" data-tool="backupsheep" hidden><span class="mk mk-yes" title="Yes"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5.5 12.5l4 4L18.5 7.5"/></svg><span class="sr">Yes</span></span></span></td></tr><tr><th scope="row">Data skips the vendor</th><td class="us"><span class="mk mk-yes" title="Yes: Server to your storage"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5.5 12.5l4 4L18.5 7.5"/></svg><span class="sr">Yes</span></span><span class="vs-note">Server to your storage</span></td><td><span class="lc-cell" data-tool="sqlbackupandftp"><span class="mk mk-yes" title="Yes"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5.5 12.5l4 4L18.5 7.5"/></svg><span class="sr">Yes</span></span></span><span class="lc-cell" data-tool="simplebackups" hidden><span class="mk mk-partial" title="Partly: Not with serverless workers"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 12h10"/></svg><span class="sr">Partly</span></span><span class="vs-note">Not with serverless workers</span></span><span class="lc-cell" data-tool="databasus" hidden><span class="mk mk-yes" title="Yes"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5.5 12.5l4 4L18.5 7.5"/></svg><span class="sr">Yes</span></span></span><span class="lc-cell" data-tool="sqlbak" hidden><span class="mk mk-yes" title="Yes: Bypasses sqlbak.com"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5.5 12.5l4 4L18.5 7.5"/></svg><span class="sr">Yes</span></span><span class="vs-note">Bypasses sqlbak.com</span></span><span class="lc-cell" data-tool="automysqlbackup" hidden><span class="mk mk-yes" title="Yes: Stays on the server"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5.5 12.5l4 4L18.5 7.5"/></svg><span class="sr">Yes</span></span><span class="vs-note">Stays on the server</span></span><span class="lc-cell" data-tool="percona-xtrabackup" hidden><span class="mk mk-yes" title="Yes"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5.5 12.5l4 4L18.5 7.5"/></svg><span class="sr">Yes</span></span></span><span class="lc-cell" data-tool="mysql-enterprise-backup" hidden><span class="mk mk-yes" title="Yes"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5.5 12.5l4 4L18.5 7.5"/></svg><span class="sr">Yes</span></span></span><span class="lc-cell" data-tool="snapshooter" hidden><span class="mk mk-partial" title="Partly: Not with serverless backups"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 12h10"/></svg><span class="sr">Partly</span></span><span class="vs-note">Not with serverless backups</span></span><span class="lc-cell" data-tool="navicat" hidden><span class="mk mk-yes" title="Yes: Stays on your computer"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5.5 12.5l4 4L18.5 7.5"/></svg><span class="sr">Yes</span></span><span class="vs-note">Stays on your computer</span></span><span class="lc-cell" data-tool="ottomatik" hidden><span class="mk mk-partial" title="Partly: Not for remote backups"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 12h10"/></svg><span class="sr">Partly</span></span><span class="vs-note">Not for remote backups</span></span><span class="lc-cell" data-tool="backupsheep" hidden><span class="mk mk-yes" title="Yes"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5.5 12.5l4 4L18.5 7.5"/></svg><span class="sr">Yes</span></span></span></td></tr><tr><th scope="row">Automatic backup check</th><td class="us"><span class="mk mk-yes" title="Yes: Every run, plus drills"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5.5 12.5l4 4L18.5 7.5"/></svg><span class="sr">Yes</span></span><span class="vs-note">Every run, plus drills</span></td><td><span class="lc-cell" data-tool="sqlbackupandftp"><span class="mk mk-partial" title="Partly: Via scheduled restore jobs"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 12h10"/></svg><span class="sr">Partly</span></span><span class="vs-note">Via scheduled restore jobs</span></span><span class="lc-cell" data-tool="simplebackups" hidden><span class="mk mk-partial" title="Partly: Size and presence checks"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 12h10"/></svg><span class="sr">Partly</span></span><span class="vs-note">Size and presence checks</span></span><span class="lc-cell" data-tool="databasus" hidden><span class="mk mk-yes" title="Yes: Real restore; needs agent"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5.5 12.5l4 4L18.5 7.5"/></svg><span class="sr">Yes</span></span><span class="vs-note">Real restore; needs agent</span></span><span class="lc-cell" data-tool="sqlbak" hidden><span class="mk mk-partial" title="Partly: Via automatic restore tasks"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 12h10"/></svg><span class="sr">Partly</span></span><span class="vs-note">Via automatic restore tasks</span></span><span class="lc-cell" data-tool="automysqlbackup" hidden><span class="mk mk-no" title="No: Not in the script"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7.5 7.5l9 9M16.5 7.5l-9 9"/></svg><span class="sr">No</span></span><span class="vs-note">Not in the script</span></span><span class="lc-cell" data-tool="percona-xtrabackup" hidden><span class="mk mk-unknown" title="Not documented"><b aria-hidden="true">?</b><span class="sr">Not documented</span></span><span class="vs-note">Not documented</span></span><span class="lc-cell" data-tool="mysql-enterprise-backup" hidden><span class="mk mk-partial" title="Partly: Manual validate command"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 12h10"/></svg><span class="sr">Partly</span></span><span class="vs-note">Manual validate command</span></span><span class="lc-cell" data-tool="snapshooter" hidden><span class="mk mk-unknown" title="Not documented"><b aria-hidden="true">?</b><span class="sr">Not documented</span></span><span class="vs-note">Not documented</span></span><span class="lc-cell" data-tool="navicat" hidden><span class="mk mk-unknown" title="Not documented"><b aria-hidden="true">?</b><span class="sr">Not documented</span></span><span class="vs-note">Not documented</span></span><span class="lc-cell" data-tool="ottomatik" hidden><span class="mk mk-unknown" title="Not documented"><b aria-hidden="true">?</b><span class="sr">Not documented</span></span><span class="vs-note">Not documented</span></span><span class="lc-cell" data-tool="backupsheep" hidden><span class="mk mk-partial" title="Partly: Exit code, size, upload checks"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 12h10"/></svg><span class="sr">Partly</span></span><span class="vs-note">Exit code, size, upload checks</span></span></td></tr></tbody></table></div><div class="lc-foot"><div class="lc-links"><a class="lc-more" data-tool="sqlbackupandftp" href="/compare/sqlbackupandftp/">Full comparison: DumpCat vs SQLBackupAndFTP →</a><a class="lc-more" data-tool="simplebackups" hidden href="/compare/simplebackups/">Full comparison: DumpCat vs SimpleBackups →</a><a class="lc-more" data-tool="databasus" hidden href="/compare/databasus/">Full comparison: DumpCat vs Databasus →</a><a class="lc-more" data-tool="sqlbak" hidden href="/compare/sqlbak/">Full comparison: DumpCat vs SqlBak →</a><a class="lc-more" data-tool="automysqlbackup" hidden href="/compare/automysqlbackup/">Full comparison: DumpCat vs AutoMySQLBackup →</a><a class="lc-more" data-tool="percona-xtrabackup" hidden href="/compare/percona-xtrabackup/">Full comparison: DumpCat vs Percona XtraBackup →</a><a class="lc-more" data-tool="mysql-enterprise-backup" hidden href="/compare/mysql-enterprise-backup/">Full comparison: DumpCat vs MySQL Enterprise Backup →</a><a class="lc-more" data-tool="snapshooter" hidden href="/compare/snapshooter/">Full comparison: DumpCat vs SnapShooter →</a><a class="lc-more" data-tool="navicat" hidden href="/compare/navicat/">Full comparison: DumpCat vs Navicat →</a><a class="lc-more" data-tool="ottomatik" hidden href="/compare/ottomatik/">Full comparison: DumpCat vs Ottomatik →</a><a class="lc-more" data-tool="backupsheep" hidden href="/compare/backupsheep/">Full comparison: DumpCat vs BackupSheep →</a><a href="/compare/">All comparisons →</a></div><ul class="vs-legend"><li><span class="mk mk-yes"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5.5 12.5l4 4L18.5 7.5"/></svg></span>Yes</li><li><span class="mk mk-paid"><b aria-hidden="true">$</b></span>Paid plan</li><li><span class="mk mk-partial"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 12h10"/></svg></span>Partly</li><li><span class="mk mk-no"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7.5 7.5l9 9M16.5 7.5l-9 9"/></svg></span>No</li><li><span class="mk mk-unknown"><b aria-hidden="true">?</b></span>Not documented</li></ul></div></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="opensource" aria-labelledby="oss-title">
+    <div class="wrap">
+      <div class="head">
+        <div>
+          <p class="label">オープンソース</p>
+          <h2 id="oss-title">無料でオープンソース、データはあなたのもの</h2>
+        </div>
+        <p class="intro">DumpCat は Apache-2.0 ライセンスで公開されています。アカウント登録もライセンスキーも不要で、機能を出し惜しみする有料版もありません。このページに載っている機能はすべて、ダウンロードしたビルドに入っています。</p>
+      </div>
+      <div class="section-body storage-grid">
+        <dl class="oss-list">
+          <div><dt>Apache-2.0 ライセンス</dt><dd>個人でも業務でも利用でき、改変も再配布も自由です。全文は <a href="https://github.com/theweakestharrison/DumpCat/blob/main/LICENSE">LICENSE</a> にあります。</dd></div>
+          <div><dt>テレメトリなし</dt><dd>DumpCat は利用データをどこにも送信しません。自分から行う通信は、新バージョンを知らせるために 1 日 1 回 <code>latest.json</code> を読みに行くことだけで、これも Settings 画面でオフにできます。</dd></div>
+          <div><dt>仲介者なし</dt><dd>バックアップ、データベースのパスワード、暗号鍵は、あなたのサーバーからあなたが選んだストレージへ直接届くだけです。</dd></div>
+          <div><dt>署名付きリリース</dt><dd>すべてのアップデートは ed25519 で署名され、インストール前に <span class="nw">SHA-256</span> で検証されます。自分でビルドするのに必要なのは Go だけです。</dd></div>
+        </dl>
+        <div class="aside">
+          <h3>ソースからビルド</h3>
+          <div class="code">
+            <div class="code-bar"><span>bash</span><button type="button" class="copy" data-target="cmd-build">コピー</button></div>
+            <pre><code id="cmd-build">git clone https://github.com/theweakestharrison/DumpCat.git
+cd DumpCat
+go build -o dumpcat ./cmd/dumpcat</code></pre>
+          </div>
+          <p>バグ報告、プルリクエスト、翻訳を歓迎します。詳しくは <a href="https://github.com/theweakestharrison/DumpCat/blob/main/CONTRIBUTING.md">CONTRIBUTING.md</a> をご覧ください。セキュリティ上の問題は、<a href="https://github.com/theweakestharrison/DumpCat/blob/main/SECURITY.md">SECURITY.md</a> の手順に従って非公開でご報告ください。</p>
+          <p class="oss-links"><a class="btn btn-solid" href="https://github.com/theweakestharrison/DumpCat"><svg class="gh" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 0c4.42 0 8 3.58 8 8a8.013 8.013 0 0 1-5.45 7.59c-.4.08-.55-.17-.55-.38 0-.27.01-1.13.01-2.2 0-.75-.25-1.23-.54-1.48 1.78-.2 3.65-.88 3.65-3.95 0-.88-.31-1.59-.82-2.15.08-.2.36-1.02-.08-2.12 0 0-.67-.22-2.2.82-.64-.18-1.32-.27-2-.27-.68 0-1.36.09-2 .27-1.53-1.03-2.2-.82-2.2-.82-.44 1.1-.16 1.92-.08 2.12-.51.56-.82 1.28-.82 2.15 0 3.06 1.86 3.75 3.64 3.95-.23.2-.44.55-.51 1.07-.46.21-1.61.55-2.33-.66-.15-.24-.6-.83-1.23-.82-.67.01-.27.38.01.53.34.19.73.9.82 1.13.16.45.68 1.31 2.69.94 0 .67.01 1.3.01 1.49 0 .21-.15.45-.55.38A7.995 7.995 0 0 1 0 8c0-4.42 3.58-8 8-8Z"/></svg><span>GitHub で見る</span></a>
+            <a class="btn btn-line" href="https://github.com/theweakestharrison/DumpCat/issues">問題を報告</a></p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="download" aria-labelledby="download-title">
+    <div class="wrap">
+      <div class="head">
+        <div>
+          <p class="label">ダウンロード</p>
+          <h2 id="download-title">最新リリース</h2>
+        </div>
+        <p class="intro" id="rel-intro" aria-live="polite"><noscript>最新バージョンとそのファイルは <a href="https://downloads.dumpcat.cc/latest.json">downloads.dumpcat.cc/latest.json</a> で確認できます。</noscript></p>
+      </div>
+      <div class="section-body release" id="release" hidden>
+        <div class="release-files">
+          <div class="pkgs">
+            <a class="pkg" id="pkg-linux" href="https://downloads.dumpcat.cc/1.6.0/dumpcat-1.6.0-linux.tar.gz">
+              <span class="pkg-os">Linux</span>
+              <span class="pkg-file" id="pkg-linux-file">dumpcat-1.6.0-linux.tar.gz</span>
+              <span class="pkg-desc">amd64 と arm64、インストーラー、systemd サービス、マニュアル付き</span>
+            </a>
+            <a class="pkg" id="pkg-windows" href="https://downloads.dumpcat.cc/1.6.0/dumpcat-1.6.0-windows-amd64.zip">
+              <span class="pkg-os">Windows</span>
+              <span class="pkg-file" id="pkg-windows-file">dumpcat-1.6.0-windows-amd64.zip</span>
+              <span class="pkg-desc">64 ビット、Windows サービス用インストーラーとマニュアル付き</span>
+            </a>
+          </div>
+          <p class="pkg-next">ダウンロードしたら、パッケージ内の <b>START-HERE.txt</b> を開くか、<a href="/install/#downloaded">ステップごとのインストールガイド</a>（英語）に従ってください。</p>
+          <p class="bins-title">単体バイナリ</p>
+          <ul class="bins" id="rel-bins"></ul>
+          <p class="old">旧バージョンも <code>downloads.dumpcat.cc/&lt;version&gt;/</code> から入手できます。</p>
+        </div>
+        <div class="notes wn" data-wn-version="1.6.0"><p class="wn-label">新着情報</p><h3><a href="/changelog/1.6.0/">DumpCat 1.6.0</a> <span class="wn-date">2026年10月20日</span></h3><p class="wn-lead" lang="en">An API &amp; MCP page to connect AI assistants and scripts, the API reference in Markdown, single sign-on with OpenID Connect, an instance name and logo, and installed instances kept out of search engines.</p><ul class="wn-list" lang="en"><li><a href="/changelog/1.6.0/#api-mcp">API &amp; MCP</a></li><li><a href="/changelog/1.6.0/#single-sign-on-openid-connect">Single sign-on (OpenID Connect)</a></li><li><a href="/changelog/1.6.0/#branding">Branding</a></li><li><a href="/changelog/1.6.0/#search-engines">Search engines</a></li></ul><p class="wn-links"><a href="/changelog/1.6.0/">すべての変更を見る →</a><a href="/changelog/">過去のバージョン</a></p><p class="wn-note">リリースノートは英語です。</p></div>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer class="foot">
+  <div class="wrap">
+    <a class="brand" href="#top"><svg aria-hidden="true"><use href="#dc-logo"/></svg>DumpCat <span data-version>1.6.0</span></a>
+    <p>Apache-2.0 ライセンスのオープンソースで、ソースは <a href="https://github.com/theweakestharrison/DumpCat">GitHub</a> にあります。<a href="/compare/">他のツールとの比較</a>。英語版とベトナム語版の完全なマニュアルが、すべてのパッケージに同梱されています。</p>
+    <p class="foot-mail">サポート：<a href="mailto:fat@dumpcat.cc">fat@dumpcat.cc</a></p>
+  </div>
+</footer>
+</body>
+</html>
