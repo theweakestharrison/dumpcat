@@ -600,6 +600,10 @@ route('POST', '/me/tokens', ({ body }) => {
   return { item, token: item.prefix + 'xDemoTokenNotUsable0000000000000' };
 });
 route('DELETE', '/me/tokens/:id', ({ p }) => { db.tokens = db.tokens.filter((x) => x.id !== +p.id); return { ok: true }; });
+// API & MCP: the tools and the Markdown reference come from the Go code (scripts/demotypes)
+const DEMO_ORIGIN = 'https://backup.example.com';
+route('GET', '/mcp/tools', () => ({ endpoint: DEMO_ORIGIN + '/api/mcp', docs: DEMO_ORIGIN + '/api/docs.md', origin: DEMO_ORIGIN, version: VERSION,
+  protocol_versions: ['2025-11-25'], tools: TYPES.mcp_tools || [] }));
 route('POST', '/me/totp/setup', () => notInDemo('Two-factor setup'));
 route('POST', '/me/totp/enable', () => notInDemo('Two-factor setup'));
 route('POST', '/me/totp/disable', () => notInDemo('Two-factor setup'));
@@ -1149,6 +1153,27 @@ export async function api(method, path, body) {
     }
   }
   throw new ApiError(`${method} ${p} is not part of the demo`, 404);
+}
+
+/** The Markdown API reference (/docs.md), as the server writes it. */
+export async function getText(path) {
+  await new Promise((res) => setTimeout(res, 60));
+  if (path === '/docs.md' && TYPES.api_reference) return TYPES.api_reference;
+  throw new ApiError(`GET ${path} is not part of the demo`, 404);
+}
+
+/** The MCP endpoint, as an assistant with a demo token sees it. */
+export async function mcpRequest(token, method) {
+  await new Promise((res) => setTimeout(res, 200));
+  const t = db.tokens.find((x) => token.startsWith(x.prefix));
+  if (!t) throw new ApiError('invalid API token', 401);
+  const tools = (TYPES.mcp_tools || []).filter((x) => t.access === 'full' || !x.write);
+  if (method === 'initialize') {
+    const access = t.access === 'full' ? 'with full access' : 'with a read-only token';
+    return { protocolVersion: '2025-11-25', serverInfo: { name: 'dumpcat', title: 'DumpCat', version: VERSION }, instructions: `Signed in as demo (role admin) ${access}.` };
+  }
+  if (method === 'tools/list') return { tools: tools.map((x) => ({ name: x.name, title: x.title, description: x.description })) };
+  throw new ApiError(`${method} is not part of the demo`, 400);
 }
 
 export const get = (p) => api('GET', p);

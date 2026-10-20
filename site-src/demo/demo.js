@@ -16,7 +16,7 @@ const T = vi ? {
     ['lock', 'Bạn cài DumpCat lên server của mình. <b>Dữ liệu không đi qua đâu cả.</b>'],
     ['eye', 'Đây là <b>dữ liệu mẫu</b>, để bạn xem DumpCat có những tính năng gì.'],
   ],
-  features: ['Dashboard', 'Backup jobs', 'Khôi phục theo thời điểm', 'Diễn tập restore', 'S3, Google Drive, SFTP…', 'Agent và WireGuard', 'Cảnh báo và giám sát'],
+  features: ['Dashboard', 'Backup jobs', 'Khôi phục theo thời điểm', 'Diễn tập restore', 'S3, Google Drive, SFTP…', 'Agent và WireGuard', 'Cảnh báo và giám sát', 'Trợ lý AI (MCP)'],
   explore: 'Xem các tính năng',
   download: 'Bản xem trước không có file thật để tải về. Cài DumpCat để tải bản backup của bạn.',
 } : {
@@ -28,7 +28,7 @@ const T = vi ? {
     ['lock', 'You install DumpCat on your own server. <b>Your data goes nowhere else.</b>'],
     ['eye', 'This is <b>sample data</b>, to show you what DumpCat can do.'],
   ],
-  features: ['Dashboard', 'Backup jobs', 'Point-in-time recovery', 'Restore drills', 'S3, Google Drive, SFTP…', 'Agents and WireGuard', 'Alerts and monitoring'],
+  features: ['Dashboard', 'Backup jobs', 'Point-in-time recovery', 'Restore drills', 'S3, Google Drive, SFTP…', 'Agents and WireGuard', 'Alerts and monitoring', 'AI assistants (MCP)'],
   explore: 'Explore the features',
   download: 'The preview has no real files to download. Install DumpCat to download your backups.',
 };

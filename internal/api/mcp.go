@@ -74,7 +74,7 @@ func (s *Server) mcpEndpoint(w http.ResponseWriter, r *http.Request) error {
 	// API tokens only: a browser's session cookie must not work here
 	if !strings.HasPrefix(r.Header.Get("Authorization"), "Bearer ") {
 		w.Header().Set("WWW-Authenticate", `Bearer realm="DumpCat"`)
-		return errf(401, "an API token is required: Authorization: Bearer <token> (Profile & security → API tokens)")
+		return errf(401, "an API token is required: Authorization: Bearer <token> (API & MCP → New token)")
 	}
 	a, err := s.authenticate(w, r)
 	if err != nil {

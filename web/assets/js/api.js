@@ -51,6 +51,43 @@ export const post = (p, b = {}) => api('POST', p, b);
 export const put = (p, b) => api('PUT', p, b);
 export const del = (p) => api('DELETE', p);
 
+/** GETs a text answer, e.g. the Markdown API reference (/docs.md). */
+export async function getText(path) {
+  let res;
+  try {
+    res = await fetch('/api' + path, { headers: { Accept: 'text/markdown, text/plain' }, credentials: 'same-origin' });
+  } catch (e) {
+    throw new ApiError('Cannot connect to the DumpCat server', 0);
+  }
+  const text = await res.text();
+  if (!res.ok) {
+    let msg = res.statusText || ('HTTP ' + res.status);
+    try { msg = JSON.parse(text).error || msg; } catch { /* not JSON */ }
+    if (res.status === 401) onUnauthorized();
+    throw new ApiError(msg, res.status);
+  }
+  return text;
+}
+
+/** Sends one MCP request to /api/mcp with an API token, as an AI assistant would (the API & MCP page tests a token). */
+export async function mcpRequest(token, method, params = {}) {
+  let res;
+  try {
+    res = await fetch('/api/mcp', {
+      method: 'POST', credentials: 'omit',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json, text/event-stream', Authorization: 'Bearer ' + token },
+      body: JSON.stringify({ jsonrpc: '2.0', id: 1, method, params }),
+    });
+  } catch (e) {
+    throw new ApiError('Cannot connect to the DumpCat server', 0);
+  }
+  let data = null;
+  try { data = await res.json(); } catch { /* empty */ }
+  if (!res.ok) throw new ApiError((data && data.error) || res.statusText || ('HTTP ' + res.status), res.status, data);
+  if (data && data.error) throw new ApiError(data.error.message, 400, data);
+  return data && data.result;
+}
+
 export function qs(params) {
   const s = new URLSearchParams();
   for (const [k, v] of Object.entries(params)) {

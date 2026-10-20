@@ -266,7 +266,7 @@ func (s *Server) route(mux *http.ServeMux, pattern, minRole string, h handlerFun
 				return
 			}
 			if a.Token != nil && a.Token.ReadOnly() && !readOnlyAllows(pattern) {
-				s.writeErr(w, errf(403, "this API token is read-only: create a token with full access in Profile & security"))
+				s.writeErr(w, errf(403, "this API token is read-only: create a token with full access in API & MCP"))
 				return
 			}
 			r = r.WithContext(context.WithValue(r.Context(), authKey, a))
@@ -567,7 +567,10 @@ func (s *Server) routes(mux *http.ServeMux) {
 	s.route(mux, "GET /api/audit", adm, s.auditList)
 	// MCP for AI assistants: API tokens only, every tool calls the routes above (mcp.go)
 	s.route(mux, "POST /api/mcp", pub, s.mcpEndpoint)
+	s.route(mux, "GET /api/mcp/tools", vw, s.mcpToolsInfo)
 	mux.HandleFunc("/api/mcp", mcpNoStream)
+	// the API reference in Markdown, written from these routes for scripts and AI agents (apidocs.go)
+	s.route(mux, "GET /api/docs.md", vw, s.apiDocsMarkdown)
 	mux.HandleFunc("/api/", func(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, 404, map[string]string{"error": "API endpoint not found"})
 	})

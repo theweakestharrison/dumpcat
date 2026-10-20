@@ -651,3 +651,34 @@ details.adv-card > summary h2 { flex: none; }
   .pitr-plan { grid-template-columns: minmax(0, 1fr); }
   .pp-arrow svg { transform: none; }
 }
+
+/* ---------- API & MCP page ---------- */
+.api-way { display: flex; gap: 14px; padding: 16px 18px; align-items: flex-start; }
+.api-way h3 { font-size: 14.5px; margin-bottom: 4px; }
+.api-way p { margin: 0 0 10px; font-size: 13px; color: var(--text-2); }
+.api-way-ico { display: grid; place-items: center; width: 38px; height: 38px; flex: none; border-radius: 10px; background: var(--accent-soft); color: var(--accent-ink); }
+.api-way-ico svg { width: 19px; height: 19px; }
+.api-num { display: grid; place-items: center; width: 24px; height: 24px; flex: none; border-radius: 50%; background: var(--accent); color: #fff; font-size: 12.5px; font-weight: 700; }
+.api-access { display: grid; gap: 6px; }
+.api-access .badge { margin-right: 4px; }
+.api-tok-field .copy-box input { flex: 1; min-width: 0; }
+.api-kv { margin: 0 0 6px; font-size: 13px; }
+.api-kv code { overflow-wrap: anywhere; }
+.api-snippet { margin-top: 14px; }
+.api-snippet-head { display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--text-2); }
+.api-snippet-head span { flex: 1; min-width: 0; }
+.api-snippet pre.code { white-space: pre-wrap; overflow-wrap: anywhere; }
+mark.api-tok { background: var(--warning-soft); color: inherit; border-radius: 3px; padding: 0 2px; }
+.api-test { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--border); }
+.api-preview { margin-top: 14px; }
+.api-preview summary { cursor: pointer; font-weight: 600; font-size: 13px; }
+.api-preview pre.code { max-height: 440px; overflow: auto; white-space: pre-wrap; }
+.api-tabs { margin-top: 14px; overflow-y: hidden; }
+.api-tool-groups .section-title { display: flex; align-items: center; gap: 6px; }
+.api-tool-groups .section-title svg { width: 15px; height: 15px; color: var(--muted); }
+.api-tools { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.api-tools li { display: flex; align-items: baseline; gap: 8px; padding: 7px 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface-2); font-size: 13px; }
+.api-tools li code { font-weight: 650; }
+.api-tools li span { color: var(--text-2); flex: 1; min-width: 0; }
+.api-tools li small { color: var(--muted); }
+.api-tools li.off { opacity: 0.6; }

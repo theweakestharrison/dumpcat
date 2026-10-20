@@ -51,7 +51,7 @@ server's /api/mcp endpoint with an API token.
 
 Settings (environment, or KEY=VALUE lines in the env file, default %s):
   DUMPCAT_MCP_URL         DumpCat address, e.g. https://backup.example.com
-  DUMPCAT_MCP_TOKEN       API token (Profile & security → API tokens), or
+  DUMPCAT_MCP_TOKEN       API token (API & MCP page → New token), or
   DUMPCAT_MCP_TOKEN_FILE  a file that holds it
   DUMPCAT_MCP_CA          PEM file to trust instead of the system's CAs, e.g. the
                           server's self-signed cert.pem
@@ -144,7 +144,7 @@ func mcpSettingsFromEnv() (*mcpSettings, error) {
 		s.Token = strings.TrimSpace(string(b))
 	}
 	if s.Token == "" {
-		return nil, errors.New("DUMPCAT_MCP_TOKEN (or DUMPCAT_MCP_TOKEN_FILE) is not set: create an API token in DumpCat under Profile & security → API tokens")
+		return nil, errors.New("DUMPCAT_MCP_TOKEN (or DUMPCAT_MCP_TOKEN_FILE) is not set: create an API token in DumpCat on the API & MCP page")
 	}
 	if strings.ContainsFunc(s.Token, func(r rune) bool { return r <= ' ' || r == 0x7f }) {
 		return nil, errors.New("the API token contains a space or a line break")

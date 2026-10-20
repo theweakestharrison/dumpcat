@@ -27,6 +27,7 @@ const NAV = [
     { path: '/users', label: 'Users', icon: 'users', admin: true },
     { path: '/settings', label: 'Settings', icon: 'sliders', admin: true },
     { path: '/system', label: 'System', icon: 'cpu' },
+    { path: '/api', label: 'API & MCP', icon: 'code' },
     { path: '/audit', label: 'Audit log', icon: 'list', admin: true },
   ] },
 ];
@@ -57,6 +58,7 @@ const ROUTES = [
   ['/system', 'system'],
   ['/audit', 'audit'],
   ['/profile', 'profile'],
+  ['/api', 'apimcp'],
 ];
 
 function matchRoute(path) {
