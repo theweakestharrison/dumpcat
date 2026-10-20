@@ -7,12 +7,14 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"testing"
 	"time"
 
 	"dumpcat/internal/engine"
+	"dumpcat/internal/execx"
 	"dumpcat/internal/pgsql"
 	"dumpcat/internal/secret"
 	"dumpcat/internal/storage"
@@ -27,7 +29,8 @@ import (
 // started and its rows counted. It needs a disposable server whose account
 // may replicate (database dumpcat_e2e_wal and slots dumpcat_* are created
 // and dropped, pg_switch_wal() is run) and the PostgreSQL server binaries of
-// its version (postgres, pg_ctl) besides the client tools:
+// its version (postgres, pg_ctl) besides the client tools. Run as root on
+// Linux, it also checks the recovery as the OS user postgres:
 //
 //	DUMPCAT_TOOLS_DIR=<pg bin> DUMPCAT_E2E_PG='postgres:secret@127.0.0.1:5440' go test ./internal/runner -run WALPITRE2E -v
 func TestWALPITRE2E(t *testing.T) {
@@ -192,6 +195,25 @@ func TestWALPITRE2E(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
+	// as root (Linux) DumpCat recovers as the OS user postgres: the restores
+	// go where it can enter, and the restored clusters start as it
+	asRoot := runtime.GOOS != "windows" && os.Geteuid() == 0
+	pgLogs := dir
+	if asRoot {
+		os.Chmod(filepath.Dir(dir), 0o755)
+		os.Chmod(dir, 0o755)
+		pgLogs = filepath.Join(dir, "pglogs")
+		os.Mkdir(pgLogs, 0o777)
+		os.Chmod(pgLogs, 0o777)
+	}
+	asPostgres := func(c *exec.Cmd) *exec.Cmd {
+		if asRoot {
+			if err := execx.AsUser(c, "postgres"); err != nil {
+				t.Fatal(err)
+			}
+		}
+		return c
+	}
 	// restore restores the backup through rr (to target when not nil), starts
 	// the restored cluster and counts its rows. recovered: DumpCat ran the
 	// recovery (else the directory recovers when it starts).
@@ -219,6 +241,9 @@ func TestWALPITRE2E(t *testing.T) {
 		if strings.Contains(log, "database system is ready to accept connections") != recovered {
 			t.Fatalf("%s: recovered by DumpCat should be %v:\n%s", name, recovered, log)
 		}
+		if asRoot && recovered && !strings.Contains(log, " as postgres: ") {
+			t.Fatalf("%s: the recovery did not run as postgres:\n%s", name, log)
+		}
 		// start the restored cluster and count its rows
 		l, err := net.Listen("tcp", "127.0.0.1:0")
 		if err != nil {
@@ -228,14 +253,14 @@ func TestWALPITRE2E(t *testing.T) {
 		l.Close()
 		logf, _ := os.Create(filepath.Join(dir, name+".log"))
 		defer logf.Close()
-		start := exec.Command(pgctl.Path, "-D", out, "-o", fmt.Sprintf("-p %d -c archive_mode=off", p), "-l", filepath.Join(dir, name+"-pg.log"), "-w", "start")
+		start := asPostgres(exec.Command(pgctl.Path, "-D", out, "-o", fmt.Sprintf("-p %d -c archive_mode=off", p), "-l", filepath.Join(pgLogs, name+"-pg.log"), "-w", "start"))
 		start.Stdout, start.Stderr = logf, logf
 		if err := start.Run(); err != nil {
-			b, _ := os.ReadFile(filepath.Join(dir, name+"-pg.log"))
+			b, _ := os.ReadFile(filepath.Join(pgLogs, name+"-pg.log"))
 			t.Fatalf("starting the restored cluster: %v\n%s", err, b)
 		}
 		defer func() {
-			stop := exec.Command(pgctl.Path, "-D", out, "-m", "fast", "-w", "stop")
+			stop := asPostgres(exec.Command(pgctl.Path, "-D", out, "-m", "fast", "-w", "stop"))
 			stop.Stdout, stop.Stderr = logf, logf
 			stop.Run()
 		}()
