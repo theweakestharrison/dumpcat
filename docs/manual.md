@@ -13,7 +13,7 @@ The complete guide to installing, configuring and operating DumpCat. For an over
 5. [Configuring storage](#5-configuring-storage)
 6. [Jobs, schedules, retention](#6-jobs-schedules-retention)
 7. [Restore](#7-restore)
-8. [Binlog archiving & point-in-time recovery (PITR)](#8-binlog-archiving--point-in-time-recovery-pitr)
+8. [Log archiving & point-in-time recovery (PITR)](#8-log-archiving--point-in-time-recovery-pitr)
 9. [Manual recovery without DumpCat](#9-manual-recovery-without-dumpcat)
 10. [Disaster recovery (reinstalling DumpCat)](#10-disaster-recovery)
 11. [Security](#11-security)
@@ -29,20 +29,20 @@ The complete guide to installing, configuring and operating DumpCat. For an over
 | Area | Details |
 |---|---|
 | Databases | MySQL, MariaDB and Percona Server; **PostgreSQL** 10 and newer ([PostgreSQL](#postgresql)) |
-| Methods | `mysqldump`/`mariadb-dump` (logical), `mydumper`/`myloader` (parallel logical), Percona XtraBackup / MariaBackup (physical, hot, **full + incremental**); PostgreSQL: `pg_dump` (directory format, tables in parallel) + `pg_dumpall --globals-only` |
+| Methods | `mysqldump`/`mariadb-dump` (logical), `mydumper`/`myloader` (parallel logical), Percona XtraBackup / MariaBackup (physical, hot, **full + incremental**); PostgreSQL: `pg_dump` (directory format, tables in parallel) + `pg_dumpall --globals-only`, `pg_basebackup` (physical, the whole cluster) |
 | Scope | All databases, selected databases, all except selected databases, per-table exclusions; routines, triggers, events; **users & grants** (separate `_users.sql` file) |
 | Compression / encryption | zstd (default), multi-threaded gzip, none · **age** encryption (ChaCha20-Poly1305 + scrypt) with a passphrase |
 | Integrity | SHA-256 for every file, size check after upload, **Verify integrity** (re-read → decrypt → decompress → check the `Dump completed` line / tar structure) on demand or automatically after every backup (new jobs: one copy, the cheapest to read back; or every copy) |
 | Storage | Several targets per job (e.g. local + S3 + Google Drive); write to local storage first and then upload, or **stream directly** to the cloud without a temporary disk; bandwidth limit; **copy** an existing backup to another storage; browse the files on a storage |
 | Scheduling | Cron (`0 2 * * *`, `@daily`, `@every 6h`), a separate schedule for incrementals, configurable time zone, preview of the next 5 runs |
 | Retention | Keep the last N backups / N days / the last backup of each day, week and month (GFS), **per storage** (e.g. local keeps 3 backups, S3 keeps 30 days), incremental chains respected |
-| Restore | Restore to any server (**another instance, host or version**, with DEFINER / collation / GTID rewrites), **restore under new names**, partial restore, drop target databases first, no binlog, Fast mode, restore users; physical: download the full + incremental chain → prepare → (optionally) **replace the datadir automatically** with rollback |
+| Restore | Restore to any server (**another instance, host or version**, with DEFINER / collation / GTID rewrites), **restore under new names**, partial restore, drop target databases first, no binlog, Fast mode, restore users; physical: download the full + incremental chain → prepare → (optionally) **replace the datadir automatically** with rollback; PostgreSQL physical: a data directory recovered on the DumpCat host, optionally swapped in for the local cluster |
 | Restore drills | On a schedule (MySQL, MariaDB and PostgreSQL), the newest backup is **restored into a sandbox** under temporary names, every table and its **row count** compared with the backup, custom SQL assertions run, the restore time (**RTO**) recorded and the copies dropped; backups that passed are marked **Restore-tested** |
-| Point-in-time recovery | **Continuous binlog archiving** (`mysqlbinlog --raw --stop-never`, compressed/encrypted like backups, uploaded to every storage of the job), recovery to **a point in time / a binlog position / just before a GTID** — picks the newest base backup automatically, downloads and checks every binlog before changing any data; binlog retention follows the oldest kept backup |
+| Point-in-time recovery | **Continuous log archiving**: MySQL/MariaDB binlogs (`mysqlbinlog --raw --stop-never`) and PostgreSQL WAL (`pg_receivewal` through a replication slot), compressed/encrypted like backups and uploaded to every storage of the job. Recovery to **a point in time / a binlog position / just before a GTID** (MySQL) or **a point in time / a restore point / a WAL position** (PostgreSQL) — picks the newest base backup automatically, downloads and checks every file before changing any data; retention follows the oldest kept backup |
 | Connectivity | Directly, through the **agent** (the database host connects out over HTTPS; with `--allow-physical` it also runs physical backups there) or through the **built-in WireGuard** — no inbound port on the database host ([3.7](#37-database-hosts-that-accept-no-inbound-connections-agent), [3.8](#38-built-in-wireguard)) |
 | Operations | Real-time progress (bytes, speed, %), live logs, task cancellation, limit on concurrent jobs, low priority (nice/ionice), pre/post commands, timeouts |
 | Notifications | Email (SMTP, HTML with a plain-text version), Telegram, Slack, Discord, Webhook (HMAC-signed) — on failure and/or success |
-| Monitoring | **Overdue-backup alerts** per job (from its schedule, or a max age) and **binlog lag** alerts, once per incident with a message when it clears; a **weekly digest** by email; Prometheus **`/metrics`** (bearer token or this machine only) |
+| Monitoring | **Overdue-backup alerts** per job (from its schedule, or a max age) and **log archive lag** alerts (binlog / WAL), once per incident with a message when it clears; a **weekly digest** by email; Prometheus **`/metrics`** (bearer token or this machine only) |
 | Security | bcrypt passwords, HttpOnly sessions + CSRF, lockout after repeated failed logins, TOTP 2FA, API tokens, roles, audit log, every password/cloud key encrypted at rest with AES-256-GCM, database passwords never on the command line |
 | Disaster recovery | Every backup carries a `manifest.json` → install a fresh DumpCat, add the storage, click **Import backup catalog** and every backup is listed again. Backup files use standard formats (zstd/gzip/age/xbstream) — they can be restored even without DumpCat |
 
@@ -71,7 +71,10 @@ The complete guide to installing, configuring and operating DumpCat. For an over
 Choose **PostgreSQL** as the *Database engine* when you add the server (the port becomes 5432; the unix socket field
 takes the socket directory, e.g. `/var/run/postgresql`). Everything else works as for MySQL: storages, compression and
 encryption, schedules, retention, verification, notifications, monitoring, agents (allow `127.0.0.1:5432`) and
-WireGuard, restore drills. The method is **`pg_dump`**:
+WireGuard, restore drills. There are two methods, **`pg_dump`** (logical, per database) and **`pg_basebackup`**
+(physical, the whole cluster, the base of point-in-time recovery).
+
+**`pg_dump`**
 
 - Each selected database is dumped with `pg_dump --format=directory --jobs=<threads>`: the tables of one database are
   dumped in parallel from one consistent snapshot, without locking writers. The directory is written to the staging
@@ -84,9 +87,23 @@ WireGuard, restore drills. The method is **`pg_dump`**:
 - *Exclude tables*: `database.table` (a table in the search path, usually `public`) or `database.schema.table`; patterns
   as in `pg_dump --exclude-table`.
 - "All databases" skips the templates (`template0`, `template1`) and databases that do not accept connections.
-- Not yet: WAL archiving / point-in-time recovery, physical backups (`pg_basebackup`), and database-level settings
-  (`ALTER DATABASE … SET`, `GRANT … ON DATABASE`), which pg_dump writes only for `--create` dumps. Set them again
-  after restoring a database onto another server.
+- Not with pg_dump: database-level settings (`ALTER DATABASE … SET`, `GRANT … ON DATABASE`), which pg_dump writes
+  only for `--create` dumps. Set them again after restoring a database onto another server.
+
+**`pg_basebackup`**
+
+- Copies the whole cluster while it runs — every database, role and setting — over a **replication connection**:
+  nothing to install on the database host, and it works through agents and WireGuard too. DumpCat runs
+  `pg_basebackup --format=tar --wal-method=fetch --checkpoint=fast` and writes its tar stream (the data directory, the
+  WAL of the backup in `pg_wal/`, `backup_manifest`) straight into the storage pipeline (compression, encryption,
+  SHA-256) as `base.tar`, without a copy on the staging disk (on Windows the tar goes through the staging directory
+  first: pg_basebackup cannot write binary data to a pipe there).
+- A **temporary replication slot**, held by DumpCat while the backup runs, keeps the WAL of the backup on the server
+  until it is fetched. The backup records where its WAL starts and ends (LSN), its timeline and the system identifier
+  of the cluster.
+- Full backups only, and clusters with **additional tablespaces** are not supported yet (use pg_dump for them).
+- Restoring it prepares a data directory on the DumpCat host — see [Restore](#7-restore). With **WAL archiving** on the
+  job, it is the base of [point-in-time recovery](#8-log-archiving--point-in-time-recovery-pitr).
 
 **Account.** A role that can read everything, e.g. on PostgreSQL 14+:
 
@@ -95,18 +112,25 @@ CREATE ROLE dumpcat LOGIN PASSWORD 'a_strong_password';
 GRANT pg_read_all_data TO dumpcat;
 -- restores: a separate account that may create databases (and roles, to restore them)
 CREATE ROLE dumpcat_restore LOGIN CREATEDB CREATEROLE PASSWORD 'another_password';
+-- pg_basebackup and WAL archiving: the backup role must be allowed to replicate
+ALTER ROLE dumpcat REPLICATION;
 ```
 
 On PostgreSQL 13 and older, use the owner of the databases or grant `USAGE` on every schema and `SELECT` on every
 table and sequence. `pg_hba.conf` must let the DumpCat host (or the agent's host) connect, e.g.
-`host all dumpcat,dumpcat_restore 10.0.0.5/32 scram-sha-256`. The **Check** button of the server lists the role's
-attributes and what is missing.
+`host all dumpcat,dumpcat_restore 10.0.0.5/32 scram-sha-256`; pg_basebackup and WAL archiving also need
+`host replication dumpcat 10.0.0.5/32 scram-sha-256`. The **Check** button of the server lists the role's attributes
+and what is missing; the method cards say whether pg_basebackup can run.
 
 **Client tools.** `pg_dump` refuses a server newer than itself, and `pg_restore` reads archives of its own version and
 older ones. DumpCat finds every installed version (`/usr/lib/postgresql/<major>/bin`, `/usr/pgsql-<major>/bin`,
 `C:\Program Files\PostgreSQL\<major>\bin`, the `tools` folder, or a path set in **Settings**) and uses the one of the
 server's major version, or the nearest newer one. Install the client tools of your servers' major versions:
 `sudo ./install.sh --postgres 16` (several: `--postgres 15,16`) or see [3.3](#33-backup-tools-for-manual-installs).
+`pg_basebackup` and `pg_receivewal` come with the client tools. To let DumpCat **recover** a pg_basebackup backup
+itself (and replace a local cluster), the PostgreSQL **server** of the backup's major version must be installed on the
+DumpCat host too (`postgres`, `pg_ctl`; on a database host it already is); without it the restored directory is left
+ready to recover and you start PostgreSQL on it yourself.
 
 **Passwords and names.** The password is written to a private `PGPASSFILE` (mode 0600) in the task's directory, never
 on a command line or in the environment. DumpCat builds the connection string itself and quotes every value, so a
@@ -171,8 +195,10 @@ sudo percona-release enable pxb-80 && sudo apt update && sudo apt install percon
 # PostgreSQL: the client tools of the server's major version (here 16), from apt.postgresql.org
 sudo apt install postgresql-common && sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
 sudo apt install postgresql-client-16
+sudo apt install postgresql-16          # optional: lets DumpCat recover pg_basebackup backups on this host
 # RHEL/Rocky/Alma: the PGDG repository, then
 sudo dnf install postgresql16
+sudo dnf install postgresql16-server    # optional, as above
 ```
 
 On Windows, install PostgreSQL (or only its command line tools) with the installer from postgresql.org:
@@ -238,6 +264,8 @@ What works on Windows:
 | mydumper / myloader | ❌ no Windows version |
 | Physical backup of MySQL / Percona (XtraBackup) | ❌ XtraBackup only exists for Linux |
 | Automatic datadir replacement, PITR from a physical backup | ❌ Linux only |
+| PostgreSQL: pg_dump, pg_basebackup, WAL archiving, point-in-time recovery into a directory | ✅ (with the PostgreSQL server installed, DumpCat recovers the directory itself) |
+| PostgreSQL: replacing the local cluster's data directory | ❌ Linux only |
 | Lower CPU/IO priority for the backup tools (nice/ionice) | ❌ |
 
 For large databases (hundreds of GB) and physical MySQL backups, run DumpCat on Linux.
@@ -587,9 +615,9 @@ mistake, a run that hangs — sends nothing. So DumpCat checks every minute that
   frequent schedule. **Max age of the newest backup** on the job (*9. Notifications & status*) replaces the rule with a
   fixed number of hours, and also watches jobs without a schedule (backups started through the API). The job editor
   shows the window that applies.
-- **Binlog lag.** For jobs with binlog archiving, an alert is raised when the archive has been behind the server for
-  longer than the threshold (30 minutes by default, 0 = no alerts): the stream is down or not keeping up, or closed
-  binlogs are waiting for upload.
+- **Binlog lag.** For jobs with binlog or WAL archiving, an alert is raised when the archive has been behind the server
+  for longer than the threshold (30 minutes by default, 0 = no alerts): the stream is down or not keeping up, or closed
+  binlogs / WAL segments are waiting for upload.
 - **Once per incident.** The alert goes once to the channels that send failures (for jobs with *Notify on failure*),
   with the last good backup, when the next one was due and the error of the last run; *Backups are fresh again* or
   *Binlog archiving caught up* follows when it clears. Open incidents survive a restart. Webhooks receive `kind`
@@ -620,9 +648,15 @@ mistake, a run that hangs — sends nothing. So DumpCat checks every minute that
     20261019-020000-full/
       shop.pgdump.tar.zst.age    # pg_dump: one directory-format archive per database, as a tar
       _globals.sql.zst.age       # roles and tablespaces (pg_dumpall --globals-only)
+    20261020-020000-full/
+      base.tar.zst.age           # pg_basebackup: the data directory and the WAL of the backup, as a tar
     binlog/                      # continuous binlog archive (PITR), compressed + encrypted like backups
       20261019/
         mysql-bin.000123.zst.age
+    wal/                         # continuous WAL archive (PostgreSQL PITR), the same way
+      20261020/
+        00000001000000000000001A.zst.age
+        00000002.history.zst.age # timeline history (kept by retention)
 ```
 
 ## 7. Restore
@@ -660,8 +694,27 @@ and run `--copy-back` there):
 - The target must be a PostgreSQL server; restoring onto an older major version may fail on features of the newer one
   (DumpCat warns).
 
-To go back to **any moment** (not only when a backup ran), use *Point-in-time recovery* — see section 8 (MySQL and
-MariaDB).
+**PostgreSQL (pg_basebackup)** — the cluster becomes a data directory on the machine running DumpCat:
+1. `base.tar` is downloaded, decrypted and extracted into the extraction directory (default
+   `<data dir>/restore/<job>-<backup>`, admins can choose another one; it must be empty).
+2. **Recovery**: when the PostgreSQL server of the backup's major version is installed on this machine, DumpCat starts
+   a temporary server on the directory — with its own configuration: 127.0.0.1 on a free port, no unix socket, no
+   archiving, no preloaded libraries; as the *OS user* (default `postgres`) when DumpCat runs as root — waits until it
+   has replayed the WAL (of the backup, or up to the point-in-time target, then promoted on a new timeline) and stops
+   it. The directory is then a clean data directory: start PostgreSQL on it (it keeps the source's
+   `postgresql.auto.conf`). As root, the OS user must be able to reach the directory: choose one under `/var/tmp` (the
+   default under DumpCat's data directory is not reachable). Without the server binaries, the directory is left
+   **ready to recover**: the recovery settings are in `postgresql.auto.conf` and `recovery.signal`, the WAL in
+   `dumpcat_wal/`; copy it to the database host and start PostgreSQL there.
+3. (Admin, Linux) *Replace PostgreSQL's data directory on this machine*: the backup is extracted and recovered **next
+   to** the data directory (`<datadir>.dumpcat-restore-<time>`, same filesystem), then the service is stopped (detected:
+   `postgresql@<major>-main`, `postgresql-<major>`, `postgresql`), the old directory renamed to
+   `<datadir>.before-restore-<time>`, the recovered one moved in and the service started. Any error moves the old one
+   back. The same checks as for MySQL datadirs apply (no system directory, nothing inside DumpCat's own data
+   directory, a non-empty directory must contain `PG_VERSION`), and the version of the existing directory must match.
+
+To go back to **any moment** (not only when a backup ran), use *Point-in-time recovery* — see
+[section 8](#8-log-archiving--point-in-time-recovery-pitr) (MySQL / MariaDB binlogs, PostgreSQL WAL).
 
 ### Restoring to another instance (clone, migration, staging)
 
@@ -746,13 +799,15 @@ dropped).
   before DumpCat counted rows are checked against the number of tables and views the server listed at backup time
   (a difference is a warning) and their row check is skipped.
 
-## 8. Binlog archiving & point-in-time recovery (PITR)
+## 8. Log archiving & point-in-time recovery (PITR)
 
-A backup only takes you back to the moment it ran. Turn on **continuous binlog archiving** for a job to recover to *any moment*
+A backup only takes you back to the moment it ran. Turn on **continuous log archiving** for a job to recover to *any moment*
 after a backup — for example just before an accidental `DROP TABLE`. It is enabled in the job form, section
-**8. Binlog & point-in-time recovery** → *Continuous binlog archiving*.
+**8. Log archiving & point-in-time recovery**: *Continuous binlog archiving* for MySQL / MariaDB jobs, *Continuous WAL
+archiving* for PostgreSQL `pg_basebackup` jobs ([PostgreSQL: WAL archiving](#postgresql-wal-archiving)). The upload to
+the job's storages, the catalog, retention, lag monitoring and the recovery plan work the same for both.
 
-### How it works
+### How it works (MySQL / MariaDB binlogs)
 
 - Every job with archiving runs a background `mysqlbinlog --read-from-remote-server --raw --stop-never` (MariaDB:
   `mariadb-binlog`). It connects like a replica (its own server id: 3900000000 + job id) and copies the binary logs **byte for
@@ -777,7 +832,7 @@ after a backup — for example just before an accidental `DROP TABLE`. It is ena
   `binlog_pos`, GTID) and when its data was consistent (`consistent_at`). With one mysqldump file per database, **each database has
   its own snapshot position** and is replayed from exactly that position.
 
-### Requirements
+### Requirements (MySQL / MariaDB)
 
 - `log_bin` and a `server_id` on the server. `binlog_format=ROW` is recommended (needed for exact *renamed* restores, see the notes).
   Keep binlogs on the server long enough for DumpCat to fetch them (`binlog_expire_logs_seconds` / `expire_logs_days`, at least a
@@ -789,23 +844,59 @@ after a backup — for example just before an accidental `DROP TABLE`. It is ena
 - The restore user must be allowed to replay binlogs: MySQL `SYSTEM_VARIABLES_ADMIN` + `REPLICATION_APPLIER` (or ALL PRIVILEGES),
   MariaDB `SUPER` or `BINLOG REPLAY`.
 
+### PostgreSQL: WAL archiving
+
+- Every job with WAL archiving runs a background `pg_receivewal --slot=<slot> --no-loop` (not synchronous) over a
+  replication connection into `<staging>/wal-<job id>/`; the password goes through a private password file.
+- The **replication slot** `dumpcat_job<id>_<uuid>` is created when archiving starts: from then on the server keeps
+  every WAL segment until DumpCat has received it — while DumpCat is stopped or the network is down too. That is what
+  makes the archive complete, and also the risk: a stream that stays down lets WAL pile up on the server. Set
+  `max_slot_wal_keep_size` to bound it (PostgreSQL 13+); when the server gives up WAL the slot needed, DumpCat logs a
+  **gap**, creates the slot again and streams from the server's position — PITR cannot cross the gap, the next base
+  backup starts a new chain. Turning archiving off, disabling or deleting the job, or moving it to another server
+  **drops the slot**; stopping or updating DumpCat does not. If DumpCat is uninstalled, drop it yourself:
+  `SELECT pg_drop_replication_slot('dumpcat_job…');`.
+- Every completed segment (16 MB by default) and every timeline history file is compressed/encrypted, uploaded to every
+  storage of the job at `<job>/wal/<YYYYMMDD>/<segment>` and recorded with what DumpCat read from it: the LSN range,
+  the times of its first and last commit, the **restore points** created in it (`pg_create_restore_point`) and the
+  cluster's system identifier. The segment being received stays local as `<segment>.partial` and **is used by
+  restores**; the newest archived segment is kept in the staging directory so that `pg_receivewal` resumes right
+  after it.
+- **Close & upload the current WAL segment after (minutes)** runs `pg_switch_wal()` once the current segment has held
+  commits for that long (a superuser, or `GRANT EXECUTE ON FUNCTION pg_switch_wal() TO dumpcat`). An idle server
+  switches nothing.
+- Requirements: `wal_level` replica (the default) or logical, a free `max_wal_senders` slot, the `REPLICATION`
+  attribute and a `replication` line in `pg_hba.conf` (see [PostgreSQL](#postgresql)), `pg_receivewal` on the DumpCat
+  host (the server's major version or newer), and `pg_basebackup` backups as bases: WAL can only be replayed on a
+  physical copy of the cluster, so pg_dump jobs do not archive WAL. Archiving from a standby works (its own slot);
+  closing segments there is up to the primary.
+
 ### Monitoring
 
-The **Binlog & PITR** page shows, per job: the file being received, the server's current position, the lag (bytes / seconds),
-files waiting for upload, the last archived file, number of files and size, the file list (with storages) and the stream's log,
-with *Close binlog now* (close & upload immediately) and *Restart*. The dashboard warns when archiving or uploads fail or more than 5
+The **Binlog / WAL & PITR** page shows, per job: the file being received, the server's current position, the lag (bytes / seconds),
+files waiting for upload, the replication slot and how much WAL the server keeps for it (PostgreSQL), the last archived file, number
+of files and size, the file list (with storages, LSN ranges and restore points) and the stream's log, with *Close binlog now* /
+*Close segment now* (close & upload immediately) and *Restart*. The dashboard warns when archiving or uploads fail or more than 5
 files are waiting; repeated failures send a notification (when the job notifies on failure).
 
 ### Recovering to a point in time
 
-1. **Binlog & PITR** → *Restore to a point in time* (or the *Point-in-time recovery* card in the Restore form of a backup).
-2. Choose where to stop:
+1. **Binlog / WAL & PITR** → *Restore to a point in time* (or the *Point-in-time recovery* card in the Restore form of a backup).
+2. Choose where to stop (MySQL / MariaDB):
    - **Point in time** — transactions *committed* before that moment are replayed, later ones are not; never half a transaction.
      The time is entered in the browser's time zone.
    - **Before a GTID** — stops just before that transaction (e.g. the GTID of the `DROP TABLE`, found with `mysqlbinlog` or
      `SHOW BINLOG EVENTS`). MariaDB: `0-1-1234`, MySQL: `uuid:23`.
    - **Binlog position** — `file` + `position`: events starting at or after it are not replayed.
    - **Latest available** — every archived binlog plus what is still being received: the most recent state that can be recovered.
+
+   PostgreSQL:
+   - **Point in time** — as above (`recovery_target_time`, commits at that moment included).
+   - **Restore point** — a point created on the server with `SELECT pg_create_restore_point('before_migration')`; the
+     names found in the archived WAL are suggested.
+   - **WAL position (LSN)** — e.g. `pg_current_wal_lsn()` noted before a risky change; the record at that position is
+     the last one replayed.
+   - **Latest available** — every archived segment plus the one still being received.
 3. DumpCat picks **the newest backup whose data precedes that point** (logical full, or physical full + incremental chain), checks
    that the binlogs form an unbroken sequence from that backup's position to the target and shows the plan: base backup, number and
    size of binlog files, how far the binlogs are complete.
@@ -822,6 +913,15 @@ files are waiting; repeated failures send a notification (when the job notifies 
    itself.
    Physical restores need *Apply right away* and a server: once MySQL runs on the new datadir, DumpCat waits for it to accept
    connections and replays **all** binlogs of the instance (keeping the original GTIDs).
+6. PostgreSQL: the base is always a `pg_basebackup` backup. The fetched segments (of every timeline after the base's,
+   and the timeline history files) are read in a row before anything is changed: they must belong to the base's
+   cluster and continue it without a gap, and a restore point must be in them. The restore then prepares the data
+   directory ([Restore](#7-restore)) with the segments in `dumpcat_wal/`, `restore_command` reading them,
+   `recovery_target_*`, `recovery_target_timeline = latest` and `recovery_target_action = promote`: PostgreSQL itself
+   replays the WAL, stops at the target and starts a new timeline. A target time after the last commit in the WAL (or
+   an LSN at its very end) replays everything instead — there is nothing between them, and PostgreSQL 13+ would
+   otherwise stop with *recovery ended before configured recovery target was reached*. No *Apply* is needed:
+   recovering into a directory works on Windows too.
 
 ### Notes
 
@@ -838,6 +938,9 @@ files are waiting; repeated failures send a notification (when the job notifies 
   backup could replay them). Binlogs used by a running restore are never deleted.
 - MySQL/Percona: replay needs a client of the server's major version; compressed binlogs (`binlog_transaction_compression`) need
   `mysqlbinlog` ≥ 8.0.20.
+- PostgreSQL: the WAL holds **every database** of the cluster, and a recovery restores the whole cluster (no single
+  database, no renaming). Timeline history files are never removed by retention. A promotion of the source (failover)
+  is followed: segments of the newer timeline continue the chain.
 
 ### Manual replay (without DumpCat)
 
@@ -853,6 +956,24 @@ mysqlbinlog --start-position=331316 --stop-datetime="2026-10-18 03:36:42" \
 
 `mysqlbinlog --stop-datetime` uses the time zone of the machine running it and stops at the first *event* at or after that time
 (possibly inside a transaction); DumpCat computes a stop position on a transaction boundary instead.
+
+PostgreSQL: decode the base backup and the segments, then let PostgreSQL recover:
+
+```bash
+mkdir -p /restore/data && chmod 700 /restore/data
+dumpcat decode -in base.tar.zst.age -out - | tar xf - -C /restore/data
+mkdir /restore/data/dumpcat_wal
+for f in 00000001000000000000001A 00000001000000000000001B; do
+  dumpcat decode -in $f.zst.age -out /restore/data/dumpcat_wal/$f
+done
+cat >> /restore/data/postgresql.auto.conf <<'EOF'
+restore_command = 'cp "dumpcat_wal/%f" "%p"'
+recovery_target_time = '2026-10-20 09:30:00+07'
+recovery_target_action = 'promote'
+EOF
+touch /restore/data/recovery.signal && chown -R postgres: /restore/data
+sudo -u postgres pg_ctl -D /restore/data start      # replays, stops at the target, promotes
+```
 
 ## 9. Manual recovery without DumpCat
 
@@ -878,6 +999,11 @@ dumpcat decode -in shop.pgdump.tar.zst.age -out shop.pgdump.tar && mkdir shop.du
 createdb -T template0 shop && pg_restore --jobs 4 --dbname shop shop.dump
 dumpcat decode -in _globals.sql.zst.age -out globals.sql        # roles: review it, then psql -f globals.sql
 
+# pg_basebackup (PostgreSQL): the cluster with the WAL of the backup; it is consistent once started
+mkdir -m 700 /restore/pgdata && dumpcat decode -in base.tar.zst.age -out - | tar xf - -C /restore/pgdata
+chown -R postgres: /restore/pgdata && sudo -u postgres pg_ctl -D /restore/pgdata -o "-p 5433" start
+# (to a point in time: see "Manual replay" in section 8)
+
 # physical (full + incremental)
 dumpcat decode -in full/backup.xbstream.zst -out - | mbstream -x -C /restore/full      # MySQL: xbstream -x
 mariabackup --prepare --target-dir=/restore/full
@@ -896,8 +1022,9 @@ If the server running DumpCat is lost:
 3. **Storage** → menu → **Import backup catalog**: DumpCat scans the `manifest.json` files and lists every backup again (including incremental chains).
 4. Restore as usual — for encrypted backups, enter the passphrase in the restore form.
 
-The archived binlog catalog (PITR) is not imported: the files stay in `<job>/binlog/` on the storage and can be replayed by hand
-(section 8); turn binlog archiving on for the new job and take a new backup to get PITR back.
+The archived log catalog (PITR) is not imported: the files stay in `<job>/binlog/` or `<job>/wal/` on the storage and can be
+replayed by hand (section 8); turn log archiving on for the new job and take a new backup to get PITR back. PostgreSQL: the old
+installation's replication slot still keeps WAL on the server — drop it (`SELECT pg_drop_replication_slot('dumpcat_job…')`).
 
 It is also worth backing up `/var/lib/dumpcat/master.key` and `dumpcat.db` (configuration, history) — or, at the very least, keep the encryption passphrase safe.
 
@@ -1053,7 +1180,7 @@ Internal data: `/var/lib/dumpcat/dumpcat.db` (SQLite), `master.key`, `logs/`, `s
 | Lost encryption passphrase | The backup cannot be decrypted — always keep the passphrase in a password manager |
 | Binlog & PITR: *binary logging is disabled (log_bin=OFF)* | Enable `log_bin` and `server_id` in my.cnf and restart MySQL/MariaDB |
 | Binlog & PITR: *SHOW BINARY LOGS … REPLICATION CLIENT* / `Access denied` while streaming | Grant `REPLICATION SLAVE` + `REPLICATION CLIENT` (MariaDB: `BINLOG MONITOR`) to the backup user |
-| PITR: *binlogs are only archived up to …* | Click *Close binlog now* on the **Binlog & PITR** page and wait a few seconds for the upload, or choose *Latest available* |
+| PITR: *binlogs are only archived up to …* / *WAL segments are only archived up to …* | Click *Close binlog now* / *Close segment now* on the **Binlog / WAL & PITR** page and wait a few seconds for the upload, or choose *Latest available* |
 | PITR: *… has not been archived* / *sequence is broken* | The server purged binlogs before they were archived, or the numbering was reset: keep binlogs longer on the server and take a new backup as a starting point |
 | Agent: *agent … is offline* | Start the agent on the database host (`systemctl status dumpcat-agent`, `journalctl -u dumpcat-agent`). *the server refused the agent* in its log: wrong or rotated key, or the URL is not DumpCat. Behind nginx, use the `/api/agent/` block of the sample configuration |
 | WireGuard: *peer … has not connected yet* / *no answer from …* / *nothing listens on …* | See [3.8](#38-built-in-wireguard): start `wg-quick@dumpcat` on the database host and open the UDP port on the DumpCat host; let the WireGuard interface in on the database host; make MySQL listen on the WireGuard address |
@@ -1065,6 +1192,12 @@ Internal data: `/var/lib/dumpcat/dumpcat.db` (SQLite), `master.key`, `logs/`, `s
 | PostgreSQL: *role "…" does not exist* during a restore | Tick *Restore roles*, or *Skip ownership* and *Skip privileges* |
 | PostgreSQL: *database "…" is being accessed by other users* | *Drop target databases* cannot drop a database others are connected to: disconnect them, or restore under a new name |
 | PostgreSQL: *no pg_hba.conf entry for host …* | Add a `host … scram-sha-256` line for the DumpCat host (or the agent's) to `pg_hba.conf` and reload PostgreSQL |
+| PostgreSQL: *no pg_hba.conf entry for replication connection* / *needs the REPLICATION attribute* | pg_basebackup and WAL archiving: `ALTER ROLE dumpcat REPLICATION` and a `host replication dumpcat <DumpCat host>/32 scram-sha-256` line |
+| PostgreSQL: *requested WAL segment … has already been removed*, a WAL **gap** in the archive log | The server removed WAL before DumpCat had it (slot lost through `max_slot_wal_keep_size`, slot dropped by hand): DumpCat streams from the server's position again; take a new pg_basebackup as the next base |
+| PostgreSQL: the server's disk fills with WAL | A WAL archiving job whose stream is down keeps WAL through its slot: fix the stream (**Binlog / WAL & PITR** page, its log), or turn archiving off (drops the slot); set `max_slot_wal_keep_size` |
+| PostgreSQL: *Cannot close the current WAL segment (pg_switch_wal() …)* | `GRANT EXECUTE ON FUNCTION pg_switch_wal() TO dumpcat`, or set the close interval to 0 |
+| PostgreSQL restore: *the directory is left ready to recover* | The PostgreSQL server of the backup's version is not installed on the DumpCat host (or, as root, the OS user cannot reach the directory): start PostgreSQL on the directory yourself, or install `postgresql-<major>` and restore again |
+| PostgreSQL restore: *recovery ended before configured recovery target was reached* | The target is after the WAL archived when the restore started: close the segment and retry, or choose *Latest available* |
 | Service logs | `journalctl -u dumpcat -f`; per-task logs on the detail page or in `/var/lib/dumpcat/logs/` |
 
 ## 15. Development
@@ -1083,15 +1216,17 @@ Source layout:
 ```
 cmd/dumpcat        CLI (serve, agent, user, decode, update, release)
 internal/api       REST API, authentication, authorization, serves the UI
-internal/runner    orchestrates backup/upload/retention/verify/restore/catalog import, binlog archiving, PITR
-internal/engine    mysqldump, mydumper, xtrabackup/mariabackup, mysql/myloader, mysqlbinlog (stream & replay)
+internal/runner    orchestrates backup/upload/retention/verify/restore/catalog import, log archiving and PITR (every engine)
+internal/engine    the driver interfaces; MySQL: mysqldump, mydumper, xtrabackup/mariabackup, mysql/myloader, binlog archiving & replay
+internal/pgsql     PostgreSQL: pg_dump/pg_restore, pg_basebackup, WAL archiving (pg_receivewal), WAL reader, recovery
+internal/drivers   the database engines DumpCat knows
 internal/binlog    binlog reader: event boundaries, times, GTIDs, PITR stop points
 internal/storage   local + rclone (S3, Drive, OneDrive, FTP, SFTP...), OAuth
 internal/pipeline  streaming zstd/gzip compression + age encryption + sha256
 internal/store     SQLite: users, servers, storages, jobs, backups, audit
 internal/scheduler cron
 internal/notify    Email, Telegram, Slack, Discord, Webhook, the weekly digest
-internal/monitor   overdue-backup and binlog lag alerts, weekly digest schedule, Prometheus metrics
+internal/monitor   overdue-backup and log archive lag alerts, weekly digest schedule, Prometheus metrics
 internal/update    self-update: release manifest, signatures, install & rollback
 internal/agent     agents: reverse tunnel from database hosts (WebSocket), allow lists
 internal/wg        built-in WireGuard (wireguard-go + gVisor netstack, no OS interface)

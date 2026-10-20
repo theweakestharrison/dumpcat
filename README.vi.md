@@ -36,10 +36,11 @@ binary Go có sẵn giao diện.
 - **Ba công cụ backup.** `mysqldump` / `mariadb-dump`, `mydumper` / `myloader` chạy song song, và backup vật lý nóng bằng
   Percona XtraBackup hoặc MariaBackup, có cả incremental.
 - **Có cả PostgreSQL.** `pg_dump` định dạng thư mục, dump và restore các bảng song song, role lấy từ
-  `pg_dumpall --globals-only`, restore dưới tên mới hoặc sang server khác, diễn tập restore, tự chọn công cụ client cùng
-  major với từng server. Khôi phục theo thời điểm cho PostgreSQL (WAL) sẽ có ở bản sau.
+  `pg_dumpall --globals-only`, restore dưới tên mới hoặc sang server khác, diễn tập restore; `pg_basebackup` cho cả
+  cluster. Công cụ client cùng major với từng server được chọn tự động.
 - **Khôi phục theo thời điểm.** Lưu binlog liên tục để restore về một mốc thời gian, một vị trí binlog hoặc ngay trước một
-  GTID, ví dụ ngay trước một câu `DROP TABLE` lỡ tay.
+  GTID, ví dụ ngay trước một câu `DROP TABLE` lỡ tay; với PostgreSQL, WAL được lưu liên tục (`pg_receivewal` qua một
+  replication slot) để khôi phục về một mốc thời gian, một restore point hoặc một vị trí WAL.
 - **Lưu ở đâu cũng được.** Ổ local hoặc NFS, S3 và các dịch vụ tương thích (Cloudflare R2, MinIO, Wasabi…), Google Drive,
   OneDrive / SharePoint, FTP / FTPS, SFTP, WebDAV, Backblaze B2, Azure Blob, Dropbox và mọi backend của rclone. Một job có
   thể ghi ra nhiều nơi, mỗi nơi có chính sách giữ bản riêng.
@@ -142,7 +143,7 @@ flowchart RL
 |---|---|
 | **Database** | MySQL 5.7, 8.0, 8.4 · Percona Server · MariaDB 10.x, 11.x · PostgreSQL 10 trở lên |
 | **Máy chạy DumpCat** | Linux amd64 / arm64 có systemd · Windows Server 2016+ / Windows 10+ 64-bit, chạy như Windows service |
-| **Công cụ backup** | mysqldump / mariadb-dump · mydumper / myloader · Percona XtraBackup · MariaBackup · pg_dump / pg_restore / pg_dumpall (bộ cài Linux tự chọn phiên bản khớp với server; `--postgres 16` cài thêm client PostgreSQL 16) |
+| **Công cụ backup** | mysqldump / mariadb-dump · mydumper / myloader · Percona XtraBackup · MariaBackup · pg_dump / pg_restore / pg_dumpall / pg_basebackup / pg_receivewal (bộ cài Linux tự chọn phiên bản khớp với server; `--postgres 16` cài thêm client PostgreSQL 16) |
 | **Lưu trữ** | Thư mục local và ổ chia sẻ NFS / SMB, cùng mọi thứ [rclone](https://rclone.org) hỗ trợ |
 | **Database sau firewall** | Agent (`dumpcat agent`) trên Linux có systemd hoặc Windows, chỉ cần HTTPS đi ra · hoặc WireGuard chuẩn (`wg-quick`), UDP đi ra |
 
@@ -210,7 +211,8 @@ và giới hạn ai được truy cập.
 | Restore một database hoặc đổi tên | Có | Có | Không, cả instance |
 | Hợp với | Dưới 20–50 GB | Database lớn cần restore từng DB | 100 GB đến vài TB, cần RTO thấp |
 
-Server PostgreSQL được backup bằng `pg_dump` (định dạng thư mục, các bảng song song, không khóa ghi): xem
+Server PostgreSQL được backup bằng `pg_dump` (định dạng thư mục, các bảng song song, không khóa ghi) hoặc
+`pg_basebackup` (cả cluster, làm nền cho việc lưu WAL và khôi phục theo thời điểm): xem
 [PostgreSQL](docs/manual.vi.md#postgresql).
 
 Chi tiết và khuyến nghị: [Chọn phương thức backup](docs/manual.vi.md#2-chọn-phương-thức-backup).
@@ -226,7 +228,7 @@ Hướng dẫn đầy đủ nằm ở [docs/manual.vi.md](docs/manual.vi.md) ([E
 | S3, Google Drive, OneDrive, FTP, SFTP… | [Cấu hình nơi lưu trữ](docs/manual.vi.md#5-cấu-hình-nơi-lưu-trữ) |
 | Lịch chạy, incremental, retention | [Job, lịch chạy, retention](docs/manual.vi.md#6-job-lịch-chạy-retention) |
 | Restore logical và vật lý | [Restore](docs/manual.vi.md#7-restore) |
-| Lưu binlog, khôi phục về một thời điểm | [PITR](docs/manual.vi.md#8-lưu-trữ-binlog--khôi-phục-theo-thời-điểm-pitr) |
+| Lưu binlog, khôi phục về một thời điểm | [PITR](docs/manual.vi.md#8-lưu-trữ-log--khôi-phục-theo-thời-điểm-pitr) |
 | Restore không cần DumpCat, cài lại DumpCat | [Khôi phục thủ công](docs/manual.vi.md#9-khôi-phục-thủ-công-khi-không-có-dumpcat) · [Khôi phục thảm họa](docs/manual.vi.md#10-khôi-phục-thảm-họa) |
 | Phân quyền, 2FA, mã hóa dữ liệu lưu trữ | [Bảo mật](docs/manual.vi.md#11-bảo-mật) |
 | REST API, webhook | [API & tự động hóa](docs/manual.vi.md#12-api--tự-động-hóa) |

@@ -8,8 +8,9 @@ groups of bullets.
 
 ## 1.5.0
 
-PostgreSQL: backups with pg_dump, restores under new names or onto another server, roles, and restore drills. MySQL
-and MariaDB work as before, now as one of several database engines.
+PostgreSQL: backups with pg_dump and pg_basebackup, continuous WAL archiving and point-in-time recovery, restores under
+new names or onto another server, roles, and restore drills. MySQL and MariaDB work as before, now as one of several
+database engines.
 
 ### PostgreSQL
 
@@ -31,7 +32,30 @@ and MariaDB work as before, now as one of several database engines.
   newer one); the Linux installer installs them with `--postgres 16` (several: `--postgres 15,16`).
 - Passwords go through a private password file, never the command line; database names are passed inside a quoted
   connection string, so a name like `a=b` cannot become connection options.
-- Not yet: point-in-time recovery from archived WAL and physical backups (pg_basebackup).
+- New backup method **pg_basebackup**: the whole cluster over a replication connection (nothing to install on the
+  database host), written as one tar stream with the WAL of the backup straight into the storage pipeline; a temporary
+  replication slot keeps that WAL until it is fetched. Full backups; clusters with additional tablespaces are not
+  supported yet.
+- Restoring a pg_basebackup backup prepares a data directory on the DumpCat host and recovers it with a temporary
+  PostgreSQL server of the backup's version (its own configuration: a local port, no archiving); without the server
+  binaries the directory is left ready to recover. Admins on Linux can replace a local cluster's data directory with
+  it: recovered next to it, swapped in while the service is stopped, rolled back on any error.
+
+### Point-in-time recovery for PostgreSQL
+
+- **Continuous WAL archiving** for pg_basebackup jobs: `pg_receivewal` streams the WAL through a replication slot of
+  the job, so the server keeps it while DumpCat is down; every completed segment is compressed, encrypted and uploaded
+  to every storage of the job like the binlogs of MySQL jobs. Turning archiving off, disabling or deleting the job drops
+  the slot. A slot that lost WAL (`max_slot_wal_keep_size`) is reported as a gap and streaming starts again.
+- DumpCat reads the WAL itself (no `pg_waldump` needed): the LSN range of every segment, the times of its commits and the
+  restore points created in it, CRC-checked.
+- **Recover to a point in time, a restore point or a WAL position (LSN)**, or the latest state including the segment
+  still being received: the newest pg_basebackup before the target is picked, every segment is downloaded and checked
+  before anything is changed, and PostgreSQL replays the WAL to the target and promotes. Restore points found in the
+  archive are suggested.
+- *Close segment now* and *close the current segment after N minutes* (`pg_switch_wal()`), lag and slot monitoring on
+  the **Binlog / WAL & PITR** page, lag alerts and dashboard warnings, retention after the oldest kept backup
+  (timeline history files are kept).
 
 ### Several database engines
 
@@ -41,6 +65,12 @@ and MariaDB work as before, now as one of several database engines.
   from the driver. See `docs/design-multidb.md`.
 - Servers have an engine (existing ones are MySQL), `manifest.json` records it, and a job's method must belong to its
   server's engine. Restoring a backup onto a server of another engine is refused.
+- Log archiving and point-in-time recovery sit behind one interface too: the archiver of each job, the upload to its
+  storages, the catalog of archived files, retention, lag monitoring and the recovery plan are shared by MySQL binlogs
+  and PostgreSQL WAL. The page is now **Binlog / WAL & PITR**; the API reports the server's position as
+  `server_position` (instead of `server_file` / `server_pos`) and the start of a plan as `base.start`.
+- A restarted binlog stream no longer counts the previous session's last check as caught up, so a recovery planned
+  right after a restart does not miss the binlog still being received.
 
 ## 1.4.2 (2026-10-20)
 

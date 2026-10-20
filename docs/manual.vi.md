@@ -13,7 +13,7 @@ Hướng dẫn đầy đủ để cài đặt, cấu hình và vận hành DumpC
 5. [Cấu hình nơi lưu trữ](#5-cấu-hình-nơi-lưu-trữ)
 6. [Job, lịch chạy, retention](#6-job-lịch-chạy-retention)
 7. [Restore](#7-restore)
-8. [Lưu trữ binlog & khôi phục theo thời điểm (PITR)](#8-lưu-trữ-binlog--khôi-phục-theo-thời-điểm-pitr)
+8. [Lưu trữ log & khôi phục theo thời điểm (PITR)](#8-lưu-trữ-log--khôi-phục-theo-thời-điểm-pitr)
 9. [Khôi phục thủ công khi không có DumpCat](#9-khôi-phục-thủ-công-khi-không-có-dumpcat)
 10. [Khôi phục thảm họa (cài lại DumpCat)](#10-khôi-phục-thảm-họa)
 11. [Bảo mật](#11-bảo-mật)
@@ -29,20 +29,20 @@ Hướng dẫn đầy đủ để cài đặt, cấu hình và vận hành DumpC
 | Nhóm | Chi tiết |
 |---|---|
 | Database | MySQL, MariaDB và Percona Server; **PostgreSQL** 10 trở lên ([PostgreSQL](#postgresql)) |
-| Phương thức | `mysqldump`/`mariadb-dump` (logic), `mydumper`/`myloader` (logic song song), Percona XtraBackup / MariaBackup (vật lý, hot, **full + incremental**); PostgreSQL: `pg_dump` (định dạng thư mục, các bảng song song) + `pg_dumpall --globals-only` |
+| Phương thức | `mysqldump`/`mariadb-dump` (logic), `mydumper`/`myloader` (logic song song), Percona XtraBackup / MariaBackup (vật lý, hot, **full + incremental**); PostgreSQL: `pg_dump` (định dạng thư mục, các bảng song song) + `pg_dumpall --globals-only`, `pg_basebackup` (vật lý, cả cluster) |
 | Phạm vi | Tất cả DB, chỉ một số DB, tất cả trừ một số DB, loại trừ từng bảng; routines, triggers, events; **users & GRANT** (file `_users.sql` riêng) |
 | Nén / mã hóa | zstd (mặc định), gzip đa luồng, không nén · mã hóa **age** (ChaCha20-Poly1305 + scrypt) bằng passphrase |
 | Toàn vẹn | SHA-256 cho mọi file, kiểm tra kích thước sau upload, **verify** (đọc lại → giải mã → giải nén → kiểm tra dòng `Dump completed`/cấu trúc tar) thủ công hoặc tự động sau mỗi backup (job mới: kiểm một bản, bản rẻ nhất để đọc lại; hoặc mọi bản) |
 | Lưu trữ | Nhiều đích cho một job (vd: local + S3 + Google Drive); ghi thẳng storage local rồi upload; hoặc **stream trực tiếp** lên cloud không dùng đĩa tạm; giới hạn băng thông; **sao chép** một bản backup có sẵn sang storage khác; duyệt file trên storage |
 | Lịch | Cron (`0 2 * * *`, `@daily`, `@every 6h`), lịch riêng cho incremental, múi giờ cấu hình được, xem trước 5 lần chạy kế tiếp |
 | Retention | Giữ N bản gần nhất / N ngày / bản cuối mỗi ngày-tuần-tháng (GFS), **riêng cho từng storage** (vd: local giữ 3 bản, S3 giữ 30 ngày), tôn trọng chuỗi incremental |
-| Restore | Restore vào server bất kỳ (**instance, máy hoặc phiên bản khác**, tự gỡ DEFINER / đổi collation / bỏ GTID), **đổi tên database**, restore một phần, xóa DB đích trước, không ghi binlog, chế độ nhanh, restore users; vật lý: tải chuỗi full+incremental → prepare → (tùy chọn) **tự thay datadir** với rollback |
+| Restore | Restore vào server bất kỳ (**instance, máy hoặc phiên bản khác**, tự gỡ DEFINER / đổi collation / bỏ GTID), **đổi tên database**, restore một phần, xóa DB đích trước, không ghi binlog, chế độ nhanh, restore users; vật lý: tải chuỗi full+incremental → prepare → (tùy chọn) **tự thay datadir** với rollback; PostgreSQL vật lý: thư mục dữ liệu được khôi phục trên máy chạy DumpCat, tùy chọn thay cho cluster local |
 | Diễn tập restore | Theo lịch (MySQL, MariaDB và PostgreSQL), bản backup mới nhất được **restore vào sandbox** dưới tên tạm, so từng bảng và **số dòng** với backup, chạy assertion SQL tùy chọn, ghi lại thời gian restore (**RTO**) rồi xóa bản sao; backup đạt được đánh dấu **Restore-tested** |
-| Khôi phục theo thời điểm (PITR) | **Lưu trữ binlog liên tục** (`mysqlbinlog --raw --stop-never`, nén/mã hóa như backup, upload lên mọi storage của job), khôi phục đến **một thời điểm / vị trí binlog / ngay trước một GTID** — tự chọn bản backup nền mới nhất, tải & kiểm tra mọi binlog trước khi thay đổi dữ liệu; retention binlog theo bản backup cũ nhất còn giữ |
+| Khôi phục theo thời điểm (PITR) | **Lưu trữ log liên tục**: binlog MySQL/MariaDB (`mysqlbinlog --raw --stop-never`) và WAL PostgreSQL (`pg_receivewal` qua một replication slot), nén/mã hóa như backup và upload lên mọi storage của job. Khôi phục đến **một thời điểm / vị trí binlog / ngay trước một GTID** (MySQL) hoặc **một thời điểm / một restore point / một vị trí WAL** (PostgreSQL) — tự chọn bản backup nền mới nhất, tải & kiểm tra mọi file trước khi thay đổi dữ liệu; retention theo bản backup cũ nhất còn giữ |
 | Kết nối | Trực tiếp, qua **agent** (server database chủ động kết nối ra bằng HTTPS; với `--allow-physical` agent còn chạy backup vật lý ngay trên máy đó) hoặc qua **WireGuard tích hợp** — không cần mở port vào server database ([3.7](#37-server-database-không-cho-kết-nối-vào-agent), [3.8](#38-wireguard-tích-hợp)) |
 | Vận hành | Tiến độ realtime (bytes, tốc độ, %), log trực tiếp, hủy tác vụ, giới hạn số job chạy đồng thời, ưu tiên thấp (nice/ionice), pre/post command, timeout |
 | Thông báo | Email (SMTP, HTML kèm bản text), Telegram, Slack, Discord, Webhook (ký HMAC) — khi lỗi và/hoặc thành công |
-| Giám sát | **Cảnh báo backup quá hạn** cho từng job (theo lịch chạy, hoặc tuổi tối đa) và **cảnh báo binlog chậm**, mỗi sự cố báo một lần và báo lại khi đã hết; **báo cáo tuần** qua email; Prometheus **`/metrics`** (bearer token hoặc chỉ máy này) |
+| Giám sát | **Cảnh báo backup quá hạn** cho từng job (theo lịch chạy, hoặc tuổi tối đa) và **cảnh báo lưu trữ log chậm** (binlog / WAL), mỗi sự cố báo một lần và báo lại khi đã hết; **báo cáo tuần** qua email; Prometheus **`/metrics`** (bearer token hoặc chỉ máy này) |
 | Bảo mật | Mật khẩu bcrypt, phiên HttpOnly + CSRF, khóa đăng nhập sai nhiều lần, 2FA TOTP, API token, vai trò, audit log, mọi mật khẩu/khóa cloud mã hóa AES-256-GCM khi lưu, mật khẩu DB không bao giờ nằm trên dòng lệnh |
 | Phục hồi thảm họa | Mỗi bản backup có `manifest.json` → cài DumpCat mới, thêm storage, bấm **Nhập danh mục** là thấy lại toàn bộ backup. File backup là định dạng chuẩn (zstd/gzip/age/xbstream) — restore được cả khi không có DumpCat |
 
@@ -70,7 +70,10 @@ Hướng dẫn đầy đủ để cài đặt, cấu hình và vận hành DumpC
 
 Chọn **PostgreSQL** ở ô *Database engine* khi thêm server (cổng đổi thành 5432; ô unix socket nhận thư mục socket, ví dụ
 `/var/run/postgresql`). Mọi thứ khác dùng như với MySQL: storage, nén và mã hóa, lịch chạy, retention, kiểm tra toàn
-vẹn, thông báo, giám sát, agent (cho phép `127.0.0.1:5432`) và WireGuard, diễn tập restore. Phương thức là **`pg_dump`**:
+vẹn, thông báo, giám sát, agent (cho phép `127.0.0.1:5432`) và WireGuard, diễn tập restore. Có hai phương thức,
+**`pg_dump`** (logic, theo từng database) và **`pg_basebackup`** (vật lý, cả cluster, làm nền cho khôi phục theo thời điểm).
+
+**`pg_dump`**
 
 - Mỗi database được chọn được dump bằng `pg_dump --format=directory --jobs=<threads>`: các bảng của một database được
   dump song song từ cùng một snapshot nhất quán, không khóa ghi. Thư mục dump nằm trong thư mục staging (cần chỗ trống
@@ -82,9 +85,22 @@ vẹn, thông báo, giám sát, agent (cho phép `127.0.0.1:5432`) và WireGuard
 - *Exclude tables*: `database.table` (bảng nằm trong search path, thường là `public`) hoặc `database.schema.table`; mẫu
   tên như `pg_dump --exclude-table`.
 - "All databases" bỏ qua các template (`template0`, `template1`) và database không nhận kết nối.
-- Chưa có: lưu trữ WAL / khôi phục theo thời điểm, backup vật lý (`pg_basebackup`), và thiết lập mức database
-  (`ALTER DATABASE … SET`, `GRANT … ON DATABASE`) — pg_dump chỉ ghi chúng khi dump với `--create`. Sau khi restore
-  sang server khác, đặt lại các thiết lập đó.
+- pg_dump không có: thiết lập mức database (`ALTER DATABASE … SET`, `GRANT … ON DATABASE`) — pg_dump chỉ ghi chúng
+  khi dump với `--create`. Sau khi restore sang server khác, đặt lại các thiết lập đó.
+
+**`pg_basebackup`**
+
+- Chép toàn bộ cluster khi nó đang chạy — mọi database, role và thiết lập — qua **kết nối replication**: không cần cài gì
+  trên máy database, chạy được cả qua agent và WireGuard. DumpCat chạy
+  `pg_basebackup --format=tar --wal-method=fetch --checkpoint=fast` và ghi luồng tar của nó (thư mục dữ liệu, WAL của
+  bản backup trong `pg_wal/`, `backup_manifest`) thẳng vào quy trình lưu trữ (nén, mã hóa, SHA-256) thành `base.tar`,
+  không cần bản tạm trên ổ staging (trên Windows, tar đi qua thư mục staging trước: pg_basebackup ở đó không ghi được
+  dữ liệu nhị phân vào pipe).
+- Một **replication slot tạm**, DumpCat giữ trong lúc backup chạy, buộc server giữ WAL của bản backup cho đến khi tải
+  xong. Bản backup ghi lại WAL của nó bắt đầu và kết thúc ở đâu (LSN), timeline và system identifier của cluster.
+- Chỉ backup full, và chưa hỗ trợ cluster có **tablespace bổ sung** (với các cluster đó hãy dùng pg_dump).
+- Restore nó sẽ chuẩn bị một thư mục dữ liệu trên máy chạy DumpCat — xem [Restore](#7-restore). Khi job bật **lưu trữ
+  WAL**, nó là bản nền cho [khôi phục theo thời điểm](#8-lưu-trữ-log--khôi-phục-theo-thời-điểm-pitr).
 
 **Tài khoản.** Một role đọc được tất cả, ví dụ trên PostgreSQL 14+:
 
@@ -93,18 +109,25 @@ CREATE ROLE dumpcat LOGIN PASSWORD 'a_strong_password';
 GRANT pg_read_all_data TO dumpcat;
 -- restore: tài khoản riêng được tạo database (và tạo role, để restore role)
 CREATE ROLE dumpcat_restore LOGIN CREATEDB CREATEROLE PASSWORD 'another_password';
+-- pg_basebackup và lưu trữ WAL: role backup phải được phép replication
+ALTER ROLE dumpcat REPLICATION;
 ```
 
 PostgreSQL 13 trở xuống: dùng owner của các database, hoặc cấp `USAGE` trên mọi schema và `SELECT` trên mọi bảng,
 sequence. `pg_hba.conf` phải cho máy chạy DumpCat (hoặc máy có agent) kết nối, ví dụ
-`host all dumpcat,dumpcat_restore 10.0.0.5/32 scram-sha-256`. Nút **Check** của server liệt kê thuộc tính của role và
-những gì còn thiếu.
+`host all dumpcat,dumpcat_restore 10.0.0.5/32 scram-sha-256`; pg_basebackup và lưu trữ WAL cần thêm
+`host replication dumpcat 10.0.0.5/32 scram-sha-256`. Nút **Check** của server liệt kê thuộc tính của role và những gì
+còn thiếu; thẻ phương thức cho biết pg_basebackup có chạy được không.
 
 **Công cụ client.** `pg_dump` từ chối server mới hơn nó, còn `pg_restore` đọc được archive của phiên bản nó và cũ hơn.
 DumpCat tìm mọi phiên bản đã cài (`/usr/lib/postgresql/<major>/bin`, `/usr/pgsql-<major>/bin`,
 `C:\Program Files\PostgreSQL\<major>\bin`, thư mục `tools`, hoặc đường dẫn đặt ở **Settings**) và dùng bản cùng
 major với server, hoặc bản mới hơn gần nhất. Cài công cụ client theo major của các server:
 `sudo ./install.sh --postgres 16` (nhiều bản: `--postgres 15,16`) hoặc xem [3.3](#33-công-cụ-backup-nếu-cài-thủ-công).
+`pg_basebackup` và `pg_receivewal` đi kèm công cụ client. Để DumpCat tự **khôi phục** bản pg_basebackup (và thay cluster
+local), máy chạy DumpCat cần cài thêm **server** PostgreSQL cùng major với bản backup (`postgres`, `pg_ctl`; trên máy
+database thì đã có sẵn); nếu không, thư mục được restore để ở trạng thái sẵn sàng khôi phục và bạn tự khởi động
+PostgreSQL trên đó.
 
 **Mật khẩu và tên.** Mật khẩu được ghi vào một `PGPASSFILE` riêng (quyền 0600) trong thư mục của tác vụ, không bao giờ
 nằm trên dòng lệnh hay trong biến môi trường. DumpCat tự dựng chuỗi kết nối và đặt mọi giá trị trong nháy, nên tên
@@ -168,8 +191,10 @@ sudo percona-release enable pxb-80 && sudo apt update && sudo apt install percon
 # PostgreSQL: công cụ client cùng major với server (ở đây là 16), từ apt.postgresql.org
 sudo apt install postgresql-common && sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
 sudo apt install postgresql-client-16
+sudo apt install postgresql-16          # tùy chọn: để DumpCat khôi phục bản pg_basebackup ngay trên máy này
 # RHEL/Rocky/Alma: thêm kho PGDG, rồi
 sudo dnf install postgresql16
+sudo dnf install postgresql16-server    # tùy chọn, như trên
 ```
 
 Trên Windows, cài PostgreSQL (hoặc chỉ phần command line tools) bằng bộ cài từ postgresql.org:
@@ -235,6 +260,8 @@ Những gì dùng được trên Windows:
 | mydumper / myloader | ❌ không có bản Windows |
 | Backup vật lý MySQL / Percona (XtraBackup) | ❌ XtraBackup chỉ có cho Linux |
 | Tự thay datadir, PITR từ bản backup vật lý | ❌ chỉ trên Linux |
+| PostgreSQL: pg_dump, pg_basebackup, lưu trữ WAL, khôi phục theo thời điểm vào một thư mục | ✅ (có cài server PostgreSQL thì DumpCat tự khôi phục thư mục) |
+| PostgreSQL: thay thư mục dữ liệu của cluster local | ❌ chỉ trên Linux |
 | Hạ ưu tiên CPU/IO cho công cụ backup (nice/ionice) | ❌ |
 
 Với DB lớn (hàng trăm GB) hoặc cần backup vật lý MySQL, nên chạy DumpCat trên Linux.
@@ -580,8 +607,9 @@ chạy bị treo — thì không gửi gì cả. Vì vậy mỗi phút DumpCat k
   `0 2 * * 1-5`, bản của thứ Hai phải có trước 14:00 thứ Hai + ân hạn, không phải thứ Ba. Job vật lý có incremental dùng
   lịch dày hơn. **Max age of the newest backup** trong job (*9. Notifications & status*) thay quy tắc này bằng một số giờ
   cố định, và theo dõi được cả job không có lịch (backup chạy qua API). Trang sửa job hiện khoảng thời gian đang áp dụng.
-- **Binlog chậm.** Với job lưu trữ binlog, cảnh báo được gửi khi bản lưu trữ chậm hơn server quá ngưỡng (mặc định 30
-  phút, 0 = không cảnh báo): luồng binlog bị ngắt hoặc không theo kịp, hoặc các binlog đã đóng đang chờ upload.
+- **Binlog chậm.** Với job lưu trữ binlog hoặc WAL, cảnh báo được gửi khi bản lưu trữ chậm hơn server quá ngưỡng (mặc
+  định 30 phút, 0 = không cảnh báo): luồng bị ngắt hoặc không theo kịp, hoặc các binlog / segment WAL đã đóng đang chờ
+  upload.
 - **Mỗi sự cố một lần.** Cảnh báo được gửi một lần tới các kênh nhận thông báo lỗi (với job bật *Notify on failure*),
   kèm bản backup tốt cuối, hạn của bản tiếp theo và lỗi của lần chạy gần nhất; khi hết sự cố sẽ có tin *Backups are
   fresh again* hoặc *Binlog archiving caught up*. Sự cố đang mở vẫn được nhớ sau khi khởi động lại. Webhook nhận `kind`
@@ -611,9 +639,15 @@ chạy bị treo — thì không gửi gì cả. Vì vậy mỗi phút DumpCat k
     20261019-020000-full/
       shop.pgdump.tar.zst.age    # pg_dump: mỗi database một archive định dạng thư mục, đóng gói tar
       _globals.sql.zst.age       # role và tablespace (pg_dumpall --globals-only)
+    20261020-020000-full/
+      base.tar.zst.age           # pg_basebackup: thư mục dữ liệu và WAL của bản backup, đóng gói tar
     binlog/                      # lưu trữ binlog liên tục (PITR), nén + mã hóa như backup
       20261019/
         mysql-bin.000123.zst.age
+    wal/                         # lưu trữ WAL liên tục (PITR PostgreSQL), cũng như vậy
+      20261020/
+        00000001000000000000001A.zst.age
+        00000002.history.zst.age # lịch sử timeline (retention không xóa)
 ```
 
 ## 7. Restore
@@ -649,8 +683,28 @@ Mở **Bản backup** → chọn bản → **Restore**.
   khi bạn restore cả role.
 - Server đích phải là PostgreSQL; restore sang major cũ hơn có thể lỗi ở tính năng của bản mới (DumpCat cảnh báo).
 
-Muốn quay về **một thời điểm bất kỳ** (không chỉ thời điểm backup), dùng *Point-in-time recovery* — xem mục 8 (MySQL và
-MariaDB).
+**PostgreSQL (pg_basebackup)** — cluster trở thành một thư mục dữ liệu trên máy chạy DumpCat:
+1. `base.tar` được tải về, giải mã và giải nén vào thư mục giải nén (mặc định `<thư mục dữ liệu>/restore/<job>-<bản backup>`,
+   admin chọn được thư mục khác; thư mục phải trống).
+2. **Khôi phục**: nếu máy này có server PostgreSQL cùng major với bản backup, DumpCat khởi động một server tạm trên thư
+   mục — với cấu hình riêng: 127.0.0.1 ở một cổng trống, không unix socket, không archive, không nạp thư viện; chạy bằng
+   *OS user* (mặc định `postgres`) khi DumpCat chạy bằng root — chờ nó phát lại WAL (của bản backup, hoặc đến mốc khôi
+   phục rồi promote sang timeline mới) rồi dừng nó. Thư mục khi đó là một thư mục dữ liệu sạch: khởi động PostgreSQL trên
+   đó (giữ `postgresql.auto.conf` của nguồn). Khi chạy bằng root, OS user phải vào được thư mục: chọn một thư mục trong
+   `/var/tmp` (thư mục mặc định nằm trong thư mục dữ liệu của DumpCat, user đó không vào được). Không có server
+   PostgreSQL thì thư mục được để ở trạng thái **sẵn sàng khôi phục**: thiết lập khôi phục nằm trong
+   `postgresql.auto.conf` và `recovery.signal`, WAL nằm trong `dumpcat_wal/`; chép nó sang máy database rồi khởi động
+   PostgreSQL ở đó.
+3. (Admin, Linux) *Replace PostgreSQL's data directory on this machine*: bản backup được giải nén và khôi phục **ngay cạnh**
+   thư mục dữ liệu (`<datadir>.dumpcat-restore-<thời gian>`, cùng filesystem), rồi dừng service (tự nhận:
+   `postgresql@<major>-main`, `postgresql-<major>`, `postgresql`), đổi tên thư mục cũ thành
+   `<datadir>.before-restore-<thời gian>`, chuyển thư mục đã khôi phục vào chỗ và khởi động service. Lỗi bất kỳ thì
+   thư mục cũ được trả về chỗ. Các kiểm tra như với datadir MySQL vẫn áp dụng (không phải thư mục hệ thống, không nằm
+   trong thư mục dữ liệu của DumpCat, thư mục không trống thì phải có `PG_VERSION`), và phiên bản của thư mục đang có
+   phải khớp.
+
+Muốn quay về **một thời điểm bất kỳ** (không chỉ thời điểm backup), dùng *Point-in-time recovery* — xem
+[mục 8](#8-lưu-trữ-log--khôi-phục-theo-thời-điểm-pitr) (binlog MySQL / MariaDB, WAL PostgreSQL).
 
 ### Restore sang instance khác (nhân bản, chuyển server, staging)
 
@@ -730,13 +784,15 @@ backup hiện kết quả gần nhất; diễn tập thất bại hiện cảnh 
   gốc nên không diễn tập được; backup vật lý chưa được hỗ trợ. Backup tạo trước khi DumpCat đếm dòng được so với số bảng
   và view mà server liệt kê lúc backup (lệch thì chỉ cảnh báo) và bỏ qua kiểm tra số dòng.
 
-## 8. Lưu trữ binlog & khôi phục theo thời điểm (PITR)
+## 8. Lưu trữ log & khôi phục theo thời điểm (PITR)
 
-Bản backup chỉ cho quay về đúng lúc backup chạy. Bật **lưu trữ binlog liên tục** cho job để khôi phục đến *bất kỳ thời điểm nào*
-sau bản backup — ví dụ ngay trước một câu `DROP TABLE` lỡ tay. Bật trong form job, mục **8. Binlog & point-in-time recovery**
-→ *Continuous binlog archiving*.
+Bản backup chỉ cho quay về đúng lúc backup chạy. Bật **lưu trữ log liên tục** cho job để khôi phục đến *bất kỳ thời điểm nào*
+sau bản backup — ví dụ ngay trước một câu `DROP TABLE` lỡ tay. Bật trong form job, mục **8. Log archiving & point-in-time
+recovery**: *Continuous binlog archiving* cho job MySQL / MariaDB, *Continuous WAL archiving* cho job `pg_basebackup` của
+PostgreSQL ([PostgreSQL: lưu trữ WAL](#postgresql-lưu-trữ-wal)). Việc upload lên storage của job, danh mục, retention, theo
+dõi độ trễ và kế hoạch khôi phục giống nhau cho cả hai.
 
-### Cách hoạt động
+### Cách hoạt động (binlog MySQL / MariaDB)
 
 - Mỗi job bật tính năng có một tiến trình `mysqlbinlog --read-from-remote-server --raw --stop-never` (MariaDB: `mariadb-binlog`)
   chạy nền, kết nối như một replica (server id riêng: 3900000000 + id job) và chép **nguyên vẹn từng byte** binary log vào thư mục
@@ -758,7 +814,7 @@ sau bản backup — ví dụ ngay trước một câu `DROP TABLE` lỡ tay. B�
   GTID) và thời điểm dữ liệu nhất quán (`consistent_at`). Với mysqldump một file / database, **mỗi database có vị trí snapshot
   riêng** và được phát lại từ đúng vị trí đó.
 
-### Yêu cầu
+### Yêu cầu (MySQL / MariaDB)
 
 - Server bật `log_bin` và có `server_id`. Khuyến nghị `binlog_format=ROW` (cần cho restore *đổi tên* chính xác, xem lưu ý). Giữ
   binlog trên server đủ lâu để DumpCat kịp tải (`binlog_expire_logs_seconds` / `expire_logs_days`, tối thiểu vài giờ).
@@ -769,23 +825,55 @@ sau bản backup — ví dụ ngay trước một câu `DROP TABLE` lỡ tay. B�
 - User restore cần quyền phát lại binlog: MySQL `SYSTEM_VARIABLES_ADMIN` + `REPLICATION_APPLIER` (hoặc ALL PRIVILEGES), MariaDB
   `SUPER` hoặc `BINLOG REPLAY`.
 
+### PostgreSQL: lưu trữ WAL
+
+- Mỗi job bật lưu trữ WAL có một tiến trình `pg_receivewal --slot=<slot> --no-loop` (không đồng bộ) chạy nền, qua kết nối
+  replication, ghi vào `<staging>/wal-<id job>/`; mật khẩu truyền qua một file mật khẩu riêng.
+- **Replication slot** `dumpcat_job<id>_<uuid>` được tạo khi bắt đầu lưu trữ: từ lúc đó server giữ mọi segment WAL cho đến
+  khi DumpCat nhận xong — cả khi DumpCat dừng hay mất mạng. Nhờ vậy kho lưu trữ đầy đủ, nhưng đó cũng là rủi ro: tiến trình
+  ngừng lâu thì WAL dồn lại trên server. Đặt `max_slot_wal_keep_size` để giới hạn (PostgreSQL 13+); khi server bỏ WAL mà
+  slot còn cần, DumpCat ghi một **khoảng trống** vào log, tạo lại slot và nhận tiếp từ vị trí của server — PITR không đi
+  qua được khoảng trống, bản base backup kế tiếp bắt đầu một chuỗi mới. Tắt lưu trữ, tắt hoặc xóa job, hay chuyển job sang
+  server khác sẽ **xóa slot**; dừng hay cập nhật DumpCat thì không. Nếu gỡ DumpCat, hãy tự xóa slot:
+  `SELECT pg_drop_replication_slot('dumpcat_job…');`.
+- Mỗi segment đã đầy (mặc định 16 MB) và mỗi file lịch sử timeline được nén/mã hóa, upload lên mọi storage của job tại
+  `<job>/wal/<YYYYMMDD>/<segment>` và ghi vào danh mục cùng những gì DumpCat đọc được từ nó: khoảng LSN, thời điểm commit
+  đầu và cuối, các **restore point** tạo trong đó (`pg_create_restore_point`) và system identifier của cluster. Segment
+  đang nhận nằm lại máy thành `<segment>.partial` và **được dùng khi restore**; segment lưu trữ mới nhất được giữ trong thư
+  mục staging để `pg_receivewal` nhận tiếp ngay sau nó.
+- **Close & upload the current WAL segment after (minutes)** chạy `pg_switch_wal()` khi segment hiện tại chứa commit quá N
+  phút (cần superuser, hoặc `GRANT EXECUTE ON FUNCTION pg_switch_wal() TO dumpcat`). Server rảnh thì không đóng gì.
+- Yêu cầu: `wal_level` replica (mặc định) hoặc logical, còn chỗ trong `max_wal_senders`, thuộc tính `REPLICATION` và một dòng
+  `replication` trong `pg_hba.conf` (xem [PostgreSQL](#postgresql)), `pg_receivewal` trên máy DumpCat (cùng major với server
+  hoặc mới hơn), và bản backup `pg_basebackup` làm nền: WAL chỉ phát lại được trên bản sao vật lý của cluster, nên job pg_dump
+  không lưu trữ WAL. Lưu trữ từ một standby được (slot riêng của nó); việc đóng segment ở đó do primary quyết định.
+
 ### Theo dõi
 
-Trang **Binlog & PITR** hiển thị cho từng job: file đang nhận, vị trí hiện tại của server, độ trễ (byte / giây), số file chờ upload,
-file lưu trữ gần nhất, tổng số file & dung lượng, danh sách file (kèm storage), log của tiến trình; nút *Close binlog now* (đóng &
+Trang **Binlog / WAL & PITR** hiển thị cho từng job: file đang nhận, vị trí hiện tại của server, độ trễ (byte / giây), số file chờ
+upload, replication slot và lượng WAL server đang giữ cho nó (PostgreSQL), file lưu trữ gần nhất, tổng số file & dung lượng, danh
+sách file (kèm storage, khoảng LSN và restore point), log của tiến trình; nút *Close binlog now* / *Close segment now* (đóng &
 upload ngay) và *Restart*. Dashboard cảnh báo khi lưu trữ hoặc upload lỗi, hay có hơn 5 file tồn đọng; lỗi liên tiếp gửi thông báo
 (nếu job bật thông báo khi lỗi).
 
 ### Khôi phục theo thời điểm
 
-1. **Binlog & PITR** → *Restore to a point in time* (hoặc mục *Point-in-time recovery* trong form Restore của một bản backup).
-2. Chọn mốc dừng:
+1. **Binlog / WAL & PITR** → *Restore to a point in time* (hoặc mục *Point-in-time recovery* trong form Restore của một bản backup).
+2. Chọn mốc dừng (MySQL / MariaDB):
    - **Point in time** — giao dịch *commit* trước thời điểm đó được áp dụng, các giao dịch sau thì không; không bao giờ dừng giữa
      một giao dịch. Giờ nhập theo múi giờ của trình duyệt.
    - **Before a GTID** — dừng ngay trước giao dịch đó (vd. GTID của câu `DROP TABLE`, tìm bằng `mysqlbinlog` hoặc
      `SHOW BINLOG EVENTS`). MariaDB: `0-1-1234`, MySQL: `uuid:23`.
    - **Binlog position** — `file` + `vị trí`: các sự kiện từ vị trí đó trở đi không được áp dụng.
    - **Latest available** — mọi binlog đã lưu trữ cộng phần đang nhận dở: trạng thái mới nhất có thể khôi phục.
+
+   PostgreSQL:
+   - **Point in time** — như trên (`recovery_target_time`, commit đúng thời điểm đó được tính vào).
+   - **Restore point** — một điểm tạo trên server bằng `SELECT pg_create_restore_point('before_migration')`; các tên tìm thấy
+     trong WAL đã lưu trữ được gợi ý.
+   - **WAL position (LSN)** — ví dụ `pg_current_wal_lsn()` ghi lại trước một thay đổi rủi ro; bản ghi ở đúng vị trí đó là bản
+     ghi cuối cùng được phát lại.
+   - **Latest available** — mọi segment đã lưu trữ cộng segment đang nhận.
 3. DumpCat chọn **bản backup mới nhất có dữ liệu trước mốc** (full logic, hoặc chuỗi full + incremental vật lý), kiểm tra chuỗi binlog
    liền mạch từ vị trí của bản đó đến mốc và hiển thị kế hoạch: bản nền, số file / dung lượng binlog, binlog đầy đủ đến lúc nào.
 4. Điền form restore như bình thường (đổi tên, xóa DB đích trước, chế độ nhanh, không ghi binlog...). Trình tự:
@@ -800,6 +888,14 @@ upload ngay) và *Restart*. Dashboard cảnh báo khi lưu trữ hoặc upload l
    Giao dịch nhận GTID mới (`--skip-gtids`; MariaDB: bỏ `gtid_seq_no`) nên phát lại được trên chính server nguồn.
    Restore vật lý: cần *Apply right away* và chọn server; sau khi MySQL khởi động với datadir mới, DumpCat chờ server nhận kết nối
    rồi phát lại **toàn bộ** binlog của instance (giữ nguyên GTID gốc).
+6. PostgreSQL: bản nền luôn là bản `pg_basebackup`. Các segment tải về (của mọi timeline từ timeline của bản nền trở đi, cùng
+   các file lịch sử timeline) được đọc liền một mạch trước khi thay đổi bất cứ gì: chúng phải thuộc cluster của bản nền và nối
+   tiếp nó không đứt quãng, và restore point phải nằm trong đó. Rồi restore chuẩn bị thư mục dữ liệu ([Restore](#7-restore))
+   với các segment trong `dumpcat_wal/`, `restore_command` đọc chúng, `recovery_target_*`, `recovery_target_timeline = latest`
+   và `recovery_target_action = promote`: chính PostgreSQL phát lại WAL, dừng ở mốc và bắt đầu một timeline mới. Mốc thời gian
+   sau commit cuối cùng trong WAL (hoặc LSN ở đúng cuối WAL) thì phát lại toàn bộ — giữa chúng không có gì, và PostgreSQL 13+
+   sẽ dừng với lỗi *recovery ended before configured recovery target was reached*. Không cần *Apply*: khôi phục vào một thư
+   mục chạy được cả trên Windows.
 
 ### Lưu ý
 
@@ -814,6 +910,9 @@ upload ngay) và *Restart*. Dashboard cảnh báo khi lưu trữ hoặc upload l
 - **Retention**: sau mỗi lần backup, trên từng storage, binlog được lưu trữ *trước khi bản backup cũ nhất còn giữ bắt đầu* bị xóa
   (không còn bản backup nào phát lại được từ đó). Binlog đang được một tác vụ restore sử dụng không bị xóa.
 - MySQL/Percona: phát lại cần client cùng phiên bản lớn với server; binlog nén (`binlog_transaction_compression`) cần `mysqlbinlog` ≥ 8.0.20.
+- PostgreSQL: WAL chứa **mọi database** của cluster, và khôi phục là khôi phục cả cluster (không chọn một database, không đổi
+  tên). Retention không bao giờ xóa file lịch sử timeline. Nếu nguồn được promote (failover), chuỗi đi tiếp bằng các segment
+  của timeline mới.
 
 ### Phát lại thủ công (không có DumpCat)
 
@@ -829,6 +928,24 @@ mysqlbinlog --start-position=331316 --stop-datetime="2026-10-18 03:36:42" \
 
 `--stop-datetime` của `mysqlbinlog` tính theo múi giờ của máy chạy lệnh và dừng ở *sự kiện* đầu tiên có thời gian ≥ mốc (có thể
 giữa giao dịch); DumpCat tự tính vị trí dừng ở ranh giới giao dịch.
+
+PostgreSQL: giải mã bản base backup và các segment, rồi để PostgreSQL tự khôi phục:
+
+```bash
+mkdir -p /restore/data && chmod 700 /restore/data
+dumpcat decode -in base.tar.zst.age -out - | tar xf - -C /restore/data
+mkdir /restore/data/dumpcat_wal
+for f in 00000001000000000000001A 00000001000000000000001B; do
+  dumpcat decode -in $f.zst.age -out /restore/data/dumpcat_wal/$f
+done
+cat >> /restore/data/postgresql.auto.conf <<'EOF'
+restore_command = 'cp "dumpcat_wal/%f" "%p"'
+recovery_target_time = '2026-10-20 09:30:00+07'
+recovery_target_action = 'promote'
+EOF
+touch /restore/data/recovery.signal && chown -R postgres: /restore/data
+sudo -u postgres pg_ctl -D /restore/data start      # phát lại, dừng ở mốc, promote
+```
 
 ## 9. Khôi phục thủ công khi không có DumpCat
 
@@ -854,6 +971,11 @@ dumpcat decode -in shop.pgdump.tar.zst.age -out shop.pgdump.tar && mkdir shop.du
 createdb -T template0 shop && pg_restore --jobs 4 --dbname shop shop.dump
 dumpcat decode -in _globals.sql.zst.age -out globals.sql        # role: đọc lại rồi chạy psql -f globals.sql
 
+# pg_basebackup (PostgreSQL): cả cluster cùng WAL của bản backup; khởi động là nhất quán
+mkdir -m 700 /restore/pgdata && dumpcat decode -in base.tar.zst.age -out - | tar xf - -C /restore/pgdata
+chown -R postgres: /restore/pgdata && sudo -u postgres pg_ctl -D /restore/pgdata -o "-p 5433" start
+# (về một thời điểm: xem "Phát lại thủ công" ở mục 8)
+
 # vật lý (full + incremental)
 dumpcat decode -in full/backup.xbstream.zst -out - | mbstream -x -C /restore/full      # MySQL: xbstream -x
 mariabackup --prepare --target-dir=/restore/full
@@ -872,8 +994,9 @@ Khi mất cả server chạy DumpCat:
 3. **Nơi lưu trữ** → menu → **Nhập danh mục backup**: DumpCat quét các `manifest.json` và hiện lại toàn bộ bản backup (kể cả chuỗi incremental).
 4. Restore như bình thường — với bản có mã hóa, nhập passphrase ở form restore.
 
-Danh mục binlog đã lưu trữ (PITR) không được nhập lại: các file vẫn nằm ở `<job>/binlog/` trên storage và phát lại thủ công được
-(mục 8); bật lại lưu trữ binlog cho job mới rồi chạy một bản backup mới để có PITR trở lại.
+Danh mục log đã lưu trữ (PITR) không được nhập lại: các file vẫn nằm ở `<job>/binlog/` hoặc `<job>/wal/` trên storage và phát lại
+thủ công được (mục 8); bật lại lưu trữ log cho job mới rồi chạy một bản backup mới để có PITR trở lại. PostgreSQL: replication slot
+của bản cài cũ vẫn giữ WAL trên server — hãy xóa nó (`SELECT pg_drop_replication_slot('dumpcat_job…')`).
 
 Nên sao lưu thêm `/var/lib/dumpcat/master.key` và `dumpcat.db` (cấu hình, lịch sử) — hoặc chỉ cần ghi nhớ passphrase mã hóa.
 
@@ -1029,7 +1152,7 @@ Dữ liệu nội bộ: `/var/lib/dumpcat/dumpcat.db` (SQLite), `master.key`, `l
 | Mất passphrase mã hóa | Không thể giải mã — luôn lưu passphrase ở password manager |
 | Binlog & PITR: *binary logging is disabled (log_bin=OFF)* | Bật `log_bin` và `server_id` trong my.cnf rồi khởi động lại MySQL/MariaDB |
 | Binlog & PITR: *SHOW BINARY LOGS … REPLICATION CLIENT* / `Access denied` khi nhận binlog | Cấp `REPLICATION SLAVE` + `REPLICATION CLIENT` (MariaDB: `BINLOG MONITOR`) cho user backup |
-| PITR: *binlogs are only archived up to …* | Bấm *Close binlog now* ở trang **Binlog & PITR**, chờ vài giây cho file được upload, hoặc chọn *Latest available* |
+| PITR: *binlogs are only archived up to …* / *WAL segments are only archived up to …* | Bấm *Close binlog now* / *Close segment now* ở trang **Binlog / WAL & PITR**, chờ vài giây cho file được upload, hoặc chọn *Latest available* |
 | PITR: *… has not been archived* / *sequence is broken* | Binlog đã bị server xóa trước khi lưu trữ, hoặc numbering bị đặt lại: tăng thời gian giữ binlog trên server, chạy một bản backup mới làm điểm bắt đầu |
 | Agent: *agent … is offline* | Khởi động agent trên server database (`systemctl status dumpcat-agent`, `journalctl -u dumpcat-agent`). Log agent báo *the server refused the agent*: sai khóa hoặc khóa đã rotate, hoặc URL không phải DumpCat. Đặt sau nginx thì dùng khối `/api/agent/` của cấu hình mẫu |
 | WireGuard: *peer … has not connected yet* / *no answer from …* / *nothing listens on …* | Xem [3.8](#38-wireguard-tích-hợp): khởi động `wg-quick@dumpcat` trên server database và mở port UDP trên máy chạy DumpCat; cho interface WireGuard vào trên server database; cho MySQL nghe trên địa chỉ WireGuard |
@@ -1041,6 +1164,12 @@ Dữ liệu nội bộ: `/var/lib/dumpcat/dumpcat.db` (SQLite), `master.key`, `l
 | PostgreSQL: *role "…" does not exist* khi restore | Tích *Restore roles*, hoặc *Skip ownership* và *Skip privileges* |
 | PostgreSQL: *database "…" is being accessed by other users* | *Drop target databases* không xóa được database đang có người kết nối: ngắt các kết nối đó, hoặc restore dưới tên mới |
 | PostgreSQL: *no pg_hba.conf entry for host …* | Thêm dòng `host … scram-sha-256` cho máy chạy DumpCat (hoặc máy có agent) vào `pg_hba.conf` rồi reload PostgreSQL |
+| PostgreSQL: *no pg_hba.conf entry for replication connection* / *needs the REPLICATION attribute* | pg_basebackup và lưu trữ WAL: `ALTER ROLE dumpcat REPLICATION` và một dòng `host replication dumpcat <máy DumpCat>/32 scram-sha-256` |
+| PostgreSQL: *requested WAL segment … has already been removed*, **khoảng trống** WAL trong log lưu trữ | Server đã xóa WAL trước khi DumpCat nhận (slot mất do `max_slot_wal_keep_size`, slot bị xóa tay): DumpCat nhận tiếp từ vị trí của server; chạy một bản pg_basebackup mới làm nền kế tiếp |
+| PostgreSQL: ổ đĩa server đầy WAL | Job lưu trữ WAL có tiến trình đang ngừng thì slot của nó giữ WAL: sửa tiến trình (trang **Binlog / WAL & PITR**, xem log), hoặc tắt lưu trữ (xóa slot); đặt `max_slot_wal_keep_size` |
+| PostgreSQL: *Cannot close the current WAL segment (pg_switch_wal() …)* | `GRANT EXECUTE ON FUNCTION pg_switch_wal() TO dumpcat`, hoặc đặt khoảng đóng segment là 0 |
+| Restore PostgreSQL: *the directory is left ready to recover* | Máy chạy DumpCat chưa cài server PostgreSQL cùng phiên bản với bản backup (hoặc, khi chạy bằng root, OS user không vào được thư mục): tự khởi động PostgreSQL trên thư mục, hoặc cài `postgresql-<major>` rồi restore lại |
+| Restore PostgreSQL: *recovery ended before configured recovery target was reached* | Mốc nằm sau phần WAL đã lưu trữ lúc restore bắt đầu: đóng segment rồi thử lại, hoặc chọn *Latest available* |
 | Xem log dịch vụ | `journalctl -u dumpcat -f`; log từng tác vụ ở trang chi tiết hoặc `/var/lib/dumpcat/logs/` |
 
 ## 15. Phát triển
@@ -1059,15 +1188,17 @@ Cấu trúc mã nguồn:
 ```
 cmd/dumpcat        CLI (serve, agent, user, decode, update, release)
 internal/api       REST API, xác thực, phân quyền, phục vụ UI
-internal/runner    điều phối backup/upload/retention/verify/restore/nhập danh mục, lưu trữ binlog, PITR
-internal/engine    mysqldump, mydumper, xtrabackup/mariabackup, mysql/myloader, mysqlbinlog (stream & phát lại)
+internal/runner    điều phối backup/upload/retention/verify/restore/nhập danh mục, lưu trữ log và PITR (mọi engine)
+internal/engine    các interface của driver; MySQL: mysqldump, mydumper, xtrabackup/mariabackup, mysql/myloader, lưu trữ & phát lại binlog
+internal/pgsql     PostgreSQL: pg_dump/pg_restore, pg_basebackup, lưu trữ WAL (pg_receivewal), đọc WAL, khôi phục
+internal/drivers   danh sách các database engine DumpCat hỗ trợ
 internal/binlog    đọc binlog: ranh giới sự kiện, thời gian, GTID, điểm dừng PITR
 internal/storage   local + rclone (S3, Drive, OneDrive, FTP, SFTP...), OAuth
 internal/pipeline  nén zstd/gzip + mã hóa age + sha256 dạng stream
 internal/store     SQLite: người dùng, server, storage, job, bản backup, audit
 internal/scheduler cron
 internal/notify    Email, Telegram, Slack, Discord, Webhook, báo cáo tuần
-internal/monitor   cảnh báo backup quá hạn và binlog chậm, lịch báo cáo tuần, Prometheus metrics
+internal/monitor   cảnh báo backup quá hạn và lưu trữ log chậm, lịch báo cáo tuần, Prometheus metrics
 internal/update    tự cập nhật: manifest bản phát hành, chữ ký, cài đặt & rollback
 internal/agent     agent: tunnel ngược từ server database (WebSocket), danh sách cho phép
 internal/wg        WireGuard tích hợp (wireguard-go + netstack gVisor, không tạo interface)

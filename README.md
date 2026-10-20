@@ -37,10 +37,11 @@ single Go binary with the UI built in.
 - **Three backup engines.** `mysqldump` / `mariadb-dump`, parallel `mydumper` / `myloader`, and hot physical backups with
   Percona XtraBackup or MariaBackup, including incrementals.
 - **PostgreSQL too.** `pg_dump` in directory format with tables dumped and restored in parallel, roles from
-  `pg_dumpall --globals-only`, restores under new names or onto another server, and restore drills, with the client tools
-  of each server's major version picked automatically. Point-in-time recovery for PostgreSQL (WAL) comes next.
+  `pg_dumpall --globals-only`, restores under new names or onto another server, and restore drills; `pg_basebackup` for
+  the whole cluster. The client tools of each server's major version are picked automatically.
 - **Point-in-time recovery.** Continuous binlog archiving restores to a timestamp, a binlog position or the moment just
-  before a GTID, for example just before an accidental `DROP TABLE`.
+  before a GTID, for example just before an accidental `DROP TABLE`; continuous WAL archiving (`pg_receivewal` through a
+  replication slot) does the same for PostgreSQL, to a timestamp, a restore point or a WAL position.
 - **Storage anywhere.** Local disk or NFS, S3 and compatibles (Cloudflare R2, MinIO, Wasabi…), Google Drive,
   OneDrive / SharePoint, FTP / FTPS, SFTP, WebDAV, Backblaze B2, Azure Blob, Dropbox and every rclone backend. One job can
   write to several storages, each with its own retention.
@@ -143,7 +144,7 @@ flowchart RL
 |---|---|
 | **Databases** | MySQL 5.7, 8.0, 8.4 · Percona Server · MariaDB 10.x, 11.x · PostgreSQL 10 and newer |
 | **DumpCat host** | Linux amd64 / arm64 with systemd · Windows Server 2016+ / Windows 10+ 64-bit, as a Windows service |
-| **Backup tools** | mysqldump / mariadb-dump · mydumper / myloader · Percona XtraBackup · MariaBackup · pg_dump / pg_restore / pg_dumpall (the Linux installer picks the versions that match your server; `--postgres 16` adds the PostgreSQL 16 client) |
+| **Backup tools** | mysqldump / mariadb-dump · mydumper / myloader · Percona XtraBackup · MariaBackup · pg_dump / pg_restore / pg_dumpall / pg_basebackup / pg_receivewal (the Linux installer picks the versions that match your server; `--postgres 16` adds the PostgreSQL 16 client) |
 | **Storage** | Local directories and NFS / SMB shares, plus everything [rclone](https://rclone.org) supports |
 | **Databases behind a firewall** | The agent (`dumpcat agent`) on Linux with systemd or on Windows, outbound HTTPS only · or standard WireGuard (`wg-quick`), outbound UDP |
 
@@ -214,7 +215,8 @@ and restrict who can reach it.
 | Restore one database or rename it | Yes | Yes | No, whole instance |
 | Good for | Under 20–50 GB | Large databases restored one at a time | 100 GB to several TB, low RTO |
 
-PostgreSQL servers are backed up with `pg_dump` (directory format, tables in parallel, no locking of writers): see
+PostgreSQL servers are backed up with `pg_dump` (directory format, tables in parallel, no locking of writers) or
+`pg_basebackup` (the whole cluster, the base of WAL archiving and point-in-time recovery): see
 [PostgreSQL](docs/manual.md#postgresql).
 
 More detail and recommendations: [Choosing a backup method](docs/manual.md#2-choosing-a-backup-method).
@@ -230,7 +232,7 @@ The full manual is in [docs/manual.md](docs/manual.md) ([Tiếng Việt](docs/ma
 | S3, Google Drive, OneDrive, FTP, SFTP… | [Configuring storage](docs/manual.md#5-configuring-storage) |
 | Schedules, incrementals, retention | [Jobs, schedules, retention](docs/manual.md#6-jobs-schedules-retention) |
 | Logical and physical restores | [Restore](docs/manual.md#7-restore) |
-| Binlog archiving, recovering to a point in time | [PITR](docs/manual.md#8-binlog-archiving--point-in-time-recovery-pitr) |
+| Binlog archiving, recovering to a point in time | [PITR](docs/manual.md#8-log-archiving--point-in-time-recovery-pitr) |
 | Restoring without DumpCat, reinstalling DumpCat | [Manual recovery](docs/manual.md#9-manual-recovery-without-dumpcat) · [Disaster recovery](docs/manual.md#10-disaster-recovery) |
 | Roles, 2FA, encryption at rest | [Security](docs/manual.md#11-security) |
 | REST API, webhooks | [API & automation](docs/manual.md#12-api--automation) |
