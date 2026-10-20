@@ -690,8 +690,10 @@ Mở **Bản backup** → chọn bản → **Restore**.
    mục — với cấu hình riêng: 127.0.0.1 ở một cổng trống, không unix socket, không archive, không nạp thư viện; chạy bằng
    *OS user* (mặc định `postgres`) khi DumpCat chạy bằng root — chờ nó phát lại WAL (của bản backup, hoặc đến mốc khôi
    phục rồi promote sang timeline mới) rồi dừng nó. Thư mục khi đó là một thư mục dữ liệu sạch: khởi động PostgreSQL trên
-   đó (giữ `postgresql.auto.conf` của nguồn). Khi chạy bằng root, OS user phải vào được thư mục: chọn một thư mục trong
-   `/var/tmp` (thư mục mặc định nằm trong thư mục dữ liệu của DumpCat, user đó không vào được). Không có server
+   đó (giữ `postgresql.auto.conf` của nguồn). Khi chạy bằng root, OS user phải vào được thư mục: chọn ví dụ
+   `/srv/dumpcat-restore` (thư mục còn thiếu được tạo sao cho user đó vào được; thư mục mặc định nằm trong thư mục dữ
+   liệu của DumpCat, user đó không vào được; `/tmp` và `/var/tmp` bị từ chối: đó là thư mục riêng của service, người
+   khác không thấy và bị xóa khi DumpCat dừng). Không có server
    PostgreSQL thì thư mục được để ở trạng thái **sẵn sàng khôi phục**: thiết lập khôi phục nằm trong
    `postgresql.auto.conf` và `recovery.signal`, WAL nằm trong `dumpcat_wal/`; chép nó sang máy database rồi khởi động
    PostgreSQL ở đó.

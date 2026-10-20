@@ -95,10 +95,9 @@ func (Driver) RestorePhysical(env *engine.Env, src engine.RestoreSource, spec *e
 	if entries, err := os.ReadDir(dir); err == nil && len(entries) > 0 {
 		return fmt.Errorf("target directory %s is not empty", dir)
 	}
-	if err := os.MkdirAll(dir, 0o700); err != nil {
+	if err := mkdirFor(dir, asUser); err != nil {
 		return err
 	}
-	_ = os.Chmod(dir, 0o700)
 	keep := false
 	if spec.Apply != nil {
 		defer func() {
@@ -159,7 +158,7 @@ func (Driver) RestorePhysical(env *engine.Env, src engine.RestoreSource, spec *e
 		lg.Printf("The PostgreSQL %d server is not installed on this machine (%v): the directory is left ready to recover", pgMajor, binErr)
 	case asUser != "" && spec.Apply == nil:
 		if err := execx.Reachable(dir, asUser); err != nil {
-			lg.Printf("PostgreSQL would run as %s, which cannot reach %s (%v): the directory is left ready to recover — choose a directory %s can reach (e.g. under /var/tmp) to let DumpCat recover it", asUser, dir, err, asUser)
+			lg.Printf("PostgreSQL would run as %s, which cannot reach %s (%v): the directory is left ready to recover — choose a directory %s can reach (e.g. /srv/dumpcat-restore) to let DumpCat recover it", asUser, dir, err, asUser)
 			break
 		}
 		fallthrough
@@ -184,6 +183,36 @@ func (Driver) RestorePhysical(env *engine.Env, src engine.RestoreSource, spec *e
 	}
 	keep = true
 	return replaceCluster(env, dir, spec.Apply.Datadir, service, asUser)
+}
+
+// mkdirFor creates dir (mode 0700) and its missing parents. When the
+// recovery runs as another OS user, these get mode 0755 whatever the umask
+// (the service's is 0027): that user must be able to enter them.
+func mkdirFor(dir, asUser string) error {
+	if asUser != "" {
+		var missing []string
+		for d := filepath.Dir(dir); d != filepath.Dir(d); d = filepath.Dir(d) {
+			if _, err := os.Stat(d); err == nil {
+				break
+			}
+			missing = append(missing, d)
+		}
+		for i := len(missing) - 1; i >= 0; i-- {
+			if err := os.Mkdir(missing[i], 0o755); err != nil {
+				if os.IsExist(err) {
+					continue
+				}
+				return err
+			}
+			if err := os.Chmod(missing[i], 0o755); err != nil {
+				return err
+			}
+		}
+	}
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		return err
+	}
+	return os.Chmod(dir, 0o700)
 }
 
 // restoreCommand copies a fetched segment for the recovery; the path is

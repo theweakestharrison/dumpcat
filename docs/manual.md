@@ -702,8 +702,10 @@ and run `--copy-back` there):
    archiving, no preloaded libraries; as the *OS user* (default `postgres`) when DumpCat runs as root — waits until it
    has replayed the WAL (of the backup, or up to the point-in-time target, then promoted on a new timeline) and stops
    it. The directory is then a clean data directory: start PostgreSQL on it (it keeps the source's
-   `postgresql.auto.conf`). As root, the OS user must be able to reach the directory: choose one under `/var/tmp` (the
-   default under DumpCat's data directory is not reachable). Without the server binaries, the directory is left
+   `postgresql.auto.conf`). As root, the OS user must be able to reach the directory: choose one such as
+   `/srv/dumpcat-restore` (missing folders are created so that it can; the default under DumpCat's data directory is
+   not reachable, and `/tmp` and `/var/tmp` are refused: they are the service's own, invisible to others and deleted
+   when DumpCat stops). Without the server binaries, the directory is left
    **ready to recover**: the recovery settings are in `postgresql.auto.conf` and `recovery.signal`, the WAL in
    `dumpcat_wal/`; copy it to the database host and start PostgreSQL there.
 3. (Admin, Linux) *Replace PostgreSQL's data directory on this machine*: the backup is extracted and recovered **next

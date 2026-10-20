@@ -38,8 +38,9 @@ database engines.
   supported yet.
 - Restoring a pg_basebackup backup prepares a data directory on the DumpCat host and recovers it with a temporary
   PostgreSQL server of the backup's version (its own configuration: a local port, no archiving); without the server
-  binaries the directory is left ready to recover. Admins on Linux can replace a local cluster's data directory with
-  it: recovered next to it, swapped in while the service is stopped, rolled back on any error.
+  binaries the directory is left ready to recover. Admins on Linux can replace a local cluster's data directory with it:
+  recovered next to it, swapped in while the service is stopped, rolled back on any error. As root the recovery runs as
+  the OS user `postgres`, and the folders DumpCat creates for the directory let it in.
 
 ### Point-in-time recovery for PostgreSQL
 
@@ -73,6 +74,12 @@ database engines.
   `server_position` (instead of `server_file` / `server_pos`) and the start of a plan as `base.start`.
 - A restarted binlog stream no longer counts the previous session's last check as caught up, so a recovery planned
   right after a restart does not miss the binlog still being received.
+
+### Other fixes
+
+- Physical restores that only prepare a directory (MySQL and PostgreSQL) refuse one in `/tmp` or `/var/tmp` when DumpCat
+  runs as its systemd service: these are the service's private folders (`PrivateTmp`), invisible to other users and
+  deleted when DumpCat stops.
 
 ## 1.4.2 (2026-10-20)
 

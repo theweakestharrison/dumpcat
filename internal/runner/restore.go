@@ -17,6 +17,7 @@ import (
 	"dumpcat/internal/dbconn"
 	"dumpcat/internal/drivers"
 	"dumpcat/internal/engine"
+	"dumpcat/internal/execx"
 	"dumpcat/internal/notify"
 	"dumpcat/internal/pipeline"
 	"dumpcat/internal/storage"
@@ -104,6 +105,16 @@ func (r *Runner) StartRestore(runID int64, req RestoreRequest, userID int64, use
 		}
 		if req.Apply && target != nil && target.Tunneled() {
 			return nil, errors.New("replacing the datadir works only on the machine running DumpCat, not on a server reached through an agent or WireGuard")
+		}
+		// the restored directory stays where it is extracted: not in the service's private /tmp
+		if !req.Apply {
+			dir, err := r.restoreDir(run, req.TargetDir)
+			if err != nil {
+				return nil, err
+			}
+			if err := keptDir(dir); err != nil {
+				return nil, err
+			}
 		}
 	}
 	if !isPhysical(run.Method) && run.Meta["single_file"] == true {
@@ -574,6 +585,16 @@ func (r *Runner) restoreDir(run *store.Run, asked string) (string, error) {
 		}
 	}
 	return filepath.Abs(dir)
+}
+
+// keptDir refuses to leave a restored directory in the service's private
+// /tmp (systemd PrivateTmp): nobody else sees it, and it is deleted when
+// DumpCat stops.
+func keptDir(dir string) error {
+	if mp := execx.PrivateTmp(dir); mp != "" {
+		return fmt.Errorf("%s is private to DumpCat's service (systemd PrivateTmp): a directory restored there is invisible to other users and deleted when DumpCat stops or updates — choose another one, e.g. /srv/dumpcat-restore", mp)
+	}
+	return nil
 }
 
 // restorePhysicalDriver restores a physical backup through its driver
