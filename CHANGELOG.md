@@ -77,6 +77,19 @@ database engines.
 - A restarted binlog stream no longer counts the previous session's last check as caught up, so a recovery planned
   right after a restart does not miss the binlog still being received.
 
+### AI assistants (MCP)
+
+- DumpCat is an MCP server for Claude Desktop, Claude Code and other MCP clients: `POST /api/mcp` (streamable
+  HTTP) and `dumpcat mcp`, a stdio bridge that reads its address and token from `DUMPCAT_MCP_*` variables or an env
+  file and checks certificates like the agent. Tools give the overview, monitoring and alerts, servers (with a live
+  connection check), jobs, backups, restores, restore drills, the end of any task's log and a point-in-time recovery
+  preview; with a full-access token of an operator they also run a backup, verify a backup or start a drill. Each
+  tool runs the matching API request with the caller's token, so roles, audit log and secret-free answers are the
+  API's; restores, deletions, credentials and settings are not exposed.
+- API tokens are **read-only** or **full**. New tokens are read-only unless *Full* is chosen; a read-only token can
+  look but not change anything, download a backup or create a token, whatever its user's role. Existing tokens keep
+  full access. Token names refuse control characters.
+
 ### Other fixes
 
 - Physical restores that only prepare a directory (MySQL and PostgreSQL) refuse one in `/tmp` or `/var/tmp` when DumpCat

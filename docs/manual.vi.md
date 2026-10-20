@@ -43,7 +43,8 @@ Hướng dẫn đầy đủ để cài đặt, cấu hình và vận hành DumpC
 | Vận hành | Tiến độ realtime (bytes, tốc độ, %), log trực tiếp, hủy tác vụ, giới hạn số job chạy đồng thời, ưu tiên thấp (nice/ionice), pre/post command, timeout |
 | Thông báo | Email (SMTP, HTML kèm bản text), Telegram, Slack, Discord, Webhook (ký HMAC) — khi lỗi và/hoặc thành công |
 | Giám sát | **Cảnh báo backup quá hạn** cho từng job (theo lịch chạy, hoặc tuổi tối đa) và **cảnh báo lưu trữ log chậm** (binlog / WAL), mỗi sự cố báo một lần và báo lại khi đã hết; **báo cáo tuần** qua email; Prometheus **`/metrics`** (bearer token hoặc chỉ máy này) |
-| Bảo mật | Mật khẩu bcrypt, phiên HttpOnly + CSRF, khóa đăng nhập sai nhiều lần, 2FA TOTP, API token, vai trò, audit log, mọi mật khẩu/khóa cloud mã hóa AES-256-GCM khi lưu, mật khẩu DB không bao giờ nằm trên dòng lệnh |
+| Trợ lý AI | Endpoint **MCP** và `dumpcat mcp` cho Claude Desktop, Claude Code và các MCP client khác: trạng thái, backup, log và lỗi, mặc định chỉ đọc; chạy backup, verify và diễn tập với token toàn quyền |
+| Bảo mật | Mật khẩu bcrypt, phiên HttpOnly + CSRF, khóa đăng nhập sai nhiều lần, 2FA TOTP, API token (chỉ đọc hoặc toàn quyền), vai trò, audit log, mọi mật khẩu/khóa cloud mã hóa AES-256-GCM khi lưu, mật khẩu DB không bao giờ nằm trên dòng lệnh |
 | Phục hồi thảm họa | Mỗi bản backup có `manifest.json` → cài DumpCat mới, thêm storage, bấm **Nhập danh mục** là thấy lại toàn bộ backup. File backup là định dạng chuẩn (zstd/gzip/age/xbstream) — restore được cả khi không có DumpCat |
 
 ## 2. Chọn phương thức backup
@@ -1013,6 +1014,11 @@ Nên sao lưu thêm `/var/lib/dumpcat/master.key` và `dumpcat.db` (cấu hình,
 - Một địa chỉ đăng nhập sai 5 lần trong 15 phút → khóa tài khoản đó với địa chỉ đó 15 phút (người khác vẫn đăng nhập được); một IP sai 20 lần → khóa IP 15 phút. Mỗi lần thử được tính trước khi kiểm tra mật khẩu, nên gửi song song không được thêm lượt. Mỗi mã 2FA chỉ dùng được một lần.
 - Khi chạy sau reverse proxy (`DUMPCAT_TRUST_PROXY=1`), địa chỉ client lấy từ `X-Real-IP` hoặc mục cuối của `X-Forwarded-For`, tức mục do proxy thêm vào.
 - Tạo API token phải nhập mật khẩu tài khoản. Khi admin đặt lại mật khẩu hoặc khóa một tài khoản (hay `dumpcat user passwd` / `disable`), mọi API token của tài khoản đó bị thu hồi.
+- API token là **chỉ đọc** (mặc định) hoặc **toàn quyền**, tức quyền theo vai trò của người tạo. Dù vai trò nào, token
+  chỉ đọc chỉ xem được: không thay đổi gì, không tải backup, không tạo token mới. Token tạo trước 1.5.0 có toàn quyền.
+- Endpoint MCP cho trợ lý AI (`/api/mcp`, [12](#trợ-lý-ai-mcp)) chỉ nhận API token, không bao giờ nhận phiên đăng nhập
+  của trình duyệt, và mỗi công cụ của nó chạy đúng request API tương ứng bằng token đó: không làm được gì mà token
+  không làm được qua API. Restore, xóa, thông tin đăng nhập và cài đặt không có ở đó.
 - Phải nhập lại mật khẩu của server hay storage khi đổi địa chỉ hoặc user, hạ mức TLS, đổi chứng chỉ CA hoặc tắt kiểm tra chứng chỉ.
 - Mật khẩu DB, khóa cloud, token OAuth, passphrase được mã hóa AES-256-GCM bằng `master.key` (chmod 600). Có thể đặt khóa qua biến `DUMPCAT_MASTER_KEY` thay vì file. DumpCat không khởi động với một master key không thuộc về database của nó (ví dụ chép `dumpcat.db` sang máy khác mà quên `master.key`), và job có mã hóa sẽ báo lỗi chứ không lưu bản không mã hóa khi không đọc được passphrase.
 - Mật khẩu DB truyền qua option file tạm (0600) và xóa sau khi dùng — không xuất hiện trong `ps`. Log tự che các bí mật.
@@ -1024,7 +1030,8 @@ Nên sao lưu thêm `/var/lib/dumpcat/master.key` và `dumpcat.db` (cấu hình,
 
 ## 12. API & tự động hóa
 
-Tạo token ở *Hồ sơ & bảo mật → API token*, rồi:
+Tạo token ở *Hồ sơ & bảo mật → API token* (chọn quyền **Full** cho các request bên dưới có chạy tác vụ; token
+**Read-only** chỉ xem được), rồi:
 
 ```bash
 TOKEN=mv_xxxxxxxx
@@ -1043,6 +1050,107 @@ curl -H "Authorization: Bearer $TOKEN" https://backup.example.com/api/drill-runs
 Webhook thông báo gửi JSON `{kind, status, title, fields, error, url, time}` kèm header
 `X-DumpCat-Signature: sha256=<HMAC>` nếu đặt secret. `kind` là `backup`, `restore`, `verify`, `binlog`, `stale`,
 `binlog_lag` hoặc `test`; `status` là `success`, `failed`, `partial` hoặc `recovered` (cảnh báo đã hết).
+
+### Trợ lý AI (MCP)
+
+DumpCat là một server [MCP](https://modelcontextprotocol.io), nên Claude Desktop, Claude Code và các MCP client khác
+làm việc được với nó: xem việc gì thất bại hay quá hạn, liệt kê job và bản backup, đọc lý do một bản backup thất bại
+(lỗi và phần cuối log), xem tình trạng lưu trữ binlog / WAL và kết quả diễn tập restore, và xem trước một lần khôi phục
+theo thời điểm. Với token toàn quyền của operator hoặc admin, trợ lý còn chạy được backup, kiểm tra (verify) hoặc diễn
+tập restore (MCP client hỏi bạn trước khi gọi những công cụ này). Restore, xóa, thông tin đăng nhập và cài đặt không có
+qua MCP, và không có cài đặt nào bật chúng lên.
+
+1. Ở *Hồ sơ & bảo mật → API token*, tạo một token cho trợ lý. **Read-only** (mặc định) chỉ cho xem; **Full** cho chạy
+   thêm backup, verify và diễn tập.
+2. Kết nối client, hoặc thẳng tới endpoint `https://backup.example.com/api/mcp` (streamable HTTP, header
+   `Authorization: Bearer <token>`), hoặc qua `dumpcat mcp`, một server stdio nhỏ chuyển tiếp tới endpoint đó, cho các
+   client tự chạy một lệnh trên máy. `dumpcat mcp` đọc `DUMPCAT_MCP_URL` và `DUMPCAT_MCP_TOKEN` (hoặc
+   `DUMPCAT_MCP_TOKEN_FILE`) từ biến môi trường hoặc từ một file env, không bao giờ từ dòng lệnh, nơi người dùng khác
+   trên máy có thể nhìn thấy.
+
+**Claude Code**, nối thẳng tới endpoint:
+
+```bash
+claude mcp add --transport http dumpcat https://backup.example.com/api/mcp --header "Authorization: Bearer mv_xxxxxxxx"
+```
+
+hoặc, để chia sẻ server trong một project mà không kèm token, file `.mcp.json` lấy token từ biến môi trường của bạn:
+
+```json
+{
+  "mcpServers": {
+    "dumpcat": {
+      "type": "http",
+      "url": "https://backup.example.com/api/mcp",
+      "headers": { "Authorization": "Bearer ${DUMPCAT_TOKEN}" }
+    }
+  }
+}
+```
+
+**Claude Desktop**: *Settings → Developer → Edit Config* mở file `claude_desktop_config.json`. Cần có file `dumpcat`
+trên máy chạy Claude Desktop: bản cài Windows, `dumpcat-linux-amd64` trên Linux; macOS không có bản phát hành, hãy tự
+build bằng `CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 go build -o dumpcat ./cmd/dumpcat`.
+
+```json
+{
+  "mcpServers": {
+    "dumpcat": {
+      "command": "C:\\Program Files\\DumpCat\\dumpcat.exe",
+      "args": ["mcp"],
+      "env": {
+        "DUMPCAT_MCP_URL": "https://backup.example.com",
+        "DUMPCAT_MCP_TOKEN": "mv_xxxxxxxx"
+      }
+    }
+  }
+}
+```
+
+Trên Linux và macOS, `"command"` là đường dẫn tới file, ví dụ `"/usr/local/bin/dumpcat"`. Để token không nằm trong file
+đó, bỏ phần `env` và ghi hai dòng cài đặt vào `mcp.env` (`chmod 600`): `%AppData%\dumpcat\mcp.env` trên Windows,
+`~/.config/dumpcat/mcp.env` trên Linux, `~/Library/Application Support/dumpcat/mcp.env` trên macOS, hoặc một file chỉ
+định bằng `-config`:
+
+```bash
+DUMPCAT_MCP_URL=https://backup.example.com
+DUMPCAT_MCP_TOKEN=mv_xxxxxxxx
+```
+
+Lệnh này cũng dùng được trong Claude Code
+(`claude mcp add --transport stdio dumpcat -- dumpcat mcp`, với cài đặt trong `mcp.env`) và trong mọi MCP client chạy
+server trên máy. Kiểm tra cài đặt trước:
+
+```bash
+dumpcat mcp -check
+# OK: DumpCat 1.5.0 at https://backup.example.com/api/mcp (MCP 2025-11-25)
+# Signed in as alice (role operator) with a read-only token: you can see what the account can see and change nothing
+# 15 tools: get_overview, get_monitoring, list_servers, …
+```
+
+`dumpcat mcp` kiểm tra chứng chỉ của server giống như agent. Với chứng chỉ tự ký của DumpCat (`DUMPCAT_TLS_AUTO`), chép
+`tls/cert.pem` trong thư mục dữ liệu của DumpCat và đặt `DUMPCAT_MCP_CA` trỏ tới file đó; `DUMPCAT_MCP_INSECURE=1` tắt
+việc kiểm tra. `http://` không mã hóa chỉ được chấp nhận với `localhost` (hoặc khi đặt `DUMPCAT_MCP_INSECURE=1`).
+
+| Công cụ | Làm gì | Cần |
+|---|---|---|
+| `get_overview` | Số liệu, kết quả gần nhất và lần chạy tới của từng job, tác vụ đang chạy, backup gần đây, cảnh báo | viewer |
+| `get_monitoring` | Backup quá hạn (cùng quy tắc với cảnh báo quá hạn), tình trạng và độ trễ lưu trữ binlog / WAL, cảnh báo | viewer |
+| `list_servers`, `get_server` | Server database, không kèm mật khẩu; `check_connection` kết nối và kiểm tra ngay một server | viewer |
+| `list_jobs`, `get_job` | Job: lịch chạy, storage, retention, lần chạy trước và sau, lần diễn tập gần nhất | viewer |
+| `list_backups`, `get_backup` | Backup theo job, trạng thái hoặc phương thức; file, bản sao, verify, diễn tập và tiến độ của một bản | viewer |
+| `get_log` | Phần cuối log của một bản backup, một lần restore, một lần diễn tập hoặc phần lưu trữ log của job | viewer |
+| `list_restores`, `get_restore` | Các lần restore đã chạy, kèm trạng thái và lỗi | viewer |
+| `list_drills`, `list_drill_runs`, `get_drill_run` | Diễn tập restore và kết quả, từng bước kiểm tra | viewer |
+| `plan_pitr` | Xem trước khôi phục theo thời điểm: bản backup gốc và log đã lưu có tới được đích không; không thay đổi gì | operator |
+| `run_backup` | Chạy backup một job ngay | operator, token Full |
+| `verify_backup` | Đọc lại các bản sao của một backup và so mọi checksum | operator, token Full |
+| `start_drill` | Chạy một diễn tập restore ngay | operator, token Full |
+
+Các công cụ giống nhau cho mọi loại database. Mỗi lần gọi chạy đúng request REST API tương ứng bằng token đó, nên được
+cho phép, bị từ chối, ghi audit log và trả lời đúng như request đó. Kết quả không chứa mật khẩu, passphrase, khóa
+storage, địa chỉ webhook, pre/post command hay token, và che các thông tin đăng nhập lẫn trong lỗi và log. Endpoint
+không giữ phiên: mỗi request đều mang token.
 
 ### Prometheus metrics
 
@@ -1134,6 +1242,7 @@ dumpcat user reset-2fa -u admin   # mất thiết bị 2FA
 dumpcat user list
 dumpcat setup-token               # mã dùng một lần để tạo admin đầu tiên trên web
 dumpcat agent -server URL -key K  # trên server database không cho kết nối vào (3.7)
+dumpcat mcp [-check]              # cung cấp công cụ của DumpCat cho trợ lý AI qua stdio (12)
 dumpcat decode -in file.sql.zst.age -out file.sql
 dumpcat version
 ```
@@ -1163,6 +1272,7 @@ Dữ liệu nội bộ: `/var/lib/dumpcat/dumpcat.db` (SQLite), `master.key`, `l
 | Agent: *… is not on this agent's allow list* | Khởi động agent với `--allow host:port` cho địa chỉ đó, hoặc nhập địa chỉ mà agent cho phép (xem [3.7](#37-server-database-không-cho-kết-nối-vào-agent)) |
 | Job quá hạn mà không có cảnh báo | Bật **Alert when a job has no recent successful backup** ở **Settings → Monitoring**, *Notify on failure* trong job, và có kênh nhận thông báo lỗi |
 | `/metrics` trả 404 / 401 / 403 | 404: đang tắt (**Settings → Monitoring**). 401: tạo token và gửi dạng `Authorization: Bearer …`. 403: chế độ *Only to this machine* mà request đến từ máy khác hoặc qua reverse proxy |
+| `dumpcat mcp`: *refused the API token* / *certificate signed by unknown authority* / *would send the API token unencrypted* | Tạo token mới (token bị thu hồi khi admin đặt lại mật khẩu hoặc khóa tài khoản; xem cả hạn dùng). Chứng chỉ tự ký: đặt `DUMPCAT_MCP_CA` trỏ tới `tls/cert.pem` của DumpCat. Dùng địa chỉ `https://`, hoặc `DUMPCAT_MCP_INSECURE=1` |
 | PostgreSQL: *pg_dump N is older than PostgreSQL M* / *server version mismatch* | Cài công cụ client cùng major với server (`install.sh --postgres M`, `postgresql-client-M`); DumpCat tự chọn bản phù hợp |
 | PostgreSQL: *permission denied for table / schema / sequence* khi backup | Role backup không đọc được hết: `GRANT pg_read_all_data TO dumpcat` (PostgreSQL 14+), hoặc dùng owner của database |
 | PostgreSQL: *role "…" does not exist* khi restore | Tích *Restore roles*, hoặc *Skip ownership* và *Skip privileges* |

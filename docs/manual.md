@@ -43,7 +43,8 @@ The complete guide to installing, configuring and operating DumpCat. For an over
 | Operations | Real-time progress (bytes, speed, %), live logs, task cancellation, limit on concurrent jobs, low priority (nice/ionice), pre/post commands, timeouts |
 | Notifications | Email (SMTP, HTML with a plain-text version), Telegram, Slack, Discord, Webhook (HMAC-signed) — on failure and/or success |
 | Monitoring | **Overdue-backup alerts** per job (from its schedule, or a max age) and **log archive lag** alerts (binlog / WAL), once per incident with a message when it clears; a **weekly digest** by email; Prometheus **`/metrics`** (bearer token or this machine only) |
-| Security | bcrypt passwords, HttpOnly sessions + CSRF, lockout after repeated failed logins, TOTP 2FA, API tokens, roles, audit log, every password/cloud key encrypted at rest with AES-256-GCM, database passwords never on the command line |
+| AI assistants | An **MCP** endpoint and `dumpcat mcp` for Claude Desktop, Claude Code and other MCP clients: status, backups, logs and failures, read-only by default; backups, verifications and drills with a full-access token |
+| Security | bcrypt passwords, HttpOnly sessions + CSRF, lockout after repeated failed logins, TOTP 2FA, API tokens (read-only or full), roles, audit log, every password/cloud key encrypted at rest with AES-256-GCM, database passwords never on the command line |
 | Disaster recovery | Every backup carries a `manifest.json` → install a fresh DumpCat, add the storage, click **Import backup catalog** and every backup is listed again. Backup files use standard formats (zstd/gzip/age/xbstream) — they can be restored even without DumpCat |
 
 ## 2. Choosing a backup method
@@ -1041,6 +1042,12 @@ It is also worth backing up `/var/lib/dumpcat/master.key` and `dumpcat.db` (conf
 - 5 failed logins within 15 minutes from one address lock that account for that address for 15 minutes (others can still sign in); 20 failures from one IP lock that IP for 15 minutes. Attempts are counted before the password is checked, so parallel requests get no extra tries. A two-factor code works once.
 - Behind a reverse proxy (`DUMPCAT_TRUST_PROXY=1`), the client address is `X-Real-IP` or the last `X-Forwarded-For` entry, the one the proxy added.
 - Creating an API token asks for the account password. An admin resetting a user's password or disabling the account (or `dumpcat user passwd` / `disable`) also revokes that user's API tokens.
+- An API token is **read-only** (the default) or has **full** access, the permissions of its user's role. Whatever
+  the role, a read-only token can only look: no change, no backup download, no new token. Tokens created before
+  1.5.0 have full access.
+- The MCP endpoint for AI assistants (`/api/mcp`, [12](#ai-assistants-mcp)) accepts API tokens only, never the
+  browser session, and each of its tools runs the matching API request with that token: it can do nothing the token
+  cannot do over the API. Restores, deletions, credentials and settings are not available there.
 - Re-enter a server's or storage's password when you change its address or user, weaken its TLS mode, change its CA certificate or turn certificate checks off.
 - Database passwords, cloud keys, OAuth tokens and passphrases are encrypted with AES-256-GCM using `master.key` (chmod 600). The key can be supplied through `DUMPCAT_MASTER_KEY` instead of a file. DumpCat refuses to start with a master key that does not belong to its database (for example `dumpcat.db` copied to another host without `master.key`), and a job that encrypts backups fails rather than storing anything unencrypted when its passphrase cannot be read.
 - Database passwords are passed through a temporary option file (0600) that is deleted after use — they never show up in `ps`. Logs mask secrets automatically.
@@ -1052,7 +1059,8 @@ It is also worth backing up `/var/lib/dumpcat/master.key` and `dumpcat.db` (conf
 
 ## 12. API & automation
 
-Create a token in *Profile & security → API tokens*, then:
+Create a token in *Profile & security → API tokens* (with **Full** access for the requests below that start
+something; a **Read-only** token can only look), then:
 
 ```bash
 TOKEN=mv_xxxxxxxx
@@ -1071,6 +1079,108 @@ curl -H "Authorization: Bearer $TOKEN" https://backup.example.com/api/drill-runs
 Webhook notifications send the JSON `{kind, status, title, fields, error, url, time}` with the header
 `X-DumpCat-Signature: sha256=<HMAC>` when a secret is set. `kind` is `backup`, `restore`, `verify`, `binlog`, `stale`,
 `binlog_lag` or `test`; `status` is `success`, `failed`, `partial` or `recovered` (an alert has cleared).
+
+### AI assistants (MCP)
+
+DumpCat is an [MCP](https://modelcontextprotocol.io) server, so Claude Desktop, Claude Code and other MCP clients can
+work with it: see what failed or is overdue, list jobs and backups, read why a backup failed (its error and the end of
+its log), check binlog / WAL archiving and restore drill results, and preview a point-in-time recovery. With a
+full-access token of an operator or admin they can also start a backup, a verification or a restore drill (MCP clients
+ask you before they call such a tool). Restores, deletions, credentials and settings are not available over MCP, and
+no setting turns them on.
+
+1. In *Profile & security → API tokens*, create a token for the assistant. **Read-only** (the default) lets it look;
+   **Full** also lets it start backups, verifications and drills.
+2. Connect the client, either straight to the endpoint `https://backup.example.com/api/mcp` (streamable HTTP, header
+   `Authorization: Bearer <token>`), or through `dumpcat mcp`, a small stdio server that forwards to that endpoint, for
+   clients that start a local command. `dumpcat mcp` reads `DUMPCAT_MCP_URL` and `DUMPCAT_MCP_TOKEN` (or
+   `DUMPCAT_MCP_TOKEN_FILE`) from the environment or an env file, never from its command line, where other users of
+   the computer could see them.
+
+**Claude Code**, straight to the endpoint:
+
+```bash
+claude mcp add --transport http dumpcat https://backup.example.com/api/mcp --header "Authorization: Bearer mv_xxxxxxxx"
+```
+
+or, to share the server in a project without the token, a `.mcp.json` that takes it from your environment:
+
+```json
+{
+  "mcpServers": {
+    "dumpcat": {
+      "type": "http",
+      "url": "https://backup.example.com/api/mcp",
+      "headers": { "Authorization": "Bearer ${DUMPCAT_TOKEN}" }
+    }
+  }
+}
+```
+
+**Claude Desktop**: *Settings → Developer → Edit Config* opens `claude_desktop_config.json`. It needs the `dumpcat`
+binary on the computer where Claude Desktop runs: the Windows package, `dumpcat-linux-amd64` on Linux; for macOS, which
+has no release binary, build one with `CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 go build -o dumpcat ./cmd/dumpcat`.
+
+```json
+{
+  "mcpServers": {
+    "dumpcat": {
+      "command": "C:\\Program Files\\DumpCat\\dumpcat.exe",
+      "args": ["mcp"],
+      "env": {
+        "DUMPCAT_MCP_URL": "https://backup.example.com",
+        "DUMPCAT_MCP_TOKEN": "mv_xxxxxxxx"
+      }
+    }
+  }
+}
+```
+
+On Linux and macOS, `"command"` is the path of the binary, e.g. `"/usr/local/bin/dumpcat"`. To keep the token out of
+that file, leave out `env` and write the two settings to `mcp.env` instead (`chmod 600`): `%AppData%\dumpcat\mcp.env`
+on Windows, `~/.config/dumpcat/mcp.env` on Linux, `~/Library/Application Support/dumpcat/mcp.env` on macOS, or a file
+given with `-config`:
+
+```bash
+DUMPCAT_MCP_URL=https://backup.example.com
+DUMPCAT_MCP_TOKEN=mv_xxxxxxxx
+```
+
+The same command works in Claude Code
+(`claude mcp add --transport stdio dumpcat -- dumpcat mcp`, with the settings in `mcp.env`) and in any MCP client that
+starts a local server. Check the settings first:
+
+```bash
+dumpcat mcp -check
+# OK: DumpCat 1.5.0 at https://backup.example.com/api/mcp (MCP 2025-11-25)
+# Signed in as alice (role operator) with a read-only token: you can see what the account can see and change nothing
+# 15 tools: get_overview, get_monitoring, list_servers, …
+```
+
+`dumpcat mcp` checks the server's certificate like the agent does. For DumpCat's self-signed certificate
+(`DUMPCAT_TLS_AUTO`), copy `tls/cert.pem` from DumpCat's data directory and set `DUMPCAT_MCP_CA` to that file;
+`DUMPCAT_MCP_INSECURE=1` turns the check off. Plain `http://` is accepted only for `localhost` (or with
+`DUMPCAT_MCP_INSECURE=1`).
+
+| Tool | What it does | Needs |
+|---|---|---|
+| `get_overview` | Counts, every job's last result and next run, running tasks, recent backups, warnings | viewer |
+| `get_monitoring` | Overdue backups (the rule of the freshness alerts), binlog / WAL archiving state and lag, warnings | viewer |
+| `list_servers`, `get_server` | Database servers, without passwords; `check_connection` connects to one and inspects it now | viewer |
+| `list_jobs`, `get_job` | Jobs: schedules, storages, retention, last and next run, last drill | viewer |
+| `list_backups`, `get_backup` | Backups by job, status or method; one backup's files, copies, verification, drills and progress | viewer |
+| `get_log` | The end of the log of a backup, a restore, a drill run or a job's log archiving | viewer |
+| `list_restores`, `get_restore` | Restores that were run, with status and error | viewer |
+| `list_drills`, `list_drill_runs`, `get_drill_run` | Restore drills and their results, check by check | viewer |
+| `plan_pitr` | Point-in-time recovery preview: the base backup and whether the archived log reaches the target; changes nothing | operator |
+| `run_backup` | Start a backup of a job now | operator, full token |
+| `verify_backup` | Read a backup's copies back and compare every checksum | operator, full token |
+| `start_drill` | Run a restore drill now | operator, full token |
+
+The tools are the same for every database engine. Each call runs the matching REST API request with the token, so it
+is allowed, refused, written to the audit log and answered exactly as that request would be. Answers leave out
+passwords, passphrases, storage keys, webhook addresses, pre/post commands and tokens, and mask credentials found in
+errors and logs. The endpoint keeps no session: every request carries the token.
 
 ### Prometheus metrics
 
@@ -1162,6 +1272,7 @@ dumpcat user reset-2fa -u admin   # lost 2FA device
 dumpcat user list
 dumpcat setup-token               # one-time token for creating the first admin in the web UI
 dumpcat agent -server URL -key K  # on a database host that accepts no inbound connections (3.7)
+dumpcat mcp [-check]              # serve DumpCat's tools to an AI assistant over stdio (12)
 dumpcat decode -in file.sql.zst.age -out file.sql
 dumpcat version
 ```
@@ -1191,6 +1302,7 @@ Internal data: `/var/lib/dumpcat/dumpcat.db` (SQLite), `master.key`, `logs/`, `s
 | Agent: *… is not on this agent's allow list* | Start the agent with `--allow host:port` for that address, or enter the address the agent allows (see [3.7](#37-database-hosts-that-accept-no-inbound-connections-agent)) |
 | No alert for an overdue job | **Alert when a job has no recent successful backup** in **Settings → Monitoring**, *Notify on failure* on the job, and a channel that sends failures |
 | `/metrics` answers 404 / 401 / 403 | 404: turned off (**Settings → Monitoring**). 401: create a token and send it as `Authorization: Bearer …`. 403: *Only to this machine* and the request came from another host or through a reverse proxy |
+| `dumpcat mcp`: *refused the API token* / *certificate signed by unknown authority* / *would send the API token unencrypted* | Create a new token (revoked when an admin resets your password or locks the account; check its expiry). Self-signed certificate: set `DUMPCAT_MCP_CA` to DumpCat's `tls/cert.pem`. Use the `https://` address, or `DUMPCAT_MCP_INSECURE=1` |
 | PostgreSQL: *pg_dump N is older than PostgreSQL M* / *server version mismatch* | Install the client tools of the server's major version (`install.sh --postgres M`, `postgresql-client-M`); DumpCat picks the matching one by itself |
 | PostgreSQL: *permission denied for table / schema / sequence* during a backup | The backup role cannot read everything: `GRANT pg_read_all_data TO dumpcat` (PostgreSQL 14+), or use the owner of the database |
 | PostgreSQL: *role "…" does not exist* during a restore | Tick *Restore roles*, or *Skip ownership* and *Skip privileges* |

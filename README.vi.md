@@ -59,8 +59,11 @@ binary Go có sẵn giao diện.
 - **Restore cẩn thận.** Restore sang tên database mới hoặc sang instance / phiên bản khác (tự gỡ `DEFINER`, đổi
   collation, bỏ `GTID_PURGED`), thử giải mã mọi file trước khi xóa bất cứ thứ gì, chế độ nạp nhanh, và tự rollback khi
   restore vật lý thay datadir.
-- **Dùng được cho cả đội.** Vai trò admin, operator, viewer, đăng nhập hai lớp TOTP, API token, nhật ký thao tác, và thông
-  báo qua email HTML, Telegram, Slack, Discord hoặc webhook có ký HMAC.
+- **Dùng được cho cả đội.** Vai trò admin, operator, viewer, đăng nhập hai lớp TOTP, API token chỉ đọc hoặc toàn quyền,
+  nhật ký thao tác, và thông báo qua email HTML, Telegram, Slack, Discord hoặc webhook có ký HMAC.
+- **Làm việc với trợ lý AI.** Endpoint [MCP](docs/manual.vi.md#trợ-lý-ai-mcp) cho Claude Desktop, Claude Code và các
+  MCP client khác xem trạng thái, đọc backup và log, tìm nguyên nhân lỗi, mặc định chỉ đọc; với token toàn quyền,
+  trợ lý còn chạy được backup, verify và diễn tập restore.
 - **Định dạng chuẩn.** Mỗi bản backup có `manifest.json` và dùng zstd / gzip / age / xbstream, nên bạn restore được chỉ
   với `age`, `zstd` và `mysql`, hoặc import catalog vào một DumpCat cài mới.
 - **Tự cập nhật an toàn.** `dumpcat update` chờ các job đang chạy, backup database của chính nó, có thể bắt buộc bản phát
@@ -231,7 +234,7 @@ Hướng dẫn đầy đủ nằm ở [docs/manual.vi.md](docs/manual.vi.md) ([E
 | Lưu binlog, khôi phục về một thời điểm | [PITR](docs/manual.vi.md#8-lưu-trữ-log--khôi-phục-theo-thời-điểm-pitr) |
 | Restore không cần DumpCat, cài lại DumpCat | [Khôi phục thủ công](docs/manual.vi.md#9-khôi-phục-thủ-công-khi-không-có-dumpcat) · [Khôi phục thảm họa](docs/manual.vi.md#10-khôi-phục-thảm-họa) |
 | Phân quyền, 2FA, mã hóa dữ liệu lưu trữ | [Bảo mật](docs/manual.vi.md#11-bảo-mật) |
-| REST API, webhook | [API & tự động hóa](docs/manual.vi.md#12-api--tự-động-hóa) |
+| REST API, webhook, trợ lý AI (MCP) | [API & tự động hóa](docs/manual.vi.md#12-api--tự-động-hóa) · [MCP](docs/manual.vi.md#trợ-lý-ai-mcp) |
 | Biến môi trường, dòng lệnh | [Cấu hình hệ thống](docs/manual.vi.md#13-cấu-hình-hệ-thống) |
 | Cập nhật, release server, ký bản phát hành | [Cập nhật](docs/manual.vi.md#36-cập-nhật) |
 | Lỗi thường gặp | [Xử lý sự cố](docs/manual.vi.md#14-xử-lý-sự-cố) |
