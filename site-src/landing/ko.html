@@ -14,11 +14,11 @@
 <template data-i18n="nav-whatsnew">새 소식</template>
 <template data-i18n="nav-install">설치</template>
 <template data-i18n="lang-aria">언어</template>
-<template data-i18n="hero-ai">AI 친화적: Claude 등 AI 어시스턴트에게 백업 상태를 물어보세요</template>
+<template data-i18n="hero-ai">AI 친화적: Claude 등 AI 어시스턴트에게 백업 구성과 점검을 맡기세요</template>
 <template data-i18n="eyebrow">오픈 소스 · MySQL, MariaDB, PostgreSQL을 위한 백업 및 복원</template>
 <template data-i18n="h1">데이터베이스를 잠그지 않는 백업. <span class="soft">1초 단위까지 정확한 복구.</span></template>
 <template data-i18n="lead">DumpCat은 웹 UI를 갖춘 단일 바이너리입니다. 백업을 예약하고, 압축하고 암호화해 S3, Google Drive, OneDrive, SFTP로 사본을 보내고, 검증까지 마친 뒤, 필요할 때 데이터를 되살려 줍니다. Linux와 Windows에서 완전히 오프라인으로 동작합니다.</template>
-<template data-i18n="cta-install"><span data-version>1.6.0</span> 설치</template>
+<template data-i18n="cta-install"><span data-version>1.7.0</span> 설치</template>
 <template data-i18n="cta-demo">UI 미리 보기</template>
 <template data-i18n="cta-github">GitHub에서 소스 보기</template>
 <template data-i18n="pitr-title">특정 시점 복구</template>
@@ -155,8 +155,8 @@
 <template data-i18n="oss-github">GitHub에서 보기</template>
 <template data-i18n="oss-issues">이슈 제보하기</template>
 <template data-i18n="ai-label">AI 친화적 · MCP</template>
-<template data-i18n="ai-title">백업 감시는 AI 어시스턴트에게, 열쇠는 넘기지 않고</template>
-<template data-i18n="ai-intro">DumpCat은 MCP 서버입니다. Claude Code, Claude Desktop 또는 다른 MCP 클라이언트를 API 토큰으로 연결하고 평소 말투로 물어보세요. 어시스턴트가 실패했거나 밀린 백업을 찾아보고, 로그를 읽고, 원인을 알려 줍니다. 다른 AI 에이전트는 서버가 직접 만들어 주는 Markdown API 레퍼런스를 읽습니다.</template>
+<template data-i18n="ai-title">백업 구성과 감시는 AI 어시스턴트에게, 열쇠는 넘기지 않고</template>
+<template data-i18n="ai-intro">DumpCat은 MCP 서버입니다. Claude Code, Claude Desktop 또는 다른 MCP 클라이언트를 API 토큰으로 연결하고 평소 말투로 부탁하세요. 어시스턴트가 서버와 스토리지를 추가하고, 작업과 복원 훈련을 만들고, 실패했거나 밀린 백업을 찾아 로그를 읽고 원인을 알려 줍니다. 비밀번호와 키는 웹 UI에서 직접 입력합니다. 다른 AI 에이전트는 서버가 직접 만들어 주는 Markdown API 레퍼런스를 읽습니다.</template>
 <template data-i18n="ai-q1">어젯밤 실패한 백업이 있어? 이유는?</template>
 <template data-i18n="ai-tools-aria">호출된 MCP 도구</template>
 <template data-i18n="ai-a1">작업 12개 중 1개입니다. <b>shop-nightly</b>가 02:14에 <code>errno 28</code>로 멈췄습니다. db-01의 <code>/var/backups</code>에 남은 공간이 없다는 뜻입니다. 나머지 11개는 성공했습니다. 공간을 확보하거나 웹 UI에서 로컬에 보관하는 개수를 줄이시면 다시 실행하겠습니다.</template>
@@ -165,15 +165,24 @@
 <template data-i18n="ai-allow">허용</template>
 <template data-i18n="ai-deny">거부</template>
 <template data-i18n="ai-a2">백업 4813이 실행 중이며 41% 진행됐습니다. 끝나면 결과를 확인하겠습니다.</template>
-<template data-i18n="ai-chat-note">전체 권한 토큰을 사용한 예시입니다. 읽기 전용 토큰(기본값)이면 어시스턴트는 볼 수만 있고 아무것도 시작할 수 없습니다.</template>
+<template data-i18n="ai-chat-tabs-aria">예시</template>
+<template data-i18n="ai-chat-tab1">구성하기</template>
+<template data-i18n="ai-chat-tab2">실패 원인 찾기</template>
+<template data-i18n="ai-s-q1">db-01의 shop 데이터베이스를 매일 밤 1:30에 S3 버킷 acme-backups로 백업해 줘. 14일치 보관하고.</template>
+<template data-i18n="ai-s-ask"><code>create_job</code>(shop-nightly)을 허용할까요?</template>
+<template data-i18n="ai-s-a1">완료했습니다. <b>shop-nightly</b>가 매일 밤 01:30에 db-01의 <code>shop</code>을 새 스토리지 <b>s3-offsite</b>로 백업하고 14일치를 보관합니다. 제가 할 수 없는 일이 하나 있습니다. 버킷의 시크릿 키는 저를 거치지 않습니다. 이 페이지에서 직접 입력해 주세요: <code>/#/storages?edit=2</code>. 그다음 스토리지를 테스트하고 첫 백업을 실행하겠습니다.</template>
+<template data-i18n="ai-s-q2">입력했어.</template>
+<template data-i18n="ai-s-a2">s3-offsite의 쓰기·읽기 테스트를 통과했습니다. 첫 백업이 실행 중이며 12% 진행됐습니다.</template>
+<template data-i18n="ai-chat-note">Claude Code에서의 예시입니다. 읽기 전용 토큰(기본값)은 보기만 할 수 있고, 백업 실행에는 전체 권한 토큰이, 백업 구성에는 Manage 토큰이 필요합니다.</template>
 <template data-i18n="ai-perm-title">AI 어시스턴트가 할 수 있는 일</template>
 <template data-i18n="ai-perm-look"><b>보기</b><small>읽기 전용 토큰, 기본값</small><span>개요와 경고, 작업, 백업, 오류와 로그, binlog / WAL 보관, 복원과 복원 훈련 결과, 특정 시점 복구 미리 보기.</span></template>
 <template data-i18n="ai-perm-run"><b>시작하기</b><small>전체 권한 토큰, operator 또는 admin</small><span>백업 실행, 백업 검증, 복원 훈련 시작. AI 클라이언트가 매번 먼저 물어봅니다.</span></template>
-<template data-i18n="ai-perm-never"><b>MCP로는 절대 불가</b><small>어떤 토큰이든</small><span>복원, 삭제, 자격 증명, 설정. 켜는 옵션도 없습니다. 이런 작업은 웹 UI에서만 합니다.</span></template>
-<template data-i18n="ai-perm-note">답변에는 비밀번호, 키, 토큰이 절대 들어가지 않으며, 오류와 로그에 섞인 자격 증명도 가려집니다. 모든 호출은 여러분의 토큰으로 REST API를 거치므로 다른 요청과 똑같이 권한이 확인되고 감사 로그에 기록됩니다.</template>
+<template data-i18n="ai-perm-set"><b>구성하기</b><small>Manage 토큰</small><span>서버와 스토리지 추가, 작업과 복원 훈련의 생성과 변경. 비밀번호, 키, 패스프레이즈는 어시스턴트를 거치지 않으며, 직접 입력할 수 있는 링크를 알려 줍니다.</span></template>
+<template data-i18n="ai-perm-never"><b>MCP로는 절대 불가</b><small>어떤 토큰이든</small><span>복원, 삭제, DumpCat 설정. 켜는 옵션도 없습니다. 이런 작업은 웹 UI에서만 합니다.</span></template>
+<template data-i18n="ai-perm-note">답변에는 비밀번호, 키, 토큰이 절대 들어가지 않으며 이를 받는 도구도 없습니다. 오류와 로그에 섞인 자격 증명도 가려집니다. 모든 호출은 여러분의 토큰으로 REST API를 거치므로 다른 요청과 똑같이 권한이 확인되고 감사 로그에 기록됩니다.</template>
 <template data-i18n="ai-setup-title">1분이면 연결</template>
 <template data-i18n="ai-steps">
-  <li><div><b>토큰 만들기</b><span>DumpCat의 <em>API &amp; MCP</em> 페이지에서 <em>New token</em>. 기본은 읽기 전용이며, 어시스턴트가 백업을 실행하게 하려면 <em>Full</em>을 고릅니다.</span></div></li>
+  <li><div><b>토큰 만들기</b><span>DumpCat의 <em>API &amp; MCP</em> 페이지에서 <em>New token</em>. <em>Read-only</em>(기본값)는 보기만, <em>Full</em>은 백업 실행까지, <em>Manage</em>는 백업 구성까지 할 수 있습니다.</span></div></li>
   <li><div><b>설정 복사</b><span>그 페이지가 서버 주소와 토큰을 채워 Claude Code 명령, Claude Desktop 설정, 다른 클라이언트용 설정을 보여 줍니다.</span></div></li>
   <li><div><b>테스트하고 질문하기</b><span><em>Test MCP connection</em>이 어시스턴트가 받게 될 계정, 권한, 도구를 보여 줍니다.</span></div></li>
 </template>

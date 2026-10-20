@@ -65,12 +65,12 @@
 
     <div class="hero-main">
       <div class="hero-copy">
-        <a class="hero-ai" href="#ai"><span class="hero-ai-tag">MCP</span><span data-i18n="hero-ai">AI-friendly: hỏi Claude hay trợ lý AI khác xem backup của bạn ra sao</span></a>
+        <a class="hero-ai" href="#ai"><span class="hero-ai-tag">MCP</span><span data-i18n="hero-ai">AI-friendly: nhờ Claude hay trợ lý AI khác thiết lập và theo dõi backup cho bạn</span></a>
         <p class="eyebrow" data-i18n="eyebrow">Mã nguồn mở · Backup &amp; restore cho MySQL, MariaDB và PostgreSQL</p>
         <h1 data-i18n="h1">Backup không khóa database. <span class="soft">Khôi phục đến đúng giây bạn cần.</span></h1>
         <p class="lead" data-i18n="lead">DumpCat là một file chạy duy nhất kèm giao diện web. Nó lên lịch backup, nén và mã hóa, đẩy bản sao lên S3, Google Drive, OneDrive hay SFTP, tự kiểm tra toàn vẹn và đưa dữ liệu về khi bạn cần. Chạy trên Linux lẫn Windows, không cần internet.</p>
         <div class="cta">
-          <a class="btn btn-light" href="#install" data-i18n="cta-install">Cài đặt bản <span data-version>1.6.0</span></a>
+          <a class="btn btn-light" href="#install" data-i18n="cta-install">Cài đặt bản <span data-version>1.7.0</span></a>
           <a class="btn btn-ghost" href="/demo/" data-i18n="cta-demo">Xem giao diện</a>
           <a class="btn btn-ghost" href="https://github.com/theweakestharrison/DumpCat"><svg class="gh" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 0c4.42 0 8 3.58 8 8a8.013 8.013 0 0 1-5.45 7.59c-.4.08-.55-.17-.55-.38 0-.27.01-1.13.01-2.2 0-.75-.25-1.23-.54-1.48 1.78-.2 3.65-.88 3.65-3.95 0-.88-.31-1.59-.82-2.15.08-.2.36-1.02-.08-2.12 0 0-.67-.22-2.2.82-.64-.18-1.32-.27-2-.27-.68 0-1.36.09-2 .27-1.53-1.03-2.2-.82-2.2-.82-.44 1.1-.16 1.92-.08 2.12-.51.56-.82 1.28-.82 2.15 0 3.06 1.86 3.75 3.64 3.95-.23.2-.44.55-.51 1.07-.46.21-1.61.55-2.33-.66-.15-.24-.6-.83-1.23-.82-.67.01-.27.38.01.53.34.19.73.9.82 1.13.16.45.68 1.31 2.69.94 0 .67.01 1.3.01 1.49 0 .21-.15.45-.55.38A7.995 7.995 0 0 1 0 8c0-4.42 3.58-8 8-8Z"/></svg><span data-i18n="cta-github">Mã nguồn trên GitHub</span></a>
         </div>
@@ -151,7 +151,7 @@
           </div>
           <div role="tabpanel" id="panel-windows" aria-labelledby="tab-windows" hidden>
             <ol class="win-steps">
-              <li><span data-i18n="i-win-1"><b>Tải file .zip</b></span> <a class="btn btn-solid dl" data-pkg="windows" href="https://downloads.dumpcat.cc/1.6.0/dumpcat-1.6.0-windows-amd64.zip"><span data-i18n="i-win-dl">Tải cho Windows</span> <small data-version>1.6.0</small></a></li>
+              <li><span data-i18n="i-win-1"><b>Tải file .zip</b></span> <a class="btn btn-solid dl" data-pkg="windows" href="https://downloads.dumpcat.cc/1.7.0/dumpcat-1.7.0-windows-amd64.zip"><span data-i18n="i-win-dl">Tải cho Windows</span> <small data-version>1.7.0</small></a></li>
               <li data-i18n="i-win-2"><b>Giải nén</b>: chuột phải vào file, chọn <i>Extract All</i>.</li>
               <li data-i18n="i-win-3"><b>Bấm đúp <i>Install DumpCat</i></b> rồi chọn <i>Yes</i>. Trình duyệt tự mở DumpCat, cửa sổ cài đặt hiện mã thiết lập.</li>
             </ol>
@@ -189,14 +189,28 @@
       <div class="head">
         <div>
           <p class="label" data-i18n="ai-label">AI-friendly · MCP</p>
-          <h2 id="ai-title" data-i18n="ai-title">Để trợ lý AI trông backup, mà không phải giao chìa khóa</h2>
+          <h2 id="ai-title" data-i18n="ai-title">Để trợ lý AI thiết lập và trông backup, mà không phải giao chìa khóa</h2>
         </div>
-        <p class="intro" data-i18n="ai-intro">DumpCat là một MCP server. Kết nối Claude Code, Claude Desktop hay MCP client khác bằng một API token rồi hỏi bằng lời thường: trợ lý tự xem backup nào lỗi hay quá hạn, đọc log và giải thích vì sao. Agent AI khác thì đọc tài liệu API bằng Markdown do chính server của bạn viết ra.</p>
+        <p class="intro" data-i18n="ai-intro">DumpCat là một MCP server. Kết nối Claude Code, Claude Desktop hay MCP client khác bằng một API token rồi nói bằng lời thường: trợ lý thêm server và storage, tạo job và diễn tập restore, xem backup nào lỗi hay quá hạn, đọc log và giải thích vì sao. Mật khẩu và khóa thì bạn tự nhập trên giao diện web. Agent AI khác đọc tài liệu API bằng Markdown do chính server của bạn viết ra.</p>
       </div>
       <div class="section-body ai-grid">
         <figure class="ai-chat">
           <div class="ai-chat-bar"><span class="ai-dots" aria-hidden="true"><i></i><i></i><i></i></span><span>Claude Code</span><span class="ai-chat-mcp">MCP · dumpcat</span></div>
-          <div class="ai-chat-body">
+          <div class="tabs ai-chat-tabs" role="tablist" aria-label="Ví dụ" data-i18n-aria-label="ai-chat-tabs-aria">
+            <button type="button" role="tab" id="tab-chat-setup" aria-controls="chat-setup" aria-selected="true" data-i18n="ai-chat-tab1">Thiết lập</button>
+            <button type="button" role="tab" id="tab-chat-fix" aria-controls="chat-fix" aria-selected="false" tabindex="-1" data-i18n="ai-chat-tab2">Tìm lỗi</button>
+          </div>
+          <div class="ai-chat-body" role="tabpanel" id="chat-setup" aria-labelledby="tab-chat-setup">
+            <p class="msg you" data-i18n="ai-s-q1">Backup database shop trên db-01 mỗi đêm lúc 1:30 lên bucket S3 acme-backups, giữ 14 ngày.</p>
+            <p class="ai-tools" aria-label="Công cụ MCP được gọi" data-i18n-aria-label="ai-tools-aria"><span class="tool">list_servers</span><span class="tool">create_storage <i>s3-offsite</i></span></p>
+            <div class="ai-ask"><p data-i18n="ai-s-ask">Cho phép gọi <code>create_job</code> (shop-nightly)?</p><span class="ai-ask-btns" aria-hidden="true"><span class="on" data-i18n="ai-allow">Cho phép</span><span data-i18n="ai-deny">Từ chối</span></span></div>
+            <p class="ai-tools" aria-label="Công cụ MCP được gọi" data-i18n-aria-label="ai-tools-aria"><span class="tool">create_job <i>shop-nightly</i></span></p>
+            <p class="msg ai" data-i18n="ai-s-a1">Xong: job <b>shop-nightly</b> backup <code>shop</code> trên db-01 lúc 01:30 mỗi đêm lên storage mới <b>s3-offsite</b>, giữ 14 ngày. Còn một việc tôi không làm được: secret key của bucket không bao giờ đi qua tôi. Bạn nhập nó ở trang này nhé: <code>/#/storages?edit=2</code>. Rồi tôi sẽ thử storage và chạy bản backup đầu tiên.</p>
+            <p class="msg you" data-i18n="ai-s-q2">Nhập xong rồi.</p>
+            <p class="ai-tools" aria-label="Công cụ MCP được gọi" data-i18n-aria-label="ai-tools-aria"><span class="tool">test_storage <i>s3-offsite</i></span><span class="tool">run_backup <i>shop-nightly</i></span></p>
+            <p class="msg ai" data-i18n="ai-s-a2">Storage s3-offsite ghi và đọc được. Bản backup đầu tiên đang chạy, đã được 12%.</p>
+          </div>
+          <div class="ai-chat-body" role="tabpanel" id="chat-fix" aria-labelledby="tab-chat-fix" hidden>
             <p class="msg you" data-i18n="ai-q1">Đêm qua backup nào lỗi, vì sao?</p>
             <p class="ai-tools" aria-label="Công cụ MCP được gọi" data-i18n-aria-label="ai-tools-aria"><span class="tool">get_monitoring</span><span class="tool">list_backups <i>status=failed</i></span><span class="tool">get_log <i>4812</i></span></p>
             <p class="msg ai" data-i18n="ai-a1">Một trong 12 job: <b>shop-nightly</b> dừng lúc 02:14 với lỗi <code>errno 28</code>, tức là <code>/var/backups</code> trên db-01 đã hết chỗ trống. 11 job còn lại đều thành công. Bạn dọn bớt chỗ, hoặc giảm số bản giữ ở local trên giao diện web, rồi tôi chạy lại cho.</p>
@@ -205,23 +219,24 @@
             <p class="ai-tools" aria-label="Công cụ MCP được gọi" data-i18n-aria-label="ai-tools-aria"><span class="tool">run_backup <i>shop-nightly</i></span><span class="tool">get_backup <i>4813</i></span></p>
             <p class="msg ai" data-i18n="ai-a2">Backup 4813 đang chạy, đã được 41%. Xong tôi sẽ xem lại kết quả và báo bạn.</p>
           </div>
-          <figcaption data-i18n="ai-chat-note">Ví dụ với token toàn quyền. Với token chỉ xem (mặc định), trợ lý chỉ xem được, không khởi chạy được gì.</figcaption>
+          <figcaption data-i18n="ai-chat-note">Ví dụ trong Claude Code. Token chỉ xem (mặc định) chỉ xem được; chạy backup cần token toàn quyền, thiết lập backup cần token Manage.</figcaption>
         </figure>
         <div class="ai-side">
           <h3 data-i18n="ai-perm-title">Trợ lý AI được làm gì</h3>
           <ul class="ai-perm">
             <li><span class="mk mk-yes"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5.5 12.5l4 4L18.5 7.5"/></svg></span><div data-i18n="ai-perm-look"><b>Xem</b><small>Token chỉ xem, mặc định</small><span>Tổng quan và cảnh báo, job, backup, lỗi và log, việc lưu binlog / WAL, kết quả restore và diễn tập, xem trước một lần khôi phục theo thời điểm.</span></div></li>
             <li><span class="mk mk-run"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6.5l8.5 5.5L9 17.5z"/></svg></span><div data-i18n="ai-perm-run"><b>Khởi chạy</b><small>Token toàn quyền, operator hoặc admin</small><span>Chạy backup, verify một bản backup, chạy diễn tập restore. Client AI hỏi bạn trước mỗi lần.</span></div></li>
-            <li><span class="mk mk-no"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7.5 7.5l9 9M16.5 7.5l-9 9"/></svg></span><div data-i18n="ai-perm-never"><b>Không bao giờ qua MCP</b><small>Với bất kỳ token nào</small><span>Restore, xóa, mật khẩu và settings. Không có tùy chọn nào bật chúng lên: những việc này chỉ làm trên giao diện web.</span></div></li>
+            <li><span class="mk mk-set"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4.5 19.5h4l10-10a2.1 2.1 0 0 0-4-4l-10 10z"/></svg></span><div data-i18n="ai-perm-set"><b>Thiết lập</b><small>Token Manage</small><span>Thêm server và storage, tạo và sửa job, diễn tập restore. Mật khẩu, khóa và passphrase không bao giờ đi qua trợ lý: nó đưa bạn link để tự nhập.</span></div></li>
+            <li><span class="mk mk-no"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7.5 7.5l9 9M16.5 7.5l-9 9"/></svg></span><div data-i18n="ai-perm-never"><b>Không bao giờ qua MCP</b><small>Với bất kỳ token nào</small><span>Restore, xóa và cài đặt của DumpCat. Không có tùy chọn nào bật chúng lên: những việc này chỉ làm trên giao diện web.</span></div></li>
           </ul>
-          <p class="ai-perm-note" data-i18n="ai-perm-note">Câu trả lời không bao giờ chứa mật khẩu, khóa hay token; thông tin đăng nhập lẫn trong lỗi và log đều bị che. Mỗi lần gọi đi qua REST API bằng token của bạn, nên được kiểm tra quyền như mọi request và ghi vào nhật ký thao tác.</p>
+          <p class="ai-perm-note" data-i18n="ai-perm-note">Câu trả lời không bao giờ chứa mật khẩu, khóa hay token, và không công cụ nào nhận chúng; thông tin đăng nhập lẫn trong lỗi và log đều bị che. Mỗi lần gọi đi qua REST API bằng token của bạn, nên được kiểm tra quyền như mọi request và ghi vào nhật ký thao tác.</p>
         </div>
       </div>
       <div class="ai-setup">
         <div class="ai-setup-steps">
           <h3 class="steps-title" data-i18n="ai-setup-title">Kết nối trong một phút</h3>
           <ol class="steps" data-i18n="ai-steps">
-            <li><div><b>Tạo token</b><span>Trang <em>API &amp; MCP</em> trong DumpCat, nút <em>New token</em>. Mặc định token chỉ xem; chọn <em>Full</em> nếu muốn trợ lý chạy được backup.</span></div></li>
+            <li><div><b>Tạo token</b><span>Trang <em>API &amp; MCP</em> trong DumpCat, nút <em>New token</em>: <em>Read-only</em> (mặc định) chỉ xem, <em>Full</em> chạy được backup, <em>Manage</em> thiết lập được backup.</span></div></li>
             <li><div><b>Chép cấu hình</b><span>Trang đó điền sẵn địa chỉ server và token vào lệnh cho Claude Code, file cấu hình cho Claude Desktop và các client khác.</span></div></li>
             <li><div><b>Bấm Test rồi hỏi</b><span><em>Test MCP connection</em> cho biết tài khoản, quyền và các công cụ mà trợ lý sẽ nhận được.</span></div></li>
           </ol>
@@ -462,14 +477,14 @@ go build -o dumpcat ./cmd/dumpcat</code></pre>
       <div class="section-body release" id="release" hidden>
         <div class="release-files">
           <div class="pkgs">
-            <a class="pkg" id="pkg-linux" href="https://downloads.dumpcat.cc/1.6.0/dumpcat-1.6.0-linux.tar.gz">
+            <a class="pkg" id="pkg-linux" href="https://downloads.dumpcat.cc/1.7.0/dumpcat-1.7.0-linux.tar.gz">
               <span class="pkg-os">Linux</span>
-              <span class="pkg-file" id="pkg-linux-file">dumpcat-1.6.0-linux.tar.gz</span>
+              <span class="pkg-file" id="pkg-linux-file">dumpcat-1.7.0-linux.tar.gz</span>
               <span class="pkg-desc" data-i18n="d-linux">amd64 và arm64, script cài đặt, service systemd và hướng dẫn</span>
             </a>
-            <a class="pkg" id="pkg-windows" href="https://downloads.dumpcat.cc/1.6.0/dumpcat-1.6.0-windows-amd64.zip">
+            <a class="pkg" id="pkg-windows" href="https://downloads.dumpcat.cc/1.7.0/dumpcat-1.7.0-windows-amd64.zip">
               <span class="pkg-os">Windows</span>
-              <span class="pkg-file" id="pkg-windows-file">dumpcat-1.6.0-windows-amd64.zip</span>
+              <span class="pkg-file" id="pkg-windows-file">dumpcat-1.7.0-windows-amd64.zip</span>
               <span class="pkg-desc" data-i18n="d-windows">64-bit, script cài Windows service và hướng dẫn</span>
             </a>
           </div>
@@ -487,7 +502,7 @@ go build -o dumpcat ./cmd/dumpcat</code></pre>
 
 <footer class="foot">
   <div class="wrap">
-    <a class="brand" href="#top"><svg aria-hidden="true"><use href="#dc-logo"/></svg>DumpCat <span data-version>1.6.0</span></a>
+    <a class="brand" href="#top"><svg aria-hidden="true"><use href="#dc-logo"/></svg>DumpCat <span data-version>1.7.0</span></a>
     <p data-i18n="foot">Mã nguồn mở theo giấy phép Apache-2.0, mã nguồn trên <a href="https://github.com/theweakestharrison/DumpCat">GitHub</a>. <a href="/vi/compare/">So sánh với các công cụ khác</a>. Hướng dẫn đầy đủ bằng tiếng Anh và tiếng Việt có sẵn trong mọi gói cài đặt.</p>
     <p class="foot-mail" data-i18n="foot-mail">Hỗ trợ: <a href="mailto:fat@dumpcat.cc">fat@dumpcat.cc</a></p>
   </div>

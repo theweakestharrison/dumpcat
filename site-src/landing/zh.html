@@ -13,11 +13,11 @@
 <template data-i18n="nav-whatsnew">更新内容</template>
 <template data-i18n="nav-install">安装</template>
 <template data-i18n="lang-aria">语言</template>
-<template data-i18n="hero-ai">AI 友好：问问 Claude 或其他 AI 助手，你的备份状况如何</template>
+<template data-i18n="hero-ai">AI 友好：让 Claude 或其他 AI 助手帮你配置和检查备份</template>
 <template data-i18n="eyebrow">开源 · MySQL、MariaDB 和 PostgreSQL 的备份与恢复</template>
 <template data-i18n="h1">备份从不锁库。<span class="soft">恢复精确到秒。</span></template>
 <template data-i18n="lead">DumpCat 是一个自带 Web 界面的单文件程序。它按计划执行备份，压缩并加密，把副本传到 S3、Google Drive、OneDrive 或 SFTP，校验备份，并在你需要时把数据恢复回来。支持 Linux 和 Windows，可完全离线运行。</template>
-<template data-i18n="cta-install">安装 <span data-version>1.6.0</span></template>
+<template data-i18n="cta-install">安装 <span data-version>1.7.0</span></template>
 <template data-i18n="cta-demo">预览界面</template>
 <template data-i18n="cta-github">GitHub 源码</template>
 <template data-i18n="pitr-title">时间点恢复</template>
@@ -154,8 +154,8 @@
 <template data-i18n="oss-github">在 GitHub 查看</template>
 <template data-i18n="oss-issues">报告问题</template>
 <template data-i18n="ai-label">AI 友好 · MCP</template>
-<template data-i18n="ai-title">让 AI 助手替你盯着备份，却不必交出钥匙</template>
-<template data-i18n="ai-intro">DumpCat 本身就是一个 MCP 服务器。用 API 令牌接入 Claude Code、Claude Desktop 或其他 MCP 客户端，然后用日常语言提问：助手会自己查出哪些备份失败或逾期、读取日志并告诉你原因。其他 AI Agent 则可以阅读你的服务器专门为它们生成的 Markdown 格式 API 参考文档。</template>
+<template data-i18n="ai-title">让 AI 助手替你配置和盯着备份，却不必交出钥匙</template>
+<template data-i18n="ai-intro">DumpCat 本身就是一个 MCP 服务器。用 API 令牌接入 Claude Code、Claude Desktop 或其他 MCP 客户端，然后用日常语言提出要求：助手会添加服务器和存储，创建备份任务和恢复演练，查出哪些备份失败或逾期，读取日志并告诉你原因。密码和密钥则由你自己在 Web 界面中输入。其他 AI Agent 可以阅读你的服务器专门为它们生成的 Markdown 格式 API 参考文档。</template>
 <template data-i18n="ai-q1">昨晚哪些备份失败了？为什么？</template>
 <template data-i18n="ai-tools-aria">调用的 MCP 工具</template>
 <template data-i18n="ai-a1">12 个任务中有 1 个：<b>shop-nightly</b> 在 02:14 因 <code>errno 28</code> 中止，也就是 db-01 上的 <code>/var/backups</code> 已经没有剩余空间。其余 11 个都成功了。腾出一些空间，或在 Web 界面里减少本地保留的份数，我就重新运行它。</template>
@@ -164,15 +164,24 @@
 <template data-i18n="ai-allow">允许</template>
 <template data-i18n="ai-deny">拒绝</template>
 <template data-i18n="ai-a2">备份 4813 正在运行，已完成 41%。完成后我会检查结果。</template>
-<template data-i18n="ai-chat-note">示例使用完全权限的令牌。使用只读令牌（默认）时，助手只能查看，无法启动任何操作。</template>
+<template data-i18n="ai-chat-tabs-aria">示例</template>
+<template data-i18n="ai-chat-tab1">配置</template>
+<template data-i18n="ai-chat-tab2">排查失败</template>
+<template data-i18n="ai-s-q1">每晚 1:30 把 db-01 上的 shop 数据库备份到我们的 S3 存储桶 acme-backups，保留 14 天。</template>
+<template data-i18n="ai-s-ask">允许调用 <code>create_job</code>（shop-nightly）吗？</template>
+<template data-i18n="ai-s-a1">好了：<b>shop-nightly</b> 每晚 01:30 把 db-01 上的 <code>shop</code> 备份到新建的存储 <b>s3-offsite</b>，保留 14 天。只有一件事我做不了：存储桶的 Secret Key 从不经过我。请在这个页面输入：<code>/#/storages?edit=2</code>。之后我会测试存储并运行第一次备份。</template>
+<template data-i18n="ai-s-q2">已经填好了。</template>
+<template data-i18n="ai-s-a2">s3-offsite 的写入和读取测试通过。第一次备份正在运行，已完成 12%。</template>
+<template data-i18n="ai-chat-note">Claude Code 中的示例。只读令牌（默认）只能查看；运行备份需要完全权限令牌，配置备份需要 Manage 令牌。</template>
 <template data-i18n="ai-perm-title">AI 助手能做什么</template>
 <template data-i18n="ai-perm-look"><b>查看</b><small>只读令牌，默认</small><span>概览和告警、任务、备份、错误和日志、binlog / WAL 归档、恢复和演练结果、时间点恢复预览。</span></template>
 <template data-i18n="ai-perm-run"><b>启动</b><small>完全权限令牌，operator 或 admin</small><span>运行备份、校验备份、启动恢复演练。每次执行前，AI 客户端都会先征求你的同意。</span></template>
-<template data-i18n="ai-perm-never"><b>永远不经过 MCP</b><small>无论使用什么令牌</small><span>恢复、删除、凭据和设置。没有任何选项能开启它们：这些操作只在 Web 界面中进行。</span></template>
-<template data-i18n="ai-perm-note">回答中绝不包含密码、密钥或令牌，错误和日志中出现的凭据也会被遮盖。每次调用都以你的令牌经由 REST API 执行，因此会像其他请求一样检查权限，并写入审计日志。</template>
+<template data-i18n="ai-perm-set"><b>配置</b><small>Manage 令牌</small><span>添加服务器和存储，创建和修改备份任务及恢复演练。密码、密钥和口令从不经过助手：它会给你一个链接，由你自己输入。</span></template>
+<template data-i18n="ai-perm-never"><b>永远不经过 MCP</b><small>无论使用什么令牌</small><span>恢复、删除和 DumpCat 的系统设置。没有任何选项能开启它们：这些操作只在 Web 界面中进行。</span></template>
+<template data-i18n="ai-perm-note">回答中绝不包含密码、密钥或令牌，也没有工具会接收它们；错误和日志中出现的凭据会被遮盖。每次调用都以你的令牌经由 REST API 执行，因此会像其他请求一样检查权限，并写入审计日志。</template>
 <template data-i18n="ai-setup-title">一分钟完成连接</template>
 <template data-i18n="ai-steps">
-  <li><div><b>创建令牌</b><span>在 DumpCat 的 <em>API &amp; MCP</em> 页面点击 <em>New token</em>。令牌默认只读；选择 <em>Full</em> 可让助手运行备份。</span></div></li>
+  <li><div><b>创建令牌</b><span>在 DumpCat 的 <em>API &amp; MCP</em> 页面点击 <em>New token</em>：<em>Read-only</em>（默认）只能查看，<em>Full</em> 还能运行备份，<em>Manage</em> 还能配置备份。</span></div></li>
   <li><div><b>复制配置</b><span>该页面会把服务器地址和令牌填入 Claude Code 命令、Claude Desktop 配置以及其他客户端的配置中。</span></div></li>
   <li><div><b>测试后开始提问</b><span><em>Test MCP connection</em> 会显示助手将获得的账户、权限和工具。</span></div></li>
 </template>

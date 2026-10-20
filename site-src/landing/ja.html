@@ -14,11 +14,11 @@
 <template data-i18n="nav-whatsnew">新着情報</template>
 <template data-i18n="nav-install">インストール</template>
 <template data-i18n="lang-aria">言語</template>
-<template data-i18n="hero-ai">AI フレンドリー：バックアップの状況を Claude などの AI アシスタントに聞けます</template>
+<template data-i18n="hero-ai">AI フレンドリー：バックアップのセットアップと確認を Claude などの AI アシスタントに任せられます</template>
 <template data-i18n="eyebrow">オープンソース · MySQL、MariaDB、PostgreSQL のバックアップとリストア</template>
 <template data-i18n="h1">データベースをロックしないバックアップ。<span class="soft">秒単位でピンポイントにリカバリ。</span></template>
 <template data-i18n="lead">DumpCat は Web UI 付きのシングルバイナリです。バックアップをスケジュール実行し、圧縮・暗号化して S3、Google Drive、OneDrive、SFTP にコピーを送り、検証まで行い、いざというときにはデータを確実に取り戻します。Linux と Windows で動作し、完全オフラインでも使えます。</template>
-<template data-i18n="cta-install"><span data-version>1.6.0</span> をインストール</template>
+<template data-i18n="cta-install"><span data-version>1.7.0</span> をインストール</template>
 <template data-i18n="cta-demo">UI をプレビュー</template>
 <template data-i18n="cta-github">GitHub でソースを見る</template>
 <template data-i18n="pitr-title">ポイントインタイムリカバリ</template>
@@ -155,8 +155,8 @@
 <template data-i18n="oss-github">GitHub で見る</template>
 <template data-i18n="oss-issues">問題を報告</template>
 <template data-i18n="ai-label">AI フレンドリー · MCP</template>
-<template data-i18n="ai-title">バックアップの見守りは AI アシスタントに。鍵は渡さずに</template>
-<template data-i18n="ai-intro">DumpCat は MCP サーバーです。Claude Code、Claude Desktop などの MCP クライアントを API トークンでつなぎ、ふだんの言葉で尋ねるだけ。アシスタントが失敗や遅れているバックアップを調べ、ログを読んで原因を説明します。ほかの AI エージェントは、サーバー自身が書き出す Markdown の API リファレンスを読んで使います。</template>
+<template data-i18n="ai-title">バックアップのセットアップも見守りも AI アシスタントに。鍵は渡さずに</template>
+<template data-i18n="ai-intro">DumpCat は MCP サーバーです。Claude Code、Claude Desktop などの MCP クライアントを API トークンでつなぎ、ふだんの言葉で頼むだけ。アシスタントがサーバーとストレージを追加し、ジョブとリストア訓練を作り、失敗や遅れているバックアップを調べ、ログを読んで原因を説明します。パスワードや鍵は、あなたが Web UI で入力します。ほかの AI エージェントは、サーバー自身が書き出す Markdown の API リファレンスを読んで使います。</template>
 <template data-i18n="ai-q1">昨夜失敗したバックアップは？原因は？</template>
 <template data-i18n="ai-tools-aria">呼び出された MCP ツール</template>
 <template data-i18n="ai-a1">12 ジョブ中 1 件です。<b>shop-nightly</b> が 02:14 に <code>errno 28</code> で止まりました。db-01 の <code>/var/backups</code> に空き容量がありません。残りの 11 件は成功しています。空きを作るか、Web UI でローカルに残す世代数を減らしてもらえれば、もう一度実行します。</template>
@@ -165,15 +165,24 @@
 <template data-i18n="ai-allow">許可</template>
 <template data-i18n="ai-deny">拒否</template>
 <template data-i18n="ai-a2">バックアップ 4813 を実行中です（41%）。終わったら結果を確認します。</template>
-<template data-i18n="ai-chat-note">フルアクセスのトークンを使った例です。閲覧のみのトークン（デフォルト）では、アシスタントは見ることしかできず、何も開始できません。</template>
+<template data-i18n="ai-chat-tabs-aria">例</template>
+<template data-i18n="ai-chat-tab1">セットアップ</template>
+<template data-i18n="ai-chat-tab2">失敗を調べる</template>
+<template data-i18n="ai-s-q1">db-01 の shop データベースを毎晩 1:30 に S3 バケット acme-backups へバックアップして。14 日分残して。</template>
+<template data-i18n="ai-s-ask"><code>create_job</code>（shop-nightly）の実行を許可しますか？</template>
+<template data-i18n="ai-s-a1">できました。<b>shop-nightly</b> が毎晩 01:30 に db-01 の <code>shop</code> を新しいストレージ <b>s3-offsite</b> へバックアップし、14 日分を残します。一つだけ私にはできないことがあります。バケットのシークレットキーは私を通りません。こちらのページで入力してください：<code>/#/storages?edit=2</code>。そのあとストレージをテストして、最初のバックアップを実行します。</template>
+<template data-i18n="ai-s-q2">入力したよ。</template>
+<template data-i18n="ai-s-a2">s3-offsite の書き込みと読み取りのテストに成功しました。最初のバックアップを実行中です（12%）。</template>
+<template data-i18n="ai-chat-note">Claude Code での例です。閲覧のみのトークン（デフォルト）は見るだけ。バックアップの実行にはフルアクセス、セットアップには Manage のトークンが必要です。</template>
 <template data-i18n="ai-perm-title">AI アシスタントにできること</template>
 <template data-i18n="ai-perm-look"><b>見る</b><small>閲覧のみのトークン（デフォルト）</small><span>概要とアラート、ジョブ、バックアップ、エラーとログ、binlog / WAL のアーカイブ、リストアとリストア訓練の結果、ポイントインタイムリカバリのプレビュー。</span></template>
 <template data-i18n="ai-perm-run"><b>開始する</b><small>フルアクセスのトークン、operator か admin</small><span>バックアップの実行、バックアップの検証、リストア訓練の開始。AI クライアントが毎回あなたに確認します。</span></template>
-<template data-i18n="ai-perm-never"><b>MCP では決してできない</b><small>どのトークンでも</small><span>リストア、削除、認証情報、設定。有効にするオプションもありません。これらは Web UI でのみ行います。</span></template>
-<template data-i18n="ai-perm-note">応答にパスワード、鍵、トークンが含まれることはなく、エラーやログに紛れた認証情報も伏せられます。すべての呼び出しはあなたのトークンで REST API を通るため、ほかのリクエストと同じく権限が確認され、監査ログに記録されます。</template>
+<template data-i18n="ai-perm-set"><b>セットアップ</b><small>Manage トークン</small><span>サーバーとストレージの追加、ジョブとリストア訓練の作成と変更。パスワード、鍵、パスフレーズはアシスタントを通りません。入力用のリンクが渡されます。</span></template>
+<template data-i18n="ai-perm-never"><b>MCP では決してできない</b><small>どのトークンでも</small><span>リストア、削除、DumpCat の設定。有効にするオプションもありません。これらは Web UI でのみ行います。</span></template>
+<template data-i18n="ai-perm-note">応答にパスワード、鍵、トークンが含まれることはなく、それらを受け取るツールもありません。エラーやログに紛れた認証情報も伏せられます。すべての呼び出しはあなたのトークンで REST API を通るため、ほかのリクエストと同じく権限が確認され、監査ログに記録されます。</template>
 <template data-i18n="ai-setup-title">1 分で接続</template>
 <template data-i18n="ai-steps">
-  <li><div><b>トークンを作る</b><span>DumpCat の <em>API &amp; MCP</em> ページで <em>New token</em>。デフォルトは閲覧のみです。アシスタントにバックアップを実行させるなら <em>Full</em> を選びます。</span></div></li>
+  <li><div><b>トークンを作る</b><span>DumpCat の <em>API &amp; MCP</em> ページで <em>New token</em>。<em>Read-only</em>（デフォルト）は閲覧のみ、<em>Full</em> はバックアップの実行も、<em>Manage</em> はバックアップのセットアップもできます。</span></div></li>
   <li><div><b>設定をコピー</b><span>サーバーのアドレスとトークンを埋め込んだ Claude Code 用コマンド、Claude Desktop 用設定、その他のクライアント用設定がそのページに表示されます。</span></div></li>
   <li><div><b>テストして質問</b><span><em>Test MCP connection</em> で、アシスタントが使うアカウント、権限、ツールを確認できます。</span></div></li>
 </template>

@@ -102,12 +102,12 @@
 
     <div class="hero-main">
       <div class="hero-copy">
-        <a class="hero-ai" href="#ai"><span class="hero-ai-tag">MCP</span><span>Compatible IA&nbsp;: demandez à Claude ou à un autre assistant IA où en sont vos sauvegardes</span></a>
+        <a class="hero-ai" href="#ai"><span class="hero-ai-tag">MCP</span><span>Compatible IA&nbsp;: un assistant IA met en place et surveille vos sauvegardes</span></a>
         <p class="eyebrow">Open source · Sauvegarde et restauration pour MySQL, MariaDB et PostgreSQL</p>
         <h1>Sauvegardez sans jamais verrouiller la base. <span class="soft">Restaurez à la seconde près.</span></h1>
         <p class="lead">DumpCat est un binaire unique doté d’une interface web. Il planifie les sauvegardes, les compresse et les chiffre, en envoie des copies vers S3, Google Drive, OneDrive ou SFTP, les vérifie et restaure vos données le moment venu. Fonctionne sous Linux et Windows, entièrement hors ligne.</p>
         <div class="cta">
-          <a class="btn btn-light" href="#install">Installer la <span data-version>1.6.0</span></a>
+          <a class="btn btn-light" href="#install">Installer la <span data-version>1.7.0</span></a>
           <a class="btn btn-ghost" href="/demo/">Voir l’interface</a>
           <a class="btn btn-ghost" href="https://github.com/theweakestharrison/DumpCat"><svg class="gh" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 0c4.42 0 8 3.58 8 8a8.013 8.013 0 0 1-5.45 7.59c-.4.08-.55-.17-.55-.38 0-.27.01-1.13.01-2.2 0-.75-.25-1.23-.54-1.48 1.78-.2 3.65-.88 3.65-3.95 0-.88-.31-1.59-.82-2.15.08-.2.36-1.02-.08-2.12 0 0-.67-.22-2.2.82-.64-.18-1.32-.27-2-.27-.68 0-1.36.09-2 .27-1.53-1.03-2.2-.82-2.2-.82-.44 1.1-.16 1.92-.08 2.12-.51.56-.82 1.28-.82 2.15 0 3.06 1.86 3.75 3.64 3.95-.23.2-.44.55-.51 1.07-.46.21-1.61.55-2.33-.66-.15-.24-.6-.83-1.23-.82-.67.01-.27.38.01.53.34.19.73.9.82 1.13.16.45.68 1.31 2.69.94 0 .67.01 1.3.01 1.49 0 .21-.15.45-.55.38A7.995 7.995 0 0 1 0 8c0-4.42 3.58-8 8-8Z"/></svg><span>Code source sur GitHub</span></a>
         </div>
@@ -188,7 +188,7 @@
           </div>
           <div role="tabpanel" id="panel-windows" aria-labelledby="tab-windows" hidden>
             <ol class="win-steps">
-              <li><span><b>Téléchargez le .zip</b></span> <a class="btn btn-solid dl" data-pkg="windows" href="https://downloads.dumpcat.cc/1.6.0/dumpcat-1.6.0-windows-amd64.zip"><span>Télécharger pour Windows</span> <small data-version>1.6.0</small></a></li>
+              <li><span><b>Téléchargez le .zip</b></span> <a class="btn btn-solid dl" data-pkg="windows" href="https://downloads.dumpcat.cc/1.7.0/dumpcat-1.7.0-windows-amd64.zip"><span>Télécharger pour Windows</span> <small data-version>1.7.0</small></a></li>
               <li><b>Décompressez-le</b>&nbsp;: clic droit sur le fichier, puis <i>Extract All</i> (Extraire tout).</li>
               <li><b>Double-cliquez sur <i>Install DumpCat</i></b> et répondez <i>Yes</i> (Oui). Votre navigateur ouvre DumpCat&nbsp;; la fenêtre d’installation affiche le jeton de configuration.</li>
             </ol>
@@ -226,14 +226,28 @@
       <div class="head">
         <div>
           <p class="label">Compatible IA · MCP</p>
-          <h2 id="ai-title">Confiez la surveillance des sauvegardes à un assistant IA, sans lui donner les clés</h2>
+          <h2 id="ai-title">Confiez la mise en place et la surveillance des sauvegardes à un assistant IA, sans lui donner les clés</h2>
         </div>
-        <p class="intro">DumpCat est un serveur MCP. Connectez Claude Code, Claude Desktop ou un autre client MCP avec un jeton d’API, puis posez vos questions en langage courant&nbsp;: l’assistant cherche ce qui a échoué ou pris du retard, lit le journal et vous explique pourquoi. Les autres agents IA lisent la référence d’API en Markdown que votre propre serveur rédige pour eux.</p>
+        <p class="intro">DumpCat est un serveur MCP. Connectez Claude Code, Claude Desktop ou un autre client MCP avec un jeton d’API, puis demandez en langage courant&nbsp;: l’assistant ajoute des serveurs et des stockages, crée des tâches et des exercices de restauration, cherche ce qui a échoué ou pris du retard, lit le journal et vous explique pourquoi. Les mots de passe et les clés, c’est vous qui les saisissez dans l’interface web. Les autres agents IA lisent la référence d’API en Markdown que votre propre serveur rédige pour eux.</p>
       </div>
       <div class="section-body ai-grid">
         <figure class="ai-chat">
           <div class="ai-chat-bar"><span class="ai-dots" aria-hidden="true"><i></i><i></i><i></i></span><span>Claude Code</span><span class="ai-chat-mcp">MCP · dumpcat</span></div>
-          <div class="ai-chat-body">
+          <div class="tabs ai-chat-tabs" role="tablist" aria-label="Exemples">
+            <button type="button" role="tab" id="tab-chat-setup" aria-controls="chat-setup" aria-selected="true">Mise en place</button>
+            <button type="button" role="tab" id="tab-chat-fix" aria-controls="chat-fix" aria-selected="false" tabindex="-1">Diagnostic</button>
+          </div>
+          <div class="ai-chat-body" role="tabpanel" id="chat-setup" aria-labelledby="tab-chat-setup">
+            <p class="msg you">Sauvegarde la base shop de db-01 chaque nuit à 1h30 dans notre bucket S3 acme-backups, garde 14 jours.</p>
+            <p class="ai-tools" aria-label="Outils MCP appelés"><span class="tool">list_servers</span><span class="tool">create_storage <i>s3-offsite</i></span></p>
+            <div class="ai-ask"><p>Autoriser <code>create_job</code> (shop-nightly)&nbsp;?</p><span class="ai-ask-btns" aria-hidden="true"><span class="on">Autoriser</span><span>Refuser</span></span></div>
+            <p class="ai-tools" aria-label="Outils MCP appelés"><span class="tool">create_job <i>shop-nightly</i></span></p>
+            <p class="msg ai">C’est fait&nbsp;: <b>shop-nightly</b> sauvegarde <code>shop</code> sur db-01 chaque nuit à 01:30 dans le nouveau stockage <b>s3-offsite</b> et garde 14 jours. Une seule chose m’est impossible&nbsp;: la clé secrète du bucket ne passe jamais par moi. Saisissez-la sur cette page&nbsp;: <code>/#/storages?edit=2</code>. Ensuite je testerai le stockage et lancerai la première sauvegarde.</p>
+            <p class="msg you">C’est fait, elle est saisie.</p>
+            <p class="ai-tools" aria-label="Outils MCP appelés"><span class="tool">test_storage <i>s3-offsite</i></span><span class="tool">run_backup <i>shop-nightly</i></span></p>
+            <p class="msg ai">s3-offsite a réussi le test d’écriture et de lecture. La première sauvegarde est en cours, à 12&nbsp;%.</p>
+          </div>
+          <div class="ai-chat-body" role="tabpanel" id="chat-fix" aria-labelledby="tab-chat-fix" hidden>
             <p class="msg you">Quelles sauvegardes ont échoué cette nuit, et pourquoi&nbsp;?</p>
             <p class="ai-tools" aria-label="Outils MCP appelés"><span class="tool">get_monitoring</span><span class="tool">list_backups <i>status=failed</i></span><span class="tool">get_log <i>4812</i></span></p>
             <p class="msg ai">Une tâche sur 12&nbsp;: <b>shop-nightly</b> s’est arrêtée à 02:14 avec <code>errno 28</code>, autrement dit <code>/var/backups</code> sur db-01 est plein. Les 11 autres ont réussi. Libérez de la place, ou gardez moins de copies locales depuis l’interface web, et je la relance.</p>
@@ -242,23 +256,24 @@
             <p class="ai-tools" aria-label="Outils MCP appelés"><span class="tool">run_backup <i>shop-nightly</i></span><span class="tool">get_backup <i>4813</i></span></p>
             <p class="msg ai">La sauvegarde 4813 est en cours, à 41&nbsp;%. Je vérifierai le résultat à la fin.</p>
           </div>
-          <figcaption>Exemple avec un jeton à accès complet. Avec un jeton en lecture seule, celui par défaut, l’assistant peut regarder mais ne peut rien lancer.</figcaption>
+          <figcaption>Exemples dans Claude Code. Un jeton en lecture seule, celui par défaut, peut seulement regarder&nbsp;; lancer des sauvegardes demande un jeton à accès complet, les mettre en place un jeton Manage.</figcaption>
         </figure>
         <div class="ai-side">
           <h3>Ce qu’un assistant peut faire</h3>
           <ul class="ai-perm">
             <li><span class="mk mk-yes"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5.5 12.5l4 4L18.5 7.5"/></svg></span><div><b>Regarder</b><small>Jeton en lecture seule, par défaut</small><span>Vue d’ensemble et alertes, tâches, sauvegardes, erreurs et journaux, archivage binlog / WAL, résultats des restaurations et des exercices, aperçus de restauration à un instant précis.</span></div></li>
             <li><span class="mk mk-run"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6.5l8.5 5.5L9 17.5z"/></svg></span><div><b>Lancer</b><small>Jeton à accès complet, operator ou admin</small><span>Lancer une sauvegarde, vérifier une sauvegarde, démarrer un exercice de restauration. Le client IA vous demande avant chaque action.</span></div></li>
-            <li><span class="mk mk-no"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7.5 7.5l9 9M16.5 7.5l-9 9"/></svg></span><div><b>Jamais via MCP</b><small>Quel que soit le jeton</small><span>Restaurations, suppressions, identifiants et réglages. Aucune option ne les active&nbsp;: tout cela se fait dans l’interface web.</span></div></li>
+            <li><span class="mk mk-set"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4.5 19.5h4l10-10a2.1 2.1 0 0 0-4-4l-10 10z"/></svg></span><div><b>Mettre en place</b><small>Jeton Manage</small><span>Ajouter des serveurs et des stockages, créer et modifier des tâches et des exercices de restauration. Mots de passe, clés et phrases secrètes ne passent jamais par l’assistant&nbsp;: il vous donne un lien pour les saisir vous-même.</span></div></li>
+            <li><span class="mk mk-no"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7.5 7.5l9 9M16.5 7.5l-9 9"/></svg></span><div><b>Jamais via MCP</b><small>Quel que soit le jeton</small><span>Restaurations, suppressions et réglages de DumpCat. Aucune option ne les active&nbsp;: tout cela se fait dans l’interface web.</span></div></li>
           </ul>
-          <p class="ai-perm-note">Les réponses ne contiennent jamais de mots de passe, de clés ni de jetons, et les identifiants présents dans les erreurs et les journaux sont masqués. Chaque appel passe par l’API REST avec votre jeton&nbsp;: il est donc contrôlé comme n’importe quelle requête et inscrit au journal d’audit.</p>
+          <p class="ai-perm-note">Les réponses ne contiennent jamais de mots de passe, de clés ni de jetons, et aucun outil n’en accepte&nbsp;; les identifiants présents dans les erreurs et les journaux sont masqués. Chaque appel passe par l’API REST avec votre jeton&nbsp;: il est donc contrôlé comme n’importe quelle requête et inscrit au journal d’audit.</p>
         </div>
       </div>
       <div class="ai-setup">
         <div class="ai-setup-steps">
           <h3 class="steps-title">Connecté en une minute</h3>
           <ol class="steps">
-            <li><div><b>Créez un jeton</b><span>Page <em>API &amp; MCP</em> de DumpCat, <em>New token</em>. Les jetons sont en lecture seule par défaut&nbsp;; choisissez <em>Full</em> pour que l’assistant puisse lancer des sauvegardes.</span></div></li>
+            <li><div><b>Créez un jeton</b><span>Page <em>API &amp; MCP</em> de DumpCat, <em>New token</em>&nbsp;: <em>Read-only</em> (par défaut) regarde, <em>Full</em> lance aussi des sauvegardes, <em>Manage</em> les met aussi en place.</span></div></li>
             <li><div><b>Copiez la configuration</b><span>La page insère l’adresse de votre serveur et le jeton dans la commande Claude Code, la configuration Claude Desktop et celle des autres clients.</span></div></li>
             <li><div><b>Testez, puis demandez</b><span><em>Test MCP connection</em> affiche le compte, l’accès et les outils dont l’assistant disposera.</span></div></li>
           </ol>
@@ -508,14 +523,14 @@ go build -o dumpcat ./cmd/dumpcat</code></pre>
       <div class="section-body release" id="release" hidden>
         <div class="release-files">
           <div class="pkgs">
-            <a class="pkg" id="pkg-linux" href="https://downloads.dumpcat.cc/1.6.0/dumpcat-1.6.0-linux.tar.gz">
+            <a class="pkg" id="pkg-linux" href="https://downloads.dumpcat.cc/1.7.0/dumpcat-1.7.0-linux.tar.gz">
               <span class="pkg-os">Linux</span>
-              <span class="pkg-file" id="pkg-linux-file">dumpcat-1.6.0-linux.tar.gz</span>
+              <span class="pkg-file" id="pkg-linux-file">dumpcat-1.7.0-linux.tar.gz</span>
               <span class="pkg-desc">amd64 et arm64, installateur, service systemd et manuel</span>
             </a>
-            <a class="pkg" id="pkg-windows" href="https://downloads.dumpcat.cc/1.6.0/dumpcat-1.6.0-windows-amd64.zip">
+            <a class="pkg" id="pkg-windows" href="https://downloads.dumpcat.cc/1.7.0/dumpcat-1.7.0-windows-amd64.zip">
               <span class="pkg-os">Windows</span>
-              <span class="pkg-file" id="pkg-windows-file">dumpcat-1.6.0-windows-amd64.zip</span>
+              <span class="pkg-file" id="pkg-windows-file">dumpcat-1.7.0-windows-amd64.zip</span>
               <span class="pkg-desc">64 bits, installateur du service Windows et manuel</span>
             </a>
           </div>
@@ -524,7 +539,7 @@ go build -o dumpcat ./cmd/dumpcat</code></pre>
           <ul class="bins" id="rel-bins"></ul>
           <p class="old">Les versions précédentes restent disponibles sur <code>downloads.dumpcat.cc/&lt;version&gt;/</code>.</p>
         </div>
-        <div class="notes wn" data-wn-version="1.6.0"><p class="wn-label">Nouveautés</p><h3><a href="/changelog/1.6.0/">DumpCat 1.6.0</a> <span class="wn-date">20 octobre 2026</span></h3><p class="wn-lead" lang="en">An API &amp; MCP page to connect AI assistants and scripts, the API reference in Markdown, single sign-on with OpenID Connect, an instance name and logo, and installed instances kept out of search engines.</p><ul class="wn-list" lang="en"><li><a href="/changelog/1.6.0/#api-mcp">API &amp; MCP</a></li><li><a href="/changelog/1.6.0/#single-sign-on-openid-connect">Single sign-on (OpenID Connect)</a></li><li><a href="/changelog/1.6.0/#branding">Branding</a></li><li><a href="/changelog/1.6.0/#search-engines">Search engines</a></li></ul><p class="wn-links"><a href="/changelog/1.6.0/">Voir tous les changements →</a><a href="/changelog/">Versions précédentes</a></p><p class="wn-note">Les notes de version sont en anglais.</p></div>
+        <div class="notes wn" data-wn-version="1.7.0"><p class="wn-label">Nouveautés</p><h3><a href="/changelog/1.7.0/">DumpCat 1.7.0</a> <span class="wn-date">20 octobre 2026</span></h3><p class="wn-lead" lang="en">AI assistants can set backups up: MCP tools that add and change database servers, storages, jobs and restore drills, for API tokens with the new Manage access. Passwords, keys and passphrases still never go through MCP.</p><ul class="wn-list" lang="en"><li><a href="/changelog/1.7.0/#ai-assistants-mcp">AI assistants (MCP)</a></li></ul><p class="wn-links"><a href="/changelog/1.7.0/">Voir tous les changements →</a><a href="/changelog/">Versions précédentes</a></p><p class="wn-note">Les notes de version sont en anglais.</p></div>
       </div>
     </div>
   </section>
@@ -533,7 +548,7 @@ go build -o dumpcat ./cmd/dumpcat</code></pre>
 
 <footer class="foot">
   <div class="wrap">
-    <a class="brand" href="#top"><svg aria-hidden="true"><use href="#dc-logo"/></svg>DumpCat <span data-version>1.6.0</span></a>
+    <a class="brand" href="#top"><svg aria-hidden="true"><use href="#dc-logo"/></svg>DumpCat <span data-version>1.7.0</span></a>
     <p>Open source sous licence Apache-2.0, avec le code source sur <a href="https://github.com/theweakestharrison/DumpCat">GitHub</a>. <a href="/compare/">Comparaison avec les autres outils</a>. Le manuel complet, en anglais et en vietnamien, est inclus dans chaque paquet.</p>
     <p class="foot-mail">Support&nbsp;: <a href="mailto:fat@dumpcat.cc">fat@dumpcat.cc</a></p>
   </div>

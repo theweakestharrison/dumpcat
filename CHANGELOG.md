@@ -6,7 +6,7 @@ page at dumpcat.cc/changelog/ (see `scripts/build-site.py`). Newest version
 first. Each section: `## <version> (<date>)`, a one-line summary, then `###`
 groups of bullets.
 
-## 1.7.0
+## 1.7.0 (2026-10-20)
 
 AI assistants can set backups up: MCP tools that add and change database servers, storages, jobs and restore drills,
 for API tokens with the new Manage access. Passwords, keys and passphrases still never go through MCP.

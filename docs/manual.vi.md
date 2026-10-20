@@ -153,9 +153,9 @@ Hoặc tự tải gói về: phiên bản mới nhất, ghi chú phát hành và
 các gói cài đặt nằm ở `https://downloads.dumpcat.cc/<phiên bản>/`.
 
 ```bash
-curl -fLO https://downloads.dumpcat.cc/1.6.0/dumpcat-1.6.0-linux.tar.gz
-tar xzf dumpcat-1.6.0-linux.tar.gz
-cd dumpcat-1.6.0-linux
+curl -fLO https://downloads.dumpcat.cc/1.7.0/dumpcat-1.7.0-linux.tar.gz
+tar xzf dumpcat-1.7.0-linux.tar.gz
+cd dumpcat-1.7.0-linux
 sudo ./install.sh
 ```
 
@@ -224,9 +224,9 @@ irm https://dumpcat.cc/install.ps1 | iex
 hoặc làm từng bước bằng tay:
 
 ```powershell
-Invoke-WebRequest https://downloads.dumpcat.cc/1.6.0/dumpcat-1.6.0-windows-amd64.zip -OutFile dumpcat-1.6.0-windows-amd64.zip
-Expand-Archive dumpcat-1.6.0-windows-amd64.zip -DestinationPath .
-cd dumpcat-1.6.0-windows-amd64
+Invoke-WebRequest https://downloads.dumpcat.cc/1.7.0/dumpcat-1.7.0-windows-amd64.zip -OutFile dumpcat-1.7.0-windows-amd64.zip
+Expand-Archive dumpcat-1.7.0-windows-amd64.zip -DestinationPath .
+cd dumpcat-1.7.0-windows-amd64
 powershell -ExecutionPolicy Bypass -File .\install.ps1
 ```
 
@@ -284,7 +284,7 @@ Upload **nội dung** thư mục `dist/update/` lên địa chỉ đó, để c�
 
 ```
 https://downloads.dumpcat.cc/latest.json
-https://downloads.dumpcat.cc/1.6.0/dumpcat-linux-amd64    (… -linux-arm64, -windows-amd64.exe, SHA256SUMS, các gói cài)
+https://downloads.dumpcat.cc/1.7.0/dumpcat-linux-amd64    (… -linux-arm64, -windows-amd64.exe, SHA256SUMS, các gói cài)
 ```
 
 Upload thư mục phiên bản trước, `latest.json` sau cùng, để máy cài không bao giờ thấy một bản phát hành mà file chưa lên đủ.
@@ -1241,7 +1241,7 @@ server trên máy. Kiểm tra cài đặt trước:
 
 ```bash
 dumpcat mcp -check
-# OK: DumpCat 1.6.0 at https://backup.example.com/api/mcp (MCP 2025-11-25)
+# OK: DumpCat 1.7.0 at https://backup.example.com/api/mcp (MCP 2025-11-25)
 # Signed in as alice (role operator) with a read-only token: you can see what the account can see and change nothing
 # 19 tools: get_overview, get_monitoring, list_servers, …
 ```

@@ -102,12 +102,12 @@
 
     <div class="hero-main">
       <div class="hero-copy">
-        <a class="hero-ai" href="#ai"><span class="hero-ai-tag">MCP</span><span>AI 友好：问问 Claude 或其他 AI 助手，你的备份状况如何</span></a>
+        <a class="hero-ai" href="#ai"><span class="hero-ai-tag">MCP</span><span>AI 友好：让 Claude 或其他 AI 助手帮你配置和检查备份</span></a>
         <p class="eyebrow">开源 · MySQL、MariaDB 和 PostgreSQL 的备份与恢复</p>
         <h1>备份从不锁库。<span class="soft">恢复精确到秒。</span></h1>
         <p class="lead">DumpCat 是一个自带 Web 界面的单文件程序。它按计划执行备份，压缩并加密，把副本传到 S3、Google Drive、OneDrive 或 SFTP，校验备份，并在你需要时把数据恢复回来。支持 Linux 和 Windows，可完全离线运行。</p>
         <div class="cta">
-          <a class="btn btn-light" href="#install">安装 <span data-version>1.6.0</span></a>
+          <a class="btn btn-light" href="#install">安装 <span data-version>1.7.0</span></a>
           <a class="btn btn-ghost" href="/demo/">预览界面</a>
           <a class="btn btn-ghost" href="https://github.com/theweakestharrison/DumpCat"><svg class="gh" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 0c4.42 0 8 3.58 8 8a8.013 8.013 0 0 1-5.45 7.59c-.4.08-.55-.17-.55-.38 0-.27.01-1.13.01-2.2 0-.75-.25-1.23-.54-1.48 1.78-.2 3.65-.88 3.65-3.95 0-.88-.31-1.59-.82-2.15.08-.2.36-1.02-.08-2.12 0 0-.67-.22-2.2.82-.64-.18-1.32-.27-2-.27-.68 0-1.36.09-2 .27-1.53-1.03-2.2-.82-2.2-.82-.44 1.1-.16 1.92-.08 2.12-.51.56-.82 1.28-.82 2.15 0 3.06 1.86 3.75 3.64 3.95-.23.2-.44.55-.51 1.07-.46.21-1.61.55-2.33-.66-.15-.24-.6-.83-1.23-.82-.67.01-.27.38.01.53.34.19.73.9.82 1.13.16.45.68 1.31 2.69.94 0 .67.01 1.3.01 1.49 0 .21-.15.45-.55.38A7.995 7.995 0 0 1 0 8c0-4.42 3.58-8 8-8Z"/></svg><span>GitHub 源码</span></a>
         </div>
@@ -188,7 +188,7 @@
           </div>
           <div role="tabpanel" id="panel-windows" aria-labelledby="tab-windows" hidden>
             <ol class="win-steps">
-              <li><span><b>下载 .zip 文件</b></span> <a class="btn btn-solid dl" data-pkg="windows" href="https://downloads.dumpcat.cc/1.6.0/dumpcat-1.6.0-windows-amd64.zip"><span>下载 Windows 版</span> <small data-version>1.6.0</small></a></li>
+              <li><span><b>下载 .zip 文件</b></span> <a class="btn btn-solid dl" data-pkg="windows" href="https://downloads.dumpcat.cc/1.7.0/dumpcat-1.7.0-windows-amd64.zip"><span>下载 Windows 版</span> <small data-version>1.7.0</small></a></li>
               <li><b>解压</b>：右键点击该文件，选择 <i>Extract All</i>（全部解压缩）。</li>
               <li><b>双击 <i>Install DumpCat</i></b>，在提示中选择 <i>Yes</i>（是）。浏览器会打开 DumpCat；安装窗口中会显示初始化令牌（setup token）。</li>
             </ol>
@@ -226,14 +226,28 @@
       <div class="head">
         <div>
           <p class="label">AI 友好 · MCP</p>
-          <h2 id="ai-title">让 AI 助手替你盯着备份，却不必交出钥匙</h2>
+          <h2 id="ai-title">让 AI 助手替你配置和盯着备份，却不必交出钥匙</h2>
         </div>
-        <p class="intro">DumpCat 本身就是一个 MCP 服务器。用 API 令牌接入 Claude Code、Claude Desktop 或其他 MCP 客户端，然后用日常语言提问：助手会自己查出哪些备份失败或逾期、读取日志并告诉你原因。其他 AI Agent 则可以阅读你的服务器专门为它们生成的 Markdown 格式 API 参考文档。</p>
+        <p class="intro">DumpCat 本身就是一个 MCP 服务器。用 API 令牌接入 Claude Code、Claude Desktop 或其他 MCP 客户端，然后用日常语言提出要求：助手会添加服务器和存储，创建备份任务和恢复演练，查出哪些备份失败或逾期，读取日志并告诉你原因。密码和密钥则由你自己在 Web 界面中输入。其他 AI Agent 可以阅读你的服务器专门为它们生成的 Markdown 格式 API 参考文档。</p>
       </div>
       <div class="section-body ai-grid">
         <figure class="ai-chat">
           <div class="ai-chat-bar"><span class="ai-dots" aria-hidden="true"><i></i><i></i><i></i></span><span>Claude Code</span><span class="ai-chat-mcp">MCP · dumpcat</span></div>
-          <div class="ai-chat-body">
+          <div class="tabs ai-chat-tabs" role="tablist" aria-label="示例">
+            <button type="button" role="tab" id="tab-chat-setup" aria-controls="chat-setup" aria-selected="true">配置</button>
+            <button type="button" role="tab" id="tab-chat-fix" aria-controls="chat-fix" aria-selected="false" tabindex="-1">排查失败</button>
+          </div>
+          <div class="ai-chat-body" role="tabpanel" id="chat-setup" aria-labelledby="tab-chat-setup">
+            <p class="msg you">每晚 1:30 把 db-01 上的 shop 数据库备份到我们的 S3 存储桶 acme-backups，保留 14 天。</p>
+            <p class="ai-tools" aria-label="调用的 MCP 工具"><span class="tool">list_servers</span><span class="tool">create_storage <i>s3-offsite</i></span></p>
+            <div class="ai-ask"><p>允许调用 <code>create_job</code>（shop-nightly）吗？</p><span class="ai-ask-btns" aria-hidden="true"><span class="on">允许</span><span>拒绝</span></span></div>
+            <p class="ai-tools" aria-label="调用的 MCP 工具"><span class="tool">create_job <i>shop-nightly</i></span></p>
+            <p class="msg ai">好了：<b>shop-nightly</b> 每晚 01:30 把 db-01 上的 <code>shop</code> 备份到新建的存储 <b>s3-offsite</b>，保留 14 天。只有一件事我做不了：存储桶的 Secret Key 从不经过我。请在这个页面输入：<code>/#/storages?edit=2</code>。之后我会测试存储并运行第一次备份。</p>
+            <p class="msg you">已经填好了。</p>
+            <p class="ai-tools" aria-label="调用的 MCP 工具"><span class="tool">test_storage <i>s3-offsite</i></span><span class="tool">run_backup <i>shop-nightly</i></span></p>
+            <p class="msg ai">s3-offsite 的写入和读取测试通过。第一次备份正在运行，已完成 12%。</p>
+          </div>
+          <div class="ai-chat-body" role="tabpanel" id="chat-fix" aria-labelledby="tab-chat-fix" hidden>
             <p class="msg you">昨晚哪些备份失败了？为什么？</p>
             <p class="ai-tools" aria-label="调用的 MCP 工具"><span class="tool">get_monitoring</span><span class="tool">list_backups <i>status=failed</i></span><span class="tool">get_log <i>4812</i></span></p>
             <p class="msg ai">12 个任务中有 1 个：<b>shop-nightly</b> 在 02:14 因 <code>errno 28</code> 中止，也就是 db-01 上的 <code>/var/backups</code> 已经没有剩余空间。其余 11 个都成功了。腾出一些空间，或在 Web 界面里减少本地保留的份数，我就重新运行它。</p>
@@ -242,23 +256,24 @@
             <p class="ai-tools" aria-label="调用的 MCP 工具"><span class="tool">run_backup <i>shop-nightly</i></span><span class="tool">get_backup <i>4813</i></span></p>
             <p class="msg ai">备份 4813 正在运行，已完成 41%。完成后我会检查结果。</p>
           </div>
-          <figcaption>示例使用完全权限的令牌。使用只读令牌（默认）时，助手只能查看，无法启动任何操作。</figcaption>
+          <figcaption>Claude Code 中的示例。只读令牌（默认）只能查看；运行备份需要完全权限令牌，配置备份需要 Manage 令牌。</figcaption>
         </figure>
         <div class="ai-side">
           <h3>AI 助手能做什么</h3>
           <ul class="ai-perm">
             <li><span class="mk mk-yes"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5.5 12.5l4 4L18.5 7.5"/></svg></span><div><b>查看</b><small>只读令牌，默认</small><span>概览和告警、任务、备份、错误和日志、binlog / WAL 归档、恢复和演练结果、时间点恢复预览。</span></div></li>
             <li><span class="mk mk-run"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6.5l8.5 5.5L9 17.5z"/></svg></span><div><b>启动</b><small>完全权限令牌，operator 或 admin</small><span>运行备份、校验备份、启动恢复演练。每次执行前，AI 客户端都会先征求你的同意。</span></div></li>
-            <li><span class="mk mk-no"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7.5 7.5l9 9M16.5 7.5l-9 9"/></svg></span><div><b>永远不经过 MCP</b><small>无论使用什么令牌</small><span>恢复、删除、凭据和设置。没有任何选项能开启它们：这些操作只在 Web 界面中进行。</span></div></li>
+            <li><span class="mk mk-set"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4.5 19.5h4l10-10a2.1 2.1 0 0 0-4-4l-10 10z"/></svg></span><div><b>配置</b><small>Manage 令牌</small><span>添加服务器和存储，创建和修改备份任务及恢复演练。密码、密钥和口令从不经过助手：它会给你一个链接，由你自己输入。</span></div></li>
+            <li><span class="mk mk-no"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7.5 7.5l9 9M16.5 7.5l-9 9"/></svg></span><div><b>永远不经过 MCP</b><small>无论使用什么令牌</small><span>恢复、删除和 DumpCat 的系统设置。没有任何选项能开启它们：这些操作只在 Web 界面中进行。</span></div></li>
           </ul>
-          <p class="ai-perm-note">回答中绝不包含密码、密钥或令牌，错误和日志中出现的凭据也会被遮盖。每次调用都以你的令牌经由 REST API 执行，因此会像其他请求一样检查权限，并写入审计日志。</p>
+          <p class="ai-perm-note">回答中绝不包含密码、密钥或令牌，也没有工具会接收它们；错误和日志中出现的凭据会被遮盖。每次调用都以你的令牌经由 REST API 执行，因此会像其他请求一样检查权限，并写入审计日志。</p>
         </div>
       </div>
       <div class="ai-setup">
         <div class="ai-setup-steps">
           <h3 class="steps-title">一分钟完成连接</h3>
           <ol class="steps">
-            <li><div><b>创建令牌</b><span>在 DumpCat 的 <em>API &amp; MCP</em> 页面点击 <em>New token</em>。令牌默认只读；选择 <em>Full</em> 可让助手运行备份。</span></div></li>
+            <li><div><b>创建令牌</b><span>在 DumpCat 的 <em>API &amp; MCP</em> 页面点击 <em>New token</em>：<em>Read-only</em>（默认）只能查看，<em>Full</em> 还能运行备份，<em>Manage</em> 还能配置备份。</span></div></li>
             <li><div><b>复制配置</b><span>该页面会把服务器地址和令牌填入 Claude Code 命令、Claude Desktop 配置以及其他客户端的配置中。</span></div></li>
             <li><div><b>测试后开始提问</b><span><em>Test MCP connection</em> 会显示助手将获得的账户、权限和工具。</span></div></li>
           </ol>
@@ -508,14 +523,14 @@ go build -o dumpcat ./cmd/dumpcat</code></pre>
       <div class="section-body release" id="release" hidden>
         <div class="release-files">
           <div class="pkgs">
-            <a class="pkg" id="pkg-linux" href="https://downloads.dumpcat.cc/1.6.0/dumpcat-1.6.0-linux.tar.gz">
+            <a class="pkg" id="pkg-linux" href="https://downloads.dumpcat.cc/1.7.0/dumpcat-1.7.0-linux.tar.gz">
               <span class="pkg-os">Linux</span>
-              <span class="pkg-file" id="pkg-linux-file">dumpcat-1.6.0-linux.tar.gz</span>
+              <span class="pkg-file" id="pkg-linux-file">dumpcat-1.7.0-linux.tar.gz</span>
               <span class="pkg-desc">amd64 和 arm64，含安装程序、systemd 服务和使用手册</span>
             </a>
-            <a class="pkg" id="pkg-windows" href="https://downloads.dumpcat.cc/1.6.0/dumpcat-1.6.0-windows-amd64.zip">
+            <a class="pkg" id="pkg-windows" href="https://downloads.dumpcat.cc/1.7.0/dumpcat-1.7.0-windows-amd64.zip">
               <span class="pkg-os">Windows</span>
-              <span class="pkg-file" id="pkg-windows-file">dumpcat-1.6.0-windows-amd64.zip</span>
+              <span class="pkg-file" id="pkg-windows-file">dumpcat-1.7.0-windows-amd64.zip</span>
               <span class="pkg-desc">64 位，含 Windows 服务安装程序和使用手册</span>
             </a>
           </div>
@@ -524,7 +539,7 @@ go build -o dumpcat ./cmd/dumpcat</code></pre>
           <ul class="bins" id="rel-bins"></ul>
           <p class="old">旧版本仍可在 <code>downloads.dumpcat.cc/&lt;version&gt;/</code> 下载。</p>
         </div>
-        <div class="notes wn" data-wn-version="1.6.0"><p class="wn-label">更新内容</p><h3><a href="/changelog/1.6.0/">DumpCat 1.6.0</a> <span class="wn-date">2026年10月20日</span></h3><p class="wn-lead" lang="en">An API &amp; MCP page to connect AI assistants and scripts, the API reference in Markdown, single sign-on with OpenID Connect, an instance name and logo, and installed instances kept out of search engines.</p><ul class="wn-list" lang="en"><li><a href="/changelog/1.6.0/#api-mcp">API &amp; MCP</a></li><li><a href="/changelog/1.6.0/#single-sign-on-openid-connect">Single sign-on (OpenID Connect)</a></li><li><a href="/changelog/1.6.0/#branding">Branding</a></li><li><a href="/changelog/1.6.0/#search-engines">Search engines</a></li></ul><p class="wn-links"><a href="/changelog/1.6.0/">查看全部更新 →</a><a href="/changelog/">历史版本</a></p><p class="wn-note">发布说明为英文。</p></div>
+        <div class="notes wn" data-wn-version="1.7.0"><p class="wn-label">更新内容</p><h3><a href="/changelog/1.7.0/">DumpCat 1.7.0</a> <span class="wn-date">2026年10月20日</span></h3><p class="wn-lead" lang="en">AI assistants can set backups up: MCP tools that add and change database servers, storages, jobs and restore drills, for API tokens with the new Manage access. Passwords, keys and passphrases still never go through MCP.</p><ul class="wn-list" lang="en"><li><a href="/changelog/1.7.0/#ai-assistants-mcp">AI assistants (MCP)</a></li></ul><p class="wn-links"><a href="/changelog/1.7.0/">查看全部更新 →</a><a href="/changelog/">历史版本</a></p><p class="wn-note">发布说明为英文。</p></div>
       </div>
     </div>
   </section>
@@ -533,7 +548,7 @@ go build -o dumpcat ./cmd/dumpcat</code></pre>
 
 <footer class="foot">
   <div class="wrap">
-    <a class="brand" href="#top"><svg aria-hidden="true"><use href="#dc-logo"/></svg>DumpCat <span data-version>1.6.0</span></a>
+    <a class="brand" href="#top"><svg aria-hidden="true"><use href="#dc-logo"/></svg>DumpCat <span data-version>1.7.0</span></a>
     <p>基于 Apache-2.0 许可证开源，源码托管在 <a href="https://github.com/theweakestharrison/DumpCat">GitHub</a>。<a href="/compare/">与其他工具的对比</a>。完整的使用手册（英文和越南语）随每个安装包附带。</p>
     <p class="foot-mail">技术支持：<a href="mailto:fat@dumpcat.cc">fat@dumpcat.cc</a></p>
   </div>

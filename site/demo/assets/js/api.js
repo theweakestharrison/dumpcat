@@ -595,7 +595,7 @@ route('POST', '/me/password', () => ({ ok: true }));
 route('POST', '/me/logout-others', () => ({ ok: true, count: 1 }));
 route('GET', '/me/tokens', () => db.tokens);
 route('POST', '/me/tokens', ({ body }) => {
-  const item = { id: nextId(db.tokens), user_id: 1, name: body.name || 'token', prefix: 'mv_Dem0' + Math.random().toString(36).slice(2, 6), access: body.access === 'full' ? 'full' : 'read', created_at: iso(now()), last_used_at: null, expires_at: body.days ? iso(now() + body.days * 24 * H) : null };
+  const item = { id: nextId(db.tokens), user_id: 1, name: body.name || 'token', prefix: 'mv_Dem0' + Math.random().toString(36).slice(2, 6), access: ['full', 'manage'].includes(body.access) ? body.access : 'read', created_at: iso(now()), last_used_at: null, expires_at: body.days ? iso(now() + body.days * 24 * H) : null };
   db.tokens.push(item);
   return { item, token: item.prefix + 'xDemoTokenNotUsable0000000000000' };
 });
@@ -1191,9 +1191,10 @@ export async function mcpRequest(token, method) {
   await new Promise((res) => setTimeout(res, 200));
   const t = db.tokens.find((x) => token.startsWith(x.prefix));
   if (!t) throw new ApiError('invalid API token', 401);
-  const tools = (TYPES.mcp_tools || []).filter((x) => t.access === 'full' || !x.write);
+  // read-only: the tools that look; full: also those that start something; manage: also those that change the configuration
+  const tools = (TYPES.mcp_tools || []).filter((x) => t.access === 'manage' || (t.access === 'full' && !x.manage) || !x.write);
   if (method === 'initialize') {
-    const access = t.access === 'full' ? 'with full access' : 'with a read-only token';
+    const access = { full: 'with full access', manage: 'with Manage access' }[t.access] || 'with a read-only token';
     return { protocolVersion: '2025-11-25', serverInfo: { name: 'dumpcat', title: 'DumpCat', version: VERSION }, instructions: `Signed in as demo (role admin) ${access}.` };
   }
   if (method === 'tools/list') return { tools: tools.map((x) => ({ name: x.name, title: x.title, description: x.description })) };

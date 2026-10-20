@@ -13,11 +13,11 @@
 <template data-i18n="nav-whatsnew">Novidades</template>
 <template data-i18n="nav-install">Instalar</template>
 <template data-i18n="lang-aria">Idioma</template>
-<template data-i18n="hero-ai">Pronto para IA: pergunte ao Claude ou a outro assistente de IA como estão seus backups</template>
+<template data-i18n="hero-ai">Pronto para IA: um assistente de IA configura e acompanha seus backups</template>
 <template data-i18n="eyebrow">Código aberto · Backup e restauração para MySQL, MariaDB e PostgreSQL</template>
 <template data-i18n="h1">Backups que nunca bloqueiam o banco. <span class="soft">Recuperação até o segundo exato.</span></template>
 <template data-i18n="lead">O DumpCat é um único binário com interface web. Ele agenda backups, compacta e criptografa os arquivos, envia cópias para S3, Google Drive, OneDrive ou SFTP, verifica cada uma e traz seus dados de volta quando você precisar. Roda em Linux e Windows, totalmente offline.</template>
-<template data-i18n="cta-install">Instalar <span data-version>1.6.0</span></template>
+<template data-i18n="cta-install">Instalar <span data-version>1.7.0</span></template>
 <template data-i18n="cta-demo">Ver a interface</template>
 <template data-i18n="cta-github">Código no GitHub</template>
 <template data-i18n="pitr-title">Recuperação point-in-time</template>
@@ -151,8 +151,8 @@
 <template data-i18n="oss-github">Ver no GitHub</template>
 <template data-i18n="oss-issues">Relatar um problema</template>
 <template data-i18n="ai-label">Pronto para IA · MCP</template>
-<template data-i18n="ai-title">Deixe um assistente de IA de olho nos backups, sem entregar as chaves</template>
-<template data-i18n="ai-intro">O DumpCat é um servidor MCP. Conecte o Claude Code, o Claude Desktop ou qualquer outro cliente MCP com um token de API e pergunte com suas palavras: o assistente descobre o que falhou ou está atrasado, lê o log e explica o motivo. Outros agentes de IA leem a referência da API em Markdown que o seu próprio servidor escreve para eles.</template>
+<template data-i18n="ai-title">Deixe um assistente de IA configurar e vigiar os backups, sem entregar as chaves</template>
+<template data-i18n="ai-intro">O DumpCat é um servidor MCP. Conecte o Claude Code, o Claude Desktop ou qualquer outro cliente MCP com um token de API e peça com suas palavras: o assistente adiciona servidores e armazenamentos, cria jobs e testes de restauração, descobre o que falhou ou está atrasado, lê o log e explica o motivo. Senhas e chaves você mesmo digita na interface web. Outros agentes de IA leem a referência da API em Markdown que o seu próprio servidor escreve para eles.</template>
 <template data-i18n="ai-q1">Quais backups falharam ontem à noite, e por quê?</template>
 <template data-i18n="ai-tools-aria">Ferramentas MCP chamadas</template>
 <template data-i18n="ai-a1">Um de 12 jobs: o <b>shop-nightly</b> parou às 02:14 com <code>errno 28</code>, ou seja, <code>/var/backups</code> no db-01 ficou sem espaço. Os outros 11 deram certo. Libere um pouco de espaço, ou guarde menos cópias locais pela interface web, e eu rodo de novo.</template>
@@ -161,15 +161,24 @@
 <template data-i18n="ai-allow">Permitir</template>
 <template data-i18n="ai-deny">Negar</template>
 <template data-i18n="ai-a2">O backup 4813 está rodando, em 41%. Vou conferir o resultado quando terminar.</template>
-<template data-i18n="ai-chat-note">Exemplo com um token de acesso total. Com um token somente leitura, o padrão, o assistente pode olhar, mas não consegue iniciar nada.</template>
+<template data-i18n="ai-chat-tabs-aria">Exemplos</template>
+<template data-i18n="ai-chat-tab1">Configurar</template>
+<template data-i18n="ai-chat-tab2">Diagnóstico</template>
+<template data-i18n="ai-s-q1">Faça backup do banco shop no db-01 toda noite à 1:30 para o nosso bucket S3 acme-backups e guarde 14 dias.</template>
+<template data-i18n="ai-s-ask">Permitir <code>create_job</code> (shop-nightly)?</template>
+<template data-i18n="ai-s-a1">Pronto: o <b>shop-nightly</b> faz backup do <code>shop</code> no db-01 toda noite às 01:30 para o novo armazenamento <b>s3-offsite</b> e guarda 14 dias. Só uma coisa eu não consigo fazer: a chave secreta do bucket nunca passa por mim. Digite-a nesta página: <code>/#/storages?edit=2</code>. Depois eu testo o armazenamento e rodo o primeiro backup.</template>
+<template data-i18n="ai-s-q2">Pronto, já coloquei.</template>
+<template data-i18n="ai-s-a2">O s3-offsite passou no teste de escrita e leitura. O primeiro backup está rodando, em 12%.</template>
+<template data-i18n="ai-chat-note">Exemplos no Claude Code. Um token somente leitura, o padrão, só pode olhar; executar backups exige um token de acesso total, e configurá-los, um token Manage.</template>
 <template data-i18n="ai-perm-title">O que um assistente pode fazer</template>
 <template data-i18n="ai-perm-look"><b>Olhar</b><small>Token somente leitura, o padrão</small><span>Visão geral e alertas, jobs, backups, erros e logs, arquivamento de binlog / WAL, resultados de restaurações e testes de restauração, prévias de recuperação point-in-time.</span></template>
 <template data-i18n="ai-perm-run"><b>Iniciar</b><small>Token de acesso total, operator ou admin</small><span>Executar um backup, verificar um backup, iniciar um teste de restauração. O cliente de IA pergunta a você antes de cada um.</span></template>
-<template data-i18n="ai-perm-never"><b>Nunca pelo MCP</b><small>Com nenhum token</small><span>Restaurações, exclusões, credenciais e configurações. Nenhuma opção libera isso: essas ações ficam só na interface web.</span></template>
-<template data-i18n="ai-perm-note">As respostas nunca trazem senhas, chaves ou tokens, e credenciais que aparecem em erros e logs são mascaradas. Cada chamada passa pela API REST com o seu token, então é verificada como qualquer outra requisição e registrada no log de auditoria.</template>
+<template data-i18n="ai-perm-set"><b>Configurar</b><small>Token Manage</small><span>Adicionar servidores e armazenamentos, criar e alterar jobs e testes de restauração. Senhas, chaves e frases secretas nunca passam pelo assistente: ele te dá um link para você mesmo digitá-las.</span></template>
+<template data-i18n="ai-perm-never"><b>Nunca pelo MCP</b><small>Com nenhum token</small><span>Restaurações, exclusões e as configurações do sistema. Nenhuma opção libera isso: essas ações ficam só na interface web.</span></template>
+<template data-i18n="ai-perm-note">As respostas nunca trazem senhas, chaves ou tokens, e nenhuma ferramenta as recebe; credenciais que aparecem em erros e logs são mascaradas. Cada chamada passa pela API REST com o seu token, então é verificada como qualquer outra requisição e registrada no log de auditoria.</template>
 <template data-i18n="ai-setup-title">Conecte em um minuto</template>
 <template data-i18n="ai-steps">
-  <li><div><b>Crie um token</b><span>Página <em>API &amp; MCP</em> do DumpCat, <em>New token</em>. Os tokens são somente leitura por padrão; escolha <em>Full</em> para o assistente poder executar backups.</span></div></li>
+  <li><div><b>Crie um token</b><span>Página <em>API &amp; MCP</em> do DumpCat, <em>New token</em>: <em>Read-only</em> (o padrão) só olha, <em>Full</em> também executa backups, <em>Manage</em> também os configura.</span></div></li>
   <li><div><b>Copie a configuração</b><span>A página preenche o endereço do seu servidor e o token no comando do Claude Code, na configuração do Claude Desktop e na de outros clientes.</span></div></li>
   <li><div><b>Teste e pergunte</b><span><em>Test MCP connection</em> mostra a conta, o acesso e as ferramentas que o assistente vai receber.</span></div></li>
 </template>

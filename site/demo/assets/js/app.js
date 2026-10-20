@@ -1,5 +1,5 @@
 import { get, post, setCsrf, setUnauthorizedHandler, setNewBuildHandler } from './api.js';
-import { html, setHTML, icon, on, toast, toastErr, busy, formData, closeDropdowns, dropdown, linkLabels } from './ui.js';
+import { html, setHTML, icon, on, toast, toastErr, busy, formData, closeDropdowns, closeModals, dropdown, linkLabels } from './ui.js';
 
 export const app = { user: null, version: '', csrf: '', brand: { name: 'DumpCat', logo: '' } };
 
@@ -190,6 +190,7 @@ async function route() {
   if (!app.user) return;
   if (newBuild) { leaveGuard = null; location.reload(); return; } // the guard already ran (onHashChange)
   closeDropdowns();
+  closeModals(); // a dialog of the page being left would cover the next one
   setNav(false);
   const { path, query } = parseHash();
   const m = matchRoute(path);

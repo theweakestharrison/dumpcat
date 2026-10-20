@@ -41,7 +41,7 @@ import (
 	"dumpcat/web"
 )
 
-var version = "1.6.0"
+var version = "1.7.0"
 
 // defaultUpdateURL is the release server baked in at build time
 // (-ldflags "-X main.defaultUpdateURL=https://..."); Settings and DUMPCAT_UPDATE_URL override it.

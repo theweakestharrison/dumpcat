@@ -14,11 +14,11 @@
 <template data-i18n="nav-whatsnew">Nouveautés</template>
 <template data-i18n="nav-install">Installer</template>
 <template data-i18n="lang-aria">Langue</template>
-<template data-i18n="hero-ai">Compatible IA&nbsp;: demandez à Claude ou à un autre assistant IA où en sont vos sauvegardes</template>
+<template data-i18n="hero-ai">Compatible IA&nbsp;: un assistant IA met en place et surveille vos sauvegardes</template>
 <template data-i18n="eyebrow">Open source · Sauvegarde et restauration pour MySQL, MariaDB et PostgreSQL</template>
 <template data-i18n="h1">Sauvegardez sans jamais verrouiller la base. <span class="soft">Restaurez à la seconde près.</span></template>
 <template data-i18n="lead">DumpCat est un binaire unique doté d’une interface web. Il planifie les sauvegardes, les compresse et les chiffre, en envoie des copies vers S3, Google Drive, OneDrive ou SFTP, les vérifie et restaure vos données le moment venu. Fonctionne sous Linux et Windows, entièrement hors ligne.</template>
-<template data-i18n="cta-install">Installer la <span data-version>1.6.0</span></template>
+<template data-i18n="cta-install">Installer la <span data-version>1.7.0</span></template>
 <template data-i18n="cta-demo">Voir l’interface</template>
 <template data-i18n="cta-github">Code source sur GitHub</template>
 <template data-i18n="pitr-title">Restauration à un instant précis</template>
@@ -154,8 +154,8 @@
 <template data-i18n="oss-github">Voir sur GitHub</template>
 <template data-i18n="oss-issues">Signaler un problème</template>
 <template data-i18n="ai-label">Compatible IA · MCP</template>
-<template data-i18n="ai-title">Confiez la surveillance des sauvegardes à un assistant IA, sans lui donner les clés</template>
-<template data-i18n="ai-intro">DumpCat est un serveur MCP. Connectez Claude Code, Claude Desktop ou un autre client MCP avec un jeton d’API, puis posez vos questions en langage courant&nbsp;: l’assistant cherche ce qui a échoué ou pris du retard, lit le journal et vous explique pourquoi. Les autres agents IA lisent la référence d’API en Markdown que votre propre serveur rédige pour eux.</template>
+<template data-i18n="ai-title">Confiez la mise en place et la surveillance des sauvegardes à un assistant IA, sans lui donner les clés</template>
+<template data-i18n="ai-intro">DumpCat est un serveur MCP. Connectez Claude Code, Claude Desktop ou un autre client MCP avec un jeton d’API, puis demandez en langage courant&nbsp;: l’assistant ajoute des serveurs et des stockages, crée des tâches et des exercices de restauration, cherche ce qui a échoué ou pris du retard, lit le journal et vous explique pourquoi. Les mots de passe et les clés, c’est vous qui les saisissez dans l’interface web. Les autres agents IA lisent la référence d’API en Markdown que votre propre serveur rédige pour eux.</template>
 <template data-i18n="ai-q1">Quelles sauvegardes ont échoué cette nuit, et pourquoi&nbsp;?</template>
 <template data-i18n="ai-tools-aria">Outils MCP appelés</template>
 <template data-i18n="ai-a1">Une tâche sur 12&nbsp;: <b>shop-nightly</b> s’est arrêtée à 02:14 avec <code>errno 28</code>, autrement dit <code>/var/backups</code> sur db-01 est plein. Les 11 autres ont réussi. Libérez de la place, ou gardez moins de copies locales depuis l’interface web, et je la relance.</template>
@@ -164,15 +164,24 @@
 <template data-i18n="ai-allow">Autoriser</template>
 <template data-i18n="ai-deny">Refuser</template>
 <template data-i18n="ai-a2">La sauvegarde 4813 est en cours, à 41&nbsp;%. Je vérifierai le résultat à la fin.</template>
-<template data-i18n="ai-chat-note">Exemple avec un jeton à accès complet. Avec un jeton en lecture seule, celui par défaut, l’assistant peut regarder mais ne peut rien lancer.</template>
+<template data-i18n="ai-chat-tabs-aria">Exemples</template>
+<template data-i18n="ai-chat-tab1">Mise en place</template>
+<template data-i18n="ai-chat-tab2">Diagnostic</template>
+<template data-i18n="ai-s-q1">Sauvegarde la base shop de db-01 chaque nuit à 1h30 dans notre bucket S3 acme-backups, garde 14 jours.</template>
+<template data-i18n="ai-s-ask">Autoriser <code>create_job</code> (shop-nightly)&nbsp;?</template>
+<template data-i18n="ai-s-a1">C’est fait&nbsp;: <b>shop-nightly</b> sauvegarde <code>shop</code> sur db-01 chaque nuit à 01:30 dans le nouveau stockage <b>s3-offsite</b> et garde 14 jours. Une seule chose m’est impossible&nbsp;: la clé secrète du bucket ne passe jamais par moi. Saisissez-la sur cette page&nbsp;: <code>/#/storages?edit=2</code>. Ensuite je testerai le stockage et lancerai la première sauvegarde.</template>
+<template data-i18n="ai-s-q2">C’est fait, elle est saisie.</template>
+<template data-i18n="ai-s-a2">s3-offsite a réussi le test d’écriture et de lecture. La première sauvegarde est en cours, à 12&nbsp;%.</template>
+<template data-i18n="ai-chat-note">Exemples dans Claude Code. Un jeton en lecture seule, celui par défaut, peut seulement regarder&nbsp;; lancer des sauvegardes demande un jeton à accès complet, les mettre en place un jeton Manage.</template>
 <template data-i18n="ai-perm-title">Ce qu’un assistant peut faire</template>
 <template data-i18n="ai-perm-look"><b>Regarder</b><small>Jeton en lecture seule, par défaut</small><span>Vue d’ensemble et alertes, tâches, sauvegardes, erreurs et journaux, archivage binlog / WAL, résultats des restaurations et des exercices, aperçus de restauration à un instant précis.</span></template>
 <template data-i18n="ai-perm-run"><b>Lancer</b><small>Jeton à accès complet, operator ou admin</small><span>Lancer une sauvegarde, vérifier une sauvegarde, démarrer un exercice de restauration. Le client IA vous demande avant chaque action.</span></template>
-<template data-i18n="ai-perm-never"><b>Jamais via MCP</b><small>Quel que soit le jeton</small><span>Restaurations, suppressions, identifiants et réglages. Aucune option ne les active&nbsp;: tout cela se fait dans l’interface web.</span></template>
-<template data-i18n="ai-perm-note">Les réponses ne contiennent jamais de mots de passe, de clés ni de jetons, et les identifiants présents dans les erreurs et les journaux sont masqués. Chaque appel passe par l’API REST avec votre jeton&nbsp;: il est donc contrôlé comme n’importe quelle requête et inscrit au journal d’audit.</template>
+<template data-i18n="ai-perm-set"><b>Mettre en place</b><small>Jeton Manage</small><span>Ajouter des serveurs et des stockages, créer et modifier des tâches et des exercices de restauration. Mots de passe, clés et phrases secrètes ne passent jamais par l’assistant&nbsp;: il vous donne un lien pour les saisir vous-même.</span></template>
+<template data-i18n="ai-perm-never"><b>Jamais via MCP</b><small>Quel que soit le jeton</small><span>Restaurations, suppressions et réglages de DumpCat. Aucune option ne les active&nbsp;: tout cela se fait dans l’interface web.</span></template>
+<template data-i18n="ai-perm-note">Les réponses ne contiennent jamais de mots de passe, de clés ni de jetons, et aucun outil n’en accepte&nbsp;; les identifiants présents dans les erreurs et les journaux sont masqués. Chaque appel passe par l’API REST avec votre jeton&nbsp;: il est donc contrôlé comme n’importe quelle requête et inscrit au journal d’audit.</template>
 <template data-i18n="ai-setup-title">Connecté en une minute</template>
 <template data-i18n="ai-steps">
-  <li><div><b>Créez un jeton</b><span>Page <em>API &amp; MCP</em> de DumpCat, <em>New token</em>. Les jetons sont en lecture seule par défaut&nbsp;; choisissez <em>Full</em> pour que l’assistant puisse lancer des sauvegardes.</span></div></li>
+  <li><div><b>Créez un jeton</b><span>Page <em>API &amp; MCP</em> de DumpCat, <em>New token</em>&nbsp;: <em>Read-only</em> (par défaut) regarde, <em>Full</em> lance aussi des sauvegardes, <em>Manage</em> les met aussi en place.</span></div></li>
   <li><div><b>Copiez la configuration</b><span>La page insère l’adresse de votre serveur et le jeton dans la commande Claude Code, la configuration Claude Desktop et celle des autres clients.</span></div></li>
   <li><div><b>Testez, puis demandez</b><span><em>Test MCP connection</em> affiche le compte, l’accès et les outils dont l’assistant disposera.</span></div></li>
 </template>
