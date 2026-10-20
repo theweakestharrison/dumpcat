@@ -93,7 +93,7 @@ const HOW = html`<div class="card"><div class="card-head"><h2>How it works</h2><
     <li><span><b>Install it on the database host</b>It connects out to DumpCat over HTTPS and stays connected.</span></li>
     <li><span><b>Add the server</b><i>Connect: Through agent</i>, with the address as seen from that host, e.g. 127.0.0.1:3306.</span></li>
   </ol>
-  <div class="help">mysqldump, mydumper, restores, binlog archiving and point-in-time recovery work as with a direct connection. Physical backups (MariaBackup / XtraBackup) run on the database host when the agent is started with <span class="mono">--allow-physical</span>, and stream back into DumpCat's storage. Prefer a VPN? Use the built-in <a href="#/wireguard">WireGuard</a>.</div>
+  <div class="help">mysqldump, mydumper, pg_dump, restores, binlog archiving and point-in-time recovery work as with a direct connection (allow the database's port, e.g. <span class="mono">-allow 127.0.0.1:5432</span> for PostgreSQL). Physical backups (MariaBackup / XtraBackup) run on the database host when the agent is started with <span class="mono">--allow-physical</span>, and stream back into DumpCat's storage. Prefer a VPN? Use the built-in <a href="#/wireguard">WireGuard</a>.</div>
 </div></div>`;
 
 export async function render(ctx) {

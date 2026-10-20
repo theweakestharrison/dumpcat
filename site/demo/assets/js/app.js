@@ -14,7 +14,7 @@ const NAV = [
     { path: '/runs', label: 'Backups', icon: 'archive' },
     { path: '/restores', label: 'Restores', icon: 'restore' },
     { path: '/drills', label: 'Restore drills', icon: 'flask' },
-    { path: '/binlogs', label: 'Binlog & PITR', icon: 'layers' },
+    { path: '/binlogs', label: 'Binlog / WAL & PITR', icon: 'layers' },
   ] },
   { group: 'Configuration', items: [
     { path: '/servers', label: 'Database servers', icon: 'database' },
@@ -257,7 +257,7 @@ function renderLayout() {
   const t = currentTheme();
   setHTML(root, html`<div class="app">
     <aside class="sidebar" id="sidebar">
-      <div class="brand"><img class="brand-logo" src="/demo/assets/favicon.svg" alt="" width="30" height="30"><div>DumpCat<small>MySQL · MariaDB backup</small></div></div>
+      <div class="brand"><img class="brand-logo" src="/demo/assets/favicon.svg" alt="" width="30" height="30"><div>DumpCat<small>MySQL · MariaDB · PostgreSQL</small></div></div>
       <nav class="nav">${navHtml}</nav>
       <div class="sidebar-foot">v${app.version} <a href="#/system" class="badge info hidden" id="upd-ind">${icon('download')}<span></span></a></div>
     </aside>
@@ -334,7 +334,7 @@ async function logout() {
 // ---------- auth screens ----------
 function authShell(body) {
   return html`<div class="auth-wrap"><div class="auth-card">
-    <div class="brand"><img class="brand-logo" src="/demo/assets/favicon.svg" alt="" width="30" height="30"><div>DumpCat<small>MySQL · MariaDB backup</small></div></div>
+    <div class="brand"><img class="brand-logo" src="/demo/assets/favicon.svg" alt="" width="30" height="30"><div>DumpCat<small>MySQL · MariaDB · PostgreSQL</small></div></div>
     <div class="card"><div class="card-body">${body}</div></div>
     <p class="muted small" style="text-align:center;margin-top:14px">v${app.version}</p>
   </div></div>`;

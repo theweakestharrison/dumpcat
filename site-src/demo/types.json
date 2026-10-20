@@ -5,6 +5,20 @@
    "drills": true,
    "engine": "mysql",
    "label": "MySQL / MariaDB",
+   "log": {
+    "name": "binlog",
+    "file": "binlog",
+    "files": "binlogs",
+    "prefix": "binlog",
+    "targets": [
+     "time",
+     "gtid",
+     "position",
+     "latest"
+    ],
+    "close": "FLUSH BINARY LOGS",
+    "recovery": false
+   },
    "methods": [
     {
      "id": "mysqldump",
@@ -13,6 +27,7 @@
      "description": "Single-threaded logical backup with --single-transaction (no InnoDB locking). Most flexible: restore individual databases, rename them, move across versions. Best for databases under ~50 GB.",
      "threads": "mysqldump: number of databases dumped in parallel",
      "physical": false,
+     "incremental": false,
      "drill": true,
      "estimates": false,
      "log_archive": true,
@@ -26,6 +41,7 @@
      "description": "Multi-threaded logical backup that splits large tables into chunks; parallel restore is many times faster. Best for large databases that still need logical restores.",
      "threads": "Number of mydumper dump threads",
      "physical": false,
+     "incremental": false,
      "drill": true,
      "estimates": false,
      "log_archive": true,
@@ -39,6 +55,7 @@
      "description": "Copies data files while the database is running (hot backup, no InnoDB locking), with incremental support. Fastest for very large databases (100 GB–TB); restore is a file copy. Runs on the database server: DumpCat installed there, or an agent started with --allow-physical.",
      "threads": "Number of files copied in parallel (--parallel)",
      "physical": true,
+     "incremental": true,
      "drill": false,
      "estimates": false,
      "log_archive": true,
@@ -108,6 +125,20 @@
    "drills": true,
    "engine": "postgres",
    "label": "PostgreSQL",
+   "log": {
+    "name": "WAL",
+    "file": "WAL segment",
+    "files": "WAL segments",
+    "prefix": "wal",
+    "targets": [
+     "time",
+     "name",
+     "lsn",
+     "latest"
+    ],
+    "close": "pg_switch_wal()",
+    "recovery": true
+   },
    "methods": [
     {
      "id": "pg_dump",
@@ -116,11 +147,26 @@
      "description": "Logical backup of each database with pg_dump --format=directory, tables dumped in parallel from one consistent snapshot. Restore individual databases, rename them, restore onto newer PostgreSQL versions with pg_restore (also in parallel).",
      "threads": "pg_dump / pg_restore --jobs: tables dumped and restored in parallel (one database at a time)",
      "physical": false,
+     "incremental": false,
      "drill": true,
      "estimates": true,
      "log_archive": false,
      "users": "Roles and tablespaces (pg_dumpall --globals-only)",
      "users_help": "Saved as a separate _globals.sql file; restoring it creates the roles the target does not have. Passwords need a superuser backup account."
+    },
+    {
+     "id": "pg_basebackup",
+     "title": "pg_basebackup (physical)",
+     "icon": "hdd",
+     "description": "Copies the whole cluster while it runs (every database, role and setting) over a replication connection: nothing to install on the database host. The base of WAL archiving and point-in-time recovery. A restore prepares a data directory on the DumpCat host and can replace a local cluster.",
+     "threads": "Not used: pg_basebackup copies the cluster in one stream",
+     "physical": true,
+     "incremental": false,
+     "drill": false,
+     "estimates": false,
+     "log_archive": true,
+     "users": "",
+     "users_help": ""
     }
    ],
    "product": "PostgreSQL",

@@ -6,7 +6,7 @@ export const title = 'Settings';
 
 const TZ = ['Asia/Ho_Chi_Minh', 'Asia/Bangkok', 'Asia/Singapore', 'Asia/Tokyo', 'UTC', 'Europe/London', 'Europe/Berlin', 'America/New_York', 'America/Los_Angeles'];
 const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-const TOOLS = ['mysqldump', 'mariadb-dump', 'mysql', 'mariadb', 'mydumper', 'myloader', 'xtrabackup', 'xbstream', 'mariabackup', 'mbstream', 'rclone'];
+const TOOLS = ['mysqldump', 'mariadb-dump', 'mysql', 'mariadb', 'mydumper', 'myloader', 'xtrabackup', 'xbstream', 'mariabackup', 'mbstream', 'pg_dump', 'pg_restore', 'pg_dumpall', 'rclone'];
 
 export async function render(ctx) {
   const { el } = ctx;
@@ -31,8 +31,8 @@ export async function render(ctx) {
     <div class="card" id="sec-monitoring"><div class="card-head"><h2>Monitoring</h2></div><div class="card-body"><div class="form-grid">
       <div class="field full"><label class="check"><input type="checkbox" name="freshness_alerts" ${s.freshness_alerts ? 'checked' : ''}><span>Alert when a job has no recent successful backup<span class="help">A job is overdue when its newest successful backup is older than 1.5 × the time between two of its scheduled runs plus the grace period (a daily job: 36 hours + grace), or than the max age set on the job. The alert goes once to the channels that send failures, and a second message follows when a backup succeeds again. The dashboard uses the same rule.</span></span></label></div>
       <div class="field"><label for="stale_grace_minutes">Grace period (minutes)</label><input type="number" id="stale_grace_minutes" name="stale_grace_minutes" value="${s.stale_grace_minutes}" min="0" max="10080"></div>
-      <div class="field"><label for="binlog_lag_minutes">Alert when binlog archiving is behind by (minutes)</label><input type="number" id="binlog_lag_minutes" name="binlog_lag_minutes" value="${s.binlog_lag_minutes}" min="0" max="10080">
-        <div class="help">How long the archive may trail the server — the stream is down, or closed binlogs wait for upload. 0 = no alerts.</div></div>
+      <div class="field"><label for="binlog_lag_minutes">Alert when log archiving (binlog / WAL) is behind by (minutes)</label><input type="number" id="binlog_lag_minutes" name="binlog_lag_minutes" value="${s.binlog_lag_minutes}" min="0" max="10080">
+        <div class="help">How long the archive may trail the server — the stream is down, or closed binlogs or WAL segments wait for upload. 0 = no alerts.</div></div>
       <div class="field"><label for="digest_weekday">Weekly digest: day</label><select id="digest_weekday" name="digest_weekday">${DAYS.map((d, i) => html`<option value="${i}" ${s.digest_weekday === i ? 'selected' : ''}>${d}</option>`)}</select></div>
       <div class="field"><label for="digest_hour">Weekly digest: hour</label><select id="digest_hour" name="digest_hour">${Array.from({ length: 24 }, (_, h) => html`<option value="${h}" ${s.digest_hour === h ? 'selected' : ''}>${String(h).padStart(2, '0')}:00</option>`)}</select></div>
       <div class="field full"><div class="help" style="margin-top:0">The digest covers the last 7 days: backups per job, sizes and growth, integrity checks, overdue jobs and storage use. Email channels opt in on the <a href="#/notifications">Notifications</a> page. <button type="button" class="btn btn-sm" id="digest-preview">${icon('eye')}Preview</button></div></div>

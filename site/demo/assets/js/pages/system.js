@@ -17,7 +17,10 @@ sudo apt install -y mariadb-backup
 curl -O https://repo.percona.com/apt/percona-release_latest.generic_all.deb
 sudo apt install -y ./percona-release_latest.generic_all.deb
 sudo percona-release enable pxb-80   # MySQL 8.4: pxb-84-lts
-sudo apt update && sudo apt install -y percona-xtrabackup-80   # or percona-xtrabackup-84`,
+sudo apt update && sudo apt install -y percona-xtrabackup-80   # or percona-xtrabackup-84
+# PostgreSQL: the client tools of your server's major version (here 16), from apt.postgresql.org
+sudo apt install -y postgresql-common && sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
+sudo apt install -y postgresql-client-16`,
   'RHEL / Rocky / Alma': `sudo dnf install -y mariadb  # or: mysql
 curl https://rclone.org/install.sh | sudo bash
 # mydumper: download the .rpm from https://github.com/mydumper/mydumper/releases
@@ -26,7 +29,10 @@ sudo dnf install -y MariaDB-backup   # (MariaDB repo) or mariadb-backup
 # MySQL: Percona XtraBackup
 sudo dnf install -y https://repo.percona.com/yum/percona-release-latest.noarch.rpm
 sudo percona-release enable pxb-80
-sudo dnf install -y percona-xtrabackup-80`,
+sudo dnf install -y percona-xtrabackup-80
+# PostgreSQL: the client tools of your server's major version (here 16), from the PGDG repository
+sudo dnf install -y https://download.postgresql.org/pub/repos/yum/reporpms/EL-$(rpm -E %rhel)-x86_64/pgdg-redhat-repo-latest.noarch.rpm
+sudo dnf install -y postgresql16`,
 };
 
 function diskBar(d) {
@@ -66,7 +72,7 @@ export async function render(ctx) {
       </tbody></table></div></div>
       <div class="card"><div class="card-head"><h2>Installing the tools</h2></div><div class="card-body">
         ${Object.entries(INSTALL).map(([k, v]) => html`<div class="section-title" style="margin-top:8px">${k}</div><pre class="code">${v}</pre><button class="btn btn-sm" data-copy="${k}" style="margin-top:6px">${icon('copy')}Copy</button>`)}
-        <div class="alert info" style="margin-top:14px">${icon('info')}<div><b>Version notes:</b> mariabackup must match the MariaDB server version; use XtraBackup 8.0 for MySQL 8.0, 8.4 for MySQL 8.4 and 2.4 for MySQL 5.7. Physical backups require DumpCat to run on the database server itself with read access to the datadir (usually as root).</div></div>
+        <div class="alert info" style="margin-top:14px">${icon('info')}<div><b>Version notes:</b> mariabackup must match the MariaDB server version; use XtraBackup 8.0 for MySQL 8.0, 8.4 for MySQL 8.4 and 2.4 for MySQL 5.7. pg_dump must be at least as new as the PostgreSQL server: DumpCat finds every installed version and uses the server's own major (or the nearest newer one). Physical backups require DumpCat to run on the database server itself with read access to the datadir (usually as root).</div></div>
       </div></div>`);
   };
   draw();

@@ -6,7 +6,7 @@ page at dumpcat.cc/changelog/ (see `scripts/build-site.py`). Newest version
 first. Each section: `## <version> (<date>)`, a one-line summary, then `###`
 groups of bullets.
 
-## 1.5.0
+## 1.5.0 (2026-10-20)
 
 PostgreSQL: backups with pg_dump and pg_basebackup, continuous WAL archiving and point-in-time recovery, restores under
 new names or onto another server, roles, and restore drills. MySQL and MariaDB work as before, now as one of several

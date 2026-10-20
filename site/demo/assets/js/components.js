@@ -1,11 +1,37 @@
 // Shared view components.
 import { html, icon, fmtBytes, fmtDur, fmtDate, toDate, statusBadge, esc, raw } from './ui.js';
+import { get } from './api.js';
+
+// ---------- database engines (drivers) ----------
+// GET /api/engines: each engine's label, default port, backup methods and restore options.
+let enginesP = null;
+export function engines() {
+  if (!enginesP) enginesP = get('/engines').catch((e) => { enginesP = null; throw e; });
+  return enginesP;
+}
+/** The engine description of a server (servers saved before engines are MySQL). */
+export const engineOf = (list, name) => list.find((e) => e.engine === (name || 'mysql')) || list[0];
+/** The method and its engine, by method id. */
+export function methodOf(list, id) {
+  for (const e of list) {
+    const m = e.methods.find((x) => x.id === id);
+    if (m) return { engine: e, method: m };
+  }
+  return null;
+}
+/** Help text from a driver: `quoted` parts become code. */
+export const helpText = (s) => html`${String(s || '').split('`').map((p, i) => (i % 2 ? html`<code>${p}</code>` : p))}`;
+/** "MySQL 8.0.36", "MariaDB 11.4.13", "PostgreSQL 16.15". */
+export function productName(flavor, version) {
+  if (flavor === 'postgres') return `PostgreSQL ${version || ''}`.trim();
+  return `${flavor === 'mariadb' || /mariadb/i.test(version || '') ? 'MariaDB' : 'MySQL'} ${version || ''}`.trim();
+}
 
 export const PHASE = {
   queued: 'Waiting for a slot', prepare: 'Preparing', dump: 'Dumping data', upload: 'Uploading',
   retention: 'Pruning old backups', verify: 'Verifying', download: 'Downloading & decompressing', restore: 'Restoring',
   prepare_physical: 'Prepare', apply: 'Applying to datadir',
-  binlog_download: 'Fetching binlogs', binlog_apply: 'Replaying binlogs',
+  binlog_download: 'Fetching the archived log', binlog_apply: 'Replaying binlogs', recovery: 'Recovering (PostgreSQL)',
   check: 'Checking the restored copy', cleanup: 'Dropping the temporary databases',
 };
 
@@ -138,35 +164,49 @@ export function localInput(d) {
   return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}T${pad2(d.getHours())}:${pad2(d.getMinutes())}:${pad2(d.getSeconds())}`;
 }
 
-export const PITR_TYPES = [
-  ['time', 'Point in time'], ['gtid', 'Before a GTID'], ['position', 'Binlog position'], ['latest', 'Latest available'],
-];
+export const PITR_TYPES = {
+  time: 'Point in time', gtid: 'Before a GTID', position: 'Binlog position', name: 'Restore point', lsn: 'WAL position (LSN)', latest: 'Latest available',
+};
+
+/** MySQL's binlog: the log of servers that do not say otherwise. */
+const BINLOG = { name: 'binlog', file: 'binlog', files: 'binlogs', prefix: 'binlog', targets: ['time', 'gtid', 'position', 'latest'], close: 'FLUSH BINARY LOGS', recovery: false };
+
+/** The archived log of a job or engine (GET /api/binlog, /api/engines): names and recovery target types. */
+export const logInfo = (l) => (l && l.name ? l : BINLOG);
 
 const PITR_QUICK = [[5 * 60, '5 min ago'], [3600, '1 hour ago'], [86400, '1 day ago']];
 
-/** Inputs choosing where a point-in-time recovery stops: a segmented choice of the kind of target, then its fields. */
-export function pitrTargetFields(t = {}) {
-  const type = t.type || 'time';
+/**
+ * Inputs choosing where a point-in-time recovery stops: a segmented choice of the kind of target (those
+ * the log offers), then its fields. points: restore point names to suggest (PostgreSQL).
+ */
+export function pitrTargetFields(t = {}, log, points = []) {
+  const L = logInfo(log);
+  const type = L.targets.includes(t.type) ? t.type : 'time';
   const when = t.time ? toDate(t.time) : new Date(Date.now() - 60000);
-  return html`<div class="seg pitr-seg" role="radiogroup" aria-label="Stop the recovery">${PITR_TYPES.map(([v, l]) => html`<label><input type="radio" name="pitr_type" value="${v}" ${type === v ? 'checked' : ''}><span>${l}</span></label>`)}</div>
+  const row = (pt, body) => (L.targets.includes(pt) ? html`<div class="pitr-row" data-pt="${pt}">${body}</div>` : '');
+  return html`<div class="seg pitr-seg" role="radiogroup" aria-label="Stop the recovery">${L.targets.map((v) => html`<label><input type="radio" name="pitr_type" value="${v}" ${type === v ? 'checked' : ''}><span>${PITR_TYPES[v] || v}</span></label>`)}</div>
     <div class="pitr-fields">
-      <div class="pitr-row" data-pt="time">
+      ${row('time', html`
         <div class="field"><label>Recover up to <span class="muted">(your local time)</span></label><input type="datetime-local" step="1" name="pitr_time" value="${localInput(when)}"></div>
         <div class="pitr-quick">${PITR_QUICK.map(([s, l]) => html`<button type="button" class="chip" data-ago="${s}">${l}</button>`)}</div>
-        <div class="help full">Transactions committed before this moment are replayed, later ones are not, never half a transaction.</div>
-      </div>
-      <div class="pitr-row" data-pt="gtid">
+        <div class="help full">Transactions committed before this moment are replayed, later ones are not, never half a transaction.</div>`)}
+      ${row('gtid', html`
         <div class="field grow"><label>Stop just before GTID</label><input type="text" name="pitr_gtid" value="${t.gtid || ''}" placeholder="0-1-1234 (MariaDB) or 3E11FA47-…:23 (MySQL)" spellcheck="false"></div>
-        <div class="help full">That transaction (e.g. the accidental <code>DROP TABLE</code>) and everything after it are not replayed.</div>
-      </div>
-      <div class="pitr-row" data-pt="position">
+        <div class="help full">That transaction (e.g. the accidental <code>DROP TABLE</code>) and everything after it are not replayed.</div>`)}
+      ${row('position', html`
         <div class="field grow"><label>Binlog file</label><input type="text" name="pitr_file" value="${t.file || ''}" placeholder="mysql-bin.000123" spellcheck="false"></div>
         <div class="field"><label>Stop position</label><input type="number" name="pitr_pos" min="4" value="${t.pos || ''}"></div>
-        <div class="help full">Events starting at or after this position are not replayed.</div>
-      </div>
-      <div class="pitr-row" data-pt="latest">
-        <div class="help full">Replays every archived binlog, plus the binlog DumpCat is still receiving: the most recent state that can be recovered.</div>
-      </div>
+        <div class="help full">Events starting at or after this position are not replayed.</div>`)}
+      ${row('name', html`
+        <div class="field grow"><label>Restore point</label><input type="text" name="pitr_name" value="${t.name || ''}" list="pitr-points" placeholder="before_migration" spellcheck="false" maxlength="63">
+          <datalist id="pitr-points">${points.map((n) => html`<option value="${n}">`)}</datalist></div>
+        <div class="help full">A point created on the server with <code>SELECT pg_create_restore_point('before_migration')</code>: the recovery stops exactly there.${points.length ? ` ${points.length} found in the archived WAL.` : ''}</div>`)}
+      ${row('lsn', html`
+        <div class="field grow"><label>Stop at WAL position</label><input type="text" name="pitr_lsn" value="${t.lsn || ''}" placeholder="16/B374D848" spellcheck="false"></div>
+        <div class="help full">The record at this position is the last one replayed, e.g. <code>pg_current_wal_lsn()</code> noted just before a risky change.</div>`)}
+      ${row('latest', html`
+        <div class="help full">Replays every archived ${L.name === 'WAL' ? 'WAL segment' : 'binlog'}, plus the ${L.name === 'WAL' ? 'segment' : 'binlog'} DumpCat is still receiving: the most recent state that can be recovered.</div>`)}
     </div>`;
 }
 
@@ -190,11 +230,14 @@ export function bindPITRFields(root) {
 /** How a target reads in the plan: [headline, detail]. */
 function pitrStopText(t, p) {
   if (!t) return [p.target, ''];
+  const log = p.log || 'binlog';
   switch (t.type) {
     case 'time': return [fmtDate(t.time, true), 'your local time'];
     case 'gtid': return ['Just before a GTID', html`<code>${t.gtid}</code>`];
     case 'position': return ['At a binlog position', html`<code>${t.file}:${t.pos}</code>`];
-    default: return ['Latest available', p.partial ? 'including the binlog still being received' : (p.coverage ? `binlogs up to ${fmtDate(p.coverage, true)}` : '')];
+    case 'name': return ['At a restore point', html`<code>${t.name}</code>`];
+    case 'lsn': return ['At a WAL position', html`<code>${t.lsn}</code>`];
+    default: return ['Latest available', p.partial ? `including the ${log === 'WAL' ? 'segment' : 'binlog'} still being received` : (p.coverage ? `${p.files_name || 'binlogs'} up to ${fmtDate(p.coverage, true)}` : '')];
   }
 }
 
@@ -209,13 +252,15 @@ export function readPITRTarget(root) {
     }
     case 'gtid': return v('pitr_gtid').trim() ? { type, gtid: v('pitr_gtid').trim() } : null;
     case 'position': return v('pitr_file').trim() && +v('pitr_pos') ? { type, file: v('pitr_file').trim(), pos: +v('pitr_pos') } : null;
+    case 'name': return v('pitr_name') ? { type, name: v('pitr_name') } : null;
+    case 'lsn': return v('pitr_lsn').trim() ? { type, lsn: v('pitr_lsn').trim().toUpperCase() } : null;
     default: return { type: 'latest' };
   }
 }
 
 /**
- * Renders the answer of POST /api/pitr/plan as three steps: the backup that is restored, the binlogs
- * replayed after it and where the replay stops. target is the target that was asked for (optional).
+ * Renders the answer of POST /api/pitr/plan as three steps: the backup that is restored, the archived log
+ * (binlogs, WAL) replayed after it and where the replay stops. target is the target that was asked for (optional).
  */
 export function pitrPlanView(p, runId, target) {
   if (!p) return '';
@@ -228,20 +273,22 @@ export function pitrPlanView(p, runId, target) {
   const [stop, stopNote] = pitrStopText(target, p);
   const files = p.files + (p.partial ? 1 : 0);
   const range = p.first_file ? html`<code>${p.first_file}</code>${p.last_file && p.last_file !== p.first_file ? html` → <code>${p.last_file}</code>` : ''}${p.partial ? ' + the file still being received' : ''}`
-    : html`from <code>${b.binlog_file}:${b.binlog_pos}</code>`;
+    : html`from <code>${b.start}</code>`;
+  const what = p.files_name || 'binlogs';
+  const What = what[0].toUpperCase() + what.slice(1);
   return html`<div class="pitr-plan">
       <div class="pp-step"><span class="pp-ico">${icon('archive')}</span><div><small>1 · Restore the backup</small>
         <b><a href="#/runs/${b.id}">#${b.id}</a> ${b.dir_name}</b><span>data up to ${fmtDate(b.consistent_at, true)}</span></div></div>
       <span class="pp-arrow" aria-hidden="true">${icon('chevron')}</span>
-      <div class="pp-step"><span class="pp-ico">${icon('layers')}</span><div><small>2 · Replay the binlogs</small>
+      <div class="pp-step"><span class="pp-ico">${icon('layers')}</span><div><small>2 · Replay the ${what}</small>
         <b>${files} file${files === 1 ? '' : 's'} · ${fmtBytes(p.bytes)}</b><span>${range}</span></div></div>
       <span class="pp-arrow" aria-hidden="true">${icon('chevron')}</span>
       <div class="pp-step stop"><span class="pp-ico">${icon('check')}</span><div><small>3 · Stop</small>
         <b>${stop}</b>${stopNote ? html`<span>${stopNote}</span>` : ''}</div></div>
     </div>
-    ${p.coverage && (!target || target.type !== 'latest') ? html`<div class="muted small" style="margin-top:8px">Binlogs are complete up to ${fmtDate(p.coverage, true)}.</div>` : ''}
+    ${p.coverage && (!target || target.type !== 'latest') ? html`<div class="muted small" style="margin-top:8px">${What} are complete up to ${fmtDate(p.coverage, true)}.</div>` : ''}
     ${other ? html`<div class="alert ${p.run_ok ? 'info' : 'warn'}" style="margin-top:10px">${icon('info')}<div>
-      The newest backup before this point is <b>#${b.id} ${b.dir_name}</b>${p.run_ok ? ': starting from it replays fewer binlogs.' : html`; this backup cannot be used: ${p.run_error}`}
+      The newest backup before this point is <b>#${b.id} ${b.dir_name}</b>${p.run_ok ? `: starting from it replays fewer ${what}.` : html`; this backup cannot be used: ${p.run_error}`}
       <button type="button" class="btn btn-sm" data-use-base="${b.id}" style="margin-left:8px">Use #${b.id}</button></div></div>` : ''}
     ${warn}`;
 }
