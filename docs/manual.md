@@ -1059,8 +1059,13 @@ It is also worth backing up `/var/lib/dumpcat/master.key` and `dumpcat.db` (conf
 
 ## 12. API & automation
 
-Create a token in *Profile & security → API tokens* (with **Full** access for the requests below that start
-something; a **Read-only** token can only look), then:
+The **API & MCP** page (sidebar, under Administration; every role has it) is where scripts and AI assistants are set
+up: it creates and revokes your API tokens, shows ready-to-copy setup for Claude Code, Claude Desktop, other MCP
+clients and curl with this server's address and your token filled in, tests a token against the MCP endpoint as an
+assistant would, and lists what an assistant can do with your role.
+
+Create a token there with **New token** (with **Full** access for the requests below that start something; a
+**Read-only** token can only look), then:
 
 ```bash
 TOKEN=mv_xxxxxxxx
@@ -1076,6 +1081,19 @@ curl -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/jso
 curl -H "Authorization: Bearer $TOKEN" https://backup.example.com/api/drill-runs/7
 ```
 
+### API reference in Markdown
+
+`GET /api/docs.md` is the full API reference, written by the server itself from its routes, so it always matches the
+version you run: authentication, conventions (errors, paging, logs, secrets), curl examples, the MCP tools, and every
+route with the role and the kind of token it needs. It is Markdown so that AI models read it well: paste it into a
+chat (**API & MCP → Copy Markdown** or **Download**), or let an agent fetch it with its token and then call the API:
+
+```bash
+curl -H "Authorization: Bearer $TOKEN" https://backup.example.com/api/docs.md
+```
+
+`GET /api/mcp/tools` lists the MCP tools as JSON, with the role and token access each one needs.
+
 Webhook notifications send the JSON `{kind, status, title, fields, error, url, time}` with the header
 `X-DumpCat-Signature: sha256=<HMAC>` when a secret is set. `kind` is `backup`, `restore`, `verify`, `binlog`, `stale`,
 `binlog_lag` or `test`; `status` is `success`, `failed`, `partial` or `recovered` (an alert has cleared).
@@ -1089,8 +1107,10 @@ full-access token of an operator or admin they can also start a backup, a verifi
 ask you before they call such a tool). Restores, deletions, credentials and settings are not available over MCP, and
 no setting turns them on.
 
-1. In *Profile & security → API tokens*, create a token for the assistant. **Read-only** (the default) lets it look;
-   **Full** also lets it start backups, verifications and drills.
+1. On the **API & MCP** page, create a token for the assistant (**New token**). **Read-only** (the default) lets it
+   look; **Full** also lets it start backups, verifications and drills. The page fills the new token into its setup
+   snippets (the commands and files below, with your server's address), and **Test MCP connection** checks it the way
+   an assistant would: the DumpCat version, the account and access the token has, and the tools it gets.
 2. Connect the client, either straight to the endpoint `https://backup.example.com/api/mcp` (streamable HTTP, header
    `Authorization: Bearer <token>`), or through `dumpcat mcp`, a small stdio server that forwards to that endpoint, for
    clients that start a local command. `dumpcat mcp` reads `DUMPCAT_MCP_URL` and `DUMPCAT_MCP_TOKEN` (or

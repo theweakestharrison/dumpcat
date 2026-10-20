@@ -1030,8 +1030,13 @@ Nên sao lưu thêm `/var/lib/dumpcat/master.key` và `dumpcat.db` (cấu hình,
 
 ## 12. API & tự động hóa
 
-Tạo token ở *Hồ sơ & bảo mật → API token* (chọn quyền **Full** cho các request bên dưới có chạy tác vụ; token
-**Read-only** chỉ xem được), rồi:
+Trang **API & MCP** (thanh bên, mục Administration; vai trò nào cũng có) là nơi cài đặt cho script và trợ lý AI: tạo và
+thu hồi API token của bạn, cho sẵn cấu hình để chép cho Claude Code, Claude Desktop, các MCP client khác và curl, đã
+điền địa chỉ server và token của bạn, thử token với endpoint MCP như một trợ lý thật, và liệt kê những gì trợ lý làm
+được với vai trò của bạn.
+
+Tạo token ở đó bằng **New token** (chọn quyền **Full** cho các request bên dưới có chạy tác vụ; token **Read-only** chỉ
+xem được), rồi:
 
 ```bash
 TOKEN=mv_xxxxxxxx
@@ -1047,6 +1052,19 @@ curl -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/jso
 curl -H "Authorization: Bearer $TOKEN" https://backup.example.com/api/drill-runs/7
 ```
 
+### Tài liệu API dạng Markdown
+
+`GET /api/docs.md` là tài liệu API đầy đủ do chính server viết ra từ các route của nó, nên luôn khớp với phiên bản bạn
+đang chạy: xác thực, quy ước (lỗi, phân trang, log, bí mật), ví dụ curl, các công cụ MCP, và từng route kèm vai trò và
+loại token cần dùng. Viết bằng Markdown để mô hình AI đọc tốt: dán vào khung chat (**API & MCP → Copy Markdown** hoặc
+**Download**), hoặc để agent tự tải bằng token của nó rồi gọi API:
+
+```bash
+curl -H "Authorization: Bearer $TOKEN" https://backup.example.com/api/docs.md
+```
+
+`GET /api/mcp/tools` trả danh sách công cụ MCP dạng JSON, kèm vai trò và loại token mỗi công cụ cần.
+
 Webhook thông báo gửi JSON `{kind, status, title, fields, error, url, time}` kèm header
 `X-DumpCat-Signature: sha256=<HMAC>` nếu đặt secret. `kind` là `backup`, `restore`, `verify`, `binlog`, `stale`,
 `binlog_lag` hoặc `test`; `status` là `success`, `failed`, `partial` hoặc `recovered` (cảnh báo đã hết).
@@ -1060,8 +1078,10 @@ theo thời điểm. Với token toàn quyền của operator hoặc admin, tr�
 tập restore (MCP client hỏi bạn trước khi gọi những công cụ này). Restore, xóa, thông tin đăng nhập và cài đặt không có
 qua MCP, và không có cài đặt nào bật chúng lên.
 
-1. Ở *Hồ sơ & bảo mật → API token*, tạo một token cho trợ lý. **Read-only** (mặc định) chỉ cho xem; **Full** cho chạy
-   thêm backup, verify và diễn tập.
+1. Ở trang **API & MCP**, tạo một token cho trợ lý (**New token**). **Read-only** (mặc định) chỉ cho xem; **Full** cho
+   chạy thêm backup, verify và diễn tập. Trang tự điền token mới vào các đoạn cấu hình (lệnh và file bên dưới, với
+   địa chỉ server của bạn), và nút **Test MCP connection** kiểm tra token như một trợ lý thật: phiên bản DumpCat, tài
+   khoản và quyền của token, và các công cụ nó nhận được.
 2. Kết nối client, hoặc thẳng tới endpoint `https://backup.example.com/api/mcp` (streamable HTTP, header
    `Authorization: Bearer <token>`), hoặc qua `dumpcat mcp`, một server stdio nhỏ chuyển tiếp tới endpoint đó, cho các
    client tự chạy một lệnh trên máy. `dumpcat mcp` đọc `DUMPCAT_MCP_URL` và `DUMPCAT_MCP_TOKEN` (hoặc

@@ -6,6 +6,20 @@ page at dumpcat.cc/changelog/ (see `scripts/build-site.py`). Newest version
 first. Each section: `## <version> (<date>)`, a one-line summary, then `###`
 groups of bullets.
 
+## 1.6.0
+
+An API & MCP page to connect AI assistants and scripts, and the API reference in Markdown.
+
+### API & MCP
+
+- A new **API & MCP** page puts API tokens, AI assistants and scripts in one place: create and revoke tokens, copy
+  ready-made setup for Claude Code, Claude Desktop, other MCP clients and curl with the server's address and the new
+  token filled in, test a token against the MCP endpoint (version, account, access and the tools it gets), and see
+  what an assistant can do with your role. API tokens moved there from *Profile & security*.
+- `GET /api/docs.md`: the API reference in Markdown, for people and AI agents. The server writes it from its own
+  routes (authentication, conventions, curl examples, the MCP tools, every route with the role and token it needs),
+  and a test keeps every route documented. `GET /api/mcp/tools` lists the MCP tools as JSON.
+
 ## 1.5.0 (2026-10-20)
 
 PostgreSQL: backups with pg_dump and pg_basebackup, continuous WAL archiving and point-in-time recovery, restores under
