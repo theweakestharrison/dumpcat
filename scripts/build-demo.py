@@ -70,14 +70,14 @@ def main() -> None:
     (OUT / "assets" / "demo.css").write_text((SRC / "demo.css").read_text(encoding="utf-8"), encoding="utf-8", newline="\n")
 
     page = rewrite((WEB / "index.html").read_text(encoding="utf-8"))
-    page = page.replace("<title>DumpCat: MySQL/MariaDB Backup</title>", "<title>DumpCat: preview the web UI</title>\n"
+    page = page.replace("<title>DumpCat: MySQL, MariaDB &amp; PostgreSQL Backup</title>", "<title>DumpCat: preview the web UI</title>\n"
                         '  <meta name="description" content="The web interface DumpCat gives you after you install it on your own server, with sample data: backups, restores, point-in-time recovery, restore drills, agents and WireGuard. Runs in your browser.">')
     # the app keeps search engines out of a self-hosted DumpCat; the preview on dumpcat.cc may be indexed
     page = page.replace('<meta name="robots" content="noindex, nofollow">',
                         '<meta name="robots" content="index, follow">\n  <link rel="canonical" href="https://dumpcat.cc/demo/">')
     page = page.replace("</head>", '  <link rel="stylesheet" href="/demo/assets/demo.css">\n</head>')
     page = page.replace("</body>", '  <script type="module" src="/demo/assets/js/demo.js"></script>\n</body>')
-    assert "/demo/assets/js/app.js" in page and "demo.css" in page, "web/index.html changed: update build-demo.py"
+    assert "/demo/assets/js/app.js" in page and "demo.css" in page and "preview the web UI" in page, "web/index.html changed: update build-demo.py"
     (OUT / "index.html").write_text(page, encoding="utf-8", newline="\n")
     files = sum(1 for p in OUT.rglob("*") if p.is_file())
     print(f"site/demo: {files} files, DumpCat {version}")

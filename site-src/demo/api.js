@@ -1059,6 +1059,7 @@ route('GET', '/binlog', () => db.jobs.filter((j) => j.options.binlog_archive).ma
 
 // notifications
 route('GET', '/notify-types', () => TYPES.notify_types);
+route('GET', '/engines', () => TYPES.engines);
 route('GET', '/notifications', () => db.channels);
 function applyChannel(c, b) {
   if (!String(b.name || '').trim()) fail('channel name is required');

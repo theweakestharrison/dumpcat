@@ -162,7 +162,7 @@ var emailShell = template.Must(template.New("email").Parse(`<!doctype html>
   <tr><td style="padding:0 4px 14px">
     <table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>
       <td style="width:36px;vertical-align:middle"><img src="cid:logo@dumpcat" width="36" height="36" alt="DumpCat" style="display:block;border:0;border-radius:9px"></td>
-      <td class="ink" style="padding-left:10px;vertical-align:middle;font-size:16px;font-weight:700;color:#0e1116;line-height:1.2">DumpCat<br><span class="muted" style="font-size:12px;font-weight:400;color:#6b6963">MySQL · MariaDB backup</span></td>
+      <td class="ink" style="padding-left:10px;vertical-align:middle;font-size:16px;font-weight:700;color:#0e1116;line-height:1.2">DumpCat<br><span class="muted" style="font-size:12px;font-weight:400;color:#6b6963">MySQL · MariaDB · PostgreSQL</span></td>
     </tr></table>
   </td></tr>
   <tr><td class="card" style="background:#ffffff;border:1px solid #e3e2dd;border-radius:14px;overflow:hidden">

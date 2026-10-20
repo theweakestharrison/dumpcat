@@ -1,4 +1,162 @@
 {
+ "engines": [
+  {
+   "default_port": 3306,
+   "drills": true,
+   "engine": "mysql",
+   "label": "MySQL / MariaDB",
+   "methods": [
+    {
+     "id": "mysqldump",
+     "title": "mysqldump / mariadb-dump",
+     "icon": "file",
+     "description": "Single-threaded logical backup with --single-transaction (no InnoDB locking). Most flexible: restore individual databases, rename them, move across versions. Best for databases under ~50 GB.",
+     "threads": "mysqldump: number of databases dumped in parallel",
+     "physical": false,
+     "drill": true,
+     "estimates": false,
+     "log_archive": true,
+     "users": "Users \u0026 grants (GRANT)",
+     "users_help": "Saved as a separate _users.sql file; restoring it is optional."
+    },
+    {
+     "id": "mydumper",
+     "title": "mydumper / myloader",
+     "icon": "zap",
+     "description": "Multi-threaded logical backup that splits large tables into chunks; parallel restore is many times faster. Best for large databases that still need logical restores.",
+     "threads": "Number of mydumper dump threads",
+     "physical": false,
+     "drill": true,
+     "estimates": false,
+     "log_archive": true,
+     "users": "Users \u0026 grants (GRANT)",
+     "users_help": "Saved as a separate _users.sql file; restoring it is optional."
+    },
+    {
+     "id": "physical",
+     "title": "Physical (XtraBackup / MariaBackup)",
+     "icon": "hdd",
+     "description": "Copies data files while the database is running (hot backup, no InnoDB locking), with incremental support. Fastest for very large databases (100 GB–TB); restore is a file copy. Runs on the database server: DumpCat installed there, or an agent started with --allow-physical.",
+     "threads": "Number of files copied in parallel (--parallel)",
+     "physical": true,
+     "drill": false,
+     "estimates": false,
+     "log_archive": true,
+     "users": "",
+     "users_help": ""
+    }
+   ],
+   "product": "MySQL",
+   "restore_options": [
+    {
+     "key": "drop_existing",
+     "label": "Drop target databases before restoring",
+     "help": "DROP DATABASE, then recreate. Unchecked: tables in the dump are recreated (DROP TABLE IF EXISTS) but other tables are left untouched.",
+     "group": "options",
+     "default": false
+    },
+    {
+     "key": "fast_mode",
+     "label": "Fast mode",
+     "help": "Temporarily sets innodb_flush_log_at_trx_commit=2 \u0026 sync_binlog=0 during the restore, then restores them — much faster for large databases.",
+     "group": "options",
+     "default": true
+    },
+    {
+     "key": "no_binlog",
+     "label": "Don't write binlog (sql_log_bin=0)",
+     "help": "The restore (including DROP/CREATE DATABASE) is not replicated to replicas. Requires SUPER / SYSTEM_VARIABLES_ADMIN — without it the restore stops before changing anything.",
+     "group": "options",
+     "default": false
+    },
+    {
+     "key": "restore_users",
+     "label": "Restore users \u0026 grants",
+     "help": "Runs _users.sql (CREATE USER IF NOT EXISTS + GRANT).",
+     "group": "options",
+     "default": false,
+     "needs": "users"
+    },
+    {
+     "key": "strip_definer",
+     "label": "Remove DEFINER from views, routines, triggers and events",
+     "help": "They are created with the restore account as definer. Needed when the original accounts don't exist on the target, or the restore user lacks SET_USER_ID / SUPER.",
+     "group": "compat",
+     "default": false
+    },
+    {
+     "key": "convert_collations",
+     "label": "Convert collations the target may not know",
+     "help": "MySQL 8 `utf8mb4_0900_*` and MariaDB `*_uca1400_*` → `utf8mb4_unicode_ci` / `utf8mb4_bin`; `utf8mb3_*` → `utf8_*`. Needed for MySQL 8 → MariaDB or MySQL 5.7.",
+     "group": "compat",
+     "default": false
+    },
+    {
+     "key": "skip_gtid_purged",
+     "label": "Skip GTID_PURGED",
+     "help": "Drops `SET @@GLOBAL.GTID_PURGED` from the dump: it fails on a server with its own GTID history and needs SUPER. Keep it only to build a replica of the source.",
+     "group": "compat",
+     "default": false,
+     "methods": [
+      "mysqldump"
+     ]
+    }
+   ]
+  },
+  {
+   "default_port": 5432,
+   "drills": true,
+   "engine": "postgres",
+   "label": "PostgreSQL",
+   "methods": [
+    {
+     "id": "pg_dump",
+     "title": "pg_dump (directory format)",
+     "icon": "file",
+     "description": "Logical backup of each database with pg_dump --format=directory, tables dumped in parallel from one consistent snapshot. Restore individual databases, rename them, restore onto newer PostgreSQL versions with pg_restore (also in parallel).",
+     "threads": "pg_dump / pg_restore --jobs: tables dumped and restored in parallel (one database at a time)",
+     "physical": false,
+     "drill": true,
+     "estimates": true,
+     "log_archive": false,
+     "users": "Roles and tablespaces (pg_dumpall --globals-only)",
+     "users_help": "Saved as a separate _globals.sql file; restoring it creates the roles the target does not have. Passwords need a superuser backup account."
+    }
+   ],
+   "product": "PostgreSQL",
+   "restore_options": [
+    {
+     "key": "drop_existing",
+     "label": "Drop target databases before restoring",
+     "help": "DROP DATABASE, then create it again. Unchecked: a database that exists keeps its other objects; the objects in the backup are dropped and recreated (`pg_restore --clean --if-exists`). Sessions connected to a database stop the drop.",
+     "group": "options",
+     "default": false
+    },
+    {
+     "key": "restore_users",
+     "label": "Restore roles",
+     "help": "Creates the roles of _globals.sql that the target does not have yet, with their attributes and memberships. Existing roles, the restore account and `pg_*` roles are left alone; tablespaces are not created.",
+     "group": "options",
+     "default": false,
+     "needs": "users"
+    },
+    {
+     "key": "no_owner",
+     "label": "Skip ownership (--no-owner)",
+     "help": "Objects belong to the restore account instead of their original owners. Needed when those roles don't exist on the target.",
+     "group": "compat",
+     "default": false
+    },
+    {
+     "key": "no_privileges",
+     "label": "Skip privileges (--no-privileges)",
+     "help": "No GRANT/REVOKE from the backup. Needed when the roles they name don't exist on the target.",
+     "group": "compat",
+     "default": false
+    }
+   ]
+  }
+ ],
  "notify_types": [
   {
    "type": "email",

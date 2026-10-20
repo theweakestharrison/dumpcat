@@ -48,7 +48,7 @@ var version = "1.4.2"
 var defaultUpdateURL = ""
 
 func usage() {
-	fmt.Fprintf(os.Stderr, `DumpCat %s — MySQL & MariaDB backup/restore manager
+	fmt.Fprintf(os.Stderr, `DumpCat %s — MySQL, MariaDB & PostgreSQL backup/restore manager
 
 Usage:
   dumpcat serve   [flags]                 run the web server (default)

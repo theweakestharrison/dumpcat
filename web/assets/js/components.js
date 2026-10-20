@@ -1,5 +1,31 @@
 // Shared view components.
 import { html, icon, fmtBytes, fmtDur, fmtDate, toDate, statusBadge, esc, raw } from './ui.js';
+import { get } from './api.js';
+
+// ---------- database engines (drivers) ----------
+// GET /api/engines: each engine's label, default port, backup methods and restore options.
+let enginesP = null;
+export function engines() {
+  if (!enginesP) enginesP = get('/engines').catch((e) => { enginesP = null; throw e; });
+  return enginesP;
+}
+/** The engine description of a server (servers saved before engines are MySQL). */
+export const engineOf = (list, name) => list.find((e) => e.engine === (name || 'mysql')) || list[0];
+/** The method and its engine, by method id. */
+export function methodOf(list, id) {
+  for (const e of list) {
+    const m = e.methods.find((x) => x.id === id);
+    if (m) return { engine: e, method: m };
+  }
+  return null;
+}
+/** Help text from a driver: `quoted` parts become code. */
+export const helpText = (s) => html`${String(s || '').split('`').map((p, i) => (i % 2 ? html`<code>${p}</code>` : p))}`;
+/** "MySQL 8.0.36", "MariaDB 11.4.13", "PostgreSQL 16.15". */
+export function productName(flavor, version) {
+  if (flavor === 'postgres') return `PostgreSQL ${version || ''}`.trim();
+  return `${flavor === 'mariadb' || /mariadb/i.test(version || '') ? 'MariaDB' : 'MySQL'} ${version || ''}`.trim();
+}
 
 export const PHASE = {
   queued: 'Waiting for a slot', prepare: 'Preparing', dump: 'Dumping data', upload: 'Uploading',

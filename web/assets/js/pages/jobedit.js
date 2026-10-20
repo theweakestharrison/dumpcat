@@ -1,7 +1,7 @@
 import { get, post, put } from '../api.js';
-import { html, setHTML, icon, on, $, $$, fmtBytes, fmtDate, fmtDur, toast, busy, debounce, describeCron, validate, formError, statusBadge } from '../ui.js';
+import { html, raw, setHTML, icon, on, $, $$, fmtBytes, fmtDate, fmtDur, toast, busy, debounce, describeCron, validate, formError, statusBadge } from '../ui.js';
 import { navigate, isAdmin, canOperate, setTitle, setLeaveGuard } from '../app.js';
-import { backBtn } from '../components.js';
+import { backBtn, engines, engineOf, methodOf } from '../components.js';
 
 export const title = 'Backup job';
 
@@ -25,17 +25,26 @@ const PRESETS = [
 ];
 const INCR_PRESETS = [['', '— presets —'], ['0 * * * *', 'Every hour'], ['0 */4 * * *', 'Every 4 hours'], ['0 8-20/2 * * *', 'Every 2 hours (08:00–20:00)'], ['0 2 * * 1-6', 'Daily at 02:00 (Mon–Sat)'], ['@manual', 'No incrementals']];
 
-const METHODS = [
-  { id: 'mysqldump', title: 'mysqldump / mariadb-dump', icon: 'file', desc: 'Single-threaded logical backup with --single-transaction (no InnoDB locking). Most flexible: restore individual databases, rename them, move across versions. Best for databases under ~50 GB.' },
-  { id: 'mydumper', title: 'mydumper / myloader', icon: 'zap', desc: 'Multi-threaded logical backup that splits large tables into chunks; parallel restore is many times faster. Best for large databases that still need logical restores.' },
-  { id: 'physical', title: 'Physical (XtraBackup / MariaBackup)', icon: 'hdd', desc: 'Copies data files while the database is running (hot backup, no InnoDB locking), with incremental support. Fastest for very large databases (100 GB–TB); restore is a file copy. Runs on the database server: DumpCat installed there, or an agent started with --allow-physical.' },
-];
+// The method cards of an engine (from its driver).
+const methodCards = (eng, current) => html`${eng.methods.map((m) => html`<label class="radio-card ${current === m.id ? 'selected' : ''}">
+  <input type="radio" name="method" value="${m.id}" ${current === m.id ? 'checked' : ''}>
+  <div class="rc-title">${icon(m.icon)}${m.title}</div><div class="rc-desc">${m.description}</div><div class="rc-meta" data-support="${m.id}"></div></label>`)}`;
+
+// What "All databases" leaves out, and how excluded tables are named, per engine.
+const DB_HELP = {
+  mysql: '"All" excludes system schemas (mysql, sys, information_schema, performance_schema). Users &amp; grants are backed up separately (option below).',
+  postgres: '"All" excludes the template databases (template0, template1). Roles are backed up separately (option below).',
+};
+const EXCL_HELP = {
+  mysql: html`Exclude tables (one per line, as <code>database.table</code>)`,
+  postgres: html`Exclude tables (one per line, as <code>database.table</code> or <code>database.schema.table</code>)`,
+};
 
 export async function render(ctx) {
   const { el, params, query } = ctx;
   if (!canOperate()) { setHTML(el, html`<div class="alert warn">${icon('lock')}<div>You have read-only access.</div></div>`); return; }
   const editing = params.id ? +params.id : 0;
-  const [servers, storages] = await Promise.all([get('/servers'), get('/storages')]);
+  const [servers, storages, engs] = await Promise.all([get('/servers'), get('/storages'), engines()]);
   let job = structuredClone(DEFAULT_JOB);
   let hasPass = false;
   if (editing || query.clone) {
@@ -45,6 +54,10 @@ export async function render(ctx) {
     if (!editing) { job.name = src.name + ' (copy)'; delete job.id; hasPass = false; job.encrypt = false; }
   }
   if (!job.server_id && servers.length) job.server_id = servers[0].id;
+  const engineOfServer = (id) => engineOf(engs, (servers.find((s) => s.id === id) || {}).engine);
+  let eng = engineOfServer(job.server_id);
+  // a new job on a server of another engine starts with that engine's first method
+  if (!eng.methods.some((m) => m.id === job.method)) job.method = eng.methods[0].id;
   if (!job.targets.length && storages.length === 1) job.targets = [{ storage_id: storages[0].id, retention: null }];
   const infoCache = {};
 
@@ -69,30 +82,28 @@ export async function render(ctx) {
         <div class="form-grid">
           <div class="field"><label class="req">Job name</label><input type="text" name="name" value="${job.name}" required placeholder="e.g. shop-prod nightly"></div>
           <div class="field"><label class="req">Database server</label>
-            <div class="inline"><select name="server_id">${servers.map((s) => html`<option value="${s.id}" ${s.id === job.server_id ? 'selected' : ''}>${s.name} (${s.host || s.socket}${s.agent_id ? ' via agent' : s.wg_peer_id ? ' via WireGuard' : ''}${s.version ? ' · ' + s.version : ''})</option>`)}</select>
+            <div class="inline"><select name="server_id">${servers.map((s) => html`<option value="${s.id}" ${s.id === job.server_id ? 'selected' : ''}>${s.name} (${s.engine === 'postgres' ? 'PostgreSQL · ' : ''}${s.host || s.socket}${s.agent_id ? ' via agent' : s.wg_peer_id ? ' via WireGuard' : ''}${s.version ? ' · ' + s.version : ''})</option>`)}</select>
             <button type="button" class="btn" id="load-info" title="Check server">${icon('refresh')}</button></div>
             <div class="help" id="server-msg"></div></div>
         </div>
         <div class="section-title" style="margin-top:18px">Backup method</div>
-        <div class="radio-cards" id="methods">${METHODS.map((m) => html`<label class="radio-card ${job.method === m.id ? 'selected' : ''}">
-          <input type="radio" name="method" value="${m.id}" ${job.method === m.id ? 'checked' : ''}>
-          <div class="rc-title">${icon(m.icon)}${m.title}</div><div class="rc-desc">${m.desc}</div><div class="rc-meta" data-support="${m.id}"></div></label>`)}</div>
+        <div class="radio-cards" id="methods">${methodCards(eng, job.method)}</div>
       </div></div>
 
       <div class="card" id="sec-db"><div class="card-head"><h2>2. Databases to back up</h2></div><div class="card-body">
         <div class="btn-group" style="margin-bottom:12px">
           ${[['all', 'All databases'], ['include', 'Only selected databases'], ['exclude', 'All except selected databases']].map(([v, l]) => html`<label class="check" style="margin-right:16px"><input type="radio" name="db_mode" value="${v}" ${job.db_mode === v ? 'checked' : ''}><span>${l}</span></label>`)}
         </div>
-        <div class="help" style="margin-bottom:10px">"All" excludes system schemas (mysql, sys, information_schema, performance_schema). Users &amp; grants are backed up separately (option below).</div>
+        <div class="help" style="margin-bottom:10px" id="db-help">${raw(DB_HELP[eng.engine] || DB_HELP.mysql)}</div>
         <div id="db-list" class="db-pick hidden"></div>
-        <div class="field" style="margin-top:14px"><label>Exclude tables (one per line, as <code>database.table</code>)</label>
+        <div class="field" style="margin-top:14px"><label id="excl-label">${EXCL_HELP[eng.engine] || EXCL_HELP.mysql}</label>
           <textarea name="exclude_tables" rows="3" placeholder="shop.audit_log&#10;shop.sessions">${job.exclude_tables.join('\n')}</textarea>
           <div class="help">Useful for skipping very large log/cache tables that don't need backing up.</div></div>
       </div></div>
 
       <div class="card" id="sec-schedule"><div class="card-head"><h2>3. Schedule</h2></div><div class="card-body">
         <div class="form-grid">
-          <div class="field"><label>${job.method === 'physical' ? 'FULL backup' : 'Backup'} schedule (cron)</label>
+          <div class="field"><label id="sched-label">${job.method === 'physical' ? 'FULL backup' : 'Backup'} schedule (cron)</label>
             <div class="inline"><input type="text" name="schedule" value="${job.schedule}" placeholder="minute hour day month weekday — e.g. 0 2 * * *">
             <select id="preset" style="max-width:190px">${PRESETS.map(([v, l]) => html`<option value="${v}">${l}</option>`)}</select></div>
             <div class="help" id="cron-desc"></div><div class="help" id="cron-next"></div></div>
@@ -145,14 +156,17 @@ export async function render(ctx) {
       </div></div>
 
       <details class="card adv-card" id="sec-advanced"><summary class="card-head"><h2>7. Advanced options</h2><span class="muted small">objects, tool options, priority, hooks</span></summary><div class="card-body">
-        <div data-for="mysqldump mydumper">
+        <div data-users>
           <div class="section-title">Objects</div>
           <div class="checks">
+            <div data-for="mysqldump mydumper" style="display:contents">
             ${chk('routines', o.routines, 'Stored procedures & functions')}
             ${chk('triggers', o.triggers, 'Triggers')}
             ${chk('events', o.events, 'Events')}
-            ${chk('include_users', o.include_users, 'Users & grants (GRANT)', 'Saved as a separate _users.sql file; restoring it is optional.')}
+            </div>
+            <label class="check"><input type="checkbox" name="include_users" ${o.include_users ? 'checked' : ''}><span id="users-label">Users &amp; grants (GRANT)<span class="help">Saved as a separate _users.sql file; restoring it is optional.</span></span></label>
           </div>
+          <div class="help" data-for="pg_dump" style="margin-top:6px">pg_dump always includes functions, triggers, views, sequences and extensions of each database.</div>
         </div>
         <div data-for="mysqldump" style="margin-top:14px">
           <div class="section-title">mysqldump</div>
@@ -193,13 +207,13 @@ export async function render(ctx) {
             <div class="help">Reads the files back from storage, decrypts and decompresses them and checks their SHA-256, so a broken or incomplete copy is reported right away instead of at restore time.</div></div>
         </div>
         <div class="form-grid" style="margin-top:14px">
-          <div class="field full"><label>Extra arguments for the dump tool ${!isAdmin() ? html`<span class="muted">— admin only</span>` : ''}</label><input type="text" name="extra_args" value="${o.extra_args}" ${!isAdmin() ? 'disabled' : ''} placeholder="e.g. --skip-definer"><div class="help">Advanced — appended verbatim to the mysqldump/mydumper/xtrabackup command.</div></div>
+          <div class="field full"><label>Extra arguments for the dump tool ${!isAdmin() ? html`<span class="muted">— admin only</span>` : ''}</label><input type="text" name="extra_args" value="${o.extra_args}" ${!isAdmin() ? 'disabled' : ''} placeholder="e.g. --skip-definer"><div class="help">Advanced — appended verbatim to the mysqldump/mydumper/xtrabackup/pg_dump command.</div></div>
           <div class="field"><label>Pre-command ${!isAdmin() ? html`<span class="muted">— admin only</span>` : ''}</label><input type="text" name="pre_command" value="${o.pre_command}" ${!isAdmin() ? 'disabled' : ''} placeholder="/usr/local/bin/before-backup.sh"></div>
           <div class="field"><label>Post-command</label><input type="text" name="post_command" value="${o.post_command}" ${!isAdmin() ? 'disabled' : ''} placeholder="receives DUMPCAT_STATUS, DUMPCAT_DIR..."></div>
         </div>
       </div></details>
 
-      <div class="card" id="sec-binlog"><div class="card-head"><h2>8. Binlog &amp; point-in-time recovery</h2></div><div class="card-body">
+      <div class="card" id="sec-binlog"><div class="card-head"><h2>8. Binlog &amp; point-in-time recovery</h2><span class="muted small hidden" id="binlog-na">MySQL / MariaDB only for now</span></div><div class="card-body" id="binlog-body">
         ${chk('binlog_archive', o.binlog_archive, 'Continuous binlog archiving', 'DumpCat streams the server\'s binary logs (mysqlbinlog --raw --stop-never, as a replication client) and stores every closed binlog — compressed and encrypted like the backups — on this job\'s storages. A restore can then stop at any moment: a time, a binlog position or just before a GTID. Retention removes binlogs older than the oldest kept backup.')}
         <div id="binlog-opts" class="${o.binlog_archive ? '' : 'hidden'}" style="margin-top:12px">
           <div class="form-grid">
@@ -235,22 +249,40 @@ export async function render(ctx) {
     </form>`);
 
   const form = $('#job-form', el);
-  const method = () => form.querySelector('input[name=method]:checked').value;
+  const method = () => (form.querySelector('input[name=method]:checked') || {}).value || eng.methods[0].id;
   const serverId = () => +form.server_id.value;
+  // another server may be another engine: its own method cards
+  const switchEngine = () => {
+    const next = engineOfServer(serverId());
+    if (next.engine === eng.engine) return;
+    eng = next;
+    const keep = eng.methods.some((m) => m.id === method()) ? method() : eng.methods[0].id;
+    setHTML($('#methods', el), methodCards(eng, keep));
+    setHTML($('#db-help', el), raw(DB_HELP[eng.engine] || DB_HELP.mysql));
+    setHTML($('#excl-label', el), EXCL_HELP[eng.engine] || EXCL_HELP.mysql);
+  };
 
   const updateVisibility = () => {
     const m = method();
+    const mi = (methodOf(engs, m) || { method: {} }).method;
     $$('.radio-card', el).forEach((c) => c.classList.toggle('selected', c.querySelector('input').checked));
-    $('#sec-db', el).classList.toggle('hidden', m === 'physical');
-    $('[data-jump=sec-db]', el).classList.toggle('hidden', m === 'physical');
-    $('#incr-field', el).classList.toggle('hidden', m !== 'physical');
+    $('#sec-db', el).classList.toggle('hidden', !!mi.physical);
+    $('[data-jump=sec-db]', el).classList.toggle('hidden', !!mi.physical);
+    $('#incr-field', el).classList.toggle('hidden', !mi.physical);
+    $('#sched-label', el).textContent = `${mi.physical ? 'FULL backup' : 'Backup'} schedule (cron)`;
     $$('[data-for]', el).forEach((d) => d.classList.toggle('hidden', !d.dataset.for.split(' ').includes(m)));
+    $('[data-users]', el).classList.toggle('hidden', !mi.users);
+    if (mi.users) setHTML($('#users-label', el), html`${mi.users}<span class="help">${mi.users_help}</span>`);
+    // binlog archiving is MySQL's (the driver's log archiver)
+    $('#binlog-body', el).classList.toggle('hidden', !mi.log_archive);
+    $('#binlog-na', el).classList.toggle('hidden', !!mi.log_archive);
+    if (!mi.log_archive) form.binlog_archive.checked = false;
     const mode = form.querySelector('input[name=db_mode]:checked').value;
     $('#db-list', el).classList.toggle('hidden', mode === 'all');
     $('#pass-field', el).classList.toggle('hidden', !form.encrypt.checked);
     $('#binlog-opts', el).classList.toggle('hidden', !form.binlog_archive.checked);
     if (form.binlog_archive.checked && m === 'mysqldump') form.record_binlog.checked = true;
-    $('#threads-help', el).textContent = m === 'mysqldump' ? 'mysqldump: number of databases dumped in parallel' : m === 'mydumper' ? 'Number of mydumper dump threads' : 'Number of files copied in parallel (--parallel)';
+    $('#threads-help', el).textContent = mi.threads || '';
   };
 
   const renderDBs = (info) => {
@@ -282,7 +314,9 @@ export async function render(ctx) {
       return;
     }
     const i = res.info;
-    setHTML(msg, html`${icon('check')} ${i.version} · ${fmtBytes(i.total_bytes)} · binlog ${i.log_bin ? 'on' : 'off'}${i.is_replica ? ' · replica' : ''}`);
+    setHTML(msg, i.engine === 'postgres'
+      ? html`${icon('check')} PostgreSQL ${i.version} · ${fmtBytes(i.total_bytes)}${i.is_replica ? ' · standby' : ''}`
+      : html`${icon('check')} ${i.version} · ${fmtBytes(i.total_bytes)} · binlog ${i.log_bin ? 'on' : 'off'}${i.is_replica ? ' · replica' : ''}`);
     for (const s of res.support) {
       const box = el.querySelector(`[data-support="${s.method}"]`);
       if (box) setHTML(box, html`<span class="badge ${s.ok ? 'good' : 'warn'}">${icon(s.ok ? 'check' : 'alert')}${s.ok ? 'Ready' : 'Not ready'}</span> <span class="muted">${s.message}</span>`);
@@ -318,7 +352,7 @@ export async function render(ctx) {
   if (job.incr_schedule) pv2();
 
   form.addEventListener('change', (e) => {
-    if (e.target.name === 'server_id') loadInfo(false);
+    if (e.target.name === 'server_id') { switchEngine(); loadInfo(false); }
     if (e.target.name === 'binlog_archive' && e.target.checked && !+form.binlog_rotate_minutes.value) form.binlog_rotate_minutes.value = 15;
     if (e.target.name === 'db') {
       job.databases = $$('input[name=db]:checked', el).map((x) => x.value);

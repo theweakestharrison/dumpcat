@@ -1,7 +1,7 @@
 import { get, post, put, qs } from '../api.js';
 import { html, setHTML, icon, on, $, $$, fmtDate, toast, busy, debounce, describeCron, validate, formError, patch } from '../ui.js';
 import { navigate, canOperate, setTitle, setLeaveGuard } from '../app.js';
-import { backBtn, drillRunsTable } from '../components.js';
+import { backBtn, drillRunsTable, engines, engineOf, methodOf } from '../components.js';
 
 export const title = 'Restore drill';
 
@@ -13,20 +13,26 @@ export async function render(ctx) {
   const { el, params, query } = ctx;
   if (!canOperate()) { setHTML(el, html`<div class="alert warn">${icon('lock')}<div>You have read-only access.</div></div>`); return; }
   const editing = params.id ? +params.id : 0;
-  const [jobs, servers] = await Promise.all([get('/jobs'), get('/servers')]);
+  const [jobs, allServers, engs] = await Promise.all([get('/jobs'), get('/servers'), engines()]);
   let d = { name: '', job_id: +query.job || 0, target_server_id: 0, schedule: '0 5 * * 0', enabled: true, databases: [], assertions: [],
-    options: { threads: 2, no_binlog: false, max_rto_minutes: 0 }, notify_success: false, notify_failure: true };
+    options: { threads: 2, no_binlog: false, max_rto_minutes: 0, row_counts: '' }, notify_success: false, notify_failure: true };
   let view = null;
   if (editing) {
     view = await get(`/drills/${editing}`);
     d = { ...d, ...view.drill, options: { ...d.options, ...view.drill.options } };
   }
-  const usable = (j) => j.method !== 'physical' && !(j.method === 'mysqldump' && j.options.single_file);
+  const methodInfo = (j) => (methodOf(engs, j.method) || { engine: engs[0], method: {} });
+  const usable = (j) => !!methodInfo(j).method.drill && !(j.method === 'mysqldump' && j.options.single_file);
   if (!d.job_id) d.job_id = (jobs.find(({ job }) => usable(job)) || { job: {} }).job.id || 0;
+  // a sandbox runs the job's engine
+  const jobEngine = (id) => { const j = jobs.find(({ job }) => job.id === id); return j ? methodInfo(j.job).engine : engs[0]; };
+  const serversFor = (id) => allServers.filter((s) => engineOf(engs, s.engine).engine === jobEngine(id).engine);
+  let servers = serversFor(d.job_id);
   if (!d.target_server_id) {
     const job = jobs.find(({ job }) => job.id === d.job_id);
     d.target_server_id = (servers.find((s) => !job || s.id !== job.job.server_id) || servers[0] || {}).id || 0;
   }
+  const serverOptions = (sel) => html`${servers.map((s) => html`<option value="${s.id}" ${s.id === sel ? 'selected' : ''}>${s.name} (${s.host || s.socket}${s.version ? ' · ' + s.version : ''})</option>`)}`;
   if (!d.name) {
     const job = jobs.find(({ job }) => job.id === d.job_id);
     d.name = job ? `${job.job.name} weekly drill` : '';
@@ -42,12 +48,12 @@ export async function render(ctx) {
       <div class="card"><div class="card-head"><h2>1. What to restore, and where</h2></div><div class="card-body">
         <div class="form-grid">
           <div class="field"><label class="req">Drill name</label><input type="text" name="name" value="${d.name}" required maxlength="100" placeholder="e.g. shop weekly drill"></div>
-          <div class="field"><label class="req">Backup job</label><select name="job_id">${jobs.map(({ job: j }) => html`<option value="${j.id}" ${j.id === d.job_id ? 'selected' : ''} ${usable(j) ? '' : 'disabled'}>${j.name} (${j.method}${j.method === 'physical' ? ' — not supported' : usable(j) ? '' : ' one file — not supported'})</option>`)}</select>
-            <div class="help">Each run takes the newest successful backup of this job. Logical backups (mysqldump with one file per database, mydumper) are supported.</div></div>
-          <div class="field"><label class="req">Sandbox server</label><select name="target_server_id">${servers.map((s) => html`<option value="${s.id}" ${s.id === d.target_server_id ? 'selected' : ''}>${s.name} (${s.host || s.socket}${s.version ? ' · ' + s.version : ''})</option>`)}</select>
+          <div class="field"><label class="req">Backup job</label><select name="job_id">${jobs.map(({ job: j }) => html`<option value="${j.id}" ${j.id === d.job_id ? 'selected' : ''} ${usable(j) ? '' : 'disabled'}>${j.name} (${j.method}${!methodInfo(j).method.drill ? ' — not supported' : usable(j) ? '' : ' one file — not supported'})</option>`)}</select>
+            <div class="help">Each run takes the newest successful backup of this job. Logical backups (mysqldump with one file per database, mydumper, pg_dump) are supported.</div></div>
+          <div class="field"><label class="req">Sandbox server</label><select name="target_server_id">${serverOptions(d.target_server_id)}</select>
             <div class="help">The drill connects with the server's restore account (or its backup account), creates the temporary databases and drops them afterwards. A staging or spare server is best.</div>
             <div id="same-warn"></div></div>
-          <div class="field"><label>Restore threads (databases in parallel)</label><input type="number" name="threads" min="0" max="32" value="${d.options.threads}"></div>
+          <div class="field"><label id="threads-label">Restore threads (databases in parallel)</label><input type="number" name="threads" min="0" max="32" value="${d.options.threads}"></div>
         </div>
         <div class="section-title" style="margin-top:16px">Databases</div>
         <div class="help" style="margin-bottom:8px">None selected: every database of the backup.</div>
@@ -68,6 +74,10 @@ export async function render(ctx) {
 
       <div class="card"><div class="card-head"><h2>3. Checks</h2></div><div class="card-body">
         <p class="help" style="margin-top:0">Always checked: the restore succeeds, every table of the backup exists in the copy, and each table holds exactly the rows the backup recorded (DumpCat counts them while it writes the dump).</p>
+        <div class="field hidden" id="rows-field" style="max-width:560px;margin-bottom:14px"><label for="row_counts">Row counts</label><select name="row_counts" id="row_counts">
+          <option value="" ${d.options.row_counts ? '' : 'selected'}>Count every row (COUNT(*) per table)</option>
+          <option value="estimate" ${d.options.row_counts === 'estimate' ? 'selected' : ''}>Estimate after ANALYZE (fast for very large tables; more than 10 % off is a warning)</option></select>
+          <div class="help">The server's statistics are exact for tables up to about 30,000 rows and close beyond.</div></div>
         <div class="section-title">Assertions (optional)</div>
         <div class="help" style="margin-bottom:10px">One <code>SELECT</code> each, run inside the copy of the chosen database in a read-only session. It passes when the first column of the first row is true (not NULL, 0 or empty), e.g. <code>SELECT MAX(created_at) &gt; NOW() - INTERVAL 2 DAY FROM orders</code>.</div>
         <div id="asserts"></div>
@@ -78,7 +88,7 @@ export async function render(ctx) {
         <div class="checks">
           <label class="check"><input type="checkbox" name="notify_failure" ${d.notify_failure ? 'checked' : ''}><span>Notify when a drill fails (or leaves databases behind)</span></label>
           <label class="check"><input type="checkbox" name="notify_success" ${d.notify_success ? 'checked' : ''}><span>Notify when a drill passes</span></label>
-          <label class="check"><input type="checkbox" name="no_binlog" ${d.options.no_binlog ? 'checked' : ''}><span>Keep the drill out of the sandbox's binary log<span class="help">For a sandbox that is a replication source or archives its binlogs. Needs SUPER / BINLOG ADMIN. Always on when the sandbox is the job's own server.</span></span></label>
+          <label class="check" id="no-binlog-box"><input type="checkbox" name="no_binlog" ${d.options.no_binlog ? 'checked' : ''}><span>Keep the drill out of the sandbox's binary log<span class="help">For a sandbox that is a replication source or archives its binlogs. Needs SUPER / BINLOG ADMIN. Always on when the sandbox is the job's own server.</span></span></label>
           <label class="check"><input type="checkbox" name="enabled" ${d.enabled ? 'checked' : ''}><span>Enable scheduled runs</span></label>
         </div>
       </div></div>
@@ -133,7 +143,16 @@ export async function render(ctx) {
   const sameWarn = () => {
     const j = jobOf();
     const same = j && +form.target_server_id.value === j.job.server_id;
-    setHTML($('#same-warn', el), same ? html`<div class="alert warn" style="margin-top:8px">${icon('alert')}<div>This is the server the job backs up. The copies get temporary names that cannot collide with its databases, nothing is written to its binary log (the restore account needs SUPER / BINLOG ADMIN), and only the drill's own copies are dropped — but the restore loads the production server. A separate sandbox is safer.</div></div>` : '');
+    const mysql = !j || methodInfo(j.job).engine.engine === 'mysql';
+    setHTML($('#same-warn', el), same ? html`<div class="alert warn" style="margin-top:8px">${icon('alert')}<div>This is the server the job backs up. The copies get temporary names that cannot collide with its databases, ${mysql ? 'nothing is written to its binary log (the restore account needs SUPER / BINLOG ADMIN), ' : ''}and only the drill's own copies are dropped — but the restore loads the production server. A separate sandbox is safer.</div></div>` : '');
+  };
+  // what the job's method offers: row estimates, a binary log to stay out of
+  const engineFields = () => {
+    const j = jobOf();
+    const mi = j ? methodInfo(j.job) : { engine: engs[0], method: {} };
+    $('#rows-field', el).classList.toggle('hidden', !mi.method.estimates);
+    $('#no-binlog-box', el).classList.toggle('hidden', mi.engine.engine !== 'mysql');
+    $('#threads-label', el).textContent = j && j.job.method === 'pg_dump' ? 'Restore threads (pg_restore --jobs)' : 'Restore threads (databases in parallel)';
   };
 
   const cronPreview = async () => {
@@ -152,7 +171,15 @@ export async function render(ctx) {
   cronPreview();
 
   form.addEventListener('change', (e) => {
-    if (e.target.name === 'job_id') { d.databases = []; loadDBs(); }
+    if (e.target.name === 'job_id') {
+      d.databases = [];
+      loadDBs();
+      engineFields();
+      // the sandbox list follows the job's engine
+      const keep = +form.target_server_id.value;
+      servers = serversFor(+form.job_id.value);
+      setHTML(form.target_server_id, serverOptions(servers.some((s) => s.id === keep) ? keep : (servers[0] || {}).id));
+    }
     if (e.target.name === 'job_id' || e.target.name === 'target_server_id') sameWarn();
     if (e.target.name === 'db') d.databases = $$('input[name=db]:checked', el).map((x) => x.value);
   });
@@ -178,13 +205,14 @@ export async function render(ctx) {
   renderDBs();
   renderAsserts();
   sameWarn();
+  engineFields();
   loadDBs();
 
   const collect = () => ({
     name: form.name.value.trim(), job_id: +form.job_id.value, target_server_id: +form.target_server_id.value,
     schedule: form.schedule.value.trim(), enabled: form.enabled.checked,
     databases: $$('input[name=db]:checked', el).map((x) => x.value), assertions: readAsserts().filter((a) => a.sql || a.name),
-    options: { threads: +form.threads.value || 0, no_binlog: form.no_binlog.checked, max_rto_minutes: +form.max_rto_minutes.value || 0 },
+    options: { threads: +form.threads.value || 0, no_binlog: form.no_binlog.checked, max_rto_minutes: +form.max_rto_minutes.value || 0, row_counts: form.row_counts.value },
     notify_success: form.notify_success.checked, notify_failure: form.notify_failure.checked,
   });
   const save = async (andRun, btn) => {

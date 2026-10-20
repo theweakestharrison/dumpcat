@@ -151,7 +151,7 @@ export function runDuration(r) {
   return ((b ? b.getTime() : Date.now()) - a.getTime()) / 1000;
 }
 
-export const METHOD_LABEL = { mysqldump: 'mysqldump', mydumper: 'mydumper', physical: 'Physical (hot)' };
+export const METHOD_LABEL = { mysqldump: 'mysqldump', mydumper: 'mydumper', physical: 'Physical (hot)', pg_dump: 'pg_dump' };
 export const TYPE_LABEL = { full: 'Full', incremental: 'Incremental' };
 
 const STATUS = {

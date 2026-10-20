@@ -6,7 +6,7 @@ export const title = 'Settings';
 
 const TZ = ['Asia/Ho_Chi_Minh', 'Asia/Bangkok', 'Asia/Singapore', 'Asia/Tokyo', 'UTC', 'Europe/London', 'Europe/Berlin', 'America/New_York', 'America/Los_Angeles'];
 const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-const TOOLS = ['mysqldump', 'mariadb-dump', 'mysql', 'mariadb', 'mydumper', 'myloader', 'xtrabackup', 'xbstream', 'mariabackup', 'mbstream', 'rclone'];
+const TOOLS = ['mysqldump', 'mariadb-dump', 'mysql', 'mariadb', 'mydumper', 'myloader', 'xtrabackup', 'xbstream', 'mariabackup', 'mbstream', 'pg_dump', 'pg_restore', 'pg_dumpall', 'rclone'];
 
 export async function render(ctx) {
   const { el } = ctx;

@@ -17,7 +17,7 @@ export async function render(ctx) {
         <select id="f-job"><option value="0">All jobs</option>${jobs.map(({ job }) => html`<option value="${job.id}" ${job.id === f.job_id ? 'selected' : ''}>${job.name}</option>`)}</select>
         <select id="f-status"><option value="">All statuses</option>
           ${[['success', 'Success'], ['partial', 'Partial'], ['failed', 'Failed'], ['running', 'Running'], ['canceled', 'Canceled'], ['deleted', 'Deleted']].map(([v, l]) => html`<option value="${v}" ${f.status === v ? 'selected' : ''}>${l}</option>`)}</select>
-        <select id="f-method"><option value="">All methods</option><option value="mysqldump">mysqldump</option><option value="mydumper">mydumper</option><option value="physical">Physical</option></select>
+        <select id="f-method"><option value="">All methods</option><option value="mysqldump">mysqldump</option><option value="mydumper">mydumper</option><option value="physical">Physical</option><option value="pg_dump">pg_dump</option></select>
         <input type="search" id="f-q" placeholder="Search by job, server, directory...">
       </div>
       <div id="list"></div>
