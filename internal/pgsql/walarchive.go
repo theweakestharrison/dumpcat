@@ -200,6 +200,13 @@ func (a *walStream) Closed() []string {
 // resumeLSN is where pg_receivewal will start from the staging folder (0:
 // nothing staged, it starts at the slot).
 func (a *walStream) resumeLSN() LSN {
+	l, _ := a.resumePoint()
+	return l
+}
+
+// resumePoint is resumeLSN and the timeline pg_receivewal asks for there:
+// that of the newest staged segment (the highest timeline of its number).
+func (a *walStream) resumePoint() (LSN, uint32) {
 	seg := uint64(a.segSizeOr())
 	var best *stagedSeg
 	for _, f := range a.staged() {
@@ -207,17 +214,17 @@ func (a *walStream) resumeLSN() LSN {
 			continue
 		}
 		f := f
-		if best == nil || f.segno > best.segno || f.segno == best.segno && f.partial && !best.partial {
+		if best == nil || f.segno > best.segno || f.segno == best.segno && (f.tli > best.tli || f.tli == best.tli && f.partial && !best.partial) {
 			best = &f
 		}
 	}
 	if best == nil {
-		return 0
+		return 0, 0
 	}
 	if best.partial {
-		return LSN(best.segno * seg)
+		return LSN(best.segno * seg), best.tli
 	}
-	return LSN((best.segno + 1) * seg)
+	return LSN((best.segno + 1) * seg), best.tli
 }
 
 // hold moves every staged WAL file out of pg_receivewal's sight: they are
@@ -265,6 +272,29 @@ func identifySystem(ctx context.Context, s *store.Server) (sysID string, tli int
 	tli, _ = strconv.Atoi(string(row[1]))
 	pos, err = ParseLSN(string(row[2]))
 	return string(row[0]), tli, pos, err
+}
+
+// timelineFork reads, in the history of the server's timeline tli, where
+// it left timeline from (TIMELINE_HISTORY): ok is false when from is not
+// one of its ancestors.
+func timelineFork(ctx context.Context, s *store.Server, tli int, from uint32) (fork LSN, ok bool, err error) {
+	if tli <= 1 || from >= uint32(tli) {
+		return 0, false, nil
+	}
+	c, err := replicationConn(ctx, s)
+	if err != nil {
+		return 0, false, fmt.Errorf("replication connection: %w", err)
+	}
+	defer c.Close(context.Background())
+	res, err := c.Exec(ctx, fmt.Sprintf("TIMELINE_HISTORY %d", tli)).ReadAll()
+	if err != nil {
+		return 0, false, err
+	}
+	if len(res) == 0 || len(res[0].Rows) == 0 || len(res[0].Rows[0]) < 2 {
+		return 0, false, errors.New("TIMELINE_HISTORY returned nothing")
+	}
+	fork, ok = HistoryFork(string(res[0].Rows[0][1]), from)
+	return fork, ok, nil
 }
 
 type slotState struct {
@@ -359,6 +389,26 @@ func (a *walStream) Session(ctx context.Context, job *store.Job, server *store.S
 			return err
 		}
 		h.Log.Printf("Created replication slot %s at %s: the server keeps its WAL until DumpCat has received it (drop the slot by hand if DumpCat is removed)", a.slot, st.restart)
+	}
+	// a server whose history left the staged timeline before the staged WAL
+	// ends (a cluster restored to an earlier point, a standby promoted behind
+	// DumpCat) cannot continue it: the staged files are archived as they
+	// are and streaming starts again from the slot, on the server's timeline
+	if resume, rtli := a.resumePoint(); resume > 0 && rtli != uint32(tli) {
+		fork, ok, err := timelineFork(ctx, server, tli, rtli)
+		if err != nil {
+			return fmt.Errorf("reading the history of timeline %d: %w", tli, err)
+		}
+		if !ok || fork < resume {
+			if ok {
+				h.Log.Printf("The server's timeline %d left timeline %d at %s, before the archived WAL ends (%s) — e.g. the cluster was restored to an earlier point: the archive keeps timeline %d as it is, streaming continues on timeline %d from the slot", tli, rtli, fork, resume, rtli, tli)
+			} else {
+				h.Log.Printf("The archived WAL is on timeline %d, which is not in the history of the server's timeline %d: the archive keeps it as it is, streaming continues on timeline %d from the slot", rtli, tli, tli)
+			}
+			if err := a.hold(); err != nil {
+				return err
+			}
+		}
 	}
 	resume := a.resumeLSN()
 	switch {

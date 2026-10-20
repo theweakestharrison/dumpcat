@@ -2,6 +2,7 @@ package pgsql
 
 import (
 	"encoding/binary"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"hash/crc32"
@@ -108,6 +109,30 @@ func HistoryTLI(name string) (uint32, bool) {
 	}
 	t, _ := strconv.ParseUint(m[1], 16, 32)
 	return uint32(t), true
+}
+
+// HistoryFork reads a timeline history file (one line per ancestor:
+// timeline, switch point, reason): where timeline from ended, ok false when
+// the file does not list it. A hex-escaped bytea is decoded first.
+func HistoryFork(content string, from uint32) (LSN, bool) {
+	if h, ok := strings.CutPrefix(content, `\x`); ok {
+		if b, err := hex.DecodeString(strings.TrimSpace(h)); err == nil {
+			content = string(b)
+		}
+	}
+	for _, ln := range strings.Split(content, "\n") {
+		f := strings.Fields(ln)
+		if len(f) < 2 || strings.HasPrefix(f[0], "#") {
+			continue
+		}
+		if t, err := strconv.ParseUint(f[0], 10, 32); err != nil || uint32(t) != from {
+			continue
+		}
+		if l, err := ParseLSN(f[1]); err == nil {
+			return l, true
+		}
+	}
+	return 0, false
 }
 
 // RestorePoint is a named point created by pg_create_restore_point().

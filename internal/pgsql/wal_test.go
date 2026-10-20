@@ -2,6 +2,7 @@ package pgsql
 
 import (
 	"encoding/binary"
+	"encoding/hex"
 	"hash/crc32"
 	"os"
 	"path/filepath"
@@ -179,6 +180,19 @@ func TestLSNAndNames(t *testing.T) {
 	}
 	if s := SlotName(7, "1b4e28ba-2fa1-11d2-883f-0016d3cca427"); s != "dumpcat_job7_1b4e28ba2fa1" {
 		t.Fatal(s)
+	}
+	// the history of timeline 3, as TIMELINE_HISTORY returns it (raw or hex-escaped)
+	hist := "1\t0/1F3066F0\tafter restore point \"linux_rp\"\n\n2\t0/2A000098\tno recovery target specified\n"
+	for _, h := range []string{hist, `\x` + hex.EncodeToString([]byte(hist))} {
+		if l, ok := HistoryFork(h, 1); !ok || l != 0x1F3066F0 {
+			t.Fatalf("fork of timeline 1: %s %v", l, ok)
+		}
+		if l, ok := HistoryFork(h, 2); !ok || l != 0x2A000098 {
+			t.Fatalf("fork of timeline 2: %s %v", l, ok)
+		}
+		if _, ok := HistoryFork(h, 3); ok {
+			t.Fatal("timeline 3 is not an ancestor")
+		}
 	}
 }
 

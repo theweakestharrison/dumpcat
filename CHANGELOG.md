@@ -47,6 +47,8 @@ database engines.
   the job, so the server keeps it while DumpCat is down; every completed segment is compressed, encrypted and uploaded
   to every storage of the job like the binlogs of MySQL jobs. Turning archiving off, disabling or deleting the job drops
   the slot. A slot that lost WAL (`max_slot_wal_keep_size`) is reported as a gap and streaming starts again.
+  When the server's timeline left the archived one before its end (the cluster was restored to an earlier point, or
+  a standby was promoted behind DumpCat), the archive keeps the old timeline and continues on the new one.
 - DumpCat reads the WAL itself (no `pg_waldump` needed): the LSN range of every segment, the times of its commits and the
   restore points created in it, CRC-checked.
 - **Recover to a point in time, a restore point or a WAL position (LSN)**, or the latest state including the segment

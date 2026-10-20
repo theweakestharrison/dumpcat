@@ -64,4 +64,9 @@ func TestWALStaging(t *testing.T) {
 	if exists("hold/00000001000000000000000C.partial") {
 		t.Fatal("held file not removed")
 	}
+	// after a timeline switch pg_receivewal resumes on the newest timeline of the newest segment
+	touch("00000001000000000000000D", "00000002000000000000000D.partial")
+	if l, tli := a.resumePoint(); l != LSN(13*seg16) || tli != 2 {
+		t.Fatalf("resume at %s on timeline %d", l, tli)
+	}
 }
