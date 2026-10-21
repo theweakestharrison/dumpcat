@@ -6,6 +6,54 @@ page at dumpcat.cc/changelog/ (see `scripts/build-site.py`). Newest version
 first. Each section: `## <version> (<date>)`, a one-line summary, then `###`
 groups of bullets.
 
+## 1.8.0
+
+Microsoft SQL Server is the third database engine: native full and differential backups, restores under new names or
+onto another server, restore drills with `DBCC CHECKDB`, and scheduled log backups for point-in-time recovery.
+
+### SQL Server
+
+- Choose **Microsoft SQL Server** when adding a server (SQL Server 2012 and newer on Windows, Linux and in containers;
+  tested with SQL Server 2022 on Linux). SQL logins or Windows authentication (`DOMAIN\user`, NTLM), named instances
+  through the SQL Server Browser, always-encrypted connections. No client tool: DumpCat speaks TDS itself
+  ([go-mssqldb](https://github.com/microsoft/go-mssqldb), BSD-3-Clause).
+- **Check** shows the version and edition, the service account, the recovery model of every database, what the
+  account may not do, and whether SQL Server reads the server's **backup folder**.
+- The **backup folder**: `BACKUP DATABASE` writes on the SQL Server host, so every file passes through a folder both
+  SQL Server and DumpCat reach — the same path when DumpCat runs on the SQL Server host, otherwise a share or mount,
+  entered as SQL Server sees it and as DumpCat sees it. DumpCat reads each `.bak` into the usual compression,
+  encryption and SHA-256 pipeline, uploads it to every storage of the job and deletes it; restores pass through it the
+  other way. The connection test writes a file through one path and has SQL Server read it through the other.
+- One method, **native backup**: full backups on the job's schedule, **differential** backups on its second schedule
+  (or *Run → Differential backup*), `WITH CHECKSUM`, `COMPRESSION` where the edition has it (then DumpCat stores the
+  file without compressing it again), `RESTORE VERIFYONLY` on the server before each file is read, copy-only jobs,
+  databases backed up in parallel, extra `BACKUP … WITH` options for admins. A differential whose base moved (a full
+  backup taken by another tool) becomes a full backup, and says why.
+- **Restores** go through the target's backup folder: every file is checked there first (`RESTORE HEADERONLY` must
+  show the backup set the catalog recorded, `RESTORE VERIFYONLY` must pass), then `RESTORE DATABASE … WITH MOVE` into
+  the instance's data and log folders under the new name, a differential on top of its full backup. A database that
+  exists is only overwritten with *Replace existing databases* (`WITH REPLACE`, after closing its sessions); system
+  databases never. Orphaned users and an unknown owner are listed in the log.
+- **Restore drills** restore the full backup and the differential under temporary names, run `DBCC CHECKDB` on every
+  copy, compare the tables and their row counts (`sys.partitions`, read right after the backup) and run the
+  assertions in a transaction that is rolled back.
+- **Point-in-time recovery**: with log archiving on, DumpCat runs `BACKUP LOG` for every database of the job on a
+  schedule (every 15 minutes by default; *Back up the log now* on the archive page) and archives each log backup with
+  its LSNs and the marked transactions it holds. Recovery to a **time** (`STOPAT`, converted to the server's time
+  zone), a **marked transaction** (`STOPATMARK`) or an **LSN** (decimal or `00000025:00000080:0001`), or the latest log
+  backup: the backup is restored `WITH NORECOVERY`, the log backups follow until one reaches the target. The plan
+  checks the LSN chain first: a log backup taken by another tool is reported as a gap that recovery cannot cross,
+  databases in the SIMPLE recovery model are named and refused.
+
+### Everything else
+
+- A backup can be a **differential**: it belongs to the chain of its full backup for retention, deletion, restores,
+  drills and point-in-time recovery, and imported catalogs keep the link. The API and MCP take
+  `type: differential` (an incremental schedule is a differential one for SQL Server jobs).
+- Servers have `backup_dir` and `backup_dir_local` (store migration 11), in the API and in MCP's `create_server` /
+  `update_server`; jobs have `copy_only`, `native_compression` and `verify_only`.
+- The server list no longer shows a TLS badge for servers with TLS disabled.
+
 ## 1.7.0 (2026-10-20)
 
 AI assistants can set backups up: MCP tools that add and change database servers, storages, jobs and restore drills,

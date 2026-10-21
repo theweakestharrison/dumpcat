@@ -5,7 +5,7 @@
 <h1 align="center">DumpCat</h1>
 
 <p align="center">
-  <strong>Backup, restore and point-in-time recovery for MySQL and MariaDB, and now PostgreSQL.</strong><br>
+  <strong>Backup, restore and point-in-time recovery for MySQL and MariaDB, PostgreSQL and SQL Server.</strong><br>
   One self-hosted binary with a web UI. No database locks, no runtime to install, works offline.
 </p>
 
@@ -15,6 +15,7 @@
   <img alt="Runs on Linux and Windows" src="https://img.shields.io/badge/platform-Linux%20%7C%20Windows-555">
   <img alt="MySQL 5.7 to 8.4, MariaDB 10 and 11" src="https://img.shields.io/badge/MySQL%205.7--8.4%20%C2%B7%20MariaDB%2010--11-4479A1">
   <img alt="PostgreSQL 10 and newer" src="https://img.shields.io/badge/PostgreSQL-10%2B-336791">
+  <img alt="SQL Server 2012 and newer" src="https://img.shields.io/badge/SQL%20Server-2012%2B-CC2927">
 </p>
 
 <p align="center">
@@ -26,7 +27,7 @@
 
 ---
 
-DumpCat takes care of the whole backup lifecycle of MySQL, MariaDB and PostgreSQL servers from your browser. It schedules backups,
+DumpCat takes care of the whole backup lifecycle of MySQL, MariaDB, PostgreSQL and SQL Server servers from your browser. It schedules backups,
 compresses and encrypts them, copies them to the storages you choose, checks that they can be read back, and restores
 them when you need to, down to the second with binlog archiving. It runs on Linux or Windows next to your database, as a
 single Go binary with the UI built in.
@@ -39,9 +40,14 @@ single Go binary with the UI built in.
 - **PostgreSQL too.** `pg_dump` in directory format with tables dumped and restored in parallel, roles from
   `pg_dumpall --globals-only`, restores under new names or onto another server, and restore drills; `pg_basebackup` for
   the whole cluster. The client tools of each server's major version are picked automatically.
+- **And SQL Server.** Native full and differential backups (`WITH CHECKSUM`, compressed where the edition allows,
+  checked with `RESTORE VERIFYONLY`), copy-only when another tool owns the chain, restores under new names or onto
+  another server through SQL Server's backup folder, restore drills with `DBCC CHECKDB`, and scheduled log backups for
+  recovery to a time, a marked transaction or an LSN. No client tool to install.
 - **Point-in-time recovery.** Continuous binlog archiving restores to a timestamp, a binlog position or the moment just
   before a GTID, for example just before an accidental `DROP TABLE`; continuous WAL archiving (`pg_receivewal` through a
-  replication slot) does the same for PostgreSQL, to a timestamp, a restore point or a WAL position.
+  replication slot) does the same for PostgreSQL, to a timestamp, a restore point or a WAL position, and scheduled
+  `BACKUP LOG` for SQL Server (`STOPAT` / `STOPATMARK`), with the log chain checked before anything is restored.
 - **Storage anywhere.** Local disk or NFS, S3 and compatibles (Cloudflare R2, MinIO, Wasabi…), Google Drive,
   OneDrive / SharePoint, FTP / FTPS, SFTP, WebDAV, Backblaze B2, Azure Blob, Dropbox and every rclone backend. One job can
   write to several storages, each with its own retention.
@@ -146,9 +152,9 @@ flowchart RL
 
 | | |
 |---|---|
-| **Databases** | MySQL 5.7, 8.0, 8.4 · Percona Server · MariaDB 10.x, 11.x · PostgreSQL 10 and newer |
+| **Databases** | MySQL 5.7, 8.0, 8.4 · Percona Server · MariaDB 10.x, 11.x · PostgreSQL 10 and newer · Microsoft SQL Server 2012 and newer on Windows, Linux and in containers (not Azure SQL Database / Managed Instance) |
 | **DumpCat host** | Linux amd64 / arm64 with systemd · Windows Server 2016+ / Windows 10+ 64-bit, as a Windows service |
-| **Backup tools** | mysqldump / mariadb-dump · mydumper / myloader · Percona XtraBackup · MariaBackup · pg_dump / pg_restore / pg_dumpall / pg_basebackup / pg_receivewal (the Linux installer picks the versions that match your server; `--postgres 16` adds the PostgreSQL 16 client) |
+| **Backup tools** | mysqldump / mariadb-dump · mydumper / myloader · Percona XtraBackup · MariaBackup · pg_dump / pg_restore / pg_dumpall / pg_basebackup / pg_receivewal (the Linux installer picks the versions that match your server; `--postgres 16` adds the PostgreSQL 16 client) · SQL Server: none, SQL Server writes the backups into a folder DumpCat reads ([backup folder](docs/manual.md#sql-server)) |
 | **Storage** | Local directories and NFS / SMB shares, plus everything [rclone](https://rclone.org) supports |
 | **Databases behind a firewall** | The agent (`dumpcat agent`) on Linux with systemd or on Windows, outbound HTTPS only · or standard WireGuard (`wg-quick`), outbound UDP |
 
@@ -221,7 +227,9 @@ and restrict who can reach it.
 
 PostgreSQL servers are backed up with `pg_dump` (directory format, tables in parallel, no locking of writers) or
 `pg_basebackup` (the whole cluster, the base of WAL archiving and point-in-time recovery): see
-[PostgreSQL](docs/manual.md#postgresql).
+[PostgreSQL](docs/manual.md#postgresql). SQL Server databases get SQL Server's own full and differential backups
+(and log backups for point-in-time recovery), written into a backup folder that DumpCat reads: on the SQL Server host,
+or a share both machines reach — see [SQL Server](docs/manual.md#sql-server).
 
 More detail and recommendations: [Choosing a backup method](docs/manual.md#2-choosing-a-backup-method).
 

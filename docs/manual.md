@@ -28,17 +28,17 @@ The complete guide to installing, configuring and operating DumpCat. For an over
 
 | Area | Details |
 |---|---|
-| Databases | MySQL, MariaDB and Percona Server; **PostgreSQL** 10 and newer ([PostgreSQL](#postgresql)) |
-| Methods | `mysqldump`/`mariadb-dump` (logical), `mydumper`/`myloader` (parallel logical), Percona XtraBackup / MariaBackup (physical, hot, **full + incremental**); PostgreSQL: `pg_dump` (directory format, tables in parallel) + `pg_dumpall --globals-only`, `pg_basebackup` (physical, the whole cluster) |
+| Databases | MySQL, MariaDB and Percona Server; **PostgreSQL** 10 and newer ([PostgreSQL](#postgresql)); **Microsoft SQL Server** 2012 and newer on Windows, Linux and in containers ([SQL Server](#sql-server)) |
+| Methods | `mysqldump`/`mariadb-dump` (logical), `mydumper`/`myloader` (parallel logical), Percona XtraBackup / MariaBackup (physical, hot, **full + incremental**); PostgreSQL: `pg_dump` (directory format, tables in parallel) + `pg_dumpall --globals-only`, `pg_basebackup` (physical, the whole cluster); SQL Server: native `BACKUP DATABASE` (**full + differential**, copy-only, `WITH CHECKSUM`, compressed where the edition allows, checked with `RESTORE VERIFYONLY`) |
 | Scope | All databases, selected databases, all except selected databases, per-table exclusions; routines, triggers, events; **users & grants** (separate `_users.sql` file) |
 | Compression / encryption | zstd (default), multi-threaded gzip, none · **age** encryption (ChaCha20-Poly1305 + scrypt) with a passphrase |
 | Integrity | SHA-256 for every file, size check after upload, **Verify integrity** (re-read → decrypt → decompress → check the `Dump completed` line / tar structure) on demand or automatically after every backup (new jobs: one copy, the cheapest to read back; or every copy) |
 | Storage | Several targets per job (e.g. local + S3 + Google Drive); write to local storage first and then upload, or **stream directly** to the cloud without a temporary disk; bandwidth limit; **copy** an existing backup to another storage; browse the files on a storage |
-| Scheduling | Cron (`0 2 * * *`, `@daily`, `@every 6h`), a separate schedule for incrementals, configurable time zone, preview of the next 5 runs |
-| Retention | Keep the last N backups / N days / the last backup of each day, week and month (GFS), **per storage** (e.g. local keeps 3 backups, S3 keeps 30 days), incremental chains respected |
+| Scheduling | Cron (`0 2 * * *`, `@daily`, `@every 6h`), a separate schedule for incrementals (SQL Server: differentials), configurable time zone, preview of the next 5 runs |
+| Retention | Keep the last N backups / N days / the last backup of each day, week and month (GFS), **per storage** (e.g. local keeps 3 backups, S3 keeps 30 days), incremental and differential chains respected |
 | Restore | Restore to any server (**another instance, host or version**, with DEFINER / collation / GTID rewrites), **restore under new names**, partial restore, drop target databases first, no binlog, Fast mode, restore users; physical: download the full + incremental chain → prepare → (optionally) **replace the datadir automatically** with rollback; PostgreSQL physical: a data directory recovered on the DumpCat host, optionally swapped in for the local cluster |
-| Restore drills | On a schedule (MySQL, MariaDB and PostgreSQL), the newest backup is **restored into a sandbox** under temporary names, every table and its **row count** compared with the backup, custom SQL assertions run, the restore time (**RTO**) recorded and the copies dropped; backups that passed are marked **Restore-tested** |
-| Point-in-time recovery | **Continuous log archiving**: MySQL/MariaDB binlogs (`mysqlbinlog --raw --stop-never`) and PostgreSQL WAL (`pg_receivewal` through a replication slot), compressed/encrypted like backups and uploaded to every storage of the job. Recovery to **a point in time / a binlog position / just before a GTID** (MySQL) or **a point in time / a restore point / a WAL position** (PostgreSQL) — picks the newest base backup automatically, downloads and checks every file before changing any data; retention follows the oldest kept backup |
+| Restore drills | On a schedule (MySQL, MariaDB, PostgreSQL and SQL Server — with `DBCC CHECKDB` on the copy), the newest backup is **restored into a sandbox** under temporary names, every table and its **row count** compared with the backup, custom SQL assertions run, the restore time (**RTO**) recorded and the copies dropped; backups that passed are marked **Restore-tested** |
+| Point-in-time recovery | **Continuous log archiving**: MySQL/MariaDB binlogs (`mysqlbinlog --raw --stop-never`) and PostgreSQL WAL (`pg_receivewal` through a replication slot), compressed/encrypted like backups and uploaded to every storage of the job. SQL Server: scheduled `BACKUP LOG` with log chain tracking. Recovery to **a point in time / a binlog position / just before a GTID** (MySQL), **a point in time / a restore point / a WAL position** (PostgreSQL) or **a point in time / a marked transaction / an LSN** (SQL Server, `STOPAT` / `STOPATMARK`) — picks the newest base backup automatically, downloads and checks every file before changing any data; retention follows the oldest kept backup |
 | Connectivity | Directly, through the **agent** (the database host connects out over HTTPS; with `--allow-physical` it also runs physical backups there) or through the **built-in WireGuard** — no inbound port on the database host ([3.7](#37-database-hosts-that-accept-no-inbound-connections-agent), [3.8](#38-built-in-wireguard)) |
 | Operations | Real-time progress (bytes, speed, %), live logs, task cancellation, limit on concurrent jobs, low priority (nice/ionice), pre/post commands, timeouts |
 | Notifications | Email (SMTP, HTML with a plain-text version), Telegram, Slack, Discord, Webhook (HMAC-signed) — on failure and/or success |
@@ -136,6 +136,90 @@ ready to recover and you start PostgreSQL on it yourself.
 **Passwords and names.** The password is written to a private `PGPASSFILE` (mode 0600) in the task's directory, never
 on a command line or in the environment. DumpCat builds the connection string itself and quotes every value, so a
 database name such as `a=b` stays a name (`pg_dump -d "a=b"` would read it as connection options).
+
+### SQL Server
+
+Choose **Microsoft SQL Server** as the *Database engine* when you add the server (the port becomes 1433; a named
+instance can be written `sql01\SQLEXPRESS` with an empty port, it is then found through the SQL Server Browser).
+SQL Server 2012 and newer on Windows, on Linux and in containers are supported (tested with SQL Server 2022 on
+Linux); Azure SQL Database and Managed Instance are not (they cannot write backups to a disk). DumpCat needs no client
+tool: it talks TDS itself and SQL Server does the work.
+
+**One method: native backups.** `BACKUP DATABASE` for each selected database, the way SQL Server's own backups work:
+
+- **Full** backups on the job's schedule, **differential** backups (the extents changed since the last full) on the
+  second schedule of the job; *Run → Differential backup* starts one by hand. A differential is restored on top of its
+  full backup, retention keeps them together, and when its base no longer holds — the full backup is gone, or a full
+  backup was taken outside DumpCat since, which moves SQL Server's differential base — DumpCat takes a full backup
+  instead and says why in the log.
+- Always `WITH CHECKSUM`; `COMPRESSION` when the edition has it (Standard, Enterprise, Developer; not Express or Web).
+  A file SQL Server compressed is stored as it is, without DumpCat's compression on top; *Compression by SQL Server*
+  in the job forces it on or off.
+- *Check each backup on the server* (on by default): `RESTORE VERIFYONLY WITH CHECKSUM` on the new file before DumpCat
+  copies it. DumpCat's own verification (SHA-256 of every stored copy) comes on top.
+- *Copy-only backups* (`COPY_ONLY`) leave the server's own backup chain alone, for instance next to a maintenance plan
+  that takes the differentials. Copy-only jobs take full backups only.
+- *Threads*: databases backed up at the same time. Extra options (admins): more `BACKUP … WITH` options such as
+  `BUFFERCOUNT = 64, MAXTRANSFERSIZE = 4194304`; options that change what the backup is (`NORECOVERY`, `COPY_ONLY`…)
+  are refused.
+- "All databases" leaves out `master`, `model`, `msdb` and `tempdb`; pick `master`, `model` or `msdb` under *Only
+  selected databases* to back them up too (`tempdb` cannot be backed up). Databases that are not online, and database
+  snapshots, are skipped. Tables cannot be left out: a native backup holds the whole database.
+- Each backup records, per database, the header SQL Server wrote (`RESTORE HEADERONLY`): its LSN range, the backup set,
+  the differential base and the recovery model. These chain full, differential and log backups together. Right after
+  each database's backup DumpCat also reads its row counts (`sys.partitions`) for restore drills.
+- Logins are server objects, not part of a database backup: create them on another server yourself (users without a
+  login are listed in the restore log).
+
+**The backup folder.** `BACKUP DATABASE` writes a file **on the SQL Server host**, and `RESTORE` reads one there. Every
+file therefore passes through a folder both SQL Server and DumpCat reach — *Backup folder* in the server form:
+
+- *As SQL Server sees it*: e.g. `D:\Backup\DumpCat`, `\\nas\sql-backup` or `/var/opt/mssql/dumpcat`; empty is the
+  instance's default backup folder. SQL Server's service account (`NT Service\MSSQLSERVER`, the `mssql` user on Linux)
+  needs *Modify* permission there.
+- *As DumpCat sees it*: empty when it is the same path, that is when DumpCat runs on the SQL Server host; otherwise the
+  share or mount on the DumpCat host.
+
+SQL Server writes `dumpcat-<random>-<database>.bak` there, DumpCat reads it into the usual pipeline (compression,
+encryption, SHA-256, every storage of the job) and deletes it; a restore copies the file back there, has SQL Server
+check and restore it, and deletes it. The folder needs room for the databases backed up at the same time (a restore:
+for the files of the databases restored, else they are copied and restored one by one). On Linux, DumpCat (root) gives
+the files it writes there to the folder's owner, e.g. `install -d -o mssql -g mssql -m 0770 /var/opt/mssql/dumpcat`.
+*Test connection* writes a small file through DumpCat's path and has SQL Server read it through its own: two paths
+that are not the same folder are found there, not at the first backup.
+
+| Setup | Backup folder | Good to know |
+|---|---|---|
+| DumpCat **on the SQL Server host** (Windows service or Linux) | one local folder, second path empty | Simplest and fastest. The backup files touch the database host's disk for a moment. |
+| DumpCat **elsewhere**, SQL Server writes to a **share** | `\\nas\sql-backup` (or the DumpCat host's share) for both; on a Linux DumpCat the share mounted, e.g. `/mnt/sql-backup` | The service account must reach the share: a domain account, or the computer account `DOMAIN\SQL01$`. Traffic goes SQL Server → share → DumpCat. |
+| DumpCat **elsewhere**, it reads a **share of the SQL Server host** | `D:\Backup\DumpCat` on the server, `\\sql01\DumpCat$` (Windows) or a CIFS mount (Linux) on DumpCat | The disk of the SQL Server host holds each file until DumpCat has read it. |
+| SQL Server **in a container** | the path inside the container, and the volume's path on the host | e.g. `/var/opt/mssql/backup` and `/srv/mssql/backup`. |
+
+Through an agent or WireGuard the connection works as for the other engines (allow `127.0.0.1:1433`), but the backup
+folder must still be shared with the DumpCat host. A transport of the files through the agent is planned.
+
+**Account.** Simplest: a login in the `sysadmin` role. Least privilege:
+
+```sql
+CREATE LOGIN dumpcat WITH PASSWORD = 'a_strong_password';     -- or CREATE LOGIN [DOMAIN\dumpcat] FROM WINDOWS
+-- backup headers (the log chain) need CREATE DATABASE permission; server state and file locations for the checks
+GRANT CREATE ANY DATABASE, VIEW SERVER STATE, VIEW ANY DEFINITION TO dumpcat;
+-- in every database to back up
+USE [shop];
+CREATE USER dumpcat FOR LOGIN dumpcat;
+ALTER ROLE db_backupoperator ADD MEMBER dumpcat;
+ALTER ROLE db_datareader ADD MEMBER dumpcat;                   -- row counts for restore drills
+-- restores: a separate login that may create databases (replacing one needs its owner or sysadmin)
+CREATE LOGIN dumpcat_restore WITH PASSWORD = 'another_password';
+ALTER SERVER ROLE dbcreator ADD MEMBER dumpcat_restore;
+```
+
+The **Check** button shows the edition, the service account, the backup folder (and whether SQL Server reads it), the
+recovery model of every database and what the account may not do.
+
+**Logins and TLS.** SQL Server logins, or Windows authentication as `DOMAIN\user` with its password (NTLM). The
+connection is always encrypted; *Client default* and *Required* do not check the certificate (SQL Server's own is
+self-signed), *Required + verify* checks it against the CA you give, with the server's name.
 
 ## 3. Installation
 
@@ -718,8 +802,29 @@ and run `--copy-back` there):
    back. The same checks as for MySQL datadirs apply (no system directory, nothing inside DumpCat's own data
    directory, a non-empty directory must contain `PG_VERSION`), and the version of the existing directory must match.
 
+**SQL Server (native backups)** — restored by SQL Server itself, onto the source server or any other SQL Server of
+the same or a newer version, through the target's backup folder:
+1. Before anything is changed: every file opens with the passphrase; a database that exists on the target stops the
+   restore unless *Replace existing databases* is ticked; the system databases are never restored over.
+2. The files of each database — the full backup, the differential when the backup is one, the log backups of a
+   point-in-time recovery — are downloaded (SHA-256 checked) into the target's backup folder, and SQL Server checks
+   them there: `RESTORE HEADERONLY` must show the backup set the catalog recorded, `RESTORE VERIFYONLY` must pass.
+   When the folder has room, the files of every selected database are checked before the first database is replaced.
+3. `RESTORE DATABASE … WITH MOVE`: the files go to the instance's default data and log folders, named after the
+   target database (`shop_restore.mdf`, `shop_restore_log.ldf`, with a suffix when another database uses the name);
+   a database that is replaced keeps its own files. *Replace existing databases* first closes its sessions
+   (`SET SINGLE_USER WITH ROLLBACK IMMEDIATE`) and restores `WITH REPLACE`. A differential (or log backups) follow
+   `WITH NORECOVERY`, the last one `WITH RECOVERY`.
+4. Afterwards the log lists the users of the restored database that have no login on the target (orphaned users:
+   `ALTER USER [name] WITH LOGIN = [login]`) and an owner the target does not know.
+
+A restore under a new name on the source server is the usual way to get a table back without touching the live
+database. Backups of a newer SQL Server version cannot be restored onto an older one (DumpCat warns); Express holds at
+most 10 GB per database. Restores onto Linux from Windows and back work (the files are moved to the target's folders).
+
 To go back to **any moment** (not only when a backup ran), use *Point-in-time recovery* — see
-[section 8](#8-log-archiving--point-in-time-recovery-pitr) (MySQL / MariaDB binlogs, PostgreSQL WAL).
+[section 8](#8-log-archiving--point-in-time-recovery-pitr) (MySQL / MariaDB binlogs, PostgreSQL WAL, SQL Server log
+backups).
 
 ### Restoring to another instance (clone, migration, staging)
 
@@ -782,7 +887,7 @@ dropped).
 
 **Safety**
 
-- The copies are named `<database>__drill_<run id>` (cut to 64 characters; 63 bytes on PostgreSQL). Before creating anything the drill checks
+- The copies are named `<database>__drill_<run id>` (cut to 64 characters; 63 bytes on PostgreSQL, 128 characters on SQL Server). Before creating anything the drill checks
   that none of these names exists on the sandbox and refuses to run otherwise: **a drill only ever drops the
   databases it created**. The names are recorded first, so the copies of a drill interrupted by a restart are dropped
   when DumpCat starts again.
@@ -799,7 +904,13 @@ dropped).
   `pg_class.reltuples` (exact up to about 30,000 rows per table, close beyond); an estimate more than 10 % away from
   the backup is a warning, a missing table still fails. The copies are dropped `WITH (FORCE)` (PostgreSQL 13+), which
   ends sessions still connected to them. There is no binary log to keep the drill out of.
-- Supported: logical backups — mysqldump with one file per database, mydumper and pg_dump. A single-file mysqldump restores
+- SQL Server: the copies are restored from the full backup (and the differential) under the temporary names, with
+  their files in the sandbox's data folder; every copy also gets **`DBCC CHECKDB`**, the consistency check DBAs run on
+  restored backups — here on the sandbox instead of the production server. The row counts are those SQL Server had
+  right after the backup (`sys.partitions`): a database written to while the backup ran can differ by those rows, so
+  choose *The server's row counts* for it (a difference over 10 % is a warning). Assertions run in a transaction that is
+  rolled back. Copies are dropped after `SET SINGLE_USER WITH ROLLBACK IMMEDIATE`.
+- Supported: logical backups — mysqldump with one file per database, mydumper and pg_dump — and SQL Server's native backups. A single-file mysqldump restores
   under the original database names only and cannot be drilled; physical backups are not supported yet. Backups made
   before DumpCat counted rows are checked against the number of tables and views the server listed at backup time
   (a difference is a warning) and their row check is skipped.
@@ -809,8 +920,9 @@ dropped).
 A backup only takes you back to the moment it ran. Turn on **continuous log archiving** for a job to recover to *any moment*
 after a backup — for example just before an accidental `DROP TABLE`. It is enabled in the job form, section
 **8. Log archiving & point-in-time recovery**: *Continuous binlog archiving* for MySQL / MariaDB jobs, *Continuous WAL
-archiving* for PostgreSQL `pg_basebackup` jobs ([PostgreSQL: WAL archiving](#postgresql-wal-archiving)). The upload to
-the job's storages, the catalog, retention, lag monitoring and the recovery plan work the same for both.
+archiving* for PostgreSQL `pg_basebackup` jobs ([PostgreSQL: WAL archiving](#postgresql-wal-archiving)), *Scheduled
+transaction log backups* for SQL Server jobs ([SQL Server: log backups](#sql-server-log-backups)). The upload to
+the job's storages, the catalog, retention, lag monitoring and the recovery plan work the same for all three.
 
 ### How it works (MySQL / MariaDB binlogs)
 
@@ -876,12 +988,35 @@ the job's storages, the catalog, retention, lag monitoring and the recovery plan
   physical copy of the cluster, so pg_dump jobs do not archive WAL. Archiving from a standby works (its own slot);
   closing segments there is up to the primary.
 
+### SQL Server: log backups
+
+- Every *N* minutes (*Back up the log every*, 15 by default) DumpCat runs `BACKUP LOG … WITH CHECKSUM` (compressed when
+  the edition can) for every database of the job, through the backup folder like the backups, moves each file into
+  `<staging>/trn-<job id>/` and archives it like the other engines' log files: compressed/encrypted, uploaded to every
+  storage of the job at `<job>/trn/<YYYYMMDD>/<seq>-<database>.trn`, recorded with its header — database, LSN range,
+  backup set, and the **marked transactions** it holds (from `msdb.dbo.logmarkhistory`). *Back up the log now* on the
+  archive page takes one at once. The log backups also let SQL Server reuse its transaction log, which in the FULL
+  recovery model only shrinks once it is backed up.
+- The chain: each log backup must start at the LSN where the previous one ended. DumpCat checks it when it plans a
+  recovery: a log backup taken **elsewhere** (a maintenance plan, another backup tool, `BACKUP LOG … TO DISK = 'NUL'`)
+  leaves a gap that point-in-time recovery cannot cross; the plan says between which files. **Let one tool only back up
+  the log of a database.** Full backups taken elsewhere do not break the log chain (they move the differential base:
+  give them `COPY_ONLY`).
+- Requirements: the databases use the **FULL** (or BULK_LOGGED) recovery model and have had a full backup since (DumpCat's
+  first full backup is enough). Databases in the SIMPLE model are skipped with a warning in the archive log; their full
+  and differential backups work as usual. The account needs `BACKUP LOG` (`db_backupoperator`); reading
+  `msdb.dbo.logmarkhistory` lets DumpCat know where marks are.
+- Turning archiving off stops the log backups: nothing is left on the server, but the transaction log of FULL
+  databases grows again until something backs it up.
+- Lag: between two log backups the archive is up to the interval behind; keep it below the lag alert of Settings (30
+  minutes by default).
+
 ### Monitoring
 
 The **Binlog / WAL & PITR** page shows, per job: the file being received, the server's current position, the lag (bytes / seconds),
 files waiting for upload, the replication slot and how much WAL the server keeps for it (PostgreSQL), the last archived file, number
 of files and size, the file list (with storages, LSN ranges and restore points) and the stream's log, with *Close binlog now* /
-*Close segment now* (close & upload immediately) and *Restart*. The dashboard warns when archiving or uploads fail or more than 5
+*Close segment now* / *Back up the log now* (close & upload immediately) and *Restart*. The dashboard warns when archiving or uploads fail or more than 5
 files are waiting; repeated failures send a notification (when the job notifies on failure).
 
 ### Recovering to a point in time
@@ -902,6 +1037,15 @@ files are waiting; repeated failures send a notification (when the job notifies 
    - **WAL position (LSN)** — e.g. `pg_current_wal_lsn()` noted before a risky change; the record at that position is
      the last one replayed.
    - **Latest available** — every archived segment plus the one still being received.
+
+   SQL Server:
+   - **Point in time** — `STOPAT`: transactions committed before that moment, in the server's time zone (DumpCat
+     converts the time you enter).
+   - **Marked transaction** — `STOPATMARK`: a transaction started with `BEGIN TRANSACTION before_migration WITH MARK`,
+     included; the marks found in the archived log backups are suggested.
+   - **LSN** — `STOPATMARK = 'lsn:…'`, as the backup history shows it (`37000000012800001`) or as `fn_dblog` and error
+     messages do (`00000025:00000080:0001`). An LSN names a point in the log of one database.
+   - **Latest available** — every archived log backup (use *Back up the log now* first to include the last minutes).
 3. DumpCat picks **the newest backup whose data precedes that point** (logical full, or physical full + incremental chain), checks
    that the binlogs form an unbroken sequence from that backup's position to the target and shows the plan: base backup, number and
    size of binlog files, how far the binlogs are complete.
@@ -927,6 +1071,14 @@ files are waiting; repeated failures send a notification (when the job notifies 
    an LSN at its very end) replays everything instead — there is nothing between them, and PostgreSQL 13+ would
    otherwise stop with *recovery ended before configured recovery target was reached*. No *Apply* is needed:
    recovering into a directory works on Windows too.
+7. SQL Server: the base is a full or differential native backup; for each restored database the plan takes its log
+   backups from the one that holds the backup's last LSN, in an unbroken LSN chain, up to the one that holds the
+   target. Every file is downloaded and checked before anything is changed (LSN continuity, then `RESTORE VERIFYONLY`
+   in the target's backup folder). The backup is restored `WITH NORECOVERY`, then each log backup `WITH STOPAT` (or
+   `STOPATMARK`) `, RECOVERY`: SQL Server leaves the database restoring until a log backup reaches the target, and DumpCat
+   stops there. A time after the end of the archive recovers at its end; a mark that is never found is an error (the
+   database is left restoring, the log says how to bring it online). Databases in the SIMPLE model cannot follow and
+   must be deselected. Restores under new names and onto another server work as without PITR.
 
 ### Notes
 
@@ -1008,6 +1160,12 @@ dumpcat decode -in _globals.sql.zst.age -out globals.sql        # roles: review 
 mkdir -m 700 /restore/pgdata && dumpcat decode -in base.tar.zst.age -out - | tar xf - -C /restore/pgdata
 chown -R postgres: /restore/pgdata && sudo -u postgres pg_ctl -D /restore/pgdata -o "-p 5433" start
 # (to a point in time: see "Manual replay" in section 8)
+
+# SQL Server: decode the .bak into a folder SQL Server reads, then restore it there
+dumpcat decode -in shop.bak.zst.age -out 'D:\Restore\shop.bak'
+sqlcmd -S sql01 -Q "RESTORE DATABASE [shop_restore] FROM DISK = N'D:\Restore\shop.bak' WITH MOVE N'shop' TO N'D:\Data\shop_restore.mdf', MOVE N'shop_log' TO N'D:\Data\shop_restore_log.ldf', RECOVERY"
+# (a differential: the full backup WITH NORECOVERY first; log backups: RESTORE LOG … WITH STOPAT = '…', RECOVERY;
+#  RESTORE FILELISTONLY FROM DISK = … shows the logical file names)
 
 # physical (full + incremental)
 dumpcat decode -in full/backup.xbstream.zst -out - | mbstream -x -C /restore/full      # MySQL: xbstream -x
@@ -1459,7 +1617,12 @@ demo.
 | Lost encryption passphrase | The backup cannot be decrypted — always keep the passphrase in a password manager |
 | Binlog & PITR: *binary logging is disabled (log_bin=OFF)* | Enable `log_bin` and `server_id` in my.cnf and restart MySQL/MariaDB |
 | Binlog & PITR: *SHOW BINARY LOGS … REPLICATION CLIENT* / `Access denied` while streaming | Grant `REPLICATION SLAVE` + `REPLICATION CLIENT` (MariaDB: `BINLOG MONITOR`) to the backup user |
-| PITR: *binlogs are only archived up to …* / *WAL segments are only archived up to …* | Click *Close binlog now* / *Close segment now* on the **Binlog / WAL & PITR** page and wait a few seconds for the upload, or choose *Latest available* |
+| PITR: *binlogs are only archived up to …* / *WAL segments are only archived up to …* / *log backups are only archived up to …* | Click *Close binlog now* / *Close segment now* / *Back up the log now* on the **Binlog / WAL & PITR** page and wait a few seconds for the upload, or choose *Latest available* |
+| SQL Server: *SQL Server cannot find … are not the same folder* | The two paths of the server's *Backup folder* do not name one folder: fix the share or mount on the DumpCat host (*As DumpCat sees it*), then *Test connection* |
+| SQL Server: *… may not use …: give it Modify permission* (operating system error 5) | Give SQL Server's service account (shown by **Check**) *Modify* on the folder; on Linux `chown mssql:mssql` it. For a share, the account must reach it over the network (a domain account or `DOMAIN\SQL01$`) |
+| SQL Server: *the differential base of … is no longer backup #…* | A full backup was taken outside DumpCat (a maintenance plan, another tool): DumpCat takes a full one instead. Make the other tool's full backups `COPY_ONLY` |
+| SQL Server PITR: *the log chain breaks after …* | Something else backed up the log of that database (a maintenance plan, `BACKUP LOG … TO DISK = 'NUL'`): recovery cannot cross the gap. Let DumpCat alone take log backups and run a full backup to start a new chain |
+| SQL Server: *… has no full backup of this database since its log chain began* | The database was switched to FULL (or restored) without a full backup since: run a full backup of the job |
 | PITR: *… has not been archived* / *sequence is broken* | The server purged binlogs before they were archived, or the numbering was reset: keep binlogs longer on the server and take a new backup as a starting point |
 | Agent: *agent … is offline* | Start the agent on the database host (`systemctl status dumpcat-agent`, `journalctl -u dumpcat-agent`). *the server refused the agent* in its log: wrong or rotated key, or the URL is not DumpCat. Behind nginx, use the `/api/agent/` block of the sample configuration |
 | WireGuard: *peer … has not connected yet* / *no answer from …* / *nothing listens on …* | See [3.8](#38-built-in-wireguard): start `wg-quick@dumpcat` on the database host and open the UDP port on the DumpCat host; let the WireGuard interface in on the database host; make MySQL listen on the WireGuard address |

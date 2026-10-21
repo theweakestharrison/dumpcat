@@ -5,7 +5,7 @@
 <h1 align="center">DumpCat</h1>
 
 <p align="center">
-  <strong>Backup, restore và khôi phục theo thời điểm cho MySQL và MariaDB, và giờ có cả PostgreSQL.</strong><br>
+  <strong>Backup, restore và khôi phục theo thời điểm cho MySQL và MariaDB, PostgreSQL và SQL Server.</strong><br>
   Một file chạy duy nhất, tự host, có giao diện web. Không khóa database, không cần cài runtime, chạy offline.
 </p>
 
@@ -25,7 +25,7 @@
 
 ---
 
-DumpCat quản lý toàn bộ vòng đời backup của các server MySQL, MariaDB và PostgreSQL ngay trên trình duyệt. Nó lên lịch backup,
+DumpCat quản lý toàn bộ vòng đời backup của các server MySQL, MariaDB, PostgreSQL và SQL Server ngay trên trình duyệt. Nó lên lịch backup,
 nén và mã hóa, chép bản sao lên những nơi lưu trữ bạn chọn, kiểm tra xem bản backup có đọc lại được không, và restore khi
 cần, đến đúng từng giây nhờ lưu trữ binlog. DumpCat chạy trên Linux hoặc Windows ngay cạnh database, dưới dạng một file
 binary Go có sẵn giao diện.
@@ -38,9 +38,14 @@ binary Go có sẵn giao diện.
 - **Có cả PostgreSQL.** `pg_dump` định dạng thư mục, dump và restore các bảng song song, role lấy từ
   `pg_dumpall --globals-only`, restore dưới tên mới hoặc sang server khác, diễn tập restore; `pg_basebackup` cho cả
   cluster. Công cụ client cùng major với từng server được chọn tự động.
+- **Và SQL Server.** Backup native full và differential (`WITH CHECKSUM`, nén khi edition cho phép, kiểm tra bằng
+  `RESTORE VERIFYONLY`), copy-only khi chuỗi backup thuộc về công cụ khác, restore dưới tên mới hoặc sang server khác
+  qua thư mục backup của SQL Server, diễn tập restore kèm `DBCC CHECKDB`, và log backup theo lịch để khôi phục về một mốc
+  thời gian, một marked transaction hoặc một LSN. Không cần cài công cụ client nào.
 - **Khôi phục theo thời điểm.** Lưu binlog liên tục để restore về một mốc thời gian, một vị trí binlog hoặc ngay trước một
   GTID, ví dụ ngay trước một câu `DROP TABLE` lỡ tay; với PostgreSQL, WAL được lưu liên tục (`pg_receivewal` qua một
-  replication slot) để khôi phục về một mốc thời gian, một restore point hoặc một vị trí WAL.
+  replication slot) để khôi phục về một mốc thời gian, một restore point hoặc một vị trí WAL; với SQL Server là
+  `BACKUP LOG` theo lịch (`STOPAT` / `STOPATMARK`), chuỗi log được kiểm tra trước khi restore bất cứ gì.
 - **Lưu ở đâu cũng được.** Ổ local hoặc NFS, S3 và các dịch vụ tương thích (Cloudflare R2, MinIO, Wasabi…), Google Drive,
   OneDrive / SharePoint, FTP / FTPS, SFTP, WebDAV, Backblaze B2, Azure Blob, Dropbox và mọi backend của rclone. Một job có
   thể ghi ra nhiều nơi, mỗi nơi có chính sách giữ bản riêng.
@@ -145,9 +150,9 @@ flowchart RL
 
 | | |
 |---|---|
-| **Database** | MySQL 5.7, 8.0, 8.4 · Percona Server · MariaDB 10.x, 11.x · PostgreSQL 10 trở lên |
+| **Database** | MySQL 5.7, 8.0, 8.4 · Percona Server · MariaDB 10.x, 11.x · PostgreSQL 10 trở lên · Microsoft SQL Server 2012 trở lên trên Windows, Linux và trong container (không hỗ trợ Azure SQL Database / Managed Instance) |
 | **Máy chạy DumpCat** | Linux amd64 / arm64 có systemd · Windows Server 2016+ / Windows 10+ 64-bit, chạy như Windows service |
-| **Công cụ backup** | mysqldump / mariadb-dump · mydumper / myloader · Percona XtraBackup · MariaBackup · pg_dump / pg_restore / pg_dumpall / pg_basebackup / pg_receivewal (bộ cài Linux tự chọn phiên bản khớp với server; `--postgres 16` cài thêm client PostgreSQL 16) |
+| **Công cụ backup** | mysqldump / mariadb-dump · mydumper / myloader · Percona XtraBackup · MariaBackup · pg_dump / pg_restore / pg_dumpall / pg_basebackup / pg_receivewal (bộ cài Linux tự chọn phiên bản khớp với server; `--postgres 16` cài thêm client PostgreSQL 16) · SQL Server: không cần gì, SQL Server ghi backup vào một thư mục mà DumpCat đọc ([thư mục backup](docs/manual.vi.md#sql-server)) |
 | **Lưu trữ** | Thư mục local và ổ chia sẻ NFS / SMB, cùng mọi thứ [rclone](https://rclone.org) hỗ trợ |
 | **Database sau firewall** | Agent (`dumpcat agent`) trên Linux có systemd hoặc Windows, chỉ cần HTTPS đi ra · hoặc WireGuard chuẩn (`wg-quick`), UDP đi ra |
 
@@ -217,7 +222,9 @@ và giới hạn ai được truy cập.
 
 Server PostgreSQL được backup bằng `pg_dump` (định dạng thư mục, các bảng song song, không khóa ghi) hoặc
 `pg_basebackup` (cả cluster, làm nền cho việc lưu WAL và khôi phục theo thời điểm): xem
-[PostgreSQL](docs/manual.vi.md#postgresql).
+[PostgreSQL](docs/manual.vi.md#postgresql). Database SQL Server được backup bằng chính backup full và differential của
+SQL Server (cùng log backup cho khôi phục theo thời điểm), ghi vào một thư mục backup mà DumpCat đọc: trên máy SQL
+Server, hoặc một share cả hai máy cùng thấy — xem [SQL Server](docs/manual.vi.md#sql-server).
 
 Chi tiết và khuyến nghị: [Chọn phương thức backup](docs/manual.vi.md#2-chọn-phương-thức-backup).
 

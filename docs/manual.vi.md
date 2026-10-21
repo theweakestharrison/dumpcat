@@ -28,17 +28,17 @@ Hướng dẫn đầy đủ để cài đặt, cấu hình và vận hành DumpC
 
 | Nhóm | Chi tiết |
 |---|---|
-| Database | MySQL, MariaDB và Percona Server; **PostgreSQL** 10 trở lên ([PostgreSQL](#postgresql)) |
-| Phương thức | `mysqldump`/`mariadb-dump` (logic), `mydumper`/`myloader` (logic song song), Percona XtraBackup / MariaBackup (vật lý, hot, **full + incremental**); PostgreSQL: `pg_dump` (định dạng thư mục, các bảng song song) + `pg_dumpall --globals-only`, `pg_basebackup` (vật lý, cả cluster) |
+| Database | MySQL, MariaDB và Percona Server; **PostgreSQL** 10 trở lên ([PostgreSQL](#postgresql)); **Microsoft SQL Server** 2012 trở lên trên Windows, Linux và trong container ([SQL Server](#sql-server)) |
+| Phương thức | `mysqldump`/`mariadb-dump` (logic), `mydumper`/`myloader` (logic song song), Percona XtraBackup / MariaBackup (vật lý, hot, **full + incremental**); PostgreSQL: `pg_dump` (định dạng thư mục, các bảng song song) + `pg_dumpall --globals-only`, `pg_basebackup` (vật lý, cả cluster); SQL Server: `BACKUP DATABASE` native (**full + differential**, copy-only, `WITH CHECKSUM`, nén khi edition cho phép, kiểm tra bằng `RESTORE VERIFYONLY`) |
 | Phạm vi | Tất cả DB, chỉ một số DB, tất cả trừ một số DB, loại trừ từng bảng; routines, triggers, events; **users & GRANT** (file `_users.sql` riêng) |
 | Nén / mã hóa | zstd (mặc định), gzip đa luồng, không nén · mã hóa **age** (ChaCha20-Poly1305 + scrypt) bằng passphrase |
 | Toàn vẹn | SHA-256 cho mọi file, kiểm tra kích thước sau upload, **verify** (đọc lại → giải mã → giải nén → kiểm tra dòng `Dump completed`/cấu trúc tar) thủ công hoặc tự động sau mỗi backup (job mới: kiểm một bản, bản rẻ nhất để đọc lại; hoặc mọi bản) |
 | Lưu trữ | Nhiều đích cho một job (vd: local + S3 + Google Drive); ghi thẳng storage local rồi upload; hoặc **stream trực tiếp** lên cloud không dùng đĩa tạm; giới hạn băng thông; **sao chép** một bản backup có sẵn sang storage khác; duyệt file trên storage |
-| Lịch | Cron (`0 2 * * *`, `@daily`, `@every 6h`), lịch riêng cho incremental, múi giờ cấu hình được, xem trước 5 lần chạy kế tiếp |
-| Retention | Giữ N bản gần nhất / N ngày / bản cuối mỗi ngày-tuần-tháng (GFS), **riêng cho từng storage** (vd: local giữ 3 bản, S3 giữ 30 ngày), tôn trọng chuỗi incremental |
+| Lịch | Cron (`0 2 * * *`, `@daily`, `@every 6h`), lịch riêng cho incremental (SQL Server: differential), múi giờ cấu hình được, xem trước 5 lần chạy kế tiếp |
+| Retention | Giữ N bản gần nhất / N ngày / bản cuối mỗi ngày-tuần-tháng (GFS), **riêng cho từng storage** (vd: local giữ 3 bản, S3 giữ 30 ngày), tôn trọng chuỗi incremental và differential |
 | Restore | Restore vào server bất kỳ (**instance, máy hoặc phiên bản khác**, tự gỡ DEFINER / đổi collation / bỏ GTID), **đổi tên database**, restore một phần, xóa DB đích trước, không ghi binlog, chế độ nhanh, restore users; vật lý: tải chuỗi full+incremental → prepare → (tùy chọn) **tự thay datadir** với rollback; PostgreSQL vật lý: thư mục dữ liệu được khôi phục trên máy chạy DumpCat, tùy chọn thay cho cluster local |
-| Diễn tập restore | Theo lịch (MySQL, MariaDB và PostgreSQL), bản backup mới nhất được **restore vào sandbox** dưới tên tạm, so từng bảng và **số dòng** với backup, chạy assertion SQL tùy chọn, ghi lại thời gian restore (**RTO**) rồi xóa bản sao; backup đạt được đánh dấu **Restore-tested** |
-| Khôi phục theo thời điểm (PITR) | **Lưu trữ log liên tục**: binlog MySQL/MariaDB (`mysqlbinlog --raw --stop-never`) và WAL PostgreSQL (`pg_receivewal` qua một replication slot), nén/mã hóa như backup và upload lên mọi storage của job. Khôi phục đến **một thời điểm / vị trí binlog / ngay trước một GTID** (MySQL) hoặc **một thời điểm / một restore point / một vị trí WAL** (PostgreSQL) — tự chọn bản backup nền mới nhất, tải & kiểm tra mọi file trước khi thay đổi dữ liệu; retention theo bản backup cũ nhất còn giữ |
+| Diễn tập restore | Theo lịch (MySQL, MariaDB, PostgreSQL và SQL Server — kèm `DBCC CHECKDB` trên bản sao), bản backup mới nhất được **restore vào sandbox** dưới tên tạm, so từng bảng và **số dòng** với backup, chạy assertion SQL tùy chọn, ghi lại thời gian restore (**RTO**) rồi xóa bản sao; backup đạt được đánh dấu **Restore-tested** |
+| Khôi phục theo thời điểm (PITR) | **Lưu trữ log liên tục**: binlog MySQL/MariaDB (`mysqlbinlog --raw --stop-never`) và WAL PostgreSQL (`pg_receivewal` qua một replication slot), nén/mã hóa như backup và upload lên mọi storage của job. SQL Server: `BACKUP LOG` theo lịch, theo dõi chuỗi log. Khôi phục đến **một thời điểm / vị trí binlog / ngay trước một GTID** (MySQL), **một thời điểm / một restore point / một vị trí WAL** (PostgreSQL) hoặc **một thời điểm / một marked transaction / một LSN** (SQL Server, `STOPAT` / `STOPATMARK`) — tự chọn bản backup nền mới nhất, tải & kiểm tra mọi file trước khi thay đổi dữ liệu; retention theo bản backup cũ nhất còn giữ |
 | Kết nối | Trực tiếp, qua **agent** (server database chủ động kết nối ra bằng HTTPS; với `--allow-physical` agent còn chạy backup vật lý ngay trên máy đó) hoặc qua **WireGuard tích hợp** — không cần mở port vào server database ([3.7](#37-server-database-không-cho-kết-nối-vào-agent), [3.8](#38-wireguard-tích-hợp)) |
 | Vận hành | Tiến độ realtime (bytes, tốc độ, %), log trực tiếp, hủy tác vụ, giới hạn số job chạy đồng thời, ưu tiên thấp (nice/ionice), pre/post command, timeout |
 | Thông báo | Email (SMTP, HTML kèm bản text), Telegram, Slack, Discord, Webhook (ký HMAC) — khi lỗi và/hoặc thành công |
@@ -133,6 +133,89 @@ PostgreSQL trên đó.
 **Mật khẩu và tên.** Mật khẩu được ghi vào một `PGPASSFILE` riêng (quyền 0600) trong thư mục của tác vụ, không bao giờ
 nằm trên dòng lệnh hay trong biến môi trường. DumpCat tự dựng chuỗi kết nối và đặt mọi giá trị trong nháy, nên tên
 database như `a=b` vẫn chỉ là tên (`pg_dump -d "a=b"` sẽ đọc nó thành tùy chọn kết nối).
+
+### SQL Server
+
+Chọn **Microsoft SQL Server** ở ô *Database engine* khi thêm server (port thành 1433; instance có tên có thể ghi
+`sql01\SQLEXPRESS` và để trống port, khi đó DumpCat hỏi SQL Server Browser). Hỗ trợ SQL Server 2012 trở lên trên
+Windows, Linux và trong container (đã kiểm thử với SQL Server 2022 trên Linux); không hỗ trợ Azure SQL Database và
+Managed Instance (chúng không ghi backup ra đĩa được). DumpCat không cần công cụ client nào: nó tự nói giao thức TDS,
+còn việc backup do chính SQL Server làm.
+
+**Một phương thức: backup native.** `BACKUP DATABASE` cho từng database được chọn, đúng cách backup của SQL Server:
+
+- Backup **full** theo lịch của job, backup **differential** (các extent thay đổi từ bản full gần nhất) theo lịch thứ
+  hai của job; *Run → Differential backup* để chạy tay. Bản differential được restore chồng lên bản full của nó,
+  retention giữ chúng cùng nhau, và khi nền của nó không còn đúng — bản full không còn, hoặc từ đó đã có bản full khác
+  được tạo ngoài DumpCat (làm SQL Server dời nền differential) — DumpCat chuyển sang backup full và ghi rõ lý do trong log.
+- Luôn `WITH CHECKSUM`; `COMPRESSION` khi edition có (Standard, Enterprise, Developer; Express và Web thì không). File
+  đã được SQL Server nén thì lưu nguyên, DumpCat không nén thêm; *Compression by SQL Server* trong job để bắt buộc bật
+  hoặc tắt.
+- *Check each backup on the server* (mặc định bật): `RESTORE VERIFYONLY WITH CHECKSUM` trên file mới trước khi DumpCat
+  sao chép nó. Kiểm tra riêng của DumpCat (SHA-256 của mọi bản lưu) vẫn chạy thêm.
+- *Copy-only backups* (`COPY_ONLY`) không đụng tới chuỗi backup riêng của server, ví dụ khi đã có maintenance plan làm
+  differential. Job copy-only chỉ backup full.
+- *Threads*: số database backup cùng lúc. Extra options (admin): thêm tùy chọn `BACKUP … WITH` như
+  `BUFFERCOUNT = 64, MAXTRANSFERSIZE = 4194304`; tùy chọn làm thay đổi bản chất bản backup (`NORECOVERY`, `COPY_ONLY`…)
+  bị từ chối.
+- "All databases" bỏ qua `master`, `model`, `msdb` và `tempdb`; chọn `master`, `model` hoặc `msdb` ở *Only selected
+  databases* để backup cả chúng (`tempdb` thì không backup được). Database không ở trạng thái online và database
+  snapshot được bỏ qua. Không loại trừ bảng được: backup native chứa cả database.
+- Mỗi bản backup lưu lại, cho từng database, header SQL Server ghi (`RESTORE HEADERONLY`): khoảng LSN, backup set, nền
+  differential và recovery model. Chúng nối các bản full, differential và log backup thành chuỗi. Ngay sau backup của
+  mỗi database, DumpCat còn đọc số dòng các bảng (`sys.partitions`) cho diễn tập restore.
+- Login là đối tượng của server, không nằm trong backup database: tự tạo chúng trên server khác (log restore liệt kê
+  các user không có login).
+
+**Thư mục backup.** `BACKUP DATABASE` ghi file **trên máy SQL Server**, và `RESTORE` cũng đọc file ở đó. Vì vậy mọi file
+đều đi qua một thư mục mà cả SQL Server lẫn DumpCat cùng thấy — mục *Backup folder* trong form server:
+
+- *As SQL Server sees it*: ví dụ `D:\Backup\DumpCat`, `\\nas\sql-backup` hoặc `/var/opt/mssql/dumpcat`; để trống là
+  thư mục backup mặc định của instance. Tài khoản service của SQL Server (`NT Service\MSSQLSERVER`, trên Linux là user
+  `mssql`) cần quyền *Modify* ở đó.
+- *As DumpCat sees it*: để trống khi đường dẫn giống hệt, tức là DumpCat chạy trên chính máy SQL Server; nếu không, là
+  share hoặc mount trên máy DumpCat.
+
+SQL Server ghi `dumpcat-<ngẫu nhiên>-<database>.bak` vào đó, DumpCat đọc nó vào pipeline quen thuộc (nén, mã hóa,
+SHA-256, mọi storage của job) rồi xóa; restore thì chép file ngược vào đó, cho SQL Server kiểm tra và restore, rồi xóa.
+Thư mục cần đủ chỗ cho các database backup cùng lúc (khi restore: cho file của các database được restore, không đủ thì
+chúng được chép và restore lần lượt). Trên Linux, DumpCat (root) giao file nó ghi vào đó cho chủ của thư mục, ví dụ
+`install -d -o mssql -g mssql -m 0770 /var/opt/mssql/dumpcat`. *Test connection* ghi một file nhỏ qua đường dẫn của
+DumpCat và cho SQL Server đọc qua đường dẫn của nó: hai đường dẫn không cùng một thư mục được phát hiện ngay lúc đó,
+không phải đợi đến lần backup đầu.
+
+| Cách bố trí | Thư mục backup | Cần biết |
+|---|---|---|
+| DumpCat **trên máy SQL Server** (Windows service hoặc Linux) | một thư mục local, đường dẫn thứ hai để trống | Đơn giản và nhanh nhất. File backup nằm trên đĩa máy database trong chốc lát. |
+| DumpCat **ở máy khác**, SQL Server ghi vào **share** | `\\nas\sql-backup` (hoặc share của máy DumpCat) cho cả hai; DumpCat trên Linux thì mount share, ví dụ `/mnt/sql-backup` | Tài khoản service phải vào được share: tài khoản domain, hoặc tài khoản máy `DOMAIN\SQL01$`. Dữ liệu đi SQL Server → share → DumpCat. |
+| DumpCat **ở máy khác**, đọc **share của máy SQL Server** | `D:\Backup\DumpCat` trên server, `\\sql01\DumpCat$` (Windows) hoặc mount CIFS (Linux) ở DumpCat | Đĩa của máy SQL Server giữ mỗi file đến khi DumpCat đọc xong. |
+| SQL Server **trong container** | đường dẫn bên trong container, và đường dẫn của volume trên máy host | ví dụ `/var/opt/mssql/backup` và `/srv/mssql/backup`. |
+
+Qua agent hoặc WireGuard thì kết nối chạy như các engine khác (cho phép `127.0.0.1:1433`), nhưng thư mục backup vẫn
+phải được chia sẻ với máy DumpCat. Việc chuyển file qua agent đang được lên kế hoạch.
+
+**Tài khoản.** Đơn giản nhất: một login thuộc role `sysadmin`. Tối thiểu quyền:
+
+```sql
+CREATE LOGIN dumpcat WITH PASSWORD = 'a_strong_password';     -- hoặc CREATE LOGIN [DOMAIN\dumpcat] FROM WINDOWS
+-- đọc header của file backup (chuỗi log) cần quyền CREATE DATABASE; trạng thái server và vị trí file cho các kiểm tra
+GRANT CREATE ANY DATABASE, VIEW SERVER STATE, VIEW ANY DEFINITION TO dumpcat;
+-- trong mỗi database cần backup
+USE [shop];
+CREATE USER dumpcat FOR LOGIN dumpcat;
+ALTER ROLE db_backupoperator ADD MEMBER dumpcat;
+ALTER ROLE db_datareader ADD MEMBER dumpcat;                   -- số dòng cho diễn tập restore
+-- restore: một login riêng được tạo database (thay một database thì cần là owner của nó hoặc sysadmin)
+CREATE LOGIN dumpcat_restore WITH PASSWORD = 'another_password';
+ALTER SERVER ROLE dbcreator ADD MEMBER dumpcat_restore;
+```
+
+Nút **Check** của server hiển thị edition, tài khoản service, thư mục backup (và SQL Server có đọc được nó không),
+recovery model của từng database và những gì tài khoản chưa được phép.
+
+**Đăng nhập và TLS.** Login SQL Server, hoặc xác thực Windows dạng `DOMAIN\user` kèm mật khẩu (NTLM). Kết nối luôn được
+mã hóa; *Client default* và *Required* không kiểm chứng chỉ (chứng chỉ riêng của SQL Server là tự ký), *Required +
+verify* kiểm nó theo CA bạn đưa, với tên của server.
 
 ## 3. Cài đặt
 
@@ -708,8 +791,29 @@ Mở **Bản backup** → chọn bản → **Restore**.
    trong thư mục dữ liệu của DumpCat, thư mục không trống thì phải có `PG_VERSION`), và phiên bản của thư mục đang có
    phải khớp.
 
+**SQL Server (backup native)** — do chính SQL Server restore, lên server nguồn hoặc SQL Server bất kỳ cùng hoặc mới
+hơn phiên bản, qua thư mục backup của server đích:
+1. Trước khi thay đổi gì: mọi file đều mở được với passphrase; database đã có trên server đích làm restore dừng lại,
+   trừ khi tick *Replace existing databases*; không bao giờ restore đè lên database hệ thống.
+2. Các file của từng database — bản full, bản differential khi bản backup là differential, các log backup của một lần
+   khôi phục theo thời điểm — được tải về (kiểm tra SHA-256) vào thư mục backup của server đích, và SQL Server kiểm tra
+   chúng ở đó: `RESTORE HEADERONLY` phải đúng backup set danh mục đã ghi, `RESTORE VERIFYONLY` phải đạt. Khi thư mục đủ
+   chỗ, file của mọi database được chọn đều được kiểm tra trước khi database đầu tiên bị thay.
+3. `RESTORE DATABASE … WITH MOVE`: file được đưa vào thư mục data và log mặc định của instance, đặt tên theo database
+   đích (`shop_restore.mdf`, `shop_restore_log.ldf`, thêm hậu tố khi tên đã có database khác dùng); database bị thay thì
+   giữ file của chính nó. *Replace existing databases* đóng các phiên của nó trước
+   (`SET SINGLE_USER WITH ROLLBACK IMMEDIATE`) rồi restore `WITH REPLACE`. Differential (hoặc log backup) theo sau
+   `WITH NORECOVERY`, bản cuối `WITH RECOVERY`.
+4. Sau đó log liệt kê các user của database vừa restore không có login trên server đích (orphaned user:
+   `ALTER USER [tên] WITH LOGIN = [login]`) và owner mà server đích không biết.
+
+Restore dưới tên mới ngay trên server nguồn là cách thường dùng để lấy lại một bảng mà không đụng vào database đang
+chạy. Bản backup của SQL Server mới hơn không restore được lên bản cũ hơn (DumpCat cảnh báo); Express chứa tối đa
+10 GB mỗi database. Restore từ Windows sang Linux và ngược lại đều được (file được chuyển vào thư mục của server đích).
+
 Muốn quay về **một thời điểm bất kỳ** (không chỉ thời điểm backup), dùng *Point-in-time recovery* — xem
-[mục 8](#8-lưu-trữ-log--khôi-phục-theo-thời-điểm-pitr) (binlog MySQL / MariaDB, WAL PostgreSQL).
+[mục 8](#8-lưu-trữ-log--khôi-phục-theo-thời-điểm-pitr) (binlog MySQL / MariaDB, WAL PostgreSQL, log backup SQL
+Server).
 
 ### Restore sang instance khác (nhân bản, chuyển server, staging)
 
@@ -769,7 +873,7 @@ backup hiện kết quả gần nhất; diễn tập thất bại hiện cảnh 
 
 **An toàn**
 
-- Bản sao mang tên `<database>__drill_<id lần chạy>` (cắt còn 64 ký tự; PostgreSQL: 63 byte). Trước khi tạo gì, diễn tập kiểm tra không tên
+- Bản sao mang tên `<database>__drill_<id lần chạy>` (cắt còn 64 ký tự; PostgreSQL: 63 byte; SQL Server: 128 ký tự). Trước khi tạo gì, diễn tập kiểm tra không tên
   nào trong số đó đã có trên sandbox, nếu có thì từ chối chạy: **diễn tập chỉ xóa những database do chính nó tạo**.
   Các tên được ghi lại trước, nên bản sao của lần diễn tập bị gián đoạn do khởi động lại sẽ được xóa khi DumpCat chạy lại.
 - Các định nghĩa ghi tên database nguồn (`TRIGGER shop.t … ON shop.items`, `` `shop`.`p` ``) được trỏ sang bản sao,
@@ -785,7 +889,13 @@ backup hiện kết quả gần nhất; diễn tập thất bại hiện cảnh 
   (chính xác tới khoảng 30.000 dòng mỗi bảng, xấp xỉ khi lớn hơn); ước lượng lệch quá 10 % so với backup là cảnh báo,
   thiếu bảng vẫn là lỗi. Bản sao được xóa bằng `WITH (FORCE)` (PostgreSQL 13+), ngắt các phiên còn kết nối vào nó.
   PostgreSQL không có binary log cần tránh.
-- Hỗ trợ: backup logic — mysqldump một file mỗi database, mydumper và pg_dump. mysqldump dạng một file chỉ restore được dưới tên
+- SQL Server: bản sao được restore từ bản full (và differential) dưới tên tạm, file nằm trong thư mục data của
+  sandbox; mỗi bản sao còn được chạy **`DBCC CHECKDB`** — kiểm tra nhất quán mà DBA vẫn làm với backup đã restore, ở đây
+  chạy trên sandbox thay vì server production. Số dòng là số SQL Server có ngay sau backup (`sys.partitions`): database
+  bị ghi trong lúc backup chạy có thể lệch đúng số dòng đó, nên chọn *The server's row counts* cho nó (lệch hơn 10 % là
+  cảnh báo). Assertion chạy trong một transaction rồi được rollback. Bản sao được xóa sau
+  `SET SINGLE_USER WITH ROLLBACK IMMEDIATE`.
+- Hỗ trợ: backup logic — mysqldump một file mỗi database, mydumper và pg_dump — và backup native của SQL Server. mysqldump dạng một file chỉ restore được dưới tên
   gốc nên không diễn tập được; backup vật lý chưa được hỗ trợ. Backup tạo trước khi DumpCat đếm dòng được so với số bảng
   và view mà server liệt kê lúc backup (lệch thì chỉ cảnh báo) và bỏ qua kiểm tra số dòng.
 
@@ -794,8 +904,9 @@ backup hiện kết quả gần nhất; diễn tập thất bại hiện cảnh 
 Bản backup chỉ cho quay về đúng lúc backup chạy. Bật **lưu trữ log liên tục** cho job để khôi phục đến *bất kỳ thời điểm nào*
 sau bản backup — ví dụ ngay trước một câu `DROP TABLE` lỡ tay. Bật trong form job, mục **8. Log archiving & point-in-time
 recovery**: *Continuous binlog archiving* cho job MySQL / MariaDB, *Continuous WAL archiving* cho job `pg_basebackup` của
-PostgreSQL ([PostgreSQL: lưu trữ WAL](#postgresql-lưu-trữ-wal)). Việc upload lên storage của job, danh mục, retention, theo
-dõi độ trễ và kế hoạch khôi phục giống nhau cho cả hai.
+PostgreSQL ([PostgreSQL: lưu trữ WAL](#postgresql-lưu-trữ-wal)), *Scheduled transaction log backups* cho job SQL Server
+([SQL Server: log backup](#sql-server-log-backup)). Việc upload lên storage của job, danh mục, retention, theo dõi độ trễ
+và kế hoạch khôi phục giống nhau cho cả ba.
 
 ### Cách hoạt động (binlog MySQL / MariaDB)
 
@@ -853,11 +964,32 @@ dõi độ trễ và kế hoạch khôi phục giống nhau cho cả hai.
   hoặc mới hơn), và bản backup `pg_basebackup` làm nền: WAL chỉ phát lại được trên bản sao vật lý của cluster, nên job pg_dump
   không lưu trữ WAL. Lưu trữ từ một standby được (slot riêng của nó); việc đóng segment ở đó do primary quyết định.
 
+### SQL Server: log backup
+
+- Cứ mỗi *N* phút (*Back up the log every*, mặc định 15) DumpCat chạy `BACKUP LOG … WITH CHECKSUM` (nén khi edition cho
+  phép) cho mọi database của job, qua thư mục backup như các bản backup, chuyển từng file vào `<staging>/trn-<id job>/` và
+  lưu trữ như file log của các engine khác: nén/mã hóa, upload lên mọi storage của job tại
+  `<job>/trn/<YYYYMMDD>/<stt>-<database>.trn`, ghi danh mục kèm header — database, khoảng LSN, backup set và các **marked
+  transaction** nằm trong nó (từ `msdb.dbo.logmarkhistory`). *Back up the log now* ở trang lưu trữ để tạo một bản ngay.
+  Log backup còn giúp SQL Server dùng lại transaction log: ở recovery model FULL, log chỉ được giải phóng sau khi đã backup.
+- Chuỗi log: mỗi log backup phải bắt đầu đúng LSN mà bản trước kết thúc. DumpCat kiểm tra khi lập kế hoạch khôi phục: một
+  log backup tạo **ở nơi khác** (maintenance plan, công cụ backup khác, `BACKUP LOG … TO DISK = 'NUL'`) để lại khoảng hở mà
+  PITR không vượt qua được; kế hoạch cho biết hở giữa những file nào. **Mỗi database chỉ nên để một công cụ backup log.**
+  Backup full ở nơi khác không làm đứt chuỗi log (chúng dời nền differential: hãy cho chúng `COPY_ONLY`).
+- Yêu cầu: database dùng recovery model **FULL** (hoặc BULK_LOGGED) và đã có một bản backup full kể từ đó (bản full đầu
+  tiên của DumpCat là đủ). Database ở SIMPLE được bỏ qua, kèm cảnh báo trong log lưu trữ; backup full và differential của
+  chúng vẫn chạy bình thường. Tài khoản cần quyền `BACKUP LOG` (`db_backupoperator`); đọc được
+  `msdb.dbo.logmarkhistory` thì DumpCat biết các mark nằm ở đâu.
+- Tắt lưu trữ là dừng log backup: không để lại gì trên server, nhưng transaction log của database FULL sẽ lớn dần cho đến
+  khi có gì đó backup nó.
+- Độ trễ: giữa hai lần log backup, kho lưu trữ chậm tối đa bằng khoảng thời gian đó; hãy để nó nhỏ hơn ngưỡng cảnh báo trễ
+  trong Settings (mặc định 30 phút).
+
 ### Theo dõi
 
 Trang **Binlog / WAL & PITR** hiển thị cho từng job: file đang nhận, vị trí hiện tại của server, độ trễ (byte / giây), số file chờ
 upload, replication slot và lượng WAL server đang giữ cho nó (PostgreSQL), file lưu trữ gần nhất, tổng số file & dung lượng, danh
-sách file (kèm storage, khoảng LSN và restore point), log của tiến trình; nút *Close binlog now* / *Close segment now* (đóng &
+sách file (kèm storage, khoảng LSN và restore point), log của tiến trình; nút *Close binlog now* / *Close segment now* / *Back up the log now* (đóng &
 upload ngay) và *Restart*. Dashboard cảnh báo khi lưu trữ hoặc upload lỗi, hay có hơn 5 file tồn đọng; lỗi liên tiếp gửi thông báo
 (nếu job bật thông báo khi lỗi).
 
@@ -879,6 +1011,15 @@ upload ngay) và *Restart*. Dashboard cảnh báo khi lưu trữ hoặc upload l
    - **WAL position (LSN)** — ví dụ `pg_current_wal_lsn()` ghi lại trước một thay đổi rủi ro; bản ghi ở đúng vị trí đó là bản
      ghi cuối cùng được phát lại.
    - **Latest available** — mọi segment đã lưu trữ cộng segment đang nhận.
+
+   SQL Server:
+   - **Point in time** — `STOPAT`: các giao dịch commit trước thời điểm đó, theo múi giờ của server (DumpCat tự đổi giờ
+     bạn nhập).
+   - **Marked transaction** — `STOPATMARK`: một giao dịch bắt đầu bằng `BEGIN TRANSACTION before_migration WITH MARK`,
+     tính cả nó; các mark tìm thấy trong log backup đã lưu trữ được gợi ý.
+   - **LSN** — `STOPATMARK = 'lsn:…'`, viết như lịch sử backup hiển thị (`37000000012800001`) hoặc như `fn_dblog` và thông
+     báo lỗi (`00000025:00000080:0001`). Một LSN chỉ một điểm trong log của một database.
+   - **Latest available** — mọi log backup đã lưu trữ (bấm *Back up the log now* trước để có cả mấy phút cuối).
 3. DumpCat chọn **bản backup mới nhất có dữ liệu trước mốc** (full logic, hoặc chuỗi full + incremental vật lý), kiểm tra chuỗi binlog
    liền mạch từ vị trí của bản đó đến mốc và hiển thị kế hoạch: bản nền, số file / dung lượng binlog, binlog đầy đủ đến lúc nào.
 4. Điền form restore như bình thường (đổi tên, xóa DB đích trước, chế độ nhanh, không ghi binlog...). Trình tự:
@@ -901,6 +1042,14 @@ upload ngay) và *Restart*. Dashboard cảnh báo khi lưu trữ hoặc upload l
    sau commit cuối cùng trong WAL (hoặc LSN ở đúng cuối WAL) thì phát lại toàn bộ — giữa chúng không có gì, và PostgreSQL 13+
    sẽ dừng với lỗi *recovery ended before configured recovery target was reached*. Không cần *Apply*: khôi phục vào một thư
    mục chạy được cả trên Windows.
+7. SQL Server: bản nền là một bản backup native full hoặc differential; với mỗi database được restore, kế hoạch lấy các log
+   backup của nó từ bản chứa LSN cuối của bản backup, theo một chuỗi LSN liền mạch, đến bản chứa mốc. Mọi file được tải về
+   và kiểm tra trước khi thay đổi bất cứ gì (chuỗi LSN liên tục, rồi `RESTORE VERIFYONLY` trong thư mục backup của server
+   đích). Bản backup được restore `WITH NORECOVERY`, rồi từng log backup `WITH STOPAT` (hoặc `STOPATMARK`) `, RECOVERY`:
+   SQL Server giữ database ở trạng thái restoring cho đến khi một log backup chạm mốc, và DumpCat dừng ở đó. Mốc thời gian
+   sau cuối kho lưu trữ thì khôi phục đến cuối kho; mark không bao giờ tìm thấy là lỗi (database để ở trạng thái restoring,
+   log ghi cách đưa nó online). Database ở SIMPLE không theo được và phải bỏ chọn. Restore dưới tên mới và sang server khác
+   chạy như khi không có PITR.
 
 ### Lưu ý
 
@@ -980,6 +1129,12 @@ dumpcat decode -in _globals.sql.zst.age -out globals.sql        # role: đọc l
 mkdir -m 700 /restore/pgdata && dumpcat decode -in base.tar.zst.age -out - | tar xf - -C /restore/pgdata
 chown -R postgres: /restore/pgdata && sudo -u postgres pg_ctl -D /restore/pgdata -o "-p 5433" start
 # (về một thời điểm: xem "Phát lại thủ công" ở mục 8)
+
+# SQL Server: giải mã file .bak vào một thư mục SQL Server đọc được, rồi restore ở đó
+dumpcat decode -in shop.bak.zst.age -out 'D:\Restore\shop.bak'
+sqlcmd -S sql01 -Q "RESTORE DATABASE [shop_restore] FROM DISK = N'D:\Restore\shop.bak' WITH MOVE N'shop' TO N'D:\Data\shop_restore.mdf', MOVE N'shop_log' TO N'D:\Data\shop_restore_log.ldf', RECOVERY"
+# (differential: restore bản full WITH NORECOVERY trước; log backup: RESTORE LOG … WITH STOPAT = '…', RECOVERY;
+#  RESTORE FILELISTONLY FROM DISK = … cho biết tên logic của các file)
 
 # vật lý (full + incremental)
 dumpcat decode -in full/backup.xbstream.zst -out - | mbstream -x -C /restore/full      # MySQL: xbstream -x
@@ -1429,7 +1584,12 @@ DumpCat đã cài đặt yêu cầu công cụ tìm kiếm không lập chỉ m�
 | Mất passphrase mã hóa | Không thể giải mã — luôn lưu passphrase ở password manager |
 | Binlog & PITR: *binary logging is disabled (log_bin=OFF)* | Bật `log_bin` và `server_id` trong my.cnf rồi khởi động lại MySQL/MariaDB |
 | Binlog & PITR: *SHOW BINARY LOGS … REPLICATION CLIENT* / `Access denied` khi nhận binlog | Cấp `REPLICATION SLAVE` + `REPLICATION CLIENT` (MariaDB: `BINLOG MONITOR`) cho user backup |
-| PITR: *binlogs are only archived up to …* / *WAL segments are only archived up to …* | Bấm *Close binlog now* / *Close segment now* ở trang **Binlog / WAL & PITR**, chờ vài giây cho file được upload, hoặc chọn *Latest available* |
+| PITR: *binlogs are only archived up to …* / *WAL segments are only archived up to …* / *log backups are only archived up to …* | Bấm *Close binlog now* / *Close segment now* / *Back up the log now* ở trang **Binlog / WAL & PITR**, chờ vài giây cho file được upload, hoặc chọn *Latest available* |
+| SQL Server: *SQL Server cannot find … are not the same folder* | Hai đường dẫn của *Backup folder* không chỉ cùng một thư mục: sửa share hoặc mount trên máy DumpCat (*As DumpCat sees it*), rồi *Test connection* |
+| SQL Server: *… may not use …: give it Modify permission* (operating system error 5) | Cấp quyền *Modify* trên thư mục cho tài khoản service của SQL Server (nút **Check** hiển thị nó); trên Linux thì `chown mssql:mssql`. Với share, tài khoản phải vào được nó qua mạng (tài khoản domain hoặc `DOMAIN\SQL01$`) |
+| SQL Server: *the differential base of … is no longer backup #…* | Có bản backup full tạo ngoài DumpCat (maintenance plan, công cụ khác): DumpCat chuyển sang backup full. Hãy cho bản full của công cụ kia `COPY_ONLY` |
+| SQL Server PITR: *the log chain breaks after …* | Có thứ khác đã backup log của database đó (maintenance plan, `BACKUP LOG … TO DISK = 'NUL'`): khôi phục không vượt qua được khoảng hở. Chỉ để DumpCat backup log, và chạy một bản full để bắt đầu chuỗi mới |
+| SQL Server: *… has no full backup of this database since its log chain began* | Database vừa chuyển sang FULL (hoặc vừa được restore) mà chưa có bản full nào từ đó: chạy một bản backup full của job |
 | PITR: *… has not been archived* / *sequence is broken* | Binlog đã bị server xóa trước khi lưu trữ, hoặc numbering bị đặt lại: tăng thời gian giữ binlog trên server, chạy một bản backup mới làm điểm bắt đầu |
 | Agent: *agent … is offline* | Khởi động agent trên server database (`systemctl status dumpcat-agent`, `journalctl -u dumpcat-agent`). Log agent báo *the server refused the agent*: sai khóa hoặc khóa đã rotate, hoặc URL không phải DumpCat. Đặt sau nginx thì dùng khối `/api/agent/` của cấu hình mẫu |
 | WireGuard: *peer … has not connected yet* / *no answer from …* / *nothing listens on …* | Xem [3.8](#38-wireguard-tích-hợp): khởi động `wg-quick@dumpcat` trên server database và mở port UDP trên máy chạy DumpCat; cho interface WireGuard vào trên server database; cho MySQL nghe trên địa chỉ WireGuard |

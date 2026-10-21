@@ -2,7 +2,8 @@
 
 Status: phase 1 implemented (MySQL/MariaDB moved behind the interface, PostgreSQL logical backups and restores);
 phase 2 implemented (the `LogArchiver` interface, MySQL binlogs moved behind it, PostgreSQL WAL archiving,
-`pg_basebackup` and point-in-time recovery).
+`pg_basebackup` and point-in-time recovery); SQL Server implemented as the third engine (native backups,
+differentials, log backups and PITR, see [SQL Server](#sql-server-third-engine)).
 
 ## Goal
 
@@ -214,8 +215,95 @@ Not verified: RHEL-family hosts (`postgresql-<major>` service, `/var/lib/pgsql/<
 `restorecon`), PostgreSQL other than 16, standbys as the source, tablespaces (refused), incremental pg_basebackup
 (PostgreSQL 17).
 
+## SQL Server (third engine)
+
+Package `internal/mssql`, engine `mssql`, one method `mssql_native` (Physical: false — it backs up databases, which
+can be selected, renamed and restored one by one — Differential, Drill, Estimates, LogArchive).
+
+- **Connection: go-mssqldb** (github.com/microsoft/go-mssqldb, BSD-3-Clause; with golang-sql/civil, golang-sql/sqlexp,
+  shopspring/decimal). No client tool at all: `BACKUP` and `RESTORE` are T-SQL statements that SQL Server runs itself.
+  The connection is built field by field (`msdsn.Config`), never from a connection string with the password in it.
+  Encryption is always on except with *disabled*; *verify* checks the certificate against the server's real name, also
+  through a tunnel. `host\INSTANCE` with no port asks the SQL Server Browser; SQL logins or `DOMAIN\user` (NTLM, and
+  SSPI on Windows). Informational messages of a batch (`STATS = 10`, "Processed N pages") are read through
+  `sqlexp.ReturnMessage` and logged; errors keep every message of the batch (`3201` + "Operating system error 5", then
+  `3013`).
+- **Getting the files: the backup folder.** `BACKUP … TO DISK` writes on the SQL Server host and `RESTORE` reads
+  there, so the design question is how a `.bak` reaches DumpCat. Options considered:
+
+  | Approach | Verdict |
+  |---|---|
+  | A folder both reach: the same path (DumpCat on the SQL Server host), a share, a mount, a container volume | **Chosen.** Two paths per server (`servers.backup_dir` as SQL Server sees it, `backup_dir_local` as DumpCat sees it; migration 11). Works with every edition and version, on Windows and Linux; the files touch a disk (the folder needs room for the databases backed up at once). |
+  | `BACKUP … TO URL` against an S3 endpoint served by DumpCat | SQL Server 2022+ only, needs a certificate the SQL Server host trusts and an S3 server in DumpCat; no. |
+  | VDI (virtual device interface) | Streams without a file, but only on the SQL Server host, through a COM/shared-memory API: no pure-Go client; no. |
+  | Reading the file back through T-SQL (`OPENROWSET(BULK …, SINGLE_BLOB)`) | Whole file in one value, 2 GB at most; no. |
+  | The agent on the SQL Server host reads the folder and streams the file over its connection | The natural next step for hosts DumpCat cannot share a folder with: the agent's framing (`frameStdout`…) already streams physical MySQL backups. **Follow-up.** |
+
+  File names are `dumpcat-<12 hex>-<database>.bak`/`.trn`, random so that tasks and DumpCat installations sharing a
+  folder never meet; DumpCat opens only regular files it named, and removes them when done (also after errors). As
+  root on Linux, files DumpCat writes there get the folder's owner (`mssql`), mode 0640. The connection test writes
+  a probe file through the local path and asks SQL Server to read it through its own (`RESTORE HEADERONLY`: "not a
+  backup" or "the volume is empty" means it was read; "Operating system error 2/3/5" tells which mistake).
+- **Backup**: per database (in parallel, *Threads*) `BACKUP DATABASE … WITH [DIFFERENTIAL,] CHECKSUM, FORMAT, INIT,
+  SKIP, STATS = 10, [NO_]COMPRESSION, [COPY_ONLY,] NAME` (+ validated extra options), then `RESTORE HEADERONLY`
+  (fallback: msdb's backup history), optionally `RESTORE VERIFYONLY WITH CHECKSUM`, the row counts of
+  `sys.partitions`, then the file is copied into the sink (`Compress: false` when SQL Server compressed it) and
+  deleted. The headers go into `run.Meta["mssql"]` per database (type, LSN range, checkpoint, database backup LSN,
+  differential base LSN/GUID, backup set GUID, recovery model, copy-only, checksums, bulk-logged, start/finish in UTC —
+  SQL Server writes local times, converted with the server's offset).
+- **Differentials**: new run type `differential` (`store.Chained` = incremental or differential: chains, retention,
+  deletion, restores, drills, PITR bases, import). `ParentID = BaseID` = the newest full backup of the job on the same
+  server, complete, not copy-only; `engine.Differ` lets the driver refuse it when `sys.database_files.differential_base_guid`
+  no longer is that full backup's backup set (a full backup taken elsewhere) — the run becomes a full backup. The
+  header of the new differential is checked once more against the base.
+- **Restore** (`Driver.Restore`, the logical path of the runner; `RestoreSpec.Chain` carries the full backup's run and
+  source, `RestoreSpec.Replay` the checked PITR): plan every database first (names, existing databases, the files in
+  the chain), preflight every file, then per database stage the files in the target's folder (SHA-256 checked while
+  copying), `RESTORE HEADERONLY` (the backup set must be the catalog's) and `RESTORE VERIFYONLY`; when the folder has
+  room for every database, all are staged and checked before the first is replaced. `RESTORE FILELISTONLY` →
+  `MOVE` every logical file: the replaced database's own files, else the instance default data/log folders named
+  after the target (`<name>.mdf`, `<name>_<logical>.ndf`, `<name>_log.ldf`, a folder for FILESTREAM/memory-optimized),
+  avoiding files of other databases. Replace = `SET SINGLE_USER WITH ROLLBACK IMMEDIATE` + `WITH REPLACE`.
+- **Drills** (`engine.Sandbox` + the new optional `engine.SandboxChecker`): `TempName` (128 characters), tables from
+  `sys.tables`/`sys.partitions`, `COUNT_BIG(*)`, assertions in a transaction that is rolled back, copies dropped after
+  `SET SINGLE_USER`; `CheckCopies` runs `DBCC CHECKDB … WITH NO_INFOMSGS, ALL_ERRORMSGS` on every copy (check kind
+  `integrity`). Row counts come from `sys.partitions` right after each database's backup — exact when nothing wrote
+  during the backup; the estimate mode tolerates 10 %.
+- **Log archiving** (`LogInfo` name "transaction log", prefix `trn`, targets time / mark / lsn / latest,
+  `Recovery: true`): the stream's `Session` runs a round of `BACKUP LOG` for every database of the job in the FULL or
+  BULK_LOGGED model every `binlog_rotate_minutes` (0 = 15) or when asked to rotate, keeping its schedule across
+  sessions; each file is moved into staging as `<seq 8 digits>-<database>.trn` with its header in a `.json` beside it,
+  marked transactions from `msdb.dbo.logmarkhistory` (only since the database's `create_date`: msdb keeps the history
+  of every database that had the name, and a new one starts at similar LSNs). `Seal` gives `First` = the previous log
+  backup's start, `Last` = this one's start (what it surely holds). Nothing is being received (`Current` empty,
+  `Snapshot` refuses), `Release` only logs that the log now grows.
+- **PITR**: `Base` accepts full and differential native backups with at least one database in FULL/BULK_LOGGED;
+  `Plan` builds, per database, the chain of log backups after the base's last LSN (the first must start at or before
+  it, each next one exactly where the previous ended), cuts it at the target (time: the first log backup that started
+  at or after it; LSN: the one whose range holds it; mark: the one that recorded it, or the whole chain when msdb was
+  not readable), and reports per database why it cannot (SIMPLE, a gap, the archive too short) — the plan succeeds when
+  one database can, and the restore refuses the selected ones that cannot. `NewCheck` re-checks the LSN continuity of
+  the fetched files. The driver's `Restore` applies them: `NORECOVERY` for the base, then each log backup
+  `WITH STOPAT|STOPATMARK, RECOVERY` until `sys.databases.state_desc` is ONLINE (SQL Server leaves the database
+  restoring when the target lies beyond a log backup); a mark never reached is an error, a time beyond the archive
+  recovers at its end.
+- **Not in this version**: the file transport through the agent; logins (server objects: a `_logins.sql` like
+  `pg_dumpall --globals-only` would be the equivalent); file/filegroup and partial backups; Azure SQL Database and
+  Managed Instance (`BACKUP TO URL` only); TDE-encrypted databases need their certificate on the target (SQL Server
+  says so); availability group secondaries take copy-only full and log backups only (warned).
+
+Verified: `TestMSSQLE2E` against SQL Server 2022 Developer (16.0.4305.5) on Ubuntu 22.04, time zone UTC+7, with the
+backup folder under the same path and under a second path (bind mount): full and differential backups of a FULL and a
+SIMPLE database with odd names (`o'd]d`), verification, restore under new names (full + differential), refusal and
+replace of an existing database, a drill with `DBCC CHECKDB`, the switch to a full backup after a foreign full backup,
+log archiving and recovery to a time, a mark, an LSN given in fn_dblog's hex form and the latest log backup, the
+SIMPLE database refused, and a chain broken by `BACKUP LOG … TO DISK = 'NUL'`. `TestInspectE2E` checks the inspection
+(no warning for a sysadmin, the folder check, a wrong mapping found). Unit tests cover LSNs, the plans, the file
+placement, the options check and the folder paths. Not verified: SQL Server on Windows, older versions than 2022,
+shares across machines (SMB), Windows authentication, named instances, TLS verify.
+
 ## Later engines
 
 Redis (RDB snapshot through `redis-cli --rdb`, restore = file + restart), MongoDB (`mongodump --oplog`, oplog
-replay as its `LogArchiver`), SQL Server (`BACKUP DATABASE … TO URL/DISK`). Each is a new package registered in
-`internal/drivers`, a new engine choice in the server form, and its method ids.
+replay as its `LogArchiver`). Each is a new package registered in `internal/drivers`, a new engine choice in the
+server form, and its method ids.
