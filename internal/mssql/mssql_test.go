@@ -1,6 +1,9 @@
 package mssql
 
 import (
+	"context"
+	"errors"
+	"io"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -76,7 +79,7 @@ func TestCheckWithOptions(t *testing.T) {
 }
 
 func TestFolderPaths(t *testing.T) {
-	f := folder{Server: `D:\Backup\DumpCat\`, Local: `/mnt/sql`}
+	f := folder{Server: `D:\Backup\DumpCat\`, Files: localFiles(`/mnt/sql`)}
 	if got := f.server("x.bak"); got != `D:\Backup\DumpCat\x.bak` {
 		t.Errorf("server path = %s", got)
 	}
@@ -95,7 +98,30 @@ func TestFolderPaths(t *testing.T) {
 	if !strings.HasPrefix(name, "dumpcat-") || !strings.HasSuffix(name, ".bak") || strings.ContainsAny(name, `/\ `) || name == fileName("my shop/db", ".bak") {
 		t.Errorf("fileName = %s", name)
 	}
+	if f.same() || f.throughAgent() || !strings.Contains(f.describe("reads"), "reads it as /mnt/sql") {
+		t.Errorf("a mapped folder: same %v, agent %v, %s", f.same(), f.throughAgent(), f.describe("reads"))
+	}
+	for _, c := range [][2]string{{`D:\Backup\`, `d:\backup`}, {"/var/opt/mssql/x/", "/var/opt/mssql/x"}, {`\\NAS\sql`, `\\nas\SQL\`}} {
+		if !sameDir(c[0], c[1]) {
+			t.Errorf("sameDir(%q, %q)", c[0], c[1])
+		}
+	}
+	if sameDir("/var/opt/mssql/X", "/var/opt/mssql/x") {
+		t.Error("Linux paths are case-sensitive")
+	}
 }
+
+// agentFiles stands in for the agent's folder.
+type agentFiles struct{ dir string }
+
+func (a agentFiles) Open(context.Context, string) (io.ReadCloser, int64, error) {
+	return nil, 0, errors.New("no")
+}
+func (a agentFiles) Create(context.Context, string, io.Reader) (int64, error) { return 0, nil }
+func (a agentFiles) Remove(context.Context, string) error                     { return nil }
+func (a agentFiles) Free(context.Context) (int64, error)                      { return -1, nil }
+func (a agentFiles) Dir() string                                              { return a.dir }
+func (a agentFiles) String() string                                           { return "agent sql01 (" + a.dir + ")" }
 
 func TestResolveFolder(t *testing.T) {
 	native := "/var/opt/mssql/dumpcat"
@@ -108,7 +134,7 @@ func TestResolveFolder(t *testing.T) {
 		t.Error("no folder at all accepted")
 	}
 	f, err := resolveFolder(s, native)
-	if err != nil || f.Server != native || f.Local != native {
+	if err != nil || f.Server != native || f.Files != localFiles(native) || !f.same() || f.describe("reads") != native {
 		t.Errorf("default folder: %+v %v", f, err)
 	}
 	if _, err := resolveFolder(&store.Server{BackupDir: other}, ""); err == nil || !strings.Contains(err.Error(), "seen from DumpCat") {
@@ -116,12 +142,38 @@ func TestResolveFolder(t *testing.T) {
 	}
 	local := filepath.Join(t.TempDir(), "x")
 	f, err = resolveFolder(&store.Server{BackupDir: other, BackupDirLocal: local}, "")
-	if err != nil || f.Server != other || f.Local != local {
+	if err != nil || f.Server != other || f.Files != localFiles(local) {
 		t.Errorf("mapped folder: %+v %v", f, err)
 	}
+	// behind an agent: the agent's folder, unless the folder is shared
 	agent := int64(3)
+	defer func(old func(int64, string) (Files, error)) { AgentFolder = old }(AgentFolder)
+	AgentFolder = nil
 	if _, err := resolveFolder(&store.Server{BackupDir: native, AgentID: &agent}, ""); err == nil || !strings.Contains(err.Error(), "agent") {
-		t.Errorf("tunneled server without a local path: %v", err)
+		t.Errorf("an agent without agent connections: %v", err)
+	}
+	var asked string
+	AgentFolder = func(id int64, dir string) (Files, error) {
+		asked = dir
+		if id != agent {
+			return nil, errors.New("unknown agent")
+		}
+		return agentFiles{"/var/opt/mssql/backup"}, nil
+	}
+	f, err = resolveFolder(&store.Server{BackupDir: `D:\Backup`, AgentID: &agent}, "")
+	if err != nil || asked != `D:\Backup` || !f.throughAgent() || f.same() || !strings.Contains(f.describe("reads"), "through agent sql01") {
+		t.Errorf("through the agent: %+v %v", f, err)
+	}
+	if f, err = resolveFolder(&store.Server{BackupDir: other, BackupDirLocal: local, AgentID: &agent}, ""); err != nil || f.throughAgent() {
+		t.Errorf("a shared folder of an agent's server: %+v %v", f, err)
+	}
+	other4 := int64(4)
+	if _, err := resolveFolder(&store.Server{BackupDir: native, AgentID: &other4}, ""); err == nil || !strings.Contains(err.Error(), "Backup folder seen from DumpCat") {
+		t.Errorf("an agent without the folder: %v", err)
+	}
+	wg := int64(5)
+	if _, err := resolveFolder(&store.Server{BackupDir: native, WGPeerID: &wg}, ""); err == nil || !strings.Contains(err.Error(), "WireGuard") {
+		t.Errorf("WireGuard without a local path: %v", err)
 	}
 	if _, err := resolveFolder(&store.Server{BackupDir: native, BackupDirLocal: "relative/dir"}, ""); err == nil {
 		t.Error("relative local path accepted")

@@ -176,7 +176,7 @@ func inspect(ctx context.Context, db *sql.DB, s *store.Server, withSizes bool) (
 	}
 	in.folder, in.folderErr = resolveFolder(s, in.defaultBackup)
 	if in.folderErr == nil {
-		info.BackupDir = in.folder.Server
+		info.BackupDir, info.BackupDirVia = in.folder.Server, in.folder.via()
 		if why, err := probe(ctx, db, in.folder, info.ServiceAccount); err != nil {
 			in.folderErr = err
 		} else if why != "" {

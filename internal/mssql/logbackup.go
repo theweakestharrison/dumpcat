@@ -71,7 +71,7 @@ func (s *logStream) Session(ctx context.Context, job *store.Job, server *store.S
 	h.Update(func(st *engine.LogStatus) {
 		st.State, st.Since, st.Error, st.ErrorAt, st.NextTry = "streaming", &now, "", nil, nil
 	})
-	h.Log.Printf("Log backups every %s into %s (DumpCat reads %s)", every, in.folder.Server, in.folder.Local)
+	h.Log.Printf("Log backups every %s into %s", every, in.folder.describe("reads"))
 	if s.last.IsZero() {
 		if f := h.Store.LastLogFile(job.UUID); f != nil {
 			s.last = f.CreatedAt
@@ -179,8 +179,8 @@ func jobDatabases(job *store.Job, all []dbconn.DBInfo) []dbconn.DBInfo {
 func (s *logStream) backupLog(ctx context.Context, db *sql.DB, in *instance, database string) error {
 	h := s.h
 	name := fileName(database, ".trn")
-	sp, lp := in.folder.server(name), in.folder.local(name)
-	defer removeLocal(lp)
+	sp := in.folder.server(name)
+	defer in.folder.remove(name)
 	with := []string{"CHECKSUM", "FORMAT", "INIT", "SKIP"}
 	if in.Compression {
 		with = append(with, "COMPRESSION")
@@ -215,7 +215,7 @@ func (s *logStream) backupLog(ctx context.Context, db *sql.DB, in *instance, dat
 	if err := os.WriteFile(filepath.Join(h.Dir, staged+".json"), b, 0o600); err != nil {
 		return err
 	}
-	if err := moveIn(lp, filepath.Join(h.Dir, staged)); err != nil {
+	if err := moveIn(ctx, in.folder, name, filepath.Join(h.Dir, staged)); err != nil {
 		os.Remove(filepath.Join(h.Dir, staged+".json"))
 		return fmt.Errorf("moving the log backup into the staging folder: %w", err)
 	}
@@ -259,12 +259,14 @@ func (s *logStream) staged() []string {
 }
 
 // moveIn moves a log backup from the backup folder into staging (a copy
-// when they are on different file systems).
-func moveIn(src, dst string) error {
-	if err := os.Rename(src, dst); err == nil {
-		return nil
+// when they are on different file systems, or the agent reads it).
+func moveIn(ctx context.Context, f folder, name, dst string) error {
+	if d, ok := f.Files.(localFiles); ok {
+		if err := os.Rename(d.path(name), dst); err == nil {
+			return nil
+		}
 	}
-	in, _, err := openLocal(src)
+	in, size, err := f.Files.Open(ctx, name)
 	if err != nil {
 		return err
 	}
@@ -274,7 +276,10 @@ func moveIn(src, dst string) error {
 	if err != nil {
 		return err
 	}
-	_, err = io.Copy(out, in)
+	n, err := io.Copy(out, in)
+	if err == nil && n != size {
+		err = fmt.Errorf("read %d of %d bytes", n, size)
+	}
 	if err == nil {
 		err = out.Sync()
 	}

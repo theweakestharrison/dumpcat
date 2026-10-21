@@ -177,8 +177,9 @@ file therefore passes through a folder both SQL Server and DumpCat reach — *Ba
 - *As SQL Server sees it*: e.g. `D:\Backup\DumpCat`, `\\nas\sql-backup` or `/var/opt/mssql/dumpcat`; empty is the
   instance's default backup folder. SQL Server's service account (`NT Service\MSSQLSERVER`, the `mssql` user on Linux)
   needs *Modify* permission there.
-- *As DumpCat sees it*: empty when it is the same path, that is when DumpCat runs on the SQL Server host; otherwise the
-  share or mount on the DumpCat host.
+- *As DumpCat sees it*: empty when it is the same path, that is when DumpCat runs on the SQL Server host, or when the
+  server is reached through an agent started with `--allow-mssql-dir`, which moves the files
+  ([SQL Server through the agent](#sql-server-through-the-agent)); otherwise the share or mount on the DumpCat host.
 
 SQL Server writes `dumpcat-<random>-<database>.bak` there, DumpCat reads it into the usual pipeline (compression,
 encryption, SHA-256, every storage of the job) and deletes it; a restore copies the file back there, has SQL Server
@@ -194,9 +195,12 @@ that are not the same folder are found there, not at the first backup.
 | DumpCat **elsewhere**, SQL Server writes to a **share** | `\\nas\sql-backup` (or the DumpCat host's share) for both; on a Linux DumpCat the share mounted, e.g. `/mnt/sql-backup` | The service account must reach the share: a domain account, or the computer account `DOMAIN\SQL01$`. Traffic goes SQL Server → share → DumpCat. |
 | DumpCat **elsewhere**, it reads a **share of the SQL Server host** | `D:\Backup\DumpCat` on the server, `\\sql01\DumpCat$` (Windows) or a CIFS mount (Linux) on DumpCat | The disk of the SQL Server host holds each file until DumpCat has read it. |
 | SQL Server **in a container** | the path inside the container, and the volume's path on the host | e.g. `/var/opt/mssql/backup` and `/srv/mssql/backup`. |
+| DumpCat **elsewhere**, **nothing shared**: the SQL Server host only reaches out (NAT, no SMB) | the folder on the SQL Server host, second path empty; the [agent](#sql-server-through-the-agent) there started with `--allow-mssql-dir` and that folder | The agent moves each file over its HTTPS connection, and only DumpCat's own files in that folder. The SQL Server host's disk holds each file until it has been sent. |
 
-Through an agent or WireGuard the connection works as for the other engines (allow `127.0.0.1:1433`), but the backup
-folder must still be shared with the DumpCat host. A transport of the files through the agent is planned.
+Through an agent the connection works as for the other engines (allow `127.0.0.1:1433`), and the agent can move the
+backup files too, so that no folder has to be shared: start it with `--allow-mssql-dir` and SQL Server's backup folder
+([SQL Server through the agent](#sql-server-through-the-agent)), enter that folder *as SQL Server sees it* and leave
+*As DumpCat sees it* empty. Through WireGuard the folder must be shared with the DumpCat host.
 
 **Account.** Simplest: a login in the `sysadmin` role. Least privilege:
 
@@ -504,7 +508,8 @@ then flows both ways inside it. DumpCat's tools connect to local ports on the ba
 Everything that only needs a database connection works through an agent: mysqldump and mydumper backups, restores (also
 to a server behind another agent), binlog archiving and point-in-time recovery. DumpCat gives its tools a local port per
 database and the agent dials the database. Physical backups (XtraBackup / MariaBackup) copy the datadir, so the tool must
-run on the database host: an agent started with `--allow-physical` does that (below).
+run on the database host: an agent started with `--allow-physical` does that (below). SQL Server writes its backups on
+its own host: an agent started with `--allow-mssql-dir` moves those files (below).
 
 - **What the agent may reach.** Only the local MySQL/MariaDB by default: `127.0.0.1:3306`, `[::1]:3306` and the usual
   socket paths. Allow other addresses with `--allow` (Windows: `-Allow`), comma separated, e.g.
@@ -513,12 +518,13 @@ run on the database host: an agent started with `--allow-physical` does that (be
   with *… is not on this agent's allow list* in the connection test and in the backup log.
 - **Configuration**: `/etc/dumpcat/agent.env` (Windows: `C:\ProgramData\DumpCat\agent.env`), readable by root /
   Administrators only: `DUMPCAT_AGENT_SERVER`, `DUMPCAT_AGENT_KEY`, `DUMPCAT_AGENT_ALLOW`, `DUMPCAT_AGENT_INSECURE`,
-  `DUMPCAT_AGENT_ALLOW_PHYSICAL`, `DUMPCAT_AGENT_DATADIR` (see `agent.env.example`). After editing: `systemctl restart dumpcat-agent` (Windows: `Restart-Service DumpCatAgent`).
+  `DUMPCAT_AGENT_ALLOW_PHYSICAL`, `DUMPCAT_AGENT_DATADIR`, `DUMPCAT_AGENT_MSSQL_DIR` (see `agent.env.example`). After editing: `systemctl restart dumpcat-agent` (Windows: `Restart-Service DumpCatAgent`).
   Running the installer again with new `--server`, `--key` or `--allow` values updates the file.
 - **Service**: `dumpcat-agent` on Linux — it runs as a throwaway unprivileged user (systemd `DynamicUser`) without
-  access to the file system (with `--allow-physical`: as the owner of the datadir); `DumpCatAgent` on Windows. Log: `journalctl -u dumpcat-agent -f`
+  access to the file system (with `--allow-physical`: as the owner of the datadir; with `--allow-mssql-dir`: as the
+  owner of SQL Server's backup folder); `DumpCatAgent` on Windows. Log: `journalctl -u dumpcat-agent -f`
   (Windows: `C:\ProgramData\DumpCat\agent.log`). By hand, in the foreground:
-  `dumpcat agent -server https://backup.example.com -key dca_... [-allow ...] [-insecure] [-allow-physical]`.
+  `dumpcat agent -server https://backup.example.com -key dca_... [-allow ...] [-insecure] [-allow-physical] [-allow-mssql-dir DIR]`.
 - **Encryption**: the database traffic travels inside the agent's connection. Serve DumpCat over HTTPS when it crosses
   an untrusted network; with a self-signed certificate (`DUMPCAT_TLS_AUTO=1`) add `--insecure` to the agent. Behind
   nginx, the sample `nginx-dumpcat.conf` already passes WebSocket upgrades on `/api/agent/` with a long timeout.
@@ -568,6 +574,47 @@ Percona XtraBackup series matching MySQL — and choose the **Physical** method 
 - **Restore** happens where DumpCat runs (see [7. Restore](#7-restore)): DumpCat downloads and prepares the backup; copy the
   prepared directory to the database host and run `--copy-back` there (the restore log lists the commands), or restore
   onto an instance on the DumpCat host. *Apply right away* is not available through an agent.
+
+#### SQL Server through the agent
+
+SQL Server writes its backups on its own host and reads restores there ([the backup folder](#sql-server)). When the SQL
+Server host shares no folder with DumpCat — behind NAT, no SMB, only outbound HTTPS — the agent moves those files: start
+it with `--allow-mssql-dir` and the folder SQL Server writes its backups to, and allow the instance's port.
+
+```bash
+sudo ./install.sh --agent --server https://backup.example.com --key dca_... --allow 127.0.0.1:1433 --allow-mssql-dir /var/opt/mssql/backup
+```
+
+(Windows: `-Allow 127.0.0.1:1433 -AllowMSSQLDir D:\Backup\DumpCat`; by hand: `dumpcat agent ... -allow-mssql-dir DIR`;
+in `agent.env`: `DUMPCAT_AGENT_MSSQL_DIR=DIR`; the install dialog of the Agents page has a *SQL Server* option.) Then
+add the server with **Connect: Through agent …**, address `127.0.0.1` port `1433`, *Backup folder → As SQL Server sees
+it* that folder (the form fills it in from the agent) and *As DumpCat sees it* **empty**.
+
+- **What happens**: `BACKUP DATABASE` and `BACKUP LOG` write `dumpcat-<random>-<database>.bak|.trn` into the folder;
+  the agent reads the file and streams it over its connection; DumpCat compresses, encrypts, checksums and uploads it as
+  usual, then has the agent delete it. A restore goes the other way: DumpCat downloads and checks each file, the agent
+  writes it into the folder (complete and synced before SQL Server reads it), SQL Server checks and restores it, the
+  agent deletes it. Full, differential and log backups, restores, restore drills and point-in-time recovery all work
+  this way. *Test connection* writes a small file through the agent and has SQL Server read it: an agent folder that is
+  not SQL Server's is found there.
+- **Limits of what DumpCat may ask**: that one folder only, only files named `dumpcat-…` directly in it, regular files
+  only (no links, no subfolders), and a new file never replaces one that exists. A DumpCat server cannot use the agent
+  to read or write anything else on the host.
+- **Permissions**: on Linux, `--allow-mssql-dir` creates the folder when it is missing (`mssql:mssql`, `0770`) and adds
+  a systemd drop-in (`/etc/systemd/system/dumpcat-agent.service.d/mssql.conf`) so the agent runs as the folder's owner
+  and may write that folder only (`ReadWritePaths`); the files it writes get mode `0640` and the folder's group. The
+  Windows service runs as LocalSystem; files it creates inherit the folder's permissions (SQL Server's service account
+  needs *Modify* there). `--allow-physical` and `--allow-mssql-dir` run the agent as different users: one of them per
+  host.
+- **SQL Server in a container**: run the agent on the container's host with the host folder the backup volume is
+  mounted from (e.g. `--allow-mssql-dir /srv/mssql/backup`) and enter the path inside the container *as SQL Server sees
+  it* (e.g. `/var/opt/mssql/backup`).
+- **The Agents page** shows the folder each agent offers (*SQL Server folder*), the OS user it runs as, and why it
+  cannot use the folder (missing, not readable). The server form and **Check** show it too, and name an agent started
+  without `--allow-mssql-dir` or too old to move SQL Server's files.
+- **Traffic and room**: each file crosses the agent's connection once (SQL Server's own compression applies first where
+  the edition has it). The SQL Server host's disk holds each file until it has been sent; a restore holds the files of
+  a database (or of all restored databases when there is room).
 
 ### 3.8 Built-in WireGuard
 

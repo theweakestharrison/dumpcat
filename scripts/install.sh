@@ -12,6 +12,7 @@
 #   sudo ./install.sh --agent --server https://backup.example.com --key dca_...
 #        [--allow 127.0.0.1:3306,unix:/run/mysqld/mysqld.sock] [--insecure]   # PostgreSQL: 127.0.0.1:5432
 #        [--allow-physical]   # also run physical backups (mariabackup/xtrabackup) here
+#        [--allow-mssql-dir /var/opt/mssql/backup]   # SQL Server: move its backup files for DumpCat (--allow 127.0.0.1:1433)
 #   sudo ./install.sh --agent --uninstall [--purge]
 #
 # Supported: Ubuntu 20.04+, Debian 11+, RHEL/Rocky/Alma/Oracle 8+, CentOS Stream, Fedora.
@@ -39,9 +40,11 @@ AGENT_KEY=""
 AGENT_ALLOW=""
 AGENT_INSECURE=0
 AGENT_PHYSICAL=0
+AGENT_MSSQL_DIR=""
 PG_MAJORS=""
 AGENT_UNIT=/etc/systemd/system/dumpcat-agent.service
 AGENT_DROPIN=/etc/systemd/system/dumpcat-agent.service.d/physical.conf
+AGENT_MSSQL_DROPIN=/etc/systemd/system/dumpcat-agent.service.d/mssql.conf
 AGENT_ENV=$CONF_DIR/agent.env
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
@@ -50,7 +53,7 @@ info()  { echo "${c_green}==>${c_off} $*"; }
 warn()  { echo "${c_yellow}!!${c_off} $*" >&2; }
 die()   { echo "${c_red}xx${c_off} $*" >&2; exit 1; }
 
-usage() { sed -n '2,17p' "$0" | sed 's/^# \{0,1\}//'; exit 0; }
+usage() { sed -n '2,18p' "$0" | sed 's/^# \{0,1\}//'; exit 0; }
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -69,6 +72,7 @@ while [[ $# -gt 0 ]]; do
     --allow) AGENT_ALLOW="$2"; shift 2 ;;
     --insecure) AGENT_INSECURE=1; shift ;;
     --allow-physical) AGENT_PHYSICAL=1; shift ;;
+    --allow-mssql-dir) AGENT_MSSQL_DIR="$2"; shift 2 ;;
     -h|--help) usage ;;
     *) die "invalid argument: $1 (see --help)" ;;
   esac
@@ -81,7 +85,7 @@ command -v systemctl >/dev/null || die "systemd is required"
 if [[ $UNINSTALL -eq 1 && $AGENT -eq 1 ]]; then
   info "Uninstalling the DumpCat agent"
   systemctl disable --now dumpcat-agent 2>/dev/null || true
-  rm -f "$AGENT_UNIT" "$AGENT_DROPIN"
+  rm -f "$AGENT_UNIT" "$AGENT_DROPIN" "$AGENT_MSSQL_DROPIN"
   rmdir "$(dirname "$AGENT_DROPIN")" 2>/dev/null || true
   systemctl daemon-reload
   if [[ ! -f $UNIT ]]; then # the binary is shared with the DumpCat server
@@ -159,6 +163,10 @@ if [[ $AGENT -eq 1 ]]; then
   if [[ -n $AGENT_ALLOW ]]; then set_env DUMPCAT_AGENT_ALLOW "$AGENT_ALLOW"; fi
   if [[ $AGENT_INSECURE -eq 1 ]]; then set_env DUMPCAT_AGENT_INSECURE 1; fi
   if [[ $AGENT_PHYSICAL -eq 1 ]]; then set_env DUMPCAT_AGENT_ALLOW_PHYSICAL 1; fi
+  if [[ -n $AGENT_MSSQL_DIR ]]; then
+    [[ $AGENT_MSSQL_DIR == /* && $AGENT_MSSQL_DIR != *[[:space:]]* ]] || die "--allow-mssql-dir takes an absolute path without spaces, e.g. /var/opt/mssql/backup"
+    set_env DUMPCAT_AGENT_MSSQL_DIR "${AGENT_MSSQL_DIR%/}"
+  fi
   chmod 0600 "$AGENT_ENV"
   grep -q '^DUMPCAT_AGENT_SERVER=.' "$AGENT_ENV" && grep -q '^DUMPCAT_AGENT_KEY=.' "$AGENT_ENV" \
     || die "$AGENT_ENV needs DUMPCAT_AGENT_SERVER and DUMPCAT_AGENT_KEY (use --server and --key)"
@@ -210,6 +218,34 @@ EOF
   else
     rm -f "$AGENT_DROPIN"
   fi
+  MSSQL_DIR="$(grep '^DUMPCAT_AGENT_MSSQL_DIR=' "$AGENT_ENV" | tail -1 | cut -d= -f2-)"
+  if [[ -n $MSSQL_DIR ]]; then
+    # SQL Server's backup folder: the agent reads the backups SQL Server
+    # writes there and writes the files of restores, as the folder's owner
+    [[ $MSSQL_DIR == /* && $MSSQL_DIR != *[[:space:]]* ]] || die "DUMPCAT_AGENT_MSSQL_DIR in $AGENT_ENV must be an absolute path without spaces"
+    [[ ! -f $AGENT_DROPIN ]] || die "--allow-physical and --allow-mssql-dir run the agent as different users (the datadir's owner, SQL Server's mssql): use one of them on this host"
+    if [[ ! -d $MSSQL_DIR ]]; then
+      id mssql >/dev/null 2>&1 || die "$MSSQL_DIR does not exist: create it for SQL Server's service account and run this again"
+      info "Creating SQL Server's backup folder $MSSQL_DIR (mssql:mssql, 0770)"
+      install -d -o mssql -g mssql -m 0770 "$MSSQL_DIR"
+    fi
+    DIR_USER="$(stat -c %U "$MSSQL_DIR")"; DIR_GROUP="$(stat -c %G "$MSSQL_DIR")"
+    [[ $DIR_USER != root ]] || warn "$MSSQL_DIR belongs to root: SQL Server (mssql) cannot write there — chown mssql:mssql $MSSQL_DIR and run this again"
+    info "SQL Server backup folder $MSSQL_DIR: the agent runs as $DIR_USER (its owner) and moves only the dumpcat-* files there"
+    mkdir -p "$(dirname "$AGENT_MSSQL_DROPIN")"
+    cat > "$AGENT_MSSQL_DROPIN" <<EOF
+# written by install.sh --allow-mssql-dir: the agent reads the backups SQL
+# Server writes into this folder and writes the files of restores there, so
+# it runs as the folder's owner and may write that folder (and only that one)
+[Service]
+DynamicUser=no
+User=$DIR_USER
+Group=$DIR_GROUP
+ReadWritePaths=$MSSQL_DIR
+EOF
+  else
+    rm -f "$AGENT_MSSQL_DROPIN"
+  fi
   systemctl daemon-reload
   systemctl enable dumpcat-agent >/dev/null 2>&1
   STARTED="$(date '+%Y-%m-%d %H:%M:%S')"
@@ -236,6 +272,10 @@ EOF
   echo "address as seen from this host (e.g. 127.0.0.1 port 3306)."
   if [[ -f $AGENT_DROPIN ]]; then
     echo "Physical backups: the Agents page shows the backup tool and whether the datadir is readable."
+  fi
+  if [[ -f $AGENT_MSSQL_DROPIN ]]; then
+    echo "SQL Server: enter $MSSQL_DIR as the server's backup folder (as SQL Server sees it) and leave"
+    echo "\"As DumpCat sees it\" empty — the agent moves the files. Allow the instance: --allow 127.0.0.1:1433."
   fi
   echo
   echo "Log: journalctl -u dumpcat-agent -f"

@@ -143,6 +143,7 @@ flowchart RL
 | Cài trên server database | Không cần | WireGuard (`wg-quick`) và file DumpCat tạo sẵn | `dumpcat agent` (một lệnh cài) |
 | Cấu hình MySQL | User backup được phép từ địa chỉ của DumpCat | Nghe trên địa chỉ VPN; user được phép từ 10.66.0.1 | Giữ nguyên |
 | Backup vật lý (XtraBackup / MariaBackup) | Có, khi DumpCat chạy trên server database | Không (cần DumpCat trên server database) | Có, khi bật `--allow-physical`: agent chạy công cụ trên server database và stream bản backup về |
+| File backup của SQL Server | DumpCat trên máy SQL Server, hoặc một thư mục chia sẻ | Một thư mục chia sẻ (SMB, mount) | Có, khi bật `--allow-mssql-dir`: agent chuyển file, không cần chia sẻ gì |
 | Hợp với | Cùng mạng hoặc VPC, hoặc DumpCat chạy trên server database | Đội đã dùng WireGuard; một gateway dẫn tới cả mạng nội bộ | Máy sau NAT hoặc firewall chặt; không đụng tới MySQL hay mạng |
 | Thiết lập ở | Database servers | Trang WireGuard, rồi Database servers | Trang Agents, rồi Database servers |
 
@@ -224,7 +225,8 @@ Server PostgreSQL được backup bằng `pg_dump` (định dạng thư mục, c
 `pg_basebackup` (cả cluster, làm nền cho việc lưu WAL và khôi phục theo thời điểm): xem
 [PostgreSQL](docs/manual.vi.md#postgresql). Database SQL Server được backup bằng chính backup full và differential của
 SQL Server (cùng log backup cho khôi phục theo thời điểm), ghi vào một thư mục backup mà DumpCat đọc: trên máy SQL
-Server, hoặc một share cả hai máy cùng thấy — xem [SQL Server](docs/manual.vi.md#sql-server).
+Server, một share cả hai máy cùng thấy, hoặc thư mục ngay trên máy SQL Server mà agent chuyển file đi — xem
+[SQL Server](docs/manual.vi.md#sql-server).
 
 Chi tiết và khuyến nghị: [Chọn phương thức backup](docs/manual.vi.md#2-chọn-phương-thức-backup).
 

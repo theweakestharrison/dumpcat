@@ -71,7 +71,7 @@ func (Driver) Backup(env *engine.Env, spec *engine.BackupSpec, sink engine.Sink)
 	if diff {
 		kind = "differential"
 	}
-	env.Log.Printf("Backup folder: %s (DumpCat reads it as %s)", in.folder.Server, in.folder.Local)
+	env.Log.Printf("Backup folder: %s", in.folder.describe("reads"))
 	env.Log.Printf("BACKUP DATABASE: %s%s, checksums, %s", kind, map[bool]string{true: ", copy-only", false: ""}[o.CopyOnly],
 		map[bool]string{true: "compressed by SQL Server", false: "not compressed by SQL Server"}[compress])
 	var parents map[string]*Header
@@ -205,8 +205,8 @@ func (b *dbBackup) run(ctx context.Context, sink engine.Sink) (*Header, map[stri
 	lg := b.env.Log
 	f := b.in.folder
 	xname := fileName(b.name, FileSuffix)
-	spath, lpath := f.server(xname), f.local(xname)
-	defer removeLocal(lpath)
+	spath := f.server(xname)
+	defer f.remove(xname)
 	q := b.statement(spath)
 	lg.Printf("%s", q)
 	t0 := time.Now()
@@ -245,12 +245,15 @@ func (b *dbBackup) run(ctx context.Context, sink engine.Sink) (*Header, map[stri
 		}
 	}
 	rows := rowCounts(ctx, b.db, b.name)
-	in, size, err := openLocal(lpath)
+	in, size, err := f.Files.Open(ctx, xname)
 	if err != nil {
-		if b.in.folder.Local != b.in.folder.Server {
-			return nil, nil, fmt.Errorf("SQL Server wrote %s, but DumpCat cannot open it as %s: are both paths the same folder? (%v)", spath, lpath, err)
+		if ctx.Err() != nil {
+			return nil, nil, ctx.Err()
 		}
-		return nil, nil, fmt.Errorf("DumpCat cannot read the backup SQL Server wrote: %v", err)
+		if !f.same() {
+			return nil, nil, fmt.Errorf("SQL Server wrote %s, but DumpCat cannot read it from %s: are both paths the same folder? (%v)", spath, f.where(), err)
+		}
+		return nil, nil, fmt.Errorf("DumpCat cannot read the backup SQL Server wrote from %s: %v", f.where(), err)
 	}
 	defer in.Close()
 	w, err := sink.Create(b.file, engine.FileOpts{Kind: "bak", Database: b.name, Compress: !b.compress})

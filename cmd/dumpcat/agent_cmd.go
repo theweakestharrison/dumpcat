@@ -35,13 +35,16 @@ func agentCmd(args []string) {
 	logFile := fs.String("log", "", "also write the log to this file (DUMPCAT_AGENT_LOG)")
 	allowPhysical := fs.Bool("allow-physical", false, "let DumpCat run physical backups (mariabackup/xtrabackup) on this host and stream them back; the agent must be able to read the datadir (DUMPCAT_AGENT_ALLOW_PHYSICAL)")
 	datadir := fs.String("datadir", "", "datadir the Agents page reports as readable or not (DUMPCAT_AGENT_DATADIR; default /var/lib/mysql or the usual location)")
+	mssqlDir := fs.String("allow-mssql-dir", "", "SQL Server's backup folder on this host: DumpCat may read the dumpcat-* files SQL Server writes there and write the ones it restores, nothing else (DUMPCAT_AGENT_MSSQL_DIR)")
 	fs.Usage = func() {
 		fmt.Fprintf(os.Stderr, `Usage: dumpcat agent [flags]
 
 Runs on a database host that accepts no inbound connections. The agent connects
 out to the DumpCat server over HTTPS and opens the database connections the
 server asks for — only to the addresses on its allow list. With -allow-physical
-it also runs physical backups (mariabackup/xtrabackup) here for DumpCat.
+it also runs physical backups (mariabackup/xtrabackup) here for DumpCat; with
+-allow-mssql-dir it moves SQL Server's backup files between that folder and
+DumpCat.
 
 Flags (or DUMPCAT_AGENT_* variables in %s):
 `, defaultAgentEnvFile())
@@ -71,6 +74,7 @@ Flags (or DUMPCAT_AGENT_* variables in %s):
 	*allow = pick("allow", *allow, "DUMPCAT_AGENT_ALLOW")
 	*logFile = pick("log", *logFile, "DUMPCAT_AGENT_LOG")
 	*datadir = pick("datadir", *datadir, "DUMPCAT_AGENT_DATADIR")
+	*mssqlDir = pick("allow-mssql-dir", *mssqlDir, "DUMPCAT_AGENT_MSSQL_DIR")
 	envBool := func(flagName string, cur *bool, env string) {
 		if !set[flagName] {
 			switch strings.ToLower(os.Getenv(env)) {
@@ -113,7 +117,7 @@ Flags (or DUMPCAT_AGENT_* variables in %s):
 		log.Printf("warning: the server certificate is not verified (-insecure)")
 	}
 	cl := &agent.Client{Server: *server, Key: *key, Allow: al, Version: version, Insecure: *insecure, Logf: log.Printf,
-		AllowPhysical: *allowPhysical, Datadir: *datadir}
+		AllowPhysical: *allowPhysical, Datadir: *datadir, MSSQLDir: *mssqlDir}
 	run := func(stop <-chan struct{}) error {
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()

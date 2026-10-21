@@ -101,6 +101,16 @@ export function agentPhysical(st) {
   return { ok: true, short: tools.join(', '), detail: [p.user && `runs as ${p.user}`, p.datadir && `datadir ${p.datadir} readable`].filter(Boolean).join(' · ') };
 }
 
+// SQL Server's backup folder on an agent's host (--allow-mssql-dir), as the agent reported it when it connected.
+export function agentFolder(st) {
+  if (!st || !st.online) return null;
+  const f = st.caps && st.caps.mssql;
+  if (!f) return { ok: false, short: 'Update the agent', detail: `DumpCat ${st.version} on the agent cannot move SQL Server's backup files` };
+  if (!f.dir) return { ok: false, off: true, short: 'Off', detail: "Start the agent with --allow-mssql-dir and SQL Server's backup folder to move SQL Server's backup files through it" };
+  if (f.error) return { ok: false, short: 'Folder not usable', detail: f.error };
+  return { ok: true, short: f.dir, detail: f.user ? `runs as ${f.user}` : '' };
+}
+
 export function storageIcon(type) {
   return { local: 'hdd', s3: 'archive', gdrive: 'folder', onedrive: 'folder', ftp: 'server', sftp: 'lock', webdav: 'link', b2: 'archive', azureblob: 'archive', dropbox: 'folder', rclone: 'layers' }[type] || 'cloud';
 }

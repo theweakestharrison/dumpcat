@@ -42,9 +42,11 @@ const (
 )
 
 // Caps is what an agent can do besides forwarding connections. Agents from
-// before physical backups send none: they only forward connections.
+// before physical backups send none: they only forward connections; agents
+// from before SQL Server's backup folder send no MSSQL.
 type Caps struct {
 	Physical *PhysicalCaps `json:"physical,omitempty"`
+	MSSQL    *FolderCaps   `json:"mssql,omitempty"`
 }
 
 // PhysicalCaps describes physical backups on the agent's host.
@@ -296,9 +298,13 @@ func (c *Client) tools() *engine.Tools {
 
 // caps probes this host for what the agent can do (sent with hello).
 func (c *Client) caps() *Caps {
+	return &Caps{Physical: c.physicalCaps(), MSSQL: c.folderCaps()}
+}
+
+func (c *Client) physicalCaps() *PhysicalCaps {
 	p := &PhysicalCaps{Allowed: c.AllowPhysical}
 	if !p.Allowed {
-		return &Caps{Physical: p}
+		return p
 	}
 	if u, err := user.Current(); err == nil {
 		p.User = u.Username
@@ -317,7 +323,7 @@ func (c *Client) caps() *Caps {
 			p.DatadirError = err.Error()
 		}
 	}
-	return &Caps{Physical: p}
+	return p
 }
 
 // defaultDatadir is the data directory of a usual MySQL/MariaDB install on

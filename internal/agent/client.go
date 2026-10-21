@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"path/filepath"
 	"runtime"
 	"strings"
 	"sync"
@@ -34,6 +35,10 @@ type Client struct {
 	AllowPhysical bool
 	Datadir       string        // checked for read access when connecting ("": the usual location)
 	Tools         *engine.Tools // finds the backup tools (nil: the default search)
+	// MSSQLDir is SQL Server's backup folder: the server may read the
+	// dumpcat-* files SQL Server writes there and write the ones it
+	// restores (--allow-mssql-dir; "": not allowed).
+	MSSQLDir string
 }
 
 func (c *Client) logf(format string, args ...any) {
@@ -46,6 +51,12 @@ func (c *Client) logf(format string, args ...any) {
 func (c *Client) Run(ctx context.Context) error {
 	if _, err := c.config(PathConnect, ""); err != nil {
 		return err
+	}
+	if c.MSSQLDir != "" {
+		if !filepath.IsAbs(c.MSSQLDir) {
+			return fmt.Errorf("--allow-mssql-dir must be an absolute path: %q", c.MSSQLDir)
+		}
+		c.MSSQLDir = filepath.Clean(c.MSSQLDir)
 	}
 	backoff := 2 * time.Second
 	for ctx.Err() == nil {
@@ -123,7 +134,7 @@ func (c *Client) session(ctx context.Context) error {
 	if err := send(Message{Type: "hello", Version: c.Version, Hostname: host, OS: runtime.GOOS + "/" + runtime.GOARCH, Allow: c.Allow.Strings(), Caps: caps}); err != nil {
 		return err
 	}
-	c.logf("connected to %s (may connect to: %s; %s)", c.Server, strings.Join(c.Allow.Strings(), ", "), caps.Physical.describe())
+	c.logf("connected to %s (may connect to: %s; %s; %s)", c.Server, strings.Join(c.Allow.Strings(), ", "), caps.Physical.describe(), caps.MSSQL.describe())
 	stop := make(chan struct{})
 	defer close(stop)
 	go func() {
@@ -148,6 +159,8 @@ func (c *Client) session(ctx context.Context) error {
 			go c.open(m, send)
 		case "physical":
 			go c.physical(ctx, m, send)
+		case "file":
+			go c.file(ctx, m, send)
 		}
 	}
 }

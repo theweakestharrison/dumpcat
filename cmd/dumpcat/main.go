@@ -28,6 +28,7 @@ import (
 	"dumpcat/internal/engine"
 	"dumpcat/internal/execx"
 	"dumpcat/internal/monitor"
+	"dumpcat/internal/mssql"
 	"dumpcat/internal/notify"
 	"dumpcat/internal/pipeline"
 	"dumpcat/internal/runner"
@@ -351,6 +352,18 @@ func serve(cfg *config.Config, stop <-chan struct{}, boot *update.Boot, exe stri
 			err = fmt.Errorf("agent %s is offline — start it on the database host (see the Agents page)", name)
 		}
 		return host, port, err
+	}
+	// SQL Server's backup folder on the agent's host (--allow-mssql-dir)
+	mssql.AgentFolder = func(id int64, dir string) (mssql.Files, error) {
+		name := fmt.Sprintf("#%d", id)
+		if a, e := st.GetAgent(id); e == nil {
+			name = a.Name
+		}
+		f, err := agents.Folder(id, name, dir)
+		if err != nil {
+			return nil, fmt.Errorf("agent %s: %w", name, err)
+		}
+		return f, nil
 	}
 	defer agents.Close()
 

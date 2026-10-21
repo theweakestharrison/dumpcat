@@ -137,6 +137,7 @@ type ServerInfo struct {
 	Platform       string `json:"platform,omitempty"`
 	ServiceAccount string `json:"service_account,omitempty"`
 	BackupDir      string `json:"backup_dir,omitempty"`
+	BackupDirVia   string `json:"backup_dir_via,omitempty"` // how DumpCat reaches it, when not under that path
 	BackupDirError string `json:"backup_dir_error,omitempty"`
 	Compression    bool   `json:"backup_compression,omitempty"` // the edition compresses backups
 }

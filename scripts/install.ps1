@@ -18,6 +18,7 @@
     .\install.ps1 -Agent -Server https://backup.example.com -Key dca_...
                   [-Allow 127.0.0.1:3306] [-Insecure]
                   [-AllowPhysical]   # also run physical backups (mariabackup) here
+                  [-AllowMSSQLDir D:\Backup\DumpCat]   # SQL Server: move its backup files for DumpCat (-Allow 127.0.0.1:1433)
     .\install.ps1 -Agent -Uninstall [-Purge]
 
   If scripts are blocked: powershell -ExecutionPolicy Bypass -File .\install.ps1
@@ -40,7 +41,8 @@ param(
   [string]$Key = '',
   [string]$Allow = '',
   [switch]$Insecure,
-  [switch]$AllowPhysical
+  [switch]$AllowPhysical,
+  [string]$AllowMSSQLDir = ''
 )
 
 $ErrorActionPreference = 'Stop'
@@ -131,6 +133,13 @@ if ($Agent) {
   if ($Insecure) { $vars['DUMPCAT_AGENT_INSECURE'] = '1' }
   # the service runs as LocalSystem, which can read the datadir
   if ($AllowPhysical) { $vars['DUMPCAT_AGENT_ALLOW_PHYSICAL'] = '1' }
+  # SQL Server's backup folder: LocalSystem reads and writes it; files the agent
+  # creates there inherit the folder's permissions (SQL Server's account has Modify)
+  if ($AllowMSSQLDir) {
+    if (-not [IO.Path]::IsPathRooted($AllowMSSQLDir) -or $AllowMSSQLDir -notmatch '^([A-Za-z]:\\|\\\\)') { Die '-AllowMSSQLDir takes an absolute path, e.g. D:\Backup\DumpCat' }
+    if (-not (Test-Path -LiteralPath $AllowMSSQLDir -PathType Container)) { Warn "$AllowMSSQLDir does not exist yet: create it and give SQL Server's service account Modify permission" }
+    $vars['DUMPCAT_AGENT_MSSQL_DIR'] = $AllowMSSQLDir.TrimEnd('\')
+  }
   if (-not $vars['DUMPCAT_AGENT_SERVER']) { Die '-Server is required, e.g. -Server https://backup.example.com' }
   if (-not $vars['DUMPCAT_AGENT_KEY']) { Die '-Key is required: the agent key from the Agents page of the web UI' }
   $lines = @('# DumpCat agent - after editing: Restart-Service DumpCatAgent')
@@ -176,6 +185,10 @@ if ($Agent) {
   Write-Host 'address as seen from this host (e.g. 127.0.0.1 port 3306).'
   if ($vars['DUMPCAT_AGENT_ALLOW_PHYSICAL'] -eq '1') {
     Write-Host 'Physical backups: the Agents page shows whether mariabackup and the datadir were found.'
+  }
+  if ($vars['DUMPCAT_AGENT_MSSQL_DIR']) {
+    Write-Host "SQL Server: enter $($vars['DUMPCAT_AGENT_MSSQL_DIR']) as the server's backup folder (as SQL Server sees it) and leave"
+    Write-Host '"As DumpCat sees it" empty - the agent moves the files. Allow the instance: -Allow 127.0.0.1:1433.'
   }
   Write-Host ''
   Write-Host "Configuration: $AgentEnv  (after editing: Restart-Service $AgentService)"

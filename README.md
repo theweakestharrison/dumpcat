@@ -145,6 +145,7 @@ flowchart RL
 | To install on the database host | Nothing | WireGuard (`wg-quick`) and the file DumpCat generates | `dumpcat agent` (one installer command) |
 | MySQL settings | Backup user allowed from DumpCat's address | Listens on the VPN address; user allowed from 10.66.0.1 | Unchanged |
 | Physical backups (XtraBackup / MariaBackup) | Yes, when DumpCat runs on the database host | No (needs DumpCat on the database host) | Yes, with `--allow-physical`: the agent runs the tool on the database host and streams the backup back |
+| SQL Server backup files | DumpCat on the SQL Server host, or a shared folder | A shared folder (SMB, a mount) | Yes, with `--allow-mssql-dir`: the agent moves them, nothing shared |
 | Best for | Same network or VPC, or DumpCat on the database host | Teams that already use WireGuard; one gateway to a whole private network | Hosts behind NAT or a strict firewall; no change to MySQL or the network |
 | Set up in | Database servers | WireGuard page, then Database servers | Agents page, then Database servers |
 
@@ -229,7 +230,8 @@ PostgreSQL servers are backed up with `pg_dump` (directory format, tables in par
 `pg_basebackup` (the whole cluster, the base of WAL archiving and point-in-time recovery): see
 [PostgreSQL](docs/manual.md#postgresql). SQL Server databases get SQL Server's own full and differential backups
 (and log backups for point-in-time recovery), written into a backup folder that DumpCat reads: on the SQL Server host,
-or a share both machines reach — see [SQL Server](docs/manual.md#sql-server).
+a share both machines reach, or the SQL Server host's own folder that the agent moves the files from — see
+[SQL Server](docs/manual.md#sql-server).
 
 More detail and recommendations: [Choosing a backup method](docs/manual.md#2-choosing-a-backup-method).
 

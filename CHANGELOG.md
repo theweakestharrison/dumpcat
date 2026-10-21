@@ -9,7 +9,8 @@ groups of bullets.
 ## 1.8.0
 
 Microsoft SQL Server is the third database engine: native full and differential backups, restores under new names or
-onto another server, restore drills with `DBCC CHECKDB`, and scheduled log backups for point-in-time recovery.
+onto another server, restore drills with `DBCC CHECKDB`, and scheduled log backups for point-in-time recovery — also
+for SQL Server hosts that share no folder with DumpCat, through the agent.
 
 ### SQL Server
 
@@ -21,9 +22,19 @@ onto another server, restore drills with `DBCC CHECKDB`, and scheduled log backu
   account may not do, and whether SQL Server reads the server's **backup folder**.
 - The **backup folder**: `BACKUP DATABASE` writes on the SQL Server host, so every file passes through a folder both
   SQL Server and DumpCat reach — the same path when DumpCat runs on the SQL Server host, otherwise a share or mount,
-  entered as SQL Server sees it and as DumpCat sees it. DumpCat reads each `.bak` into the usual compression,
-  encryption and SHA-256 pipeline, uploads it to every storage of the job and deletes it; restores pass through it the
-  other way. The connection test writes a file through one path and has SQL Server read it through the other.
+  entered as SQL Server sees it and as DumpCat sees it, or the agent (below). DumpCat reads each `.bak` into the usual
+  compression, encryption and SHA-256 pipeline, uploads it to every storage of the job and deletes it; restores pass
+  through it the other way. The connection test writes a file through one path and has SQL Server read it through the
+  other.
+- **Through the agent, nothing shared**: an agent started with `--allow-mssql-dir` and SQL Server's backup folder
+  (`install.sh --agent … --allow 127.0.0.1:1433 --allow-mssql-dir /var/opt/mssql/backup`, Windows `-AllowMSSQLDir`)
+  reads the `.bak` / `.trn` files SQL Server writes there and streams them over its connection, and writes the files of
+  restores there. Full, differential and log backups, restores, drills and point-in-time recovery then work for a SQL
+  Server host behind NAT or without SMB, with *As DumpCat sees it* left empty; compression, encryption and SHA-256
+  stay on the DumpCat side. The agent only touches regular `dumpcat-*` files directly in that one folder, never
+  replaces a file, and on Linux runs as the folder's owner (`mssql`) with write access to that folder only. The Agents
+  page has a *SQL Server folder* column and a *SQL Server* option in the install dialog; the server form fills the
+  folder in from the agent, and **Check** says how DumpCat reaches it.
 - One method, **native backup**: full backups on the job's schedule, **differential** backups on its second schedule
   (or *Run → Differential backup*), `WITH CHECKSUM`, `COMPRESSION` where the edition has it (then DumpCat stores the
   file without compressing it again), `RESTORE VERIFYONLY` on the server before each file is read, copy-only jobs,
@@ -51,7 +62,10 @@ onto another server, restore drills with `DBCC CHECKDB`, and scheduled log backu
   drills and point-in-time recovery, and imported catalogs keep the link. The API and MCP take
   `type: differential` (an incremental schedule is a differential one for SQL Server jobs).
 - Servers have `backup_dir` and `backup_dir_local` (store migration 11), in the API and in MCP's `create_server` /
-  `update_server`; jobs have `copy_only`, `native_compression` and `verify_only`.
+  `update_server`; jobs have `copy_only`, `native_compression` and `verify_only`. Agents report `caps.mssql`
+  (`dir`, `user`, `error`) in `GET /api/agents`, and a SQL Server's `GET /api/servers/{id}/info` has `backup_dir_via`.
+- Agent: `--allow-mssql-dir` / `DUMPCAT_AGENT_MSSQL_DIR` (an agent without it, or from before 1.8.0, keeps working for
+  everything else; DumpCat names it when a SQL Server behind it needs the folder).
 - The server list no longer shows a TLS badge for servers with TLS disabled.
 
 ## 1.7.0 (2026-10-20)

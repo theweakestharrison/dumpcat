@@ -237,13 +237,42 @@ can be selected, renamed and restored one by one — Differential, Drill, Estima
   | `BACKUP … TO URL` against an S3 endpoint served by DumpCat | SQL Server 2022+ only, needs a certificate the SQL Server host trusts and an S3 server in DumpCat; no. |
   | VDI (virtual device interface) | Streams without a file, but only on the SQL Server host, through a COM/shared-memory API: no pure-Go client; no. |
   | Reading the file back through T-SQL (`OPENROWSET(BULK …, SINGLE_BLOB)`) | Whole file in one value, 2 GB at most; no. |
-  | The agent on the SQL Server host reads the folder and streams the file over its connection | The natural next step for hosts DumpCat cannot share a folder with: the agent's framing (`frameStdout`…) already streams physical MySQL backups. **Follow-up.** |
+  | The agent on the SQL Server host reads the folder and streams the file over its connection | For hosts DumpCat cannot share a folder with: the agent's framing (`frameStdout`…) already streams physical MySQL backups. **Done** (below). |
 
   File names are `dumpcat-<12 hex>-<database>.bak`/`.trn`, random so that tasks and DumpCat installations sharing a
   folder never meet; DumpCat opens only regular files it named, and removes them when done (also after errors). As
   root on Linux, files DumpCat writes there get the folder's owner (`mssql`), mode 0640. The connection test writes
   a probe file through the local path and asks SQL Server to read it through its own (`RESTORE HEADERONLY`: "not a
   backup" or "the volume is empty" means it was read; "Operating system error 2/3/5" tells which mistake).
+- **The folder through the agent.** `internal/mssql` reaches the folder through `mssql.Files` (open a file SQL Server
+  wrote, create one for a restore, remove, free space/probe, `Dir`, `String`): `localFiles` is DumpCat's own file
+  system (the same path, a share, a mount); a server behind an agent with `backup_dir_local` empty gets
+  `mssql.AgentFolder(agentID, dir)`, set at startup to `agent.Manager.Folder`. The pipeline (compression, encryption,
+  SHA-256, storages) stays in DumpCat; only the bytes of the folder's files cross the agent.
+  - Agent side: `dumpcat agent --allow-mssql-dir DIR` (`DUMPCAT_AGENT_MSSQL_DIR`) reports `caps.mssql`
+    `{dir, user, error}` with hello (an older agent sends no `mssql`: "update it"; an agent without the flag sends an
+    empty one: "start it with --allow-mssql-dir"). The control message `file` (`{op: read|write|remove|stat, name}`)
+    is checked before anything happens — the flag is set, the name is `dumpcat-[A-Za-z0-9_.@-]+` without `..` or a
+    separator (`agent.FolderFile`), the path is directly in DIR, the file is a regular file (`Lstat`, `O_NOFOLLOW`,
+    then `SameFile` on the opened handle), writes are `O_CREATE|O_EXCL` — and a refusal comes back as the control
+    `error` of the request. Then the agent opens a data connection (`PathStream`) as for a physical backup.
+  - Frames on that connection (first byte): read — agent → server `i` (`FileResult` with the size), `o` (≤ 256 KiB),
+    `r` (`FileResult`; the reader fails unless exactly the announced bytes arrived); write — server → agent `o`…, `f`
+    (`FileResult` with the size), agent → server `r` after `fsync`, mode 0640 and the folder's owner/group (as root);
+    stat/remove — `r` only. Pings `p` both ways every 25 s; `c` or closing cancels. A write that does not end with a
+    matching `f` (cancel, a failed download, a dropped connection, a revoked key) removes the partial file on the
+    agent. The agent sets no write deadlines (a slow disk must not cut a frame short); the server's data and ping frames
+    share an 80 s deadline.
+  - `install.sh --agent --allow-mssql-dir DIR` creates DIR when missing (`mssql:mssql 0770`) and writes the drop-in
+    `dumpcat-agent.service.d/mssql.conf` (`DynamicUser=no`, `User`/`Group` = DIR's owner, `ReadWritePaths=DIR`, the
+    rest of the unit's sandbox stays); refused together with `--allow-physical` (two users). `install.ps1
+    -AllowMSSQLDir` (LocalSystem; the folder's ACL is inherited).
+  - Tests: `internal/agent/folder_test.go` (names and paths, round trip 3 MB, refusals incl. links and files outside
+    the folder, aborted and canceled transfers leave nothing, old agent, bad folder) and `TestMSSQLE2E` with
+    `DUMPCAT_E2E_MSSQL_AGENT=DIR` (an agent inside the test; every backup/restore/PITR path through it, an agent
+    folder that is not SQL Server's is found by the probe). Verified on SQL Server 2022 (Linux) with DumpCat on
+    Windows and the agent installed by `install.sh` on the SQL Server host, behind an SSH reverse tunnel: full
+    (encrypted), differential, log backups, restore of the differential, PITR to a time, a 153 MiB backup and restore.
 - **Backup**: per database (in parallel, *Threads*) `BACKUP DATABASE … WITH [DIFFERENTIAL,] CHECKSUM, FORMAT, INIT,
   SKIP, STATS = 10, [NO_]COMPRESSION, [COPY_ONLY,] NAME` (+ validated extra options), then `RESTORE HEADERONLY`
   (fallback: msdb's backup history), optionally `RESTORE VERIFYONLY WITH CHECKSUM`, the row counts of

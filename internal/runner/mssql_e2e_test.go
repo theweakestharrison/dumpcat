@@ -30,8 +30,11 @@ import (
 //	DUMPCAT_E2E_MSSQL='sa:secret@127.0.0.1:1433' DUMPCAT_E2E_MSSQL_DIR=/var/opt/mssql/dumpcat-e2e go test ./internal/runner -run MSSQLE2E -v
 //
 // DUMPCAT_E2E_MSSQL_LOCAL is the same folder seen from the test when the two
-// paths differ (a share, a bind mount). DUMPCAT_E2E_KEEP keeps the backups in
-// that directory, DUMPCAT_E2E_VERBOSE logs the backup and PITR logs.
+// paths differ (a share, a bind mount). DUMPCAT_E2E_MSSQL_AGENT=DIR reaches
+// the server and its backup folder only through an agent (in the test) that
+// is started with --allow-mssql-dir DIR, the folder as the agent sees it.
+// DUMPCAT_E2E_KEEP keeps the backups in that directory, DUMPCAT_E2E_VERBOSE
+// logs the backup and PITR logs.
 func TestMSSQLE2E(t *testing.T) {
 	dsn := os.Getenv("DUMPCAT_E2E_MSSQL")
 	if dsn == "" {
@@ -59,6 +62,12 @@ func TestMSSQLE2E(t *testing.T) {
 	port, _ := strconv.Atoi(portS)
 	src := &store.Server{Engine: store.EngineMSSQL, Name: "source", Host: host, Port: port, Username: user, Password: pass, Flavor: "auto",
 		BackupDir: os.Getenv("DUMPCAT_E2E_MSSQL_DIR"), BackupDirLocal: os.Getenv("DUMPCAT_E2E_MSSQL_LOCAL")}
+	agentDir := os.Getenv("DUMPCAT_E2E_MSSQL_AGENT")
+	if agentDir != "" {
+		// no folder DumpCat sees: the agent moves every file
+		id := e2eAgent(t, st, dsn[at+1:], agentDir)
+		src.AgentID, src.BackupDirLocal = &id, ""
+	}
 	if err := st.CreateServer(src); err != nil {
 		t.Fatal(err)
 	}
@@ -180,9 +189,22 @@ func TestMSSQLE2E(t *testing.T) {
 	if stats[shop]["dbo.items"] != 2500 || stats[shop]["sales.orders"] != 5000 || stats[odd]["dbo.t"] != 10 || stats[shop]["dbo.empty_t"] != 0 {
 		t.Fatalf("row counts of the backup: %v", stats)
 	}
+	if agentDir != "" {
+		if !strings.Contains(log, "through agent e2e-agent") {
+			t.Errorf("the backup did not go through the agent:\n%s", log)
+		}
+		// an agent folder that is not SQL Server's backup folder is found out
+		wrong := *src
+		wrong.BackupDir = "/var/opt/mssql/no-such-folder"
+		if info, err := (mssql.Driver{}).Inspect(ctx, &wrong, false); err != nil || !strings.Contains(info.BackupDirError, "not the same folder") {
+			t.Errorf("a wrong agent folder: %v %q", err, info.BackupDirError)
+		}
+	}
 	// files are gone from the backup folder
 	folder := src.BackupDirLocal
-	if folder == "" {
+	if agentDir != "" {
+		folder = agentDir
+	} else if folder == "" {
 		folder = src.BackupDir
 	}
 	leftovers := func() []string {

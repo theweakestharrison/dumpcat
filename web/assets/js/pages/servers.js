@@ -1,7 +1,7 @@
 import { get, post, put, del } from '../api.js';
 import { html, setHTML, icon, on, fmtBytes, fmtDur, toast, toastErr, confirmBox, modal, busy, empty, formData, copyText, bindModalForm } from '../ui.js';
 import { canOperate } from '../app.js';
-import { agentPhysical, engines, engineOf } from '../components.js';
+import { agentPhysical, agentFolder, engines, engineOf } from '../components.js';
 
 export const title = 'Database servers';
 
@@ -74,7 +74,7 @@ function infoView(res) {
     <div class="kv" style="margin-bottom:14px">
       ${ms ? html`<div>Server</div><div>${i.hostname} · ${i.platform}</div>
         <div>Service account</div><div class="mono small">${i.service_account || html`<span class="muted">not visible to this account (VIEW SERVER STATE)</span>`}</div>
-        <div>Backup folder</div><div class="mono small">${i.backup_dir || html`<span class="muted">—</span>`}</div>
+        <div>Backup folder</div><div class="mono small">${i.backup_dir || html`<span class="muted">—</span>`}${i.backup_dir_via ? html` <span class="muted">· ${i.backup_dir_via}</span>` : ''}</div>
         <div>Data files</div><div class="mono small">${i.datadir || '—'}</div>
         <div>Compression</div><div>${i.backup_compression ? 'Available in this edition' : 'Not in this edition: DumpCat compresses'}</div>
         <div>Replication</div><div>${i.is_replica ? 'Secondary replica of an availability group' : 'Primary'}</div>
@@ -119,8 +119,10 @@ function connectHelp(rt, wgOn, engine) {
   if (isMS(engine)) {
     if (!rt) return html`DumpCat connects to the address below (TCP; <span class="mono">host\\INSTANCE</span> with an empty port asks the SQL Server Browser). SQL Server writes its backups on its own disk: see <b>Backup folder</b> below.`;
     if (rt.kind === 'wg') return html`DumpCat connects through its built-in WireGuard: enter the SQL Server host's WireGuard address <span class="mono">${rt.p.peer.address}</span> and the instance's TCP port. The backup folder must be shared with the DumpCat host (below).`;
-    return html`The agent opens the connection: enter the address <b>as seen from the agent host</b>, usually 127.0.0.1 port 1433; the agent must allow it (<span class="mono">-allow 127.0.0.1:1433</span>). The backup folder must be shared with the DumpCat host (below).
-      <div style="margin-top:6px">${rt.a.status.online ? html`<span class="badge good">${icon('check')}Online</span>${rt.a.status.hostname ? ` on ${rt.a.status.hostname}` : ''}` : html`<span class="badge warn">${icon('alert')}Offline</span> start the agent on the database host`}</div>`;
+    const fo = agentFolder(rt.a.status);
+    return html`The agent opens the connection: enter the address <b>as seen from the agent host</b>, usually 127.0.0.1 port 1433; the agent must allow it (<span class="mono">-allow 127.0.0.1:1433</span>). An agent started with <span class="mono">--allow-mssql-dir</span> and SQL Server's backup folder moves the backup files: enter that folder below and leave <b>As DumpCat sees it</b> empty. Otherwise share the folder with the DumpCat host.
+      <div style="margin-top:6px">${rt.a.status.online ? html`<span class="badge good">${icon('check')}Online</span>${rt.a.status.hostname ? ` on ${rt.a.status.hostname}` : ''}` : html`<span class="badge warn">${icon('alert')}Offline</span> start the agent on the database host`}</div>
+      ${fo ? html`<div style="margin-top:6px">SQL Server backup folder: <span class="badge ${fo.ok ? 'good' : fo.off ? '' : 'warn'}">${fo.ok ? html`<span class="mono">${fo.short}</span>` : fo.short}</span> <span class="muted">${fo.detail}</span></div>` : ''}`;
   }
   if (!rt) return html`DumpCat connects to the address below. If the database host accepts no inbound connections, add an <a href="#/agents">agent</a> or a <a href="#/wireguard">WireGuard peer</a> on it.`;
   if (rt.kind === 'wg') {
@@ -133,6 +135,12 @@ function connectHelp(rt, wgOn, engine) {
   return html`The agent opens the connection: enter the address <b>as seen from the agent host</b>, usually 127.0.0.1 port ${pg ? '5432' : '3306'} or a socket${pg ? html` directory. The agent must allow it (<span class="mono">-allow 127.0.0.1:5432</span>).` : html`. Physical backups run on that host when the agent is started with <span class="mono">--allow-physical</span>.`}
     <div style="margin-top:6px">${st.online ? html`<span class="badge good">${icon('check')}Online</span>${st.hostname ? ` on ${st.hostname}` : ''} — may connect to <span class="mono">${st.allow.join(', ')}</span>` : html`<span class="badge warn">${icon('alert')}Offline</span> start the agent on the database host`}</div>
     ${ph && !pg ? html`<div style="margin-top:6px">Physical backups: <span class="badge ${ph.ok ? 'good' : ph.off ? '' : 'warn'}">${ph.short}</span> <span class="muted">${ph.detail}</span></div>` : ''}`;
+}
+
+// An agent that moves SQL Server's backup files (--allow-mssql-dir) names their folder.
+function prefillFolder(form, rt) {
+  const fo = rt && rt.kind === 'agent' && rt.a.status.caps && rt.a.status.caps.mssql;
+  if (isMS(form.engine.value) && fo && fo.dir && !form.backup_dir.value.trim() && !form.backup_dir_local.value.trim()) form.backup_dir.value = fo.dir;
 }
 
 function serverForm(s = {}, routes = { agents: [], peers: [], wgOn: false }, engs = []) {
@@ -165,12 +173,12 @@ function serverForm(s = {}, routes = { agents: [], peers: [], wgOn: false }, eng
     <div class="field full ${v('tls_mode') === 'verify' ? '' : 'hidden'}" id="ca-field"><label>CA certificate (PEM)</label><textarea name="ca_cert" rows="3">${v('ca_cert')}</textarea></div>
   </div>
   <details class="adv ${ms ? '' : 'hidden'}" id="folder-box" style="margin-top:14px" open><summary>Backup folder (SQL Server writes its backups on its own host)</summary>
-    <div class="help" style="margin-bottom:10px">BACKUP DATABASE writes on the SQL Server host. DumpCat reads each file from this folder, stores it on the job's storages and deletes it; restores pass through it the other way. When DumpCat runs on the SQL Server host the two paths are the same: leave the second one empty. Otherwise share the folder (an SMB share, or a mount on Linux) and enter how DumpCat sees it.</div>
+    <div class="help" style="margin-bottom:10px">BACKUP DATABASE writes on the SQL Server host. DumpCat reads each file from this folder, stores it on the job's storages and deletes it; restores pass through it the other way. When DumpCat runs on the SQL Server host the two paths are the same: leave the second one empty. Otherwise share the folder (an SMB share, or a mount on Linux) and enter how DumpCat sees it — or connect through an agent started with <span class="mono">--allow-mssql-dir</span> on the SQL Server host, which moves the files: then the second path stays empty.</div>
     <div class="form-grid">
       <div class="field"><label>As SQL Server sees it</label><input type="text" name="backup_dir" value="${v('backup_dir')}" placeholder="empty: the instance's default backup folder">
         <div class="help">e.g. <span class="mono">D:\\Backup\\DumpCat</span>, <span class="mono">\\\\nas\\sql-backup</span>, <span class="mono">/var/opt/mssql/dumpcat</span>. SQL Server's service account needs Modify permission there.</div></div>
       <div class="field"><label>As DumpCat sees it</label><input type="text" name="backup_dir_local" value="${v('backup_dir_local')}" placeholder="empty: the same path">
-        <div class="help">e.g. <span class="mono">\\\\sql01\\DumpCat$</span> (Windows), <span class="mono">/mnt/sql01-backup</span> (Linux, a CIFS mount). "Test connection" checks that both name the same folder.</div></div>
+        <div class="help">e.g. <span class="mono">\\\\sql01\\DumpCat$</span> (Windows), <span class="mono">/mnt/sql01-backup</span> (Linux, a CIFS mount); empty through an agent with <span class="mono">--allow-mssql-dir</span>. "Test connection" checks that both name the same folder.</div></div>
     </div></details>
   <details class="adv" style="margin-top:14px" ${s.restore_username ? 'open' : ''}><summary>Separate account for restores (recommended)</summary>
     <div class="help" style="margin-bottom:10px" id="restore-help">${restoreHelp(engine)}</div>
@@ -239,6 +247,7 @@ export async function openServerForm(s, onSaved, defaults = {}) {
     m.el.querySelector('#restore-help').textContent = restoreHelp(e);
     const rt = findRoute(routes, form.connect.value);
     setHTML(m.el.querySelector('#connect-help'), connectHelp(rt, routes.wgOn, e));
+    prefillFolder(form, rt);
     m.el.querySelector('#physical-box').classList.toggle('hidden', (!!rt && rt.kind === 'wg') || pg || ms);
     showGrant(pg ? 'postgres' : ms ? 'mssql' : 'mysql');
   });
@@ -249,6 +258,7 @@ export async function openServerForm(s, onSaved, defaults = {}) {
     // its datadir (service, owner) only works where DumpCat runs
     m.el.querySelector('#physical-box').classList.toggle('hidden', (!!rt && rt.kind === 'wg') || isPG(form.engine.value) || isMS(form.engine.value));
     m.el.querySelectorAll('[data-local]').forEach((f) => f.classList.toggle('hidden', !!rt));
+    prefillFolder(form, rt);
     // through WireGuard the host is the peer's VPN address, not localhost
     if (rt && rt.kind === 'wg' && ['', '127.0.0.1', 'localhost', '::1'].includes(form.host.value.trim())) form.host.value = rt.p.peer.address;
   });

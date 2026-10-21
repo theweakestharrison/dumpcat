@@ -12,6 +12,9 @@
 // Physical backups must read the datadir, so the tool has to run on the
 // database host: an agent started with --allow-physical runs mariabackup or
 // xtrabackup there when asked and streams the xbstream back (physical.go).
+// SQL Server writes its backups on its own host: an agent started with
+// --allow-mssql-dir reads them from SQL Server's backup folder and writes
+// the files of restores there (folder.go).
 package agent
 
 import (
@@ -30,7 +33,7 @@ const (
 
 // Message is a control frame (JSON text frames on the control connection).
 type Message struct {
-	Type     string   `json:"type"` // hello, open, physical, error, ping, pong
+	Type     string   `json:"type"` // hello, open, physical, file, error, ping, pong
 	ID       string   `json:"id,omitempty"`
 	Net      string   `json:"net,omitempty"` // tcp or unix
 	Addr     string   `json:"addr,omitempty"`
@@ -45,6 +48,9 @@ type Message struct {
 	// Physical (physical) is a backup the agent runs on its host and
 	// streams back over a data connection (see physical.go).
 	Physical *PhysicalRequest `json:"physical,omitempty"`
+	// File (file) reads or writes a file of SQL Server's backup folder over
+	// a data connection (see folder.go).
+	File *FileRequest `json:"file,omitempty"`
 }
 
 // Target is an address the agent dials on its side.

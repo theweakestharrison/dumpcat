@@ -256,8 +256,8 @@ func serverProps() map[string]any {
 		"wg_peer_id":       mcpID("Reach the server through this WireGuard peer (set up in the web UI)."),
 		"backup_dir": mcpString(`SQL Server only: the folder SQL Server writes its backups to, as SQL Server names it on its own host (D:\Backup\DumpCat, ` +
 			`\\nas\sql, /var/opt/mssql/dumpcat; empty: the instance's default backup folder). Its service account needs Modify permission there.`),
-		"backup_dir_local": mcpString("SQL Server only: the same folder as DumpCat opens it (empty: the same path, i.e. DumpCat runs on the SQL Server host; " +
-			"otherwise the share or mount on the DumpCat host)."),
+		"backup_dir_local": mcpString("SQL Server only: the same folder as DumpCat opens it (empty: the same path, i.e. DumpCat runs on the SQL Server host, " +
+			"or the server is reached through an agent started with --allow-mssql-dir, which moves the files; otherwise the share or mount on the DumpCat host)."),
 	}
 }
 

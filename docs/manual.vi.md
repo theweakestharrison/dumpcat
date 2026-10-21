@@ -173,8 +173,9 @@ còn việc backup do chính SQL Server làm.
 - *As SQL Server sees it*: ví dụ `D:\Backup\DumpCat`, `\\nas\sql-backup` hoặc `/var/opt/mssql/dumpcat`; để trống là
   thư mục backup mặc định của instance. Tài khoản service của SQL Server (`NT Service\MSSQLSERVER`, trên Linux là user
   `mssql`) cần quyền *Modify* ở đó.
-- *As DumpCat sees it*: để trống khi đường dẫn giống hệt, tức là DumpCat chạy trên chính máy SQL Server; nếu không, là
-  share hoặc mount trên máy DumpCat.
+- *As DumpCat sees it*: để trống khi đường dẫn giống hệt, tức là DumpCat chạy trên chính máy SQL Server, hoặc khi
+  server được kết nối qua một agent khởi động với `--allow-mssql-dir`, agent sẽ chuyển file
+  ([SQL Server qua agent](#sql-server-qua-agent)); nếu không, là share hoặc mount trên máy DumpCat.
 
 SQL Server ghi `dumpcat-<ngẫu nhiên>-<database>.bak` vào đó, DumpCat đọc nó vào pipeline quen thuộc (nén, mã hóa,
 SHA-256, mọi storage của job) rồi xóa; restore thì chép file ngược vào đó, cho SQL Server kiểm tra và restore, rồi xóa.
@@ -190,9 +191,12 @@ không phải đợi đến lần backup đầu.
 | DumpCat **ở máy khác**, SQL Server ghi vào **share** | `\\nas\sql-backup` (hoặc share của máy DumpCat) cho cả hai; DumpCat trên Linux thì mount share, ví dụ `/mnt/sql-backup` | Tài khoản service phải vào được share: tài khoản domain, hoặc tài khoản máy `DOMAIN\SQL01$`. Dữ liệu đi SQL Server → share → DumpCat. |
 | DumpCat **ở máy khác**, đọc **share của máy SQL Server** | `D:\Backup\DumpCat` trên server, `\\sql01\DumpCat$` (Windows) hoặc mount CIFS (Linux) ở DumpCat | Đĩa của máy SQL Server giữ mỗi file đến khi DumpCat đọc xong. |
 | SQL Server **trong container** | đường dẫn bên trong container, và đường dẫn của volume trên máy host | ví dụ `/var/opt/mssql/backup` và `/srv/mssql/backup`. |
+| DumpCat **ở máy khác**, **không chia sẻ gì**: máy SQL Server chỉ đi ra ngoài được (NAT, không SMB) | thư mục trên máy SQL Server, đường dẫn thứ hai để trống; [agent](#sql-server-qua-agent) trên máy đó khởi động với `--allow-mssql-dir` và thư mục ấy | Agent chuyển từng file qua kết nối HTTPS của nó, và chỉ các file của chính DumpCat trong thư mục đó. Đĩa của máy SQL Server giữ mỗi file đến khi gửi xong. |
 
-Qua agent hoặc WireGuard thì kết nối chạy như các engine khác (cho phép `127.0.0.1:1433`), nhưng thư mục backup vẫn
-phải được chia sẻ với máy DumpCat. Việc chuyển file qua agent đang được lên kế hoạch.
+Qua agent thì kết nối chạy như các engine khác (cho phép `127.0.0.1:1433`), và agent còn chuyển được file backup nên
+không cần chia sẻ thư mục nào: khởi động agent với `--allow-mssql-dir` và thư mục backup của SQL Server
+([SQL Server qua agent](#sql-server-qua-agent)), nhập thư mục đó vào *As SQL Server sees it* và để trống *As DumpCat
+sees it*. Qua WireGuard thì thư mục vẫn phải được chia sẻ với máy DumpCat.
 
 **Tài khoản.** Đơn giản nhất: một login thuộc role `sysadmin`. Tối thiểu quyền:
 
@@ -498,7 +502,8 @@ bên trong kết nối này. Các công cụ của DumpCat kết nối tới por
 Mọi thứ chỉ cần kết nối database đều chạy qua agent: backup mysqldump và mydumper, restore (kể cả sang server nằm sau một
 agent khác), lưu binlog và khôi phục theo thời điểm. DumpCat mở cho các công cụ của nó một port local cho mỗi database,
 còn agent quay số tới database. Backup vật lý (XtraBackup / MariaBackup) chép datadir nên công cụ phải chạy trên chính
-server database: agent khởi động với `--allow-physical` làm việc đó (xem bên dưới).
+server database: agent khởi động với `--allow-physical` làm việc đó (xem bên dưới). SQL Server ghi backup trên chính máy
+của nó: agent khởi động với `--allow-mssql-dir` chuyển các file đó (xem bên dưới).
 
 - **Agent được phép kết nối tới đâu.** Mặc định chỉ MySQL/MariaDB trên máy đó: `127.0.0.1:3306`, `[::1]:3306` và các
   đường dẫn socket thường gặp. Địa chỉ khác thì thêm bằng `--allow` (Windows: `-Allow`), phân cách bằng dấu phẩy, ví dụ
@@ -507,12 +512,13 @@ server database: agent khởi động với `--allow-physical` làm việc đó 
   *… is not on this agent's allow list* khi kiểm tra kết nối và trong log backup.
 - **Cấu hình**: `/etc/dumpcat/agent.env` (Windows: `C:\ProgramData\DumpCat\agent.env`), chỉ root / Administrators đọc
   được: `DUMPCAT_AGENT_SERVER`, `DUMPCAT_AGENT_KEY`, `DUMPCAT_AGENT_ALLOW`, `DUMPCAT_AGENT_INSECURE`,
-  `DUMPCAT_AGENT_ALLOW_PHYSICAL`, `DUMPCAT_AGENT_DATADIR` (xem `agent.env.example`). Sửa xong: `systemctl restart dumpcat-agent` (Windows: `Restart-Service DumpCatAgent`). Chạy lại bộ
+  `DUMPCAT_AGENT_ALLOW_PHYSICAL`, `DUMPCAT_AGENT_DATADIR`, `DUMPCAT_AGENT_MSSQL_DIR` (xem `agent.env.example`). Sửa xong: `systemctl restart dumpcat-agent` (Windows: `Restart-Service DumpCatAgent`). Chạy lại bộ
   cài với `--server`, `--key` hoặc `--allow` mới cũng cập nhật file này.
 - **Dịch vụ**: `dumpcat-agent` trên Linux — chạy bằng một user tạm không có quyền (systemd `DynamicUser`), không truy cập
-  được hệ thống file (với `--allow-physical`: chạy bằng user sở hữu datadir); `DumpCatAgent` trên Windows. Log: `journalctl -u dumpcat-agent -f`
+  được hệ thống file (với `--allow-physical`: chạy bằng user sở hữu datadir; với `--allow-mssql-dir`: chạy bằng user sở
+  hữu thư mục backup của SQL Server); `DumpCatAgent` trên Windows. Log: `journalctl -u dumpcat-agent -f`
   (Windows: `C:\ProgramData\DumpCat\agent.log`). Chạy tay, ở foreground:
-  `dumpcat agent -server https://backup.example.com -key dca_... [-allow ...] [-insecure] [-allow-physical]`.
+  `dumpcat agent -server https://backup.example.com -key dca_... [-allow ...] [-insecure] [-allow-physical] [-allow-mssql-dir DIR]`.
 - **Mã hóa**: dữ liệu database đi bên trong kết nối của agent. Hãy chạy DumpCat qua HTTPS khi đường truyền đi qua mạng
   không tin cậy; nếu dùng chứng chỉ tự ký (`DUMPCAT_TLS_AUTO=1`) thì thêm `--insecure` cho agent. Đặt sau nginx thì file
   mẫu `nginx-dumpcat.conf` đã chuyển tiếp WebSocket cho `/api/agent/` với timeout dài.
@@ -561,6 +567,45 @@ XtraBackup khớp với MySQL — rồi chọn phương thức **Physical** cho 
 - **Restore** thực hiện ở máy chạy DumpCat (xem [7. Restore](#7-restore)): DumpCat tải và prepare bản backup; chép thư mục
   đã prepare sang server database rồi chạy `--copy-back` ở đó (log restore ghi sẵn các lệnh), hoặc restore vào một instance
   trên máy chạy DumpCat. *Apply right away* không dùng được qua agent.
+
+#### SQL Server qua agent
+
+SQL Server ghi backup trên chính máy của nó và đọc file restore ở đó ([thư mục backup](#sql-server)). Khi máy SQL Server
+không chia sẻ được thư mục nào với DumpCat — sau NAT, không có SMB, chỉ đi ra HTTPS — agent sẽ chuyển các file đó: khởi
+động agent với `--allow-mssql-dir` và thư mục SQL Server ghi backup vào, đồng thời cho phép port của instance.
+
+```bash
+sudo ./install.sh --agent --server https://backup.example.com --key dca_... --allow 127.0.0.1:1433 --allow-mssql-dir /var/opt/mssql/backup
+```
+
+(Windows: `-Allow 127.0.0.1:1433 -AllowMSSQLDir D:\Backup\DumpCat`; chạy tay: `dumpcat agent ... -allow-mssql-dir DIR`;
+trong `agent.env`: `DUMPCAT_AGENT_MSSQL_DIR=DIR`; hộp thoại cài đặt ở trang Agents có tùy chọn *SQL Server*.) Sau đó
+thêm server với **Connect: Through agent …**, địa chỉ `127.0.0.1` port `1433`, *Backup folder → As SQL Server sees it*
+là thư mục đó (form tự điền theo agent) và *As DumpCat sees it* **để trống**.
+
+- **Cách hoạt động**: `BACKUP DATABASE` và `BACKUP LOG` ghi `dumpcat-<ngẫu nhiên>-<database>.bak|.trn` vào thư mục;
+  agent đọc file và stream qua kết nối của nó; DumpCat nén, mã hóa, tính checksum và upload như thường lệ, rồi bảo agent
+  xóa file. Restore đi theo chiều ngược lại: DumpCat tải và kiểm tra từng file, agent ghi nó vào thư mục (đầy đủ và đã
+  sync trước khi SQL Server đọc), SQL Server kiểm tra và restore, agent xóa file. Backup full, differential và log,
+  restore, diễn tập restore và khôi phục theo thời điểm đều chạy theo cách này. *Test connection* ghi một file nhỏ qua
+  agent và cho SQL Server đọc: thư mục của agent không phải thư mục của SQL Server sẽ bị phát hiện ngay lúc đó.
+- **Giới hạn những gì DumpCat được yêu cầu**: chỉ một thư mục đó, chỉ các file tên `dumpcat-…` nằm ngay trong đó, chỉ file
+  thường (không link, không thư mục con), và file mới không bao giờ thay file đã có. Server DumpCat không thể dùng agent
+  để đọc hay ghi bất cứ thứ gì khác trên máy.
+- **Quyền**: trên Linux, `--allow-mssql-dir` tạo thư mục nếu chưa có (`mssql:mssql`, `0770`) và thêm một drop-in systemd
+  (`/etc/systemd/system/dumpcat-agent.service.d/mssql.conf`) để agent chạy bằng user sở hữu thư mục và chỉ được ghi vào
+  thư mục đó (`ReadWritePaths`); file agent ghi có mode `0640` và group của thư mục. Service trên Windows chạy bằng
+  LocalSystem; file nó tạo kế thừa quyền của thư mục (tài khoản service của SQL Server cần quyền *Modify* ở đó).
+  `--allow-physical` và `--allow-mssql-dir` chạy agent bằng hai user khác nhau: mỗi máy chỉ dùng một trong hai.
+- **SQL Server trong container**: chạy agent trên máy host của container với thư mục host mà volume backup được mount từ
+  đó (vd `--allow-mssql-dir /srv/mssql/backup`) và nhập đường dẫn bên trong container vào *As SQL Server sees it*
+  (vd `/var/opt/mssql/backup`).
+- **Trang Agents** hiện thư mục mỗi agent cung cấp (*SQL Server folder*), user hệ điều hành agent chạy, và lý do không
+  dùng được thư mục (không tồn tại, không đọc được). Form server và nút **Check** cũng hiện thông tin này, và nêu rõ agent
+  chưa bật `--allow-mssql-dir` hoặc quá cũ để chuyển file của SQL Server.
+- **Băng thông và dung lượng**: mỗi file đi qua kết nối của agent một lần (nén của chính SQL Server được áp dụng trước, khi
+  edition hỗ trợ). Đĩa của máy SQL Server giữ mỗi file đến khi gửi xong; khi restore thì giữ các file của một database
+  (hoặc của mọi database được restore nếu đủ chỗ).
 
 ### 3.8 WireGuard tích hợp
 

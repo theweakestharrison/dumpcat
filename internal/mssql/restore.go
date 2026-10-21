@@ -12,7 +12,6 @@ import (
 	"dumpcat/internal/engine"
 	"dumpcat/internal/pipeline"
 	"dumpcat/internal/store"
-	"dumpcat/internal/sysinfo"
 )
 
 // Restore restores native backups into spec.Target: per database the full
@@ -54,7 +53,7 @@ func (Driver) Restore(env *engine.Env, src engine.RestoreSource, spec *engine.Re
 		}
 	}
 	env.Log.Printf("Source: %s → server %s (%s %s)", src.Describe(), spec.Target.Name, versionName(in.Major), in.Version)
-	env.Log.Printf("Backup folder of the target: %s (DumpCat writes it as %s)", in.folder.Server, in.folder.Local)
+	env.Log.Printf("Backup folder of the target: %s", in.folder.describe("writes"))
 	var plans []*dbRestore
 	targets := map[string]bool{}
 	for _, e := range spec.Databases {
@@ -90,7 +89,7 @@ func (Driver) Restore(env *engine.Env, src engine.RestoreSource, spec *engine.Re
 	// every database's files are checked before the first one is replaced,
 	// unless the folder cannot hold them all at once
 	together := true
-	if _, free, err := sysinfo.DiskUsage(in.folder.Local); err == nil && free < total+total/10 {
+	if free, err := in.folder.Files.Free(ctx); err == nil && free >= 0 && free < total+total/10 {
 		together = false
 		env.Log.Printf("The backup folder has %s free for %s of backup files: each database is copied, checked and restored in turn", engine.HumanBytes(free), engine.HumanBytes(total))
 	}
@@ -166,7 +165,7 @@ func (p *dbRestore) bytes() int64 {
 func (p *dbRestore) cleanup() {
 	for _, f := range p.files {
 		if f.name != "" {
-			removeLocal(f.folder.local(f.name))
+			f.folder.remove(f.name)
 			f.name = ""
 		}
 	}
@@ -246,13 +245,12 @@ func (p *dbRestore) stage(ctx context.Context, env *engine.Env, db *sql.DB, in *
 	lg := env.Log
 	for _, f := range p.files {
 		name := fileName(p.source.Name, map[bool]string{true: ".trn", false: FileSuffix}[f.log != nil])
-		lp := f.folder.local(name)
 		if f.log != nil {
 			r, err := os.Open(f.log.Path)
 			if err != nil {
 				return err
 			}
-			_, err = writeLocal(lp, r)
+			_, err = f.folder.Files.Create(ctx, name, r)
 			r.Close()
 			if err != nil {
 				return fmt.Errorf("copying %s into the backup folder: %w", f.label(), err)
@@ -263,9 +261,9 @@ func (p *dbRestore) stage(ctx context.Context, env *engine.Env, db *sql.DB, in *
 			if err != nil {
 				return err
 			}
-			_, err = writeLocal(lp, rd)
+			_, err = f.folder.Files.Create(ctx, name, rd)
 			if derr := done(err == nil); err == nil && derr != nil {
-				removeLocal(lp)
+				f.folder.remove(name)
 				return fmt.Errorf("%s: %w", f.label(), derr) // not the file that was backed up
 			}
 			if err != nil {
@@ -363,7 +361,7 @@ func (p *dbRestore) restore(ctx context.Context, env *engine.Env, db *sql.DB, in
 			}
 			return fmt.Errorf("%s: %s", f.label(), errText(err))
 		}
-		removeLocal(f.folder.local(f.name))
+		f.folder.remove(f.name)
 		f.name = ""
 		if stopHere {
 			if st := queryString(ctx, db, "SELECT state_desc FROM sys.databases WHERE name = @p1", p.target); st == "ONLINE" {
