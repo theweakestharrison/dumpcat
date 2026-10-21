@@ -103,7 +103,7 @@
 
     <div class="hero-main">
       <div class="hero-copy">
-        <a class="hero-ai" href="#ai"><span class="hero-ai-tag">MCP</span><span>AI-friendly: let Claude or another AI assistant set up and check your backups</span></a>
+        <a class="hero-ai" href="#ai"><span class="hero-ai-tag"><svg aria-hidden="true" viewBox="0 0 16 16"><path d="M8 1 9.6 6.4 15 8 9.6 9.6 8 15 6.4 9.6 1 8 6.4 6.4z" fill="currentColor"/></svg><span>AI</span></span><span class="hero-ai-text">Let Claude set up and check your backups</span><svg class="hero-ai-go" aria-hidden="true" viewBox="0 0 16 16"><path d="M6 3.5 10.5 8 6 12.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
         <p class="eyebrow">Open source · Backup &amp; restore for MySQL, MariaDB, PostgreSQL and SQL Server</p>
         <h1>Backups that never lock the database. <span class="soft">Recovery to the exact second.</span></h1>
         <p class="lead">DumpCat is a single binary with a web UI. It schedules backups, compresses and encrypts them, ships copies to S3, Google Drive, OneDrive or SFTP, verifies them and brings your data back when you need it. Runs on Linux and Windows, fully offline.</p>
@@ -112,16 +112,10 @@
           <a class="btn btn-ghost" href="/demo/">Preview the UI</a>
           <a class="btn btn-ghost" href="https://github.com/theweakestharrison/DumpCat"><svg class="gh" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 0c4.42 0 8 3.58 8 8a8.013 8.013 0 0 1-5.45 7.59c-.4.08-.55-.17-.55-.38 0-.27.01-1.13.01-2.2 0-.75-.25-1.23-.54-1.48 1.78-.2 3.65-.88 3.65-3.95 0-.88-.31-1.59-.82-2.15.08-.2.36-1.02-.08-2.12 0 0-.67-.22-2.2.82-.64-.18-1.32-.27-2-.27-.68 0-1.36.09-2 .27-1.53-1.03-2.2-.82-2.2-.82-.44 1.1-.16 1.92-.08 2.12-.51.56-.82 1.28-.82 2.15 0 3.06 1.86 3.75 3.64 3.95-.23.2-.44.55-.51 1.07-.46.21-1.61.55-2.33-.66-.15-.24-.6-.83-1.23-.82-.67.01-.27.38.01.53.34.19.73.9.82 1.13.16.45.68 1.31 2.69.94 0 .67.01 1.3.01 1.49 0 .21-.15.45-.55.38A7.995 7.995 0 0 1 0 8c0-4.42 3.58-8 8-8Z"/></svg><span>Source on GitHub</span></a>
         </div>
+        <p class="compat"><span><b>MySQL</b> 5.7 · 8.0 · 8.4</span> <span><b>Percona Server</b></span> <span><b>MariaDB</b> 10.x · 11.x</span> <span><b>PostgreSQL</b> 10+</span> <span><b>SQL Server</b> 2012+</span></p>
       </div>
       <div class="hero-mark" aria-hidden="true"><svg viewBox="0 0 64 64"><use href="#dc-logo"/></svg></div>
     </div>
-    <ul class="engines" aria-label="Supported databases">
-      <li><a href="https://www.mysql.com/"><img src="/img/db/mysql.png" alt="MySQL" width="56" height="38" style="--h:38px"><span>5.7 · 8.0 · 8.4</span></a></li>
-      <li><a href="https://www.percona.com/mysql/software/percona-server-for-mysql"><img src="/img/db/percona.svg" alt="Percona" width="104" height="22" style="--h:22px"><b>Server</b></a></li>
-      <li><a href="https://mariadb.org/"><img src="/img/db/mariadb.svg" alt="MariaDB" width="100" height="24" style="--h:24px"><span>10.x · 11.x</span></a></li>
-      <li><a href="https://www.postgresql.org/"><img src="/img/db/postgresql.svg" alt="" width="27" height="28" style="--h:28px"><b>PostgreSQL</b><span>10+</span></a></li>
-      <li><a href="https://www.microsoft.com/sql-server"><svg aria-hidden="true"><use href="#db-icon"/></svg><b>SQL Server</b><span>2012+</span></a></li>
-    </ul>
 
     <section class="pitr" id="pitr" aria-labelledby="pitr-title">
       <div class="pitr-head">
@@ -170,6 +164,55 @@
 </header>
 
 <main>
+  <section class="section" id="databases" aria-labelledby="databases-title">
+    <div class="wrap">
+      <div class="head">
+        <div>
+          <p class="label">Databases</p>
+          <h2 id="databases-title">One tool for every database you run</h2>
+        </div>
+        <p class="intro">MySQL, Percona Server, MariaDB, PostgreSQL and Microsoft SQL Server, each backed up with its own tools, with point-in-time recovery and restore drills. Schedules, storage, encryption and the web UI are the same for all of them.</p>
+      </div>
+      <ul class="section-body dbs">
+        <li class="db">
+          <div class="db-logo"><img src="/img/db/mysql.png" alt="MySQL" width="77" height="52"></div>
+          <h3>MySQL</h3>
+          <p class="db-ver">5.7 · 8.0 · 8.4</p>
+          <div class="db-row"><p class="db-k">Backup</p><p class="db-v"><code>mysqldump</code> <code>mydumper</code> <code>XtraBackup</code></p></div>
+          <div class="db-row"><p class="db-k">Point-in-time recovery</p><p class="db-v"><code>binlog</code></p></div>
+        </li>
+        <li class="db">
+          <div class="db-logo"><img src="/img/db/percona.svg" alt="Percona" width="132" height="28"></div>
+          <h3>Percona Server</h3>
+          <p class="db-ver">&nbsp;</p>
+          <div class="db-row"><p class="db-k">Backup</p><p class="db-v"><code>mysqldump</code> <code>mydumper</code> <code>XtraBackup</code></p></div>
+          <div class="db-row"><p class="db-k">Point-in-time recovery</p><p class="db-v"><code>binlog</code></p></div>
+        </li>
+        <li class="db">
+          <div class="db-logo"><img src="/img/db/mariadb.svg" alt="MariaDB" width="134" height="32"></div>
+          <h3>MariaDB</h3>
+          <p class="db-ver">10.x · 11.x</p>
+          <div class="db-row"><p class="db-k">Backup</p><p class="db-v"><code>mariadb-dump</code> <code>mydumper</code> <code>MariaBackup</code></p></div>
+          <div class="db-row"><p class="db-k">Point-in-time recovery</p><p class="db-v"><code>binlog</code></p></div>
+        </li>
+        <li class="db">
+          <div class="db-logo"><img src="/img/db/postgresql.svg" alt="PostgreSQL" width="47" height="48"></div>
+          <h3>PostgreSQL</h3>
+          <p class="db-ver">10+</p>
+          <div class="db-row"><p class="db-k">Backup</p><p class="db-v"><code>pg_dump</code> <code>pg_basebackup</code></p></div>
+          <div class="db-row"><p class="db-k">Point-in-time recovery</p><p class="db-v"><code>WAL</code></p></div>
+        </li>
+        <li class="db">
+          <div class="db-logo"><svg aria-hidden="true"><use href="#db-icon"/></svg></div>
+          <h3>SQL Server</h3>
+          <p class="db-ver">2012+</p>
+          <div class="db-row"><p class="db-k">Backup</p><p class="db-v"><code>BACKUP DATABASE</code> <code>DIFFERENTIAL</code></p></div>
+          <div class="db-row"><p class="db-k">Point-in-time recovery</p><p class="db-v"><code>BACKUP LOG</code></p></div>
+        </li>
+      </ul>
+    </div>
+  </section>
+
   <section class="section" id="install" aria-labelledby="install-title">
     <div class="wrap">
       <div class="head">

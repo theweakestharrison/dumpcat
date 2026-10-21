@@ -178,27 +178,16 @@ p code, li code, dd code, td code { background: var(--accent-soft); color: var(-
 .hero h1 .soft { display: block; color: var(--on-brand-2); text-wrap: balance; }
 .lead { font-size: clamp(1.0625rem, 1.6vw, 1.1875rem); line-height: 1.6; color: var(--on-brand-2); max-width: 62ch; margin: 22px 0 0; }
 .cta { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 28px; }
+@media (max-width: 560px) { .cta .btn { flex: 1 1 auto; justify-content: center; } }
 .btn { display: inline-flex; align-items: center; gap: 8px; padding: 12px 20px; border-radius: 10px; font-weight: 600; font-size: 0.9875rem; text-decoration: none; border: 1px solid transparent; transition: transform .12s ease, background-color .12s ease; }
 .btn:hover { transform: translateY(-1px); }
 .btn-light { background: var(--on-brand); color: var(--brand-deep); }
 .btn-ghost { color: var(--on-brand); border-color: var(--on-brand-line); }
 .btn-ghost:hover { background: rgba(255, 255, 255, 0.08); }
-/* supported databases: each product's own logo, unaltered, on a white tile; SQL Server has a neutral icon (Microsoft
-   allows no use of its product icons here). --h on each logo is its height. */
-.engines { display: flex; flex-wrap: wrap; gap: 10px; margin: 0; padding: 0; list-style: none; }
-.engines a { display: flex; align-items: center; gap: 9px; height: 48px; padding: 0 14px; border-radius: 10px; background: #fff; color: #1b2433;
-  text-decoration: none; white-space: nowrap; box-shadow: 0 1px 2px rgba(4, 20, 50, 0.20); transition: transform .12s ease; }
-.engines a:hover { transform: translateY(-1px); }
-.engines a:focus-visible { outline: 2px solid var(--on-brand); outline-offset: 2px; }
-.engines img { display: block; width: auto; height: var(--h); }
-.engines svg { width: 22px; height: 22px; flex: none; color: #1b2433; }
-.engines b { font: 650 0.9375rem/1 var(--font-body); }
-.engines span { color: #5b6270; font: 500 0.75rem/1 var(--font-mono); }
-@media (max-width: 560px) {
-  .engines { gap: 8px; } .engines a { height: 40px; gap: 7px; padding: 0 10px; }
-  .engines img { height: calc(var(--h) * 0.8); } .engines svg { width: 18px; height: 18px; }
-  .engines b { font-size: 0.8125rem; } .engines span { font-size: 0.6875rem; }
-}
+.compat { margin: 26px 0 0; font: 500 0.8125rem/1.6 var(--font-mono); color: var(--on-brand-2); }
+.compat b { color: var(--on-brand); font-weight: 600; }
+.compat span { white-space: nowrap; }
+.compat { display: flex; flex-wrap: wrap; gap: 2px 1.5em; }
 .hero-mark { width: clamp(150px, 18vw, 210px); filter: drop-shadow(0 12px 24px rgba(4, 20, 50, 0.28)); }
 .hero-mark svg { display: block; width: 100%; height: auto; }
 @media (max-width: 860px) { .hero-main { grid-template-columns: minmax(0, 1fr); } .hero-mark { display: none; } }
@@ -223,6 +212,7 @@ p code, li code, dd code, td code { background: var(--accent-soft); color: var(-
 .tl-incident span { position: absolute; right: 6px; top: 0; white-space: nowrap; font: 600 0.6875rem/1.4 var(--font-mono); color: var(--danger-ink); }
 .tl-now { position: absolute; top: -24px; bottom: 0; border-left: 2px dashed var(--line-strong); }
 .tl-now span { position: absolute; left: 6px; top: 0; white-space: nowrap; font: 500 0.6875rem/1.4 var(--font-mono); color: var(--muted); }
+@media (max-width: 560px) { .tl-now span { display: none; } }
 .tl-range { position: absolute; top: 0; left: -7px; height: 68px; margin: 0; background: transparent; -webkit-appearance: none; appearance: none; cursor: ew-resize; }
 .tl-range:focus { outline: none; }
 .tl-range::-webkit-slider-runnable-track { height: 68px; background: transparent; }
@@ -285,6 +275,27 @@ p code, li code, dd code, td code { background: var(--accent-soft); color: var(-
   .head .intro { padding-bottom: 4px; }
 }
 .section-body { margin-top: clamp(28px, 4vw, 44px); }
+/* supported databases: one card each, the product's own logo (unaltered) on a white plate in both themes;
+   SQL Server has a neutral icon, Microsoft allows its product icons in diagrams and documentation only.
+   The cards share their rows (subgrid), so the rows of every card line up. */
+.dbs { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 16px; padding: 0; margin-bottom: 0; list-style: none; }
+.db { display: grid; grid-row: span 5; grid-template-rows: subgrid; row-gap: 0; min-width: 0; background: var(--surface); border: 1px solid var(--line);
+  border-radius: 14px; overflow: hidden; }
+@supports not (grid-template-rows: subgrid) { .db { grid-row: auto; grid-template-rows: none; align-content: start; } }
+.db-logo { display: grid; place-items: center; height: 92px; background: #fff; border-bottom: 1px solid var(--line); }
+.db-logo img { display: block; max-width: 80%; height: auto; }
+.db-logo svg { width: 42px; height: 42px; color: #59606c; }
+.db h3 { font: 700 1.0625rem/1.25 var(--font-display); margin: 16px 18px 2px; }
+.db-ver { margin: 0 18px; font: 500 0.75rem/1.5 var(--font-mono); color: var(--muted); }
+.db-row { margin: 0 18px; padding-top: 14px; }
+.db-row:last-child { padding-bottom: 18px; }
+.db-k { margin: 0; font: 600 0.6875rem/1.3 var(--font-mono); letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+.db-v { display: flex; flex-wrap: wrap; gap: 4px; margin: 5px 0 0; }
+.db-v code { font: 500 0.75rem/1.4 var(--font-mono); color: var(--ink-2); background: var(--sunken); padding: 2px 6px; border-radius: 5px; }
+@media (max-width: 1040px) { .dbs { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-width: 720px) { .dbs { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; } .db-logo { height: 76px; }
+  .db h3 { margin: 14px 14px 2px; } .db-ver, .db-row { margin-inline: 14px; } .db-row:last-child { padding-bottom: 14px; } }
+/* end supported databases */
 
 /* methods table */
 .table-scroll { overflow-x: auto; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
@@ -639,6 +650,15 @@ tr.fit td { font-weight: 600; }
   .vs td > .mk, .vs td > span > .mk, .vs .lc-cell .mk { display: grid; margin: 0 0 4px; width: 22px; height: 22px; }
   .vs tr.vs-group th { padding: 14px 10px 6px; }
 }
+@media (max-width: 560px) {
+  .vs table, .vs thead, .vs tbody { display: block; }
+  .vs tr { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .vs thead th:first-child { display: none; }
+  .vs tbody th, .vs tr.vs-group th { grid-column: 1 / -1; }
+  .vs tbody tr:not(.vs-group) th { padding: 12px 12px 4px; border-bottom: 0; font-weight: 600; }
+  .vs td { padding: 4px 12px 12px; overflow-wrap: break-word; }
+  .vs tr.vs-group th { padding: 16px 12px 6px; }
+}
 
 /* every tool at once */
 .matrix { overflow-x: auto; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); }
@@ -719,10 +739,18 @@ tr.fit td { font-weight: 600; }
 @media (max-width: 560px) { .cl-list a { grid-template-columns: minmax(0, 1fr); } .cl-date { text-align: left; line-height: 1.4; } .cl-pager { grid-template-columns: minmax(0, 1fr); } }
 
 /* ---------- AI-friendly: the hero chip, an example chat, what an assistant may do, setup ---------- */
-.hero-ai { display: inline-flex; align-items: center; gap: 10px; max-width: 100%; margin: 0 0 20px; padding: 5px 14px 5px 5px; border: 1px solid var(--on-brand-line); border-radius: 18px; background: rgba(255, 255, 255, 0.08); color: var(--on-brand); text-decoration: none; font-size: 0.875rem; font-weight: 500; line-height: 1.35; transition: background-color .12s ease; }
-.hero-ai:hover { background: rgba(255, 255, 255, 0.16); }
-.hero-ai::after { content: "\2192"; flex: none; color: var(--on-brand-2); }
-.hero-ai-tag { flex: none; font: 700 0.6875rem/1 var(--font-mono); letter-spacing: 0.08em; color: var(--brand-deep); background: var(--on-brand); padding: 6px 9px; border-radius: 999px; }
+.hero-ai { display: inline-flex; align-items: center; gap: 10px; max-width: 100%; margin: 0 0 22px; padding: 4px 12px 4px 4px;
+  border: 1px solid var(--on-brand-line); border-radius: 15px; background: rgba(255, 255, 255, 0.06); color: var(--on-brand);
+  text-decoration: none; font-size: 0.8125rem; font-weight: 500; line-height: 1.3; transition: background-color .15s ease, border-color .15s ease; }
+.hero-ai:hover { background: rgba(255, 255, 255, 0.12); border-color: var(--on-brand-2); }
+.hero-ai-tag { display: inline-flex; align-items: center; gap: 5px; flex: none; padding: 5px 9px 5px 7px; border-radius: 11px;
+  background: rgba(255, 255, 255, 0.16); font: 700 0.6875rem/1 var(--font-body); letter-spacing: 0.06em; }
+.hero-ai-tag svg { width: 11px; height: 11px; }
+.hero-ai-text { min-width: 0; }
+.hero-ai-go { width: 14px; height: 14px; flex: none; color: var(--on-brand-2); transition: transform .15s ease; }
+.hero-ai:hover .hero-ai-go { transform: translateX(2px); color: var(--on-brand); }
+@media (max-width: 560px) { .hero-ai { display: flex; width: 100%; padding: 5px 12px 5px 5px; border-radius: 14px; }
+  .hero-ai-text { flex: 1; } }
 
 .ai-grid { display: grid; grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); gap: clamp(24px, 4vw, 48px); align-items: start; }
 @media (max-width: 960px) { .ai-grid { grid-template-columns: minmax(0, 1fr); } }
