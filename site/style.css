@@ -807,3 +807,42 @@ tr.fit td { font-weight: 600; }
   --font-body: "Be Vietnam Pro", "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans KR", "Noto Sans CJK KR", system-ui, sans-serif; }
 :root:lang(zh) .hero h1, :root:lang(ja) .hero h1, :root:lang(ko) .hero h1 { letter-spacing: 0; line-height: 1.15; }
 :root:lang(zh) .eyebrow, :root:lang(ja) .eyebrow, :root:lang(ko) .eyebrow { letter-spacing: 0.04em; }
+
+/* support: the fat cat at fat@dumpcat.cc, a brand-blue block at the end of the page */
+.help-card { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: clamp(24px, 5vw, 56px); align-items: center;
+  padding: clamp(24px, 5vw, 52px); border-radius: 20px; background: var(--brand); color: var(--on-brand); box-shadow: var(--card-shadow); }
+.help-cat { position: relative; width: clamp(110px, 15vw, 168px); }
+.help-cat > svg { display: block; width: 100%; height: auto; filter: drop-shadow(0 12px 24px rgba(4, 20, 50, 0.3)); }
+.help-badge { position: absolute; right: -12px; bottom: -8px; display: grid; place-items: center; width: 46%; aspect-ratio: 1; border-radius: 50%;
+  background: var(--on-brand); color: var(--brand-deep); box-shadow: 0 8px 18px rgba(4, 20, 50, 0.28); transform: rotate(-8deg); }
+.help-badge svg { width: 54%; height: auto; }
+.help-card .label { color: var(--on-brand-2); }
+.help-text { margin: 14px 0 0; max-width: 60ch; color: var(--on-brand-2); font-size: 1.0625rem; }
+.help-text a { color: var(--on-brand); text-underline-offset: 3px; }
+.help-addr { display: inline-block; margin-top: 22px; font: 650 clamp(1.4rem, 3.4vw, 2.1rem)/1.15 var(--font-mono); letter-spacing: -0.01em;
+  color: var(--on-brand); text-decoration: none; overflow-wrap: anywhere; }
+.help-addr:hover { text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 5px; }
+.help-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 20px; }
+.help-actions svg { width: 18px; height: 18px; flex: none; }
+.help-actions .copy { font: 600 0.9875rem/normal var(--font-body); padding: 12px 20px; border-radius: 10px; color: var(--on-brand);
+  border-color: var(--on-brand-line); background: transparent; cursor: pointer; }
+.help-actions .copy:hover { background: rgba(255, 255, 255, 0.08); border-color: var(--on-brand-2); }
+.nav-help { display: none; }
+@media (max-width: 760px) {
+  .nav-help { display: grid; place-items: center; flex: none; width: 36px; height: 36px; margin-left: auto; border: 1px solid var(--on-brand-line);
+    border-radius: 999px; color: var(--on-brand); }
+  .nav-help svg { width: 17px; height: 17px; }
+  .topbar .nav-cta { margin-left: 0; }
+}
+@media (max-width: 420px) {  /* the envelope must fit next to "インストール" / "Installation": the globe alone picks the language */
+  .topbar { gap: 10px; }
+  .topbar .nav-cta { padding: 8px 12px; font-size: 0.8125rem; }
+  .lang-menu summary { gap: 0; padding: 8px 9px; font-size: 0; }
+}
+@media (max-width: 350px) { .topbar .brand { gap: 0; font-size: 0; } }  /* the smallest phones: the cat stands for the name */
+@media (max-width: 640px) {
+  .help-card { grid-template-columns: minmax(0, 1fr); gap: 22px; }
+  .help-cat { width: 92px; }
+  .help-actions .btn { flex: 1 1 auto; justify-content: center; }
+}
+/* end support */
