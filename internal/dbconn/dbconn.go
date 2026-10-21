@@ -104,10 +104,13 @@ type DBInfo struct {
 	Tables    int    `json:"tables"`
 	NonInnoDB int    `json:"non_innodb"`
 	System    bool   `json:"system"`
+	// SQL Server: FULL, BULK_LOGGED or SIMPLE (log backups need one of the first two), ONLINE, RESTORING, …
+	RecoveryModel string `json:"recovery_model,omitempty"`
+	State         string `json:"state,omitempty"`
 }
 
 type ServerInfo struct {
-	Engine         string   `json:"engine"` // driver that inspected the server: mysql, postgres
+	Engine         string   `json:"engine"` // driver that inspected the server: mysql, postgres, mssql
 	Version        string   `json:"version"`
 	VersionComment string   `json:"version_comment"`
 	Flavor         string   `json:"flavor"`
@@ -128,6 +131,14 @@ type ServerInfo struct {
 	TotalBytes     int64    `json:"total_bytes"`
 	Hostname       string   `json:"hostname"`
 	Uptime         int64    `json:"uptime"`
+	// SQL Server: the edition, the host's OS (Windows, Linux), the service
+	// account, the backup folder (as the server sees it) and why it cannot be used
+	Edition        string `json:"edition,omitempty"`
+	Platform       string `json:"platform,omitempty"`
+	ServiceAccount string `json:"service_account,omitempty"`
+	BackupDir      string `json:"backup_dir,omitempty"`
+	BackupDirError string `json:"backup_dir_error,omitempty"`
+	Compression    bool   `json:"backup_compression,omitempty"` // the edition compresses backups
 }
 
 func queryString(ctx context.Context, db *sql.DB, q string) string {

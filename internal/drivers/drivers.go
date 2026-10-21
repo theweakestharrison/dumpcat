@@ -3,11 +3,12 @@ package drivers
 
 import (
 	"dumpcat/internal/engine"
+	"dumpcat/internal/mssql"
 	"dumpcat/internal/pgsql"
 	"dumpcat/internal/store"
 )
 
-var all = []engine.Driver{engine.MySQL{}, pgsql.Driver{}}
+var all = []engine.Driver{engine.MySQL{}, pgsql.Driver{}, mssql.Driver{}}
 
 // All returns every driver, MySQL first.
 func All() []engine.Driver { return all }

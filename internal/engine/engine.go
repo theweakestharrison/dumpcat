@@ -79,6 +79,8 @@ type BackupSpec struct {
 	Info           *dbconn.ServerInfo // the server, inspected just before
 	Job            *store.Job
 	Databases      []dbconn.DBInfo
+	Type           string     // full, incremental, differential
+	Parent         *store.Run // the backup an incremental or differential is based on
 	IncrementalLSN string
 	// Remote runs a physical backup on the database host (servers reached
 	// through an agent started with --allow-physical).

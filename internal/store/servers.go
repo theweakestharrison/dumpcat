@@ -4,7 +4,7 @@ import (
 	"database/sql"
 )
 
-const serverCols = `id,name,host,port,socket,username,password,tls_mode,ca_cert,flavor,version,datadir,service_name,os_user,notes,created_at,updated_at,restore_username,restore_password,agent_id,wg_peer_id,engine`
+const serverCols = `id,name,host,port,socket,username,password,tls_mode,ca_cert,flavor,version,datadir,service_name,os_user,notes,created_at,updated_at,restore_username,restore_password,agent_id,wg_peer_id,engine,backup_dir,backup_dir_local`
 
 func (s *Store) scanServer(row interface{ Scan(...any) error }) (*Server, error) {
 	var sv Server
@@ -12,7 +12,7 @@ func (s *Store) scanServer(row interface{ Scan(...any) error }) (*Server, error)
 	var ca, ua int64
 	var aid, wid sql.NullInt64
 	if err := row.Scan(&sv.ID, &sv.Name, &sv.Host, &sv.Port, &sv.Socket, &sv.Username, &pw, &sv.TLSMode, &sv.CACert,
-		&sv.Flavor, &sv.Version, &sv.Datadir, &sv.ServiceName, &sv.OSUser, &sv.Notes, &ca, &ua, &sv.RestoreUsername, &rpw, &aid, &wid, &sv.Engine); err != nil {
+		&sv.Flavor, &sv.Version, &sv.Datadir, &sv.ServiceName, &sv.OSUser, &sv.Notes, &ca, &ua, &sv.RestoreUsername, &rpw, &aid, &wid, &sv.Engine, &sv.BackupDir, &sv.BackupDirLocal); err != nil {
 		return nil, notFound(err)
 	}
 	sv.AgentID = fromNullID(aid)
@@ -56,9 +56,9 @@ func (s *Store) CreateServer(sv *Server) error {
 		return err
 	}
 	t := now()
-	res, err := s.db.Exec(`INSERT INTO servers(name,host,port,socket,username,password,tls_mode,ca_cert,flavor,version,datadir,service_name,os_user,notes,created_at,updated_at,restore_username,restore_password,agent_id,wg_peer_id,engine)
-		VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
-		sv.Name, sv.Host, sv.Port, sv.Socket, sv.Username, pw, sv.TLSMode, sv.CACert, sv.Flavor, sv.Version, sv.Datadir, sv.ServiceName, sv.OSUser, sv.Notes, t, t, sv.RestoreUsername, rpw, nullID(sv.AgentID), nullID(sv.WGPeerID), sv.EngineName())
+	res, err := s.db.Exec(`INSERT INTO servers(name,host,port,socket,username,password,tls_mode,ca_cert,flavor,version,datadir,service_name,os_user,notes,created_at,updated_at,restore_username,restore_password,agent_id,wg_peer_id,engine,backup_dir,backup_dir_local)
+		VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+		sv.Name, sv.Host, sv.Port, sv.Socket, sv.Username, pw, sv.TLSMode, sv.CACert, sv.Flavor, sv.Version, sv.Datadir, sv.ServiceName, sv.OSUser, sv.Notes, t, t, sv.RestoreUsername, rpw, nullID(sv.AgentID), nullID(sv.WGPeerID), sv.EngineName(), sv.BackupDir, sv.BackupDirLocal)
 	if err != nil {
 		return err
 	}
@@ -75,8 +75,8 @@ func (s *Store) UpdateServer(sv *Server) error {
 	if err != nil {
 		return err
 	}
-	_, err = s.db.Exec(`UPDATE servers SET name=?,host=?,port=?,socket=?,username=?,password=?,tls_mode=?,ca_cert=?,flavor=?,version=?,datadir=?,service_name=?,os_user=?,notes=?,updated_at=?,restore_username=?,restore_password=?,agent_id=?,wg_peer_id=?,engine=? WHERE id=?`,
-		sv.Name, sv.Host, sv.Port, sv.Socket, sv.Username, pw, sv.TLSMode, sv.CACert, sv.Flavor, sv.Version, sv.Datadir, sv.ServiceName, sv.OSUser, sv.Notes, now(), sv.RestoreUsername, rpw, nullID(sv.AgentID), nullID(sv.WGPeerID), sv.EngineName(), sv.ID)
+	_, err = s.db.Exec(`UPDATE servers SET name=?,host=?,port=?,socket=?,username=?,password=?,tls_mode=?,ca_cert=?,flavor=?,version=?,datadir=?,service_name=?,os_user=?,notes=?,updated_at=?,restore_username=?,restore_password=?,agent_id=?,wg_peer_id=?,engine=?,backup_dir=?,backup_dir_local=? WHERE id=?`,
+		sv.Name, sv.Host, sv.Port, sv.Socket, sv.Username, pw, sv.TLSMode, sv.CACert, sv.Flavor, sv.Version, sv.Datadir, sv.ServiceName, sv.OSUser, sv.Notes, now(), sv.RestoreUsername, rpw, nullID(sv.AgentID), nullID(sv.WGPeerID), sv.EngineName(), sv.BackupDir, sv.BackupDirLocal, sv.ID)
 	return err
 }
 

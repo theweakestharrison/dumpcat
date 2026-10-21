@@ -26,7 +26,7 @@ func buildChains(runs []store.Run) []*chain {
 	for i := range runs {
 		r := &runs[i]
 		key := r.ID
-		if r.Type == store.TypeIncremental && r.BaseID != nil {
+		if store.Chained(r.Type) && r.BaseID != nil {
 			key = *r.BaseID
 		}
 		c, ok := byKey[key]

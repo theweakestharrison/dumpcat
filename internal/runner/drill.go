@@ -90,6 +90,17 @@ func drillRunnable(run *store.Run) error {
 	return errors.New("no available storage location for this backup")
 }
 
+// drillUsable is drillRunnable, and a differential's full backup is still there.
+func (r *Runner) drillUsable(run *store.Run) error {
+	if err := drillRunnable(run); err != nil {
+		return err
+	}
+	if store.Chained(run.Type) && !r.chainIntact(run) {
+		return fmt.Errorf("the full backup of backup #%d is no longer available", run.ID)
+	}
+	return nil
+}
+
 // drillCandidate picks the newest backup of a job that a drill can restore.
 func (r *Runner) drillCandidate(job *store.Job) (*store.Run, error) {
 	runs, err := r.Store.RetentionCandidates(job.ID)
@@ -99,7 +110,7 @@ func (r *Runner) drillCandidate(job *store.Job) (*store.Run, error) {
 	var first error
 	for i := range runs {
 		run := &runs[i]
-		err := drillRunnable(run)
+		err := r.drillUsable(run)
 		if err == nil {
 			return run, nil
 		}
@@ -165,7 +176,7 @@ func (r *Runner) StartDrill(drillID, runID int64, trigger, user string) (*store.
 		if run.JobUUID != job.UUID {
 			return nil, errors.New("this backup belongs to another job")
 		}
-		if err := drillRunnable(run); err != nil {
+		if err := r.drillUsable(run); err != nil {
 			return nil, err
 		}
 	} else if run, err = r.drillCandidate(job); err != nil {
@@ -216,7 +227,14 @@ func (r *Runner) StartDrill(drillID, runID int64, trigger, user string) (*store.
 		done()
 		return nil, err
 	}
-	release := r.useRuns(run.ID)
+	ids := []int64{run.ID}
+	if chain, err := r.backupChain(run); err == nil {
+		ids = ids[:0]
+		for _, c := range chain {
+			ids = append(ids, c.ID) // a differential needs its full backup too
+		}
+	}
+	release := r.useRuns(ids...)
 	task, ctx := r.addTask("drill", x.ID, job.ID, fmt.Sprintf("%s: %s %s → %s", d.Name, job.Name, run.DirName, target.Name))
 	r.wg.Add(1)
 	go func() {
@@ -293,7 +311,7 @@ func (r *Runner) execDrill(ctx context.Context, task *Task, x *store.DrillRun, d
 	env := &engine.Env{Ctx: ctx, Log: lg, Tools: r.Tools, TmpDir: workDir}
 	lg.Printf("=== RESTORE ===")
 	t0 := time.Now()
-	err = r.restoreLogical(ctx, task, env, run, target, req, run.Passphrase)
+	err = r.restoreLogical(ctx, task, env, run, target, req, run.Passphrase, nil)
 	rto := time.Since(t0)
 	x.RestoreMs = rto.Milliseconds()
 	if err != nil {
@@ -534,6 +552,9 @@ func (r *Runner) drillChecks(ctx context.Context, lg *tasklog.Logger, d *store.D
 				lg.Printf("  ✗ %s: %d rows, backup: %d", b.Table, b.Actual, b.Expected)
 			}
 		}
+	}
+	if xc, ok := sb.(engine.SandboxChecker); ok && ctx.Err() == nil {
+		out = append(out, xc.CheckCopies(ctx, target, x.Databases, lg)...)
 	}
 	for _, a := range d.Assertions {
 		c := r.drillAssert(ctx, target, a, x)

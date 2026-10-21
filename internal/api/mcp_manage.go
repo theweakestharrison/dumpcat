@@ -145,6 +145,7 @@ func jobDefaults() map[string]any {
 			"gtid_purged": "OFF", "chunk_rows": 500000, "long_query_guard": 60, "lock_mode": "", "ftwrl_wait_timeout": 60,
 			"slave_info": false, "safe_slave_backup": false, "low_priority": true, "stream_upload": false, "verify_mode": store.VerifyOne,
 			"bwlimit": "", "binlog_archive": false, "binlog_rotate_minutes": 15, "max_age_hours": 0,
+			"copy_only": false, "native_compression": "", "verify_only": true,
 		},
 		"retention": map[string]any{"keep_last": 7, "keep_days": 0, "keep_daily": 0, "keep_weekly": 0, "keep_monthly": 0},
 		"targets":   []any{}, "enabled": true, "notify_success": false, "notify_failure": true, "timeout_minutes": 0,
@@ -170,20 +171,23 @@ func jobProps(retention string) map[string]any {
 		"name":      mcpString("Job name, unique."),
 		"server_id": mcpID("Database server to back up (list_servers)."),
 		"method": mcpEnum("Backup method of the server's engine: mysqldump, mydumper or physical (XtraBackup / MariaBackup) for "+
-			"MySQL and MariaDB; pg_dump or pg_basebackup for PostgreSQL. get_server with check_connection tells which work.", mcpMethods()...),
+			"MySQL and MariaDB; pg_dump or pg_basebackup for PostgreSQL; mssql_native (BACKUP DATABASE) for SQL Server. get_server with check_connection tells which work.", mcpMethods()...),
 		"db_mode":        mcpEnum("all: every database but the system ones (default); include: only databases; exclude: all but databases.", "all", "include", "exclude"),
 		"databases":      mcpStrings("Database names for db_mode include or exclude."),
 		"exclude_tables": mcpStrings("Tables to leave out, as database.table."),
 		"schedule": mcpString("When full backups run: a cron expression (minute hour day-of-month month day-of-week, in DumpCat's " +
 			"time zone; default 0 2 * * *, daily at 02:00) or @manual. Check it with preview_schedule."),
-		"incr_schedule":     mcpString("Incremental backups, for methods that have them (physical, pg_basebackup): a cron expression, or empty for none."),
+		"incr_schedule":     mcpString("Incremental backups, for methods that have them (physical), or differential backups (mssql_native): a cron expression, or empty for none."),
 		"compression":       mcpEnum("zstd (default), gzip or none.", "zstd", "gzip", "none"),
 		"compression_level": mcpCount("Compression level (0: the default).", 0, 22),
 		"threads":           mcpCount("Parallel threads (default 4).", 1, 64),
 		"options": mcpObj("Method options; only the ones given change. Pre/post commands and extra tool arguments are set in the web UI.", map[string]any{
 			"verify_mode":           mcpEnum("After each backup: off, one (read back the cheapest copy; default) or all copies.", store.VerifyOff, store.VerifyOne, store.VerifyAll),
-			"binlog_archive":        mcpBool("Archive the server's log continuously (MySQL binlogs, PostgreSQL WAL) for point-in-time recovery; methods that support it."),
-			"binlog_rotate_minutes": mcpCount("Close the current archived log file after N minutes (default 15; 0: never).", 0, 1440),
+			"binlog_archive":        mcpBool("Archive the server's log continuously (MySQL binlogs, PostgreSQL WAL, SQL Server log backups) for point-in-time recovery; methods that support it."),
+			"binlog_rotate_minutes": mcpCount("Close the current archived log file after N minutes (default 15; 0: never). SQL Server: a log backup every N minutes (0: 15).", 0, 1440),
+			"copy_only":             mcpBool("SQL Server: COPY_ONLY backups, which leave the server's own backup chain alone (full backups only)."),
+			"native_compression":    mcpEnum("SQL Server: BACKUP ... WITH COMPRESSION: empty (when the edition has it; default), on or off.", "", "on", "off"),
+			"verify_only":           mcpBool("SQL Server: RESTORE VERIFYONLY on the server before DumpCat reads each file (default on)."),
 			"max_age_hours":         mcpCount("Alert when the newest successful backup is older than this (0: worked out from the schedule).", 0, 24*366),
 			"routines":              mcpBool("MySQL logical: stored procedures and functions (default on)."),
 			"triggers":              mcpBool("MySQL logical: triggers (default on)."),
@@ -225,7 +229,7 @@ func jobIDOf(v any) int64 {
 // ---- servers ----
 
 var serverInputKeys = []string{"engine", "name", "host", "port", "socket", "username", "tls_mode", "ca_cert", "flavor", "datadir",
-	"service_name", "os_user", "notes", "restore_username", "agent_id", "wg_peer_id"}
+	"service_name", "os_user", "notes", "restore_username", "agent_id", "wg_peer_id", "backup_dir", "backup_dir_local"}
 
 // serverProps are the server settings an assistant may set: everything but the passwords and
 // the CA certificate.
@@ -235,10 +239,10 @@ func serverProps() map[string]any {
 		engines = append(engines, d.Engine())
 	}
 	return map[string]any{
-		"engine":           mcpEnum("mysql (MySQL, MariaDB, Percona Server; default) or postgres (PostgreSQL).", engines...),
+		"engine":           mcpEnum("mysql (MySQL, MariaDB, Percona Server; default), postgres (PostgreSQL) or mssql (Microsoft SQL Server).", engines...),
 		"name":             mcpString("Server name, unique."),
-		"host":             mcpString("Host name or IP address (or socket)."),
-		"port":             mcpCount("Port (default 3306 for MySQL, 5432 for PostgreSQL).", 1, 65535),
+		"host":             mcpString(`Host name or IP address (or socket). SQL Server: host\INSTANCE for a named instance found by the SQL Server Browser (then no port).`),
+		"port":             mcpCount("Port (default 3306 for MySQL, 5432 for PostgreSQL, 1433 for SQL Server).", 1, 65535),
 		"socket":           mcpString("Unix socket path instead of host and port, for a database on the DumpCat host."),
 		"username":         mcpString("Database user that DumpCat backs up with."),
 		"tls_mode":         mcpEnum("TLS to the database: disabled, required or verify (the certificate against the system's CAs; a CA certificate of its own is added in the web UI).", "disabled", "required", "verify"),
@@ -250,6 +254,10 @@ func serverProps() map[string]any {
 		"restore_username": mcpString("Another database user for restores (empty: the backup user)."),
 		"agent_id":         mcpID("Reach the server through this agent (the server connects out to DumpCat; agents are set up in the web UI)."),
 		"wg_peer_id":       mcpID("Reach the server through this WireGuard peer (set up in the web UI)."),
+		"backup_dir": mcpString(`SQL Server only: the folder SQL Server writes its backups to, as SQL Server names it on its own host (D:\Backup\DumpCat, ` +
+			`\\nas\sql, /var/opt/mssql/dumpcat; empty: the instance's default backup folder). Its service account needs Modify permission there.`),
+		"backup_dir_local": mcpString("SQL Server only: the same folder as DumpCat opens it (empty: the same path, i.e. DumpCat runs on the SQL Server host; " +
+			"otherwise the share or mount on the DumpCat host)."),
 	}
 }
 

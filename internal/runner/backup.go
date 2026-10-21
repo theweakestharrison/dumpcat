@@ -35,7 +35,9 @@ func newUUID() string {
 
 func NewUUID() string { return newUUID() }
 
-// StartBackup queues a backup of a job. typ is "full", "incremental" or "".
+// StartBackup queues a backup of a job. typ is "full", "incremental",
+// "differential" or "" (an incremental of a method that takes differentials
+// is one: the job's second schedule).
 func (r *Runner) StartBackup(jobID int64, typ, trigger, user string) (*store.Run, error) {
 	job, err := r.Store.GetJob(jobID)
 	if err != nil {
@@ -56,7 +58,12 @@ func (r *Runner) StartBackup(jobID int64, typ, trigger, user string) (*store.Run
 	r.jobRunning[jobID] = true
 	r.mu.Unlock()
 
-	if typ != store.TypeIncremental || job.Method != store.MethodPhysical {
+	m, _, _ := drivers.Method(job.Method)
+	switch {
+	case typ == store.TypeIncremental && m.Incremental:
+	case (typ == store.TypeIncremental || typ == store.TypeDifferential) && m.Differential:
+		typ = store.TypeDifferential
+	default:
 		typ = store.TypeFull
 	}
 	jid := job.ID
@@ -255,9 +262,25 @@ func (r *Runner) execBackup(ctx context.Context, task *Task, run *store.Run, job
 			lg.Printf("Incremental based on backup #%d (%s)", parent.ID, parent.DirName)
 		}
 	}
+	if run.Type == store.TypeDifferential {
+		if parent, why := r.differentialBase(dumpCtx, drv, job, server, info, dbs); parent == nil {
+			lg.Printf("%s — switching to a FULL backup", why)
+			run.Type = store.TypeFull
+		} else {
+			pid := parent.ID
+			run.ParentID, run.ParentUUID = &pid, parent.UUID
+			run.BaseID, run.BaseUUID = &pid, parent.UUID
+			spec.Parent = parent
+			lg.Printf("Differential based on full backup #%d (%s)", parent.ID, parent.DirName)
+		}
+	}
+	spec.Type = run.Type
 	short := "full"
-	if run.Type == store.TypeIncremental {
+	switch run.Type {
+	case store.TypeIncremental:
 		short = "incr"
+	case store.TypeDifferential:
+		short = "diff"
 	}
 	run.DirName = start.In(r.location()).Format("20060102-150405") + "-" + short
 	run.Databases = make([]store.DBEntry, 0)
@@ -538,6 +561,43 @@ func (r *Runner) execBackup(ctx context.Context, task *Task, run *store.Run, job
 	if (run.Status == store.StatusSuccess && job.NotifySuccess) || (run.Status != store.StatusSuccess && run.Status != store.StatusCanceled && job.NotifyFailure) {
 		r.notifyRun(run, job, now.Sub(start))
 	}
+}
+
+// differentialBase picks the full backup a differential of job is based on:
+// its newest full backup of the same server, still complete, that the
+// driver confirms is still the server's own base. why says why there is none.
+func (r *Runner) differentialBase(ctx context.Context, drv engine.Driver, job *store.Job, server *store.Server, info *dbconn.ServerInfo, dbs []dbconn.DBInfo) (*store.Run, string) {
+	if job.Options.CopyOnly {
+		return nil, "The job takes copy-only backups, which cannot be the base of a differential"
+	}
+	runs, err := r.Store.RetentionCandidates(job.ID)
+	if err != nil {
+		return nil, err.Error()
+	}
+	var base *store.Run
+	for i := range runs {
+		if runs[i].Type == store.TypeFull && runs[i].Method == job.Method {
+			base = &runs[i]
+			break
+		}
+	}
+	switch {
+	case base == nil:
+		return nil, "No full backup to base a differential on"
+	case base.ServerID == nil || *base.ServerID != server.ID:
+		return nil, fmt.Sprintf("The last full backup (#%d) belongs to another server", base.ID)
+	case !r.chainIntact(base):
+		return nil, fmt.Sprintf("The last full backup (#%d) is no longer on any storage", base.ID)
+	}
+	if h, _ := base.Meta["server_host"].(string); h != "" && info.Hostname != "" && h != info.Hostname {
+		return nil, fmt.Sprintf("The last full backup (#%d) was made on %s, the server is now %s", base.ID, h, info.Hostname)
+	}
+	if d, ok := drv.(engine.Differ); ok {
+		if err := d.DifferentialBase(ctx, server, base, dbs); err != nil {
+			return nil, strings.ToUpper(err.Error()[:1]) + err.Error()[1:]
+		}
+	}
+	return base, ""
 }
 
 // agentPhysical runs a physical backup of a server reached through an agent

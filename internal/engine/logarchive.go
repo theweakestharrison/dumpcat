@@ -28,8 +28,9 @@ type LogInfo struct {
 	Prefix  string   `json:"prefix"`  // staging folder, archive log and storage folder: "binlog", "wal"
 	Targets []string `json:"targets"` // PITR target types in the order the UI offers them
 	Close   string   `json:"close"`   // what closing the current file runs: "FLUSH BINARY LOGS", "pg_switch_wal()"
-	// Recovery: the physical restore replays the log itself (PostgreSQL
-	// recovery), so Replay is not called after it.
+	// Recovery: the restore replays the log itself (PostgreSQL recovery after
+	// a physical restore, SQL Server's RESTORE LOG in the driver's Restore),
+	// so Replay is not called after it.
 	Recovery bool `json:"recovery"`
 }
 
@@ -189,13 +190,13 @@ func (st *LogStatus) Level(current string, within time.Duration) bool {
 
 // PITRTarget is where a point-in-time recovery stops.
 type PITRTarget struct {
-	Type string     `json:"type"` // time, latest; MySQL: position, gtid; PostgreSQL: lsn, name
+	Type string     `json:"type"` // time, latest; MySQL: position, gtid; PostgreSQL: lsn, name; SQL Server: lsn, mark
 	Time *time.Time `json:"time,omitempty"`
 	File string     `json:"file,omitempty"` // MySQL position
 	Pos  int64      `json:"pos,omitempty"`
 	GTID string     `json:"gtid,omitempty"`
-	LSN  string     `json:"lsn,omitempty"`  // PostgreSQL
-	Name string     `json:"name,omitempty"` // PostgreSQL restore point
+	LSN  string     `json:"lsn,omitempty"`  // PostgreSQL, SQL Server
+	Name string     `json:"name,omitempty"` // PostgreSQL restore point, SQL Server marked transaction
 }
 
 // NormalizeTarget checks t against the types la offers and clears the
@@ -238,6 +239,8 @@ func (t PITRTarget) Describe(loc *time.Location) string {
 		return "LSN " + t.LSN
 	case "name":
 		return fmt.Sprintf("restore point %q", t.Name)
+	case "mark":
+		return fmt.Sprintf("marked transaction %q", t.Name)
 	}
 	return "the latest archived log"
 }

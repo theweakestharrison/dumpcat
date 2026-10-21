@@ -77,7 +77,7 @@ func (s *Server) runGet(w http.ResponseWriter, r *http.Request) error {
 		}
 		out["dependents"] = ids
 	}
-	if run.Type == store.TypeIncremental {
+	if store.Chained(run.Type) {
 		chain := []map[string]any{}
 		cur := run
 		for i := 0; i < 500 && cur != nil; i++ {

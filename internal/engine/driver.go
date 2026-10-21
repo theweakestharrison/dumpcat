@@ -17,7 +17,7 @@ import (
 // a driver only inspects servers, writes backups into a Sink and loads them
 // back. See docs/design-multidb.md.
 type Driver interface {
-	Engine() string  // stored in servers.engine: "mysql", "postgres"
+	Engine() string  // stored in servers.engine: "mysql", "postgres", "mssql"
 	Label() string   // the choice in the server form
 	Product() string // in messages: "could not connect to MySQL"
 	DefaultPort() int
@@ -43,18 +43,19 @@ type Driver interface {
 
 // Method is one way of backing up a server of a driver.
 type Method struct {
-	ID          string `json:"id"`
-	Title       string `json:"title"`
-	Icon        string `json:"icon"`
-	Description string `json:"description"`
-	Threads     string `json:"threads"`     // what a job's thread count means
-	Physical    bool   `json:"physical"`    // copies the data directory: the whole instance
-	Incremental bool   `json:"incremental"` // has incremental backups (physical MySQL)
-	Drill       bool   `json:"drill"`       // restore drills can test its backups
-	Estimates   bool   `json:"estimates"`   // drills can compare the server's row estimates instead of counting
-	LogArchive  bool   `json:"log_archive"` // continuous log archiving and point-in-time recovery
-	Users       string `json:"users"`       // label of the "users & grants" option ("" = none)
-	UsersHelp   string `json:"users_help"`
+	ID           string `json:"id"`
+	Title        string `json:"title"`
+	Icon         string `json:"icon"`
+	Description  string `json:"description"`
+	Threads      string `json:"threads"`      // what a job's thread count means
+	Physical     bool   `json:"physical"`     // copies the data directory: the whole instance
+	Incremental  bool   `json:"incremental"`  // has incremental backups (physical MySQL)
+	Differential bool   `json:"differential"` // has differential backups (SQL Server): the changes since the full backup
+	Drill        bool   `json:"drill"`        // restore drills can test its backups
+	Estimates    bool   `json:"estimates"`    // drills can compare the server's row estimates instead of counting
+	LogArchive   bool   `json:"log_archive"`  // continuous log archiving and point-in-time recovery
+	Users        string `json:"users"`        // label of the "users & grants" option ("" = none)
+	UsersHelp    string `json:"users_help"`
 }
 
 // RestoreOption is a checkbox of the restore page. Key is the field of the
@@ -121,6 +122,18 @@ type RestoreSpec struct {
 	// FastMode relaxes the target's durability while loading; it returns the
 	// function that puts it back (MySQL; nil: off).
 	FastMode func() (release func())
+	// Chain holds the backups Run restores on top of, full first (the full
+	// backup of a differential); empty for a full backup.
+	Chain []ChainRun
+	// Replay is a checked point-in-time recovery the driver applies itself
+	// after the backup (LogInfo().Recovery; nil: none).
+	Replay *Replay
+}
+
+// ChainRun is a backup of a restore chain and the files it is read from.
+type ChainRun struct {
+	Run    *store.Run
+	Source RestoreSource
 }
 
 // TargetName is the name database src is restored under.
@@ -169,6 +182,19 @@ type Sandbox interface {
 	// DropDatabases drops the given databases (drill copies only). left are
 	// the names that could not be dropped, errs why.
 	DropDatabases(ctx context.Context, s *store.Server, names []string, noLog bool, lg *tasklog.Logger) (left, errs []string, err error)
+}
+
+// SandboxChecker is the optional part of a Sandbox that checks the restored
+// copies in a way of its own (SQL Server: DBCC CHECKDB).
+type SandboxChecker interface {
+	CheckCopies(ctx context.Context, s *store.Server, copies []store.DrillDB, lg *tasklog.Logger) []store.DrillCheck
+}
+
+// Differ is the optional part of a Driver whose methods take differential
+// backups: it tells why base, a full backup, is no longer the base of a
+// differential of dbs (SQL Server: a full backup taken elsewhere replaced it).
+type Differ interface {
+	DifferentialBase(ctx context.Context, s *store.Server, base *store.Run, dbs []dbconn.DBInfo) error
 }
 
 // CheckConn reads restored copies on a sandbox server.

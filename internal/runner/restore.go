@@ -145,8 +145,8 @@ func (r *Runner) StartRestore(runID int64, req RestoreRequest, userID int64, use
 		if run.Method == store.MethodPhysical && (!req.Apply || target == nil) {
 			return nil, errors.New("PITR from a physical backup requires 'Apply to MySQL now' and a target server, so binlogs can be replayed once it is running")
 		}
-		if run.Type == store.TypeIncremental && !r.chainIntact(run) {
-			return nil, errors.New("the incremental chain of this backup is no longer complete")
+		if store.Chained(run.Type) && !r.chainIntact(run) {
+			return nil, fmt.Errorf("the %s chain of this backup is no longer complete", run.Type)
 		}
 		plan, err = r.planPITR(la, base, *req.PITR)
 		if err != nil {
@@ -243,7 +243,7 @@ func (r *Runner) execRestore(ctx context.Context, task *Task, rs *store.Restore,
 	case driverPhysical && isPhysical(run.Method):
 		err = r.restorePhysicalDriver(task, env, pr, run, target, req, pass, rp)
 	default:
-		err = r.restoreLogical(ctx, task, env, run, target, req, pass)
+		err = r.restoreLogical(ctx, task, env, run, target, req, pass, rp)
 	}
 	if err == nil && rp != nil && !la.LogInfo().Recovery {
 		err = r.pitrApply(ctx, task, env, la, rp, run, target, req)
@@ -518,8 +518,10 @@ func (s *restoreSource) SetPhase(p string)   { s.task.SetPhase(p) }
 func (s *restoreSource) SetEstimate(n int64) { s.task.SetEstimate(n) }
 
 // restoreLogical loads a logical backup into target through the driver of
-// its method (restores, drills, the base of a point-in-time recovery).
-func (r *Runner) restoreLogical(ctx context.Context, task *Task, env *engine.Env, run *store.Run, target *store.Server, req RestoreRequest, pass string) error {
+// its method (restores, drills, the base of a point-in-time recovery). A
+// differential gets its full backup too; rp is a checked point-in-time
+// recovery for drivers that replay the log in their restore (SQL Server).
+func (r *Runner) restoreLogical(ctx context.Context, task *Task, env *engine.Env, run *store.Run, target *store.Server, req RestoreRequest, pass string, rp *engine.Replay) error {
 	drv := drivers.ForMethod(run.Method)
 	if drv == nil {
 		return fmt.Errorf("unknown backup method %q", run.Method)
@@ -534,7 +536,25 @@ func (r *Runner) restoreLogical(ctx context.Context, task *Task, env *engine.Env
 	}
 	src := &restoreSource{r: r, task: task, run: run, loc: loc, backend: backend, pass: pass, lg: env.Log}
 	spec := &engine.RestoreSpec{Run: run, Target: target, Info: info, Databases: selectDatabases(run, req), Rename: req.Rename,
-		DropExisting: req.DropExisting, NoBinlog: req.NoBinlog, RestoreUsers: req.RestoreUsers, Threads: req.Threads, Opts: req.opts()}
+		DropExisting: req.DropExisting, NoBinlog: req.NoBinlog, RestoreUsers: req.RestoreUsers, Threads: req.Threads, Opts: req.opts(), Replay: rp}
+	if store.Chained(run.Type) {
+		chain, err := r.backupChain(run)
+		if err != nil {
+			return err
+		}
+		for _, c := range chain[:len(chain)-1] {
+			cpass := c.Passphrase
+			if cpass == "" {
+				cpass = pass
+			}
+			cloc, cb, err := r.pickLocation(c, 0)
+			if err != nil {
+				return fmt.Errorf("backup #%d: %w", c.ID, err)
+			}
+			spec.Chain = append(spec.Chain, engine.ChainRun{Run: c, Source: &restoreSource{r: r, task: task, run: c, loc: cloc, backend: cb, pass: cpass, lg: env.Log}})
+		}
+		env.Log.Printf("Restore chain: full backup #%d, then this %s backup", chain[0].ID, run.Type)
+	}
 	if req.FastMode && drv.Engine() == engine.EngineMySQL {
 		spec.FastMode = func() func() { return r.enableFastMode(ctx, target, env.Log) }
 	}
@@ -545,7 +565,7 @@ func (r *Runner) restoreLogical(ctx context.Context, task *Task, env *engine.Env
 func (r *Runner) backupChain(run *store.Run) ([]*store.Run, error) {
 	chain := []*store.Run{run}
 	cur := run
-	for cur.Type == store.TypeIncremental {
+	for store.Chained(cur.Type) {
 		if cur.ParentID == nil {
 			return nil, fmt.Errorf("backup #%d has no parent", cur.ID)
 		}

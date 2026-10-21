@@ -85,7 +85,7 @@ func (t *APIToken) Manages() bool { return t.Access == TokenManage }
 
 type Server struct {
 	ID          int64     `json:"id"`
-	Engine      string    `json:"engine"` // mysql (MySQL, MariaDB, Percona), postgres
+	Engine      string    `json:"engine"` // mysql (MySQL, MariaDB, Percona), postgres, mssql
 	Name        string    `json:"name"`
 	Host        string    `json:"host"`
 	Port        int       `json:"port"`
@@ -113,11 +113,17 @@ type Server struct {
 	// WGPeerID: reach the server through DumpCat's WireGuard; Host is an
 	// address routed to this peer (its VPN address or a network behind it).
 	WGPeerID *int64 `json:"wg_peer_id"`
+	// SQL Server writes its backups on its own disk: BackupDir is the folder
+	// as SQL Server sees it, BackupDirLocal the same folder as DumpCat sees
+	// it ("" = the same path: DumpCat runs on the SQL Server host).
+	BackupDir      string `json:"backup_dir"`
+	BackupDirLocal string `json:"backup_dir_local"`
 }
 
 const (
 	EngineMySQL    = "mysql"
 	EnginePostgres = "postgres"
+	EngineMSSQL    = "mssql"
 )
 
 // EngineName is the server's engine ("mysql" for servers saved before engines existed).
@@ -130,8 +136,11 @@ func (s *Server) EngineName() string {
 
 // DefaultPort is the engine's usual port, used when the server has none.
 func (s *Server) DefaultPort() int {
-	if s.EngineName() == EnginePostgres {
+	switch s.EngineName() {
+	case EnginePostgres:
 		return 5432
+	case EngineMSSQL:
+		return 1433
 	}
 	return 3306
 }
@@ -324,7 +333,11 @@ type JobOptions struct {
 	// continuous log archiving (point-in-time recovery): MySQL binlogs,
 	// PostgreSQL WAL (the JSON names predate PostgreSQL)
 	LogArchive       bool `json:"binlog_archive"`
-	LogRotateMinutes int  `json:"binlog_rotate_minutes"` // close the current file after N minutes (0 = never)
+	LogRotateMinutes int  `json:"binlog_rotate_minutes"` // close the current file after N minutes (0 = never); SQL Server: a log backup every N minutes
+	// SQL Server
+	CopyOnly          bool   `json:"copy_only"`          // BACKUP … WITH COPY_ONLY: the server's own backup chain is left alone
+	NativeCompression string `json:"native_compression"` // BACKUP … WITH COMPRESSION: "" (when the edition has it), on, off
+	VerifyOnly        bool   `json:"verify_only"`        // RESTORE VERIFYONLY on the server before the file is read
 	// monitoring
 	MaxAgeHours int `json:"max_age_hours"` // alert when the newest successful backup is older (0 = from the schedule)
 }
@@ -389,9 +402,11 @@ const (
 	MethodPhysical  = "physical"
 	MethodPgDump    = "pg_dump"
 	MethodPgBase    = "pg_basebackup"
+	MethodMSSQL     = "mssql_native"
 
-	TypeFull        = "full"
-	TypeIncremental = "incremental"
+	TypeFull         = "full"
+	TypeIncremental  = "incremental"
+	TypeDifferential = "differential" // SQL Server: the changes since the full backup (BaseID = ParentID)
 
 	StatusQueued   = "queued"
 	StatusRunning  = "running"
@@ -470,6 +485,10 @@ type Run struct {
 }
 
 func (r *Run) RelDir() string { return r.JobSlug + "/" + r.DirName }
+
+// Chained tells whether a backup of type typ restores on top of its parent
+// (incremental: the previous backup; differential: the full backup).
+func Chained(typ string) bool { return typ == TypeIncremental || typ == TypeDifferential }
 
 type RunLocation struct {
 	ID          int64     `json:"id"`

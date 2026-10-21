@@ -184,7 +184,7 @@ func (s *Server) mcpInstructions(a *authInfo) string {
 		access = "with Manage access: you can also start backups, verifications and restore drills, and set up and change jobs, " +
 			"restore drills, database servers and storages (ask the user first)"
 	}
-	return fmt.Sprintf(`DumpCat %s backs up databases (%s) on schedules to local and cloud storage, archives their logs (MySQL binlogs, PostgreSQL WAL) for point-in-time recovery, and tests backups with restore drills.
+	return fmt.Sprintf(`DumpCat %s backs up databases (%s) on schedules to local and cloud storage, archives their logs (MySQL binlogs, PostgreSQL WAL, SQL Server log backups) for point-in-time recovery, and tests backups with restore drills.
 Start with get_overview, and get_monitoring for what needs attention. A backup is one run of a job: list_backups and get_backup show backups, get_log shows the end of a log (backups, restores, drill runs, log archiving). To investigate a failure, read its error, then its log.
 Signed in as %s (role %s) %s. Restores, deletions and DumpCat's settings are not available over MCP: they are done in the web UI. Secrets (passwords, keys, passphrases) are never returned or taken: when a setup needs one, give the user the finish_url the tool returns, where they enter it.`,
 		s.Version, strings.Join(engines, ", "), a.User.Username, a.User.Role, access)
@@ -689,7 +689,7 @@ func mcpBaseTools() []mcpTool {
 			Name: "get_monitoring", Title: "Monitoring status and alerts", Route: "GET /api/dashboard",
 			Description: "Monitoring status and alerts: for every job, whether its newest successful backup is fresh or overdue (stale, " +
 				"due_at: the same rule as DumpCat's freshness alerts and /metrics); the state of continuous log archiving (MySQL " +
-				"binlogs, PostgreSQL WAL): streaming or failing, files waiting for upload, archive lag; and the active warnings. " +
+				"binlogs, PostgreSQL WAL, SQL Server log backups): streaming or failing, files waiting for upload, archive lag; and the active warnings. " +
 				"Use it to answer \"is everything backed up?\".",
 			Schema: mcpObject(nil, map[string]any{}),
 			Run: mcpRun(func(c *mcpCall, _ struct{}) (any, error) {
@@ -717,7 +717,7 @@ func mcpBaseTools() []mcpTool {
 		{
 			Name: "list_servers", Title: "List database servers", Route: "GET /api/servers",
 			Description: "The database servers DumpCat backs up or restores to: engine (mysql = MySQL, MariaDB, Percona; postgres = " +
-				"PostgreSQL), address, user, TLS mode, detected version, and how DumpCat reaches them (directly, or through an agent " +
+				"PostgreSQL; mssql = SQL Server), address, user, TLS mode, detected version, and how DumpCat reaches them (directly, or through an agent " +
 				"or WireGuard peer by id). Passwords are never returned (has_password tells whether one is saved).",
 			Schema: mcpObject(nil, map[string]any{}),
 			Run: mcpRun(func(c *mcpCall, _ struct{}) (any, error) {
@@ -1020,9 +1020,9 @@ func mcpBaseTools() []mcpTool {
 		{
 			Name: "plan_pitr", Title: "Preview a point-in-time recovery", Route: "POST /api/pitr/plan",
 			Description: "Preview a point-in-time recovery; nothing is changed or restored. DumpCat picks the base backup for the " +
-				"target and checks that the archived log (MySQL binlogs, PostgreSQL WAL) reaches it, with warnings. Give job_id (or " +
+				"target and checks that the archived log (MySQL binlogs, PostgreSQL WAL, SQL Server log backups) reaches it, with warnings. Give job_id (or " +
 				"backup_id for a given base). target_type latest or time (RFC 3339, e.g. 2026-10-20T09:30:00+07:00) work for every " +
-				"engine; position (file and pos) and gtid for MySQL; lsn and name (a restore point) for PostgreSQL. The recovery " +
+				"engine; position (file and pos) and gtid for MySQL; lsn and name (a restore point) for PostgreSQL; lsn and mark (name: a marked transaction) for SQL Server. The recovery " +
 				"itself is started in the web UI. Needs the operator role.",
 			Schema: mcpObject([]string{"target_type"}, map[string]any{
 				"job_id":      mcpID("Job whose log is archived."),
@@ -1032,8 +1032,8 @@ func mcpBaseTools() []mcpTool {
 				"file":        mcpString("For target_type position (MySQL): binlog file name, e.g. mysql-bin.000012."),
 				"pos":         map[string]any{"type": "integer", "minimum": 0, "description": "For target_type position (MySQL): position in the file."},
 				"gtid":        mcpString("For target_type gtid (MySQL): GTID set or MariaDB GTID to stop at."),
-				"lsn":         mcpString("For target_type lsn (PostgreSQL): WAL location, e.g. 0/3000148."),
-				"name":        mcpString("For target_type name (PostgreSQL): restore point name."),
+				"lsn":         mcpString("For target_type lsn: PostgreSQL WAL location, e.g. 0/3000148; SQL Server LSN, e.g. 37000000012800001 or 00000025:00000080:0001."),
+				"name":        mcpString("For target_type name (PostgreSQL): restore point name; for target_type mark (SQL Server): the marked transaction's name."),
 			}),
 			Run: mcpRun(func(c *mcpCall, in struct {
 				JobID      int64  `json:"job_id"`
@@ -1072,11 +1072,11 @@ func mcpBaseTools() []mcpTool {
 			Name: "run_backup", Title: "Run a backup now", Route: "POST /api/jobs/{id}/run", Write: true, Destructive: true,
 			Description: "Start a backup of a job now, like Run now in the web UI, and return the new backup (its id is for " +
 				"get_backup and get_log; it runs in the background). type incremental is taken only by methods that have " +
-				"incremental backups, otherwise a full backup runs. Afterwards the job's retention may remove old backups, as after " +
+				"incremental backups, differential by SQL Server's native backups (incremental means differential there), otherwise a full backup runs. Afterwards the job's retention may remove old backups, as after " +
 				"a scheduled run. Needs the operator role and a token with full access.",
 			Schema: mcpObject([]string{"job_id"}, map[string]any{
 				"job_id": mcpID("Job id from list_jobs."),
-				"type":   mcpEnum("full (default) or incremental.", store.TypeFull, store.TypeIncremental),
+				"type":   mcpEnum("full (default), incremental or differential.", store.TypeFull, store.TypeIncremental, store.TypeDifferential),
 			}),
 			Run: mcpRun(func(c *mcpCall, in struct {
 				JobID int64  `json:"job_id"`
@@ -1086,8 +1086,8 @@ func mcpBaseTools() []mcpTool {
 				if err != nil {
 					return nil, err
 				}
-				if in.Type != "" && in.Type != store.TypeFull && in.Type != store.TypeIncremental {
-					return nil, errors.New("type must be full or incremental")
+				if in.Type != "" && in.Type != store.TypeFull && !store.Chained(in.Type) {
+					return nil, errors.New("type must be full, incremental or differential")
 				}
 				v, err := c.post(p, map[string]any{"type": in.Type})
 				if err != nil {

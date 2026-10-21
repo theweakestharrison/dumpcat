@@ -75,14 +75,14 @@ var apiSections = []apiSection{
 	},
 	{
 		Title: "Log archiving and point-in-time recovery",
-		Intro: "Jobs can archive the database's log continuously (MySQL / MariaDB binlogs, PostgreSQL WAL) to restore to any moment after a backup.",
+		Intro: "Jobs can archive the database's log continuously (MySQL / MariaDB binlogs, PostgreSQL WAL, SQL Server log backups) to restore to any moment after a backup.",
 		Routes: []apiDoc{
 			{"GET /api/binlog", "Every job that archives its log: streaming or failing, files waiting for upload, archive lag."},
 			{"GET /api/jobs/{id}/binlogs", "The archived log files of a job (`offset` for paging)."},
 			{"GET /api/jobs/{id}/binlog/log", "The log of the job's archiver (`offset`, `tail=1`)."},
 			{"POST /api/jobs/{id}/binlog/rotate", "Close the current log file now, so that everything up to now is uploaded."},
 			{"POST /api/jobs/{id}/binlog/restart", "Restart the job's archiver."},
-			{"POST /api/pitr/plan", "Preview a point-in-time recovery: the base backup it would start from and whether the archived log reaches the target. Body: `{\"job_id\": n, \"run_id\": n (optional), \"target\": {\"type\": \"time\", \"time\": \"2026-10-20T14:37:11+07:00\"}}`. Target types: `latest`, `time`; MySQL `position` (`file`, `pos`) and `gtid`; PostgreSQL `lsn` and `name` (a restore point). Changes nothing."},
+			{"POST /api/pitr/plan", "Preview a point-in-time recovery: the base backup it would start from and whether the archived log reaches the target. Body: `{\"job_id\": n, \"run_id\": n (optional), \"target\": {\"type\": \"time\", \"time\": \"2026-10-20T14:37:11+07:00\"}}`. Target types: `latest`, `time`; MySQL `position` (`file`, `pos`) and `gtid`; PostgreSQL `lsn` and `name` (a restore point); SQL Server `lsn` and `mark` (`name`: a marked transaction). Changes nothing."},
 		},
 	},
 	{
@@ -331,7 +331,7 @@ func (s *Server) apiReference(origin string) string {
 	var b strings.Builder
 	p := func(format string, args ...any) { fmt.Fprintf(&b, format, args...) }
 	p("# DumpCat API reference\n\n")
-	p("DumpCat %s at %s backs up MySQL, MariaDB and PostgreSQL databases on schedules, archives their logs for "+
+	p("DumpCat %s at %s backs up MySQL, MariaDB, PostgreSQL and SQL Server databases on schedules, archives their logs for "+
 		"point-in-time recovery, restores them and tests backups with restore drills. This reference is written by the server "+
 		"itself and lists every route it serves: `GET %s/api/docs.md`.\n\n", s.Version, origin, origin)
 

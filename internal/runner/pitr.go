@@ -123,7 +123,7 @@ type PITRPlanView struct {
 }
 
 func (r *Runner) pitrUsable(run *store.Run) bool {
-	if run.Type == store.TypeIncremental {
+	if store.Chained(run.Type) {
 		return r.chainIntact(run)
 	}
 	for _, l := range run.Locations {

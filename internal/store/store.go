@@ -380,6 +380,11 @@ ALTER TABLE api_tokens ADD COLUMN access TEXT NOT NULL DEFAULT 'full';
 ALTER TABLE users ADD COLUMN sso_subject TEXT NOT NULL DEFAULT '';
 CREATE INDEX users_sso ON users(sso_subject) WHERE sso_subject <> '';
 `,
+	// 11: SQL Server writes backups on its own disk: the folder as it sees it, and as DumpCat sees it
+	`
+ALTER TABLE servers ADD COLUMN backup_dir TEXT NOT NULL DEFAULT '';
+ALTER TABLE servers ADD COLUMN backup_dir_local TEXT NOT NULL DEFAULT '';
+`,
 }
 
 func (s *Store) migrate() error {

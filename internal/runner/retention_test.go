@@ -99,3 +99,30 @@ func TestSlugify(t *testing.T) {
 		t.Fatal(s)
 	}
 }
+
+// SQL Server differentials belong to the chain of their full backup: it is
+// kept (and deleted) with them.
+func TestRetentionDifferentials(t *testing.T) {
+	now := time.Date(2026, 10, 21, 12, 0, 0, 0, time.UTC)
+	day := 24 * time.Hour
+	runs := mkRuns(now, []struct {
+		id, base int64
+		ago      time.Duration
+	}{
+		{1, 0, 7 * day}, {2, 1, 6 * day}, {3, 1, 5 * day},
+		{4, 0, 2 * day}, {5, 4, 1 * day},
+	})
+	for i := range runs {
+		if runs[i].BaseID != nil {
+			runs[i].Type = store.TypeDifferential
+		}
+	}
+	chains := buildChains(runs)
+	if len(chains) != 2 || chains[0].key != 4 || len(chains[0].members) != 2 || len(chains[1].members) != 3 {
+		t.Fatalf("chains: %+v", chains)
+	}
+	keep := keepSet(chains, store.Retention{KeepLast: 1}, now, time.UTC)
+	if !keep[4] || keep[1] {
+		t.Fatalf("keep last 1: %v", keep)
+	}
+}

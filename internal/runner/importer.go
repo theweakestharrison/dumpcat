@@ -214,7 +214,7 @@ func validateManifest(m *store.Manifest) error {
 			return fmt.Errorf("invalid character set or collation for database %q", d.Name)
 		}
 	}
-	if m.Type != store.TypeFull && m.Type != store.TypeIncremental {
+	if m.Type != store.TypeFull && !store.Chained(m.Type) {
 		return fmt.Errorf("invalid type %q", m.Type)
 	}
 	if len(m.Files) == 0 {

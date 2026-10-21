@@ -10,6 +10,7 @@ import (
 
 	"dumpcat/internal/drivers"
 	"dumpcat/internal/monitor"
+	"dumpcat/internal/mssql"
 	"dumpcat/internal/pipeline"
 	"dumpcat/internal/runner"
 	"dumpcat/internal/scheduler"
@@ -102,7 +103,7 @@ func (s *Server) applyJob(in *jobInput, j *store.Job, isAdmin bool) error {
 	}
 	j.Schedule = strings.TrimSpace(in.Schedule)
 	j.IncrSchedule = strings.TrimSpace(in.IncrSchedule)
-	if !m.Incremental {
+	if !m.Incremental && !m.Differential {
 		j.IncrSchedule = ""
 	}
 	j.Compression = pipeline.NormalizeCompression(in.Compression)
@@ -147,6 +148,21 @@ func (s *Server) applyJob(in *jobInput, j *store.Job, isAdmin bool) error {
 		j.Options.RecordBinlog = true // PITR replays from the position of every dump
 	}
 	j.Options.LogRotateMinutes = max(0, min(j.Options.LogRotateMinutes, 1440))
+	if j.Method == store.MethodMSSQL {
+		if err := mssql.CheckWithOptions(j.Options.ExtraArgs); err != nil {
+			return badRequest("%v", err)
+		}
+		switch j.Options.NativeCompression {
+		case "", "on", "off":
+		default:
+			return badRequest("invalid native compression (empty for the edition's default, on or off)")
+		}
+		if j.Options.CopyOnly {
+			j.IncrSchedule = "" // copy-only backups cannot be the base of a differential
+		}
+	} else {
+		j.Options.CopyOnly, j.Options.NativeCompression, j.Options.VerifyOnly = false, "", false
+	}
 	j.Options.MaxAgeHours = max(0, min(j.Options.MaxAgeHours, 24*366))
 	j.Retention = in.Retention
 	if len(in.Targets) == 0 {

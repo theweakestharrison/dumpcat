@@ -34,8 +34,10 @@ type serverInput struct {
 	Notes           string `json:"notes"`
 	RestoreUsername string `json:"restore_username"`
 	RestorePassword string `json:"restore_password"`
-	AgentID         int64  `json:"agent_id"`   // 0 = connect directly
-	WGPeerID        int64  `json:"wg_peer_id"` // 0 = not through WireGuard
+	AgentID         int64  `json:"agent_id"`         // 0 = connect directly
+	WGPeerID        int64  `json:"wg_peer_id"`       // 0 = not through WireGuard
+	BackupDir       string `json:"backup_dir"`       // SQL Server: its backup folder, as it sees it
+	BackupDirLocal  string `json:"backup_dir_local"` // the same folder seen from DumpCat ("" = the same path)
 }
 
 func (in *serverInput) apply(sv *store.Server) error {
@@ -111,7 +113,22 @@ func (in *serverInput) apply(sv *store.Server) error {
 	}
 	sv.HasPassword = sv.Password != ""
 	sv.HasRestorePassword = sv.RestorePassword != ""
-	if sv.Port == 0 {
+	sv.BackupDir, sv.BackupDirLocal = strings.TrimSpace(in.BackupDir), strings.TrimSpace(in.BackupDirLocal)
+	mssql := sv.Engine == store.EngineMSSQL
+	if mssql {
+		// TDS over TCP only; the data directory is SQL Server's own (detected), never replaced by DumpCat
+		sv.Socket, sv.ServiceName, sv.OSUser = "", "", ""
+		if sv.BackupDir != "" && !strings.HasPrefix(sv.BackupDir, "/") && !windowsAbs(sv.BackupDir) {
+			return badRequest(`the backup folder must be an absolute path on the SQL Server host, e.g. D:\Backup\DumpCat, \\nas\sql or /var/opt/mssql/dumpcat`)
+		}
+		if sv.BackupDirLocal != "" && !filepath.IsAbs(sv.BackupDirLocal) {
+			return badRequest("the backup folder seen from DumpCat must be an absolute path on the DumpCat host")
+		}
+	} else {
+		sv.BackupDir, sv.BackupDirLocal = "", ""
+	}
+	// a named SQL Server instance without a port is found by the SQL Server Browser
+	if sv.Port == 0 && !(mssql && strings.Contains(sv.Host, `\`) && sv.AgentID == nil && sv.WGPeerID == nil) {
 		sv.Port = drv.DefaultPort()
 	}
 	if sv.Flavor == "" || sv.Engine != store.EngineMySQL {
@@ -139,7 +156,8 @@ func (in *serverInput) apply(sv *store.Server) error {
 	// these values go into option files and command lines run as the service user: a line break
 	// would add options of its own
 	for label, v := range map[string]string{"host": sv.Host, "socket": sv.Socket, "user": sv.Username, "restore user": sv.RestoreUsername,
-		"datadir": sv.Datadir, "service name": sv.ServiceName, "OS user": sv.OSUser, "name": sv.Name} {
+		"datadir": sv.Datadir, "service name": sv.ServiceName, "OS user": sv.OSUser, "name": sv.Name,
+		"backup folder": sv.BackupDir, "backup folder seen from DumpCat": sv.BackupDirLocal} {
 		if strings.ContainsFunc(v, func(r rune) bool { return r < 0x20 || r == 0x7f }) {
 			return badRequest("the %s contains a line break or another control character", label)
 		}
@@ -150,7 +168,7 @@ func (in *serverInput) apply(sv *store.Server) error {
 	if sv.OSUser != "" && !osUserRe.MatchString(sv.OSUser) {
 		return badRequest("invalid OS user: a Linux user name such as mysql")
 	}
-	if sv.Datadir != "" && (!strings.HasPrefix(sv.Datadir, "/") && !filepath.IsAbs(sv.Datadir)) {
+	if sv.Datadir != "" && !mssql && (!strings.HasPrefix(sv.Datadir, "/") && !filepath.IsAbs(sv.Datadir)) {
 		return badRequest("the datadir must be an absolute path")
 	}
 	if strings.HasPrefix(sv.Host, "-") || strings.HasPrefix(sv.Username, "-") || strings.HasPrefix(sv.RestoreUsername, "-") {
@@ -163,6 +181,11 @@ var (
 	serviceNameRe = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9@._:-]{0,127}$`)
 	osUserRe      = regexp.MustCompile(`^[a-z_][a-z0-9_.-]{0,31}$`)
 )
+
+// windowsAbs tells whether p is an absolute path of a Windows host: C:\... or \\host\share.
+func windowsAbs(p string) bool {
+	return len(p) >= 3 && p[1] == ':' && (p[2] == '\\' || p[2] == '/') || strings.HasPrefix(p, `\\`)
+}
 
 func idOf(p *int64) int64 {
 	if p == nil {

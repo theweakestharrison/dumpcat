@@ -110,8 +110,13 @@ func (s *Scheduler) Reload() {
 			continue
 		}
 		s.add(j.ID, j.Schedule, store.TypeFull, "")
-		if j.Method == store.MethodPhysical && strings.TrimSpace(j.IncrSchedule) != "" {
-			s.add(j.ID, j.IncrSchedule, store.TypeIncremental, j.Schedule)
+		if strings.TrimSpace(j.IncrSchedule) != "" {
+			switch j.Method {
+			case store.MethodPhysical:
+				s.add(j.ID, j.IncrSchedule, store.TypeIncremental, j.Schedule)
+			case store.MethodMSSQL:
+				s.add(j.ID, j.IncrSchedule, store.TypeDifferential, j.Schedule)
+			}
 		}
 	}
 	s.addDrills()
