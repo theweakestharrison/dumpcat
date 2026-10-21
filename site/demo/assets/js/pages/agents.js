@@ -1,7 +1,7 @@
 import { get, post, put, del } from '../api.js';
 import { html, setHTML, icon, on, fmtAgo, toast, toastErr, confirmBox, modal, empty, formData, copyText, bindModalForm, dropdown, patch } from '../ui.js';
 import { isAdmin, poll } from '../app.js';
-import { topology, agentPhysical } from '../components.js';
+import { topology, agentPhysical, agentFolder } from '../components.js';
 
 export const title = 'Agents';
 
@@ -13,32 +13,38 @@ const SAFE_ARG = /^[A-Za-z0-9._:/@%+=,~-]+$/;
 const sh = (s) => (SAFE_ARG.test(s) ? s : `'${String(s).replace(/'/g, "'\\''")}'`);
 const ps = (s) => (SAFE_ARG.test(s) ? s : `'${String(s).replace(/'/g, "''")}'`);
 
+// SQL Server's backup folder when the install dialog leaves it empty.
+const MSSQL_DIR = { linux: '/var/opt/mssql/backup', windows: 'D:\\Backup\\DumpCat' };
+
 // The install commands for an agent; key is null when it is not known (it is shown once).
-function installCommands(info, key, physical) {
+// opts: physical (--allow-physical), mssql (--allow-mssql-dir) and dir (its folder).
+function installCommands(info, key, opts = {}) {
   const v = /^\d+\.\d+\.\d+/.test(info.version || '') ? info.version : '';
   const rel = info.release_url || DEFAULT_RELEASES;
   const server = info.server_url;
   const k = key || '<agent key>';
+  const { physical, mssql } = opts;
+  const dir = (os) => opts.dir || MSSQL_DIR[os];
   const linux = [
     ...(v ? [`curl -fLO ${sh(`${rel}/${v}/dumpcat-${v}-linux.tar.gz`)}`, `tar xzf dumpcat-${v}-linux.tar.gz && cd dumpcat-${v}-linux`] : []),
-    `sudo ./install.sh --agent --server ${sh(server)} --key ${key ? sh(key) : k}${physical ? ' --allow-physical' : ''}`,
+    `sudo ./install.sh --agent --server ${sh(server)} --key ${key ? sh(key) : k}${physical ? ' --allow-physical' : ''}${mssql ? ` --allow 127.0.0.1:1433 --allow-mssql-dir ${sh(dir('linux'))}` : ''}`,
   ];
   const win = [
     ...(v ? [`Invoke-WebRequest ${ps(`${rel}/${v}/dumpcat-${v}-windows-amd64.zip`)} -OutFile dumpcat.zip`,
       `Expand-Archive dumpcat.zip -DestinationPath . ; cd dumpcat-${v}-windows-amd64`] : []),
-    `powershell -ExecutionPolicy Bypass -File .\\install.ps1 -Agent -Server ${ps(server)} -Key ${key ? ps(key) : k}${physical ? ' -AllowPhysical' : ''}`,
+    `powershell -ExecutionPolicy Bypass -File .\\install.ps1 -Agent -Server ${ps(server)} -Key ${key ? ps(key) : k}${physical ? ' -AllowPhysical' : ''}${mssql ? ` -Allow 127.0.0.1:1433 -AllowMSSQLDir ${ps(dir('windows'))}` : ''}`,
   ];
   return {
     'Linux (systemd)': linux.join('\n'),
     'Windows (PowerShell as Administrator)': win.join('\n'),
-    'Any OS, in the foreground': `dumpcat agent -server ${sh(server)} -key ${key ? sh(key) : k}${physical ? ' -allow-physical' : ''}`,
+    'Any OS, in the foreground': `dumpcat agent -server ${sh(server)} -key ${key ? sh(key) : k}${physical ? ' -allow-physical' : ''}${mssql ? ` -allow 127.0.0.1:1433 -allow-mssql-dir ${sh(dir('linux'))}` : ''}`,
   };
 }
 
 const commandsView = (cmds) => Object.entries(cmds).map(([k, v], i) => html`<div class="section-title" style="margin-top:${i ? 14 : 8}px">${k}</div><pre class="code">${v}</pre><button type="button" class="btn btn-sm" data-copy-cmd="${i}" style="margin-top:6px">${icon('copy')}Copy</button>`);
 
 function setupView(info, key) {
-  const cmds = installCommands(info, key, false);
+  const cmds = installCommands(info, key);
   const local = /^https?:\/\/(localhost|127\.|\[::1\])/i.test(info.server_url);
   return html`
     ${key ? html`<div class="alert warn" style="margin-bottom:14px">${icon('key')}<div><b>Copy the key now — it is shown only once.</b> Anyone with it can connect as this agent; rotate it if it leaks.</div></div>
@@ -47,6 +53,8 @@ function setupView(info, key) {
     ${local ? html`<div class="alert warn" style="margin-top:14px">${icon('alert')}<div>The database host cannot reach <span class="mono">${info.server_url}</span>. Set the <b>Base URL</b> in Settings to the address it reaches DumpCat at, or replace it in the commands.</div></div>` : ''}
     <div class="help" style="margin:14px 0 6px">Run on the database host. The agent connects out to <span class="mono">${info.server_url}</span> over ${info.server_url.startsWith('https') ? 'HTTPS' : 'HTTP'} — the host needs no open port. By default it only reaches the local MySQL/MariaDB (127.0.0.1:3306 and the usual sockets); add <span class="mono">--allow host:port</span> for others.</div>
     <label class="check" style="margin:10px 0 4px"><input type="checkbox" id="allow-physical"><span>Allow physical backups<span class="help">The agent runs mariabackup/xtrabackup on the database host when DumpCat asks and streams the backup back. On Linux it then runs as the owner of the datadir (usually <span class="mono">mysql</span>) instead of a throwaway user.</span></span></label>
+    <label class="check" style="margin:10px 0 4px"><input type="checkbox" id="allow-mssql"><span>SQL Server: move its backup files<span class="help">SQL Server writes its backups on its own host. The agent reads the files DumpCat asked SQL Server to write into its backup folder and writes the files of restores there — only <span class="mono">dumpcat-*</span> files in that one folder — so DumpCat needs no shared folder. On Linux it then runs as the folder's owner (usually <span class="mono">mssql</span>). The commands also allow the instance at 127.0.0.1:1433.</span></span></label>
+    <div class="field hidden" id="mssql-dir-field" style="margin:4px 0 0 26px"><label>SQL Server's backup folder on that host</label><input type="text" id="mssql-dir" placeholder="${MSSQL_DIR.linux} (Linux), ${MSSQL_DIR.windows} (Windows)"></div>
     <div id="setup-cmds">${commandsView(cmds)}</div>
     ${!info.server_url.startsWith('https') ? html`<div class="alert info" style="margin-top:14px">${icon('lock')}<div>Database traffic goes through this connection: serve DumpCat over HTTPS with a certificate the database host trusts (for example a reverse proxy with Let's Encrypt) when it crosses an untrusted network. The built-in self-signed certificate (<span class="mono">DUMPCAT_TLS_AUTO=1</span>) needs <span class="mono">--insecure</span> on the agent, which encrypts the traffic but does not stop someone on the network path from posing as DumpCat: use it only on networks you trust.</div></div>` : ''}`;
 }
@@ -59,12 +67,17 @@ function showSetup(info, name, key) {
   });
   // the key is shown once: a stray click outside must not close the dialog
   if (key) m.el.parentElement.dispatchEvent(new Event('input', { bubbles: true }));
-  let cmds = Object.values(installCommands(info, key, false));
-  m.el.querySelector('#allow-physical').addEventListener('change', (e) => {
-    const all = installCommands(info, key, e.target.checked);
+  let cmds = Object.values(installCommands(info, key));
+  const redraw = () => {
+    const mssql = m.el.querySelector('#allow-mssql').checked;
+    m.el.querySelector('#mssql-dir-field').classList.toggle('hidden', !mssql);
+    const all = installCommands(info, key, { physical: m.el.querySelector('#allow-physical').checked, mssql, dir: m.el.querySelector('#mssql-dir').value.trim() });
     cmds = Object.values(all);
     setHTML(m.el.querySelector('#setup-cmds'), commandsView(all));
-  });
+  };
+  m.el.querySelector('#allow-physical').addEventListener('change', redraw);
+  m.el.querySelector('#allow-mssql').addEventListener('change', redraw);
+  m.el.querySelector('#mssql-dir').addEventListener('input', redraw);
   on(m.el, 'click', '[data-copy-cmd]', (e, b) => copyText(cmds[+b.dataset.copyCmd]));
   on(m.el, 'click', '[data-copy-key]', () => copyText(key));
 }
@@ -76,6 +89,14 @@ function statusCell(a, st) {
   }
   return html`<span class="badge">${icon('x')}Offline</span>
     <div class="sub">${a.last_seen_at ? `last seen ${fmtAgo(a.last_seen_at)}` : 'never connected'}</div>`;
+}
+
+// SQL Server's backup folder on the agent's host (--allow-mssql-dir).
+function folderCell(st) {
+  const f = agentFolder(st);
+  if (!f) return html`<span class="muted">—</span>`;
+  if (f.ok) return html`<span class="badge good">${icon('check')}<span class="mono">${f.short}</span></span>${f.detail ? html`<div class="sub">${f.detail}</div>` : ''}`;
+  return html`<span class="badge ${f.off ? '' : 'warn'}" title="${f.detail}">${f.off ? '' : icon('alert')}${f.short}</span><div class="sub">${f.off ? '--allow-mssql-dir' : f.detail}</div>`;
 }
 
 // Physical backups on the agent's host, as it reported them when it connected.
@@ -93,13 +114,13 @@ const HOW = html`<div class="card"><div class="card-head"><h2>How it works</h2><
     <li><span><b>Install it on the database host</b>It connects out to DumpCat over HTTPS and stays connected.</span></li>
     <li><span><b>Add the server</b><i>Connect: Through agent</i>, with the address as seen from that host, e.g. 127.0.0.1:3306.</span></li>
   </ol>
-  <div class="help">mysqldump, mydumper, pg_dump, restores, binlog archiving and point-in-time recovery work as with a direct connection (allow the database's port, e.g. <span class="mono">-allow 127.0.0.1:5432</span> for PostgreSQL). Physical backups (MariaBackup / XtraBackup) run on the database host when the agent is started with <span class="mono">--allow-physical</span>, and stream back into DumpCat's storage. Prefer a VPN? Use the built-in <a href="#/wireguard">WireGuard</a>.</div>
+  <div class="help">mysqldump, mydumper, pg_dump, restores, binlog archiving and point-in-time recovery work as with a direct connection (allow the database's port, e.g. <span class="mono">-allow 127.0.0.1:5432</span> for PostgreSQL). Physical backups (MariaBackup / XtraBackup) run on the database host when the agent is started with <span class="mono">--allow-physical</span>, and stream back into DumpCat's storage. SQL Server writes its backups on its own host: an agent started with <span class="mono">--allow-mssql-dir</span> and SQL Server's backup folder moves those files to DumpCat and back, so no folder has to be shared. Prefer a VPN? Use the built-in <a href="#/wireguard">WireGuard</a>.</div>
 </div></div>`;
 
 export async function render(ctx) {
   const { el } = ctx;
   let data = await get('/agents');
-  const tableView = () => html`${data.items.length ? html`<table class="table"><thead><tr><th>Agent</th><th>Status</th><th class="hide-sm">Host</th><th class="hide-md">Connected from</th><th class="hide-md">May connect to</th><th class="hide-md">Physical backups</th><th>Servers</th><th></th></tr></thead><tbody>
+  const tableView = () => html`${data.items.length ? html`<table class="table"><thead><tr><th>Agent</th><th>Status</th><th class="hide-sm">Host</th><th class="hide-md">Connected from</th><th class="hide-md">May connect to</th><th class="hide-md">Physical backups</th><th class="hide-md">SQL Server folder</th><th>Servers</th><th></th></tr></thead><tbody>
       ${data.items.map(({ agent: a, status: st, servers }) => html`<tr>
         <td><b>${a.name}</b><div class="sub mono">${a.key_prefix}…</div></td>
         <td>${statusCell(a, st)}</td>
@@ -107,6 +128,7 @@ export async function render(ctx) {
         <td class="hide-md mono small">${st.remote_addr || a.last_ip || html`<span class="muted">—</span>`}</td>
         <td class="hide-md mono small">${st.online ? st.allow.join(', ') : html`<span class="muted">—</span>`}</td>
         <td class="hide-md">${physicalCell(st)}</td>
+        <td class="hide-md">${folderCell(st)}</td>
         <td>${servers.length ? html`<span class="chips">${servers.map((s) => html`<span class="badge outline">${s}</span>`)}</span>` : html`<span class="muted">—</span>`}</td>
         <td class="actions">${isAdmin() ? html`<span class="dropdown"><button class="btn btn-sm btn-ghost btn-icon" data-more="${a.id}" title="More">${icon('dots')}</button></span>` : ''}</td></tr>`)}
     </tbody></table>` : empty('No agents yet. Add one for a database host that DumpCat cannot connect to directly.', 'link')}`;

@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <!-- Written by scripts/build-site.py from site-src/landing/ (index.html, en.html, <lang>.html): edit those, then run it. -->
-<title>DumpCat：MySQL、MariaDB 和 PostgreSQL 的备份与时间点恢复</title>
-<meta name="description" content="DumpCat：为 MySQL、MariaDB 和 PostgreSQL 提供备份、恢复与时间点恢复，单个二进制文件，自带 Web 界面。">
+<title>DumpCat：MySQL、MariaDB、PostgreSQL 和 SQL Server 的备份与时间点恢复</title>
+<meta name="description" content="DumpCat：为 MySQL、MariaDB、PostgreSQL 和 SQL Server 提供备份、恢复与时间点恢复，单个二进制文件，自带 Web 界面。">
 <!-- Release server read by app.js. If you move it, also update connect-src in _headers. -->
 <meta name="dumpcat-release-base" content="https://downloads.dumpcat.cc/">
 <link rel="canonical" href="https://dumpcat.cc/zh/">
@@ -23,7 +23,7 @@
 <meta property="og:locale" content="zh_CN">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <meta property="og:type" content="website">
-<meta property="og:title" content="DumpCat：MySQL、MariaDB 和 PostgreSQL 的备份与时间点恢复">
+<meta property="og:title" content="DumpCat：MySQL、MariaDB、PostgreSQL 和 SQL Server 的备份与时间点恢复">
 <meta property="og:description" content="备份从不锁库，恢复精确到秒。一个自托管的二进制文件，自带 Web 界面。">
 <meta property="og:site_name" content="DumpCat">
 <!-- og.png is rendered from og-image.html; see docs/website.vi.md -->
@@ -33,7 +33,7 @@
 <meta property="og:image:height" content="630">
 <meta property="og:image:alt" content="DumpCat：备份从不锁库，恢复精确到秒。时间点恢复时间线。">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="DumpCat：MySQL、MariaDB 和 PostgreSQL 的备份与时间点恢复">
+<meta name="twitter:title" content="DumpCat：MySQL、MariaDB、PostgreSQL 和 SQL Server 的备份与时间点恢复">
 <meta name="twitter:description" content="备份从不锁库，恢复精确到秒。一个自托管的二进制文件，自带 Web 界面。">
 <meta name="twitter:image" content="https://dumpcat.cc/og.png">
 <meta name="twitter:image:alt" content="DumpCat：备份从不锁库，恢复精确到秒。">
@@ -49,7 +49,7 @@
   "@type": "SoftwareApplication",
   "name": "DumpCat",
   "url": "https://dumpcat.cc/zh/",
-  "description": "开源的 MySQL、MariaDB 和 PostgreSQL 备份、恢复与时间点恢复工具：一个自托管的二进制文件，自带 Web 界面。",
+  "description": "开源的 MySQL、MariaDB、PostgreSQL 和 SQL Server 备份、恢复与时间点恢复工具：一个自托管的二进制文件，自带 Web 界面。",
   "applicationCategory": "DeveloperApplication",
   "operatingSystem": "Linux, Windows",
   "license": "https://www.apache.org/licenses/LICENSE-2.0",
@@ -78,6 +78,7 @@
   <defs>
     <linearGradient id="dc-bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#3a86e8"/><stop offset="1" stop-color="#1c56b0"/></linearGradient>
     <symbol id="dc-logo" viewBox="0 0 64 64"><rect width="64" height="64" rx="15" fill="url(#dc-bg)"/><path d="M47.5 45.5c7.5 0 10.5-5.5 7.8-11.5" fill="none" stroke="#fff" stroke-width="4.2" stroke-linecap="round"/><path d="M15.6 25 18.4 7.6 30.5 17.5z" fill="#fff"/><path d="M48.4 25 45.6 7.6 33.5 17.5z" fill="#fff"/><path d="M19.4 18.6 20.4 12.4 25.6 16.4z" fill="#f9a8c9"/><path d="M44.6 18.6 43.6 12.4 38.4 16.4z" fill="#f9a8c9"/><path d="M15 21v24c0 3.9 7.6 7 17 7s17-3.1 17-7V21z" fill="#fff"/><ellipse cx="32" cy="21" rx="17" ry="7" fill="#d6e6fb"/><path d="M15 38c0 3.9 7.6 7 17 7s17-3.1 17-7" fill="none" stroke="#1c56b0" stroke-opacity=".28" stroke-width="2.4"/><circle cx="25.4" cy="31" r="2.5" fill="#1b2433"/><circle cx="38.6" cy="31" r="2.5" fill="#1b2433"/><path d="M30.1 34.2h3.8L32 36.4z" fill="#f27aa8"/></symbol>
+    <symbol id="db-icon" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><ellipse cx="12" cy="5.5" rx="7.5" ry="2.8"/><path d="M4.5 5.5v13c0 1.55 3.36 2.8 7.5 2.8s7.5-1.25 7.5-2.8v-13"/><path d="M4.5 12c0 1.55 3.36 2.8 7.5 2.8s7.5-1.25 7.5-2.8"/></g></symbol>
   </defs>
 </svg>
 
@@ -103,25 +104,31 @@
     <div class="hero-main">
       <div class="hero-copy">
         <a class="hero-ai" href="#ai"><span class="hero-ai-tag">MCP</span><span>AI 友好：让 Claude 或其他 AI 助手帮你配置和检查备份</span></a>
-        <p class="eyebrow">开源 · MySQL、MariaDB 和 PostgreSQL 的备份与恢复</p>
+        <p class="eyebrow">开源 · MySQL、MariaDB、PostgreSQL 和 SQL Server 的备份与恢复</p>
         <h1>备份从不锁库。<span class="soft">恢复精确到秒。</span></h1>
         <p class="lead">DumpCat 是一个自带 Web 界面的单文件程序。它按计划执行备份，压缩并加密，把副本传到 S3、Google Drive、OneDrive 或 SFTP，校验备份，并在你需要时把数据恢复回来。支持 Linux 和 Windows，可完全离线运行。</p>
         <div class="cta">
-          <a class="btn btn-light" href="#install">安装 <span data-version>1.7.0</span></a>
+          <a class="btn btn-light" href="#install">安装 <span data-version>1.8.0</span></a>
           <a class="btn btn-ghost" href="/demo/">预览界面</a>
           <a class="btn btn-ghost" href="https://github.com/theweakestharrison/DumpCat"><svg class="gh" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 0c4.42 0 8 3.58 8 8a8.013 8.013 0 0 1-5.45 7.59c-.4.08-.55-.17-.55-.38 0-.27.01-1.13.01-2.2 0-.75-.25-1.23-.54-1.48 1.78-.2 3.65-.88 3.65-3.95 0-.88-.31-1.59-.82-2.15.08-.2.36-1.02-.08-2.12 0 0-.67-.22-2.2.82-.64-.18-1.32-.27-2-.27-.68 0-1.36.09-2 .27-1.53-1.03-2.2-.82-2.2-.82-.44 1.1-.16 1.92-.08 2.12-.51.56-.82 1.28-.82 2.15 0 3.06 1.86 3.75 3.64 3.95-.23.2-.44.55-.51 1.07-.46.21-1.61.55-2.33-.66-.15-.24-.6-.83-1.23-.82-.67.01-.27.38.01.53.34.19.73.9.82 1.13.16.45.68 1.31 2.69.94 0 .67.01 1.3.01 1.49 0 .21-.15.45-.55.38A7.995 7.995 0 0 1 0 8c0-4.42 3.58-8 8-8Z"/></svg><span>GitHub 源码</span></a>
         </div>
-        <p class="compat"><b>MySQL</b> 5.7 · 8.0 · 8.4 &nbsp;/&nbsp; <b>Percona Server</b> &nbsp;/&nbsp; <b>MariaDB</b> 10.x · 11.x &nbsp;/&nbsp; <b>PostgreSQL</b> 10+</p>
       </div>
       <div class="hero-mark" aria-hidden="true"><svg viewBox="0 0 64 64"><use href="#dc-logo"/></svg></div>
     </div>
+    <ul class="engines" aria-label="支持的数据库">
+      <li><svg aria-hidden="true"><use href="#db-icon"/></svg><b>MySQL</b><span>5.7 · 8.0 · 8.4</span></li>
+      <li><svg aria-hidden="true"><use href="#db-icon"/></svg><b>Percona Server</b></li>
+      <li><svg aria-hidden="true"><use href="#db-icon"/></svg><b>MariaDB</b><span>10.x · 11.x</span></li>
+      <li><svg aria-hidden="true"><use href="#db-icon"/></svg><b>PostgreSQL</b><span>10+</span></li>
+      <li><svg aria-hidden="true"><use href="#db-icon"/></svg><b>SQL Server</b><span>2012+</span></li>
+    </ul>
 
     <section class="pitr" id="pitr" aria-labelledby="pitr-title">
       <div class="pitr-head">
         <h2 id="pitr-title">时间点恢复</h2>
         <span class="tag">模拟演示</span>
       </div>
-      <p class="pitr-sub">有人在 14:37:12 误删了 <code>orders</code> 表。拖动标记选择恢复点：DumpCat 会挑选最新的基础备份，以及需要重放的 binlog 文件。PostgreSQL 同理，使用的是归档的 WAL。</p>
+      <p class="pitr-sub">有人在 14:37:12 误删了 <code>orders</code> 表。拖动标记选择恢复点：DumpCat 会挑选最新的基础备份，以及需要重放的 binlog 文件。PostgreSQL 同理，使用归档的 WAL；SQL Server 则使用日志备份。</p>
 
       <div class="tl">
         <div class="tl-track" id="tl-track">
@@ -188,7 +195,7 @@
           </div>
           <div role="tabpanel" id="panel-windows" aria-labelledby="tab-windows" hidden>
             <ol class="win-steps">
-              <li><span><b>下载 .zip 文件</b></span> <a class="btn btn-solid dl" data-pkg="windows" href="https://downloads.dumpcat.cc/1.7.0/dumpcat-1.7.0-windows-amd64.zip"><span>下载 Windows 版</span> <small data-version>1.7.0</small></a></li>
+              <li><span><b>下载 .zip 文件</b></span> <a class="btn btn-solid dl" data-pkg="windows" href="https://downloads.dumpcat.cc/1.8.0/dumpcat-1.8.0-windows-amd64.zip"><span>下载 Windows 版</span> <small data-version>1.8.0</small></a></li>
               <li><b>解压</b>：右键点击该文件，选择 <i>Extract All</i>（全部解压缩）。</li>
               <li><b>双击 <i>Install DumpCat</i></b>，在提示中选择 <i>Yes</i>（是）。浏览器会打开 DumpCat；安装窗口中会显示初始化令牌（setup token）。</li>
             </ol>
@@ -364,6 +371,7 @@
         </table>
       </div>
       <p class="conn-note"><b>PostgreSQL</b> 10 及以上：<code>pg_dump</code> 按数据库备份，表并行导出和恢复，可恢复为新名称或恢复到另一台服务器；<code>pg_basebackup</code> 通过复制连接备份整个集群，配合持续 WAL 归档，可恢复到某个时间、某个还原点或某个 WAL 位置。</p>
+      <p class="conn-note"><b>SQL Server</b> 2012 及以上（Windows、Linux 和容器）：用 <code>BACKUP DATABASE</code> 做原生完整备份和差异备份（无需客户端工具），可恢复为新名称或恢复到另一台服务器，用 <code>DBCC CHECKDB</code> 做恢复演练，并按计划做日志备份，可恢复到某个时间、某个标记事务或某个 LSN。SQL Server 把备份写在自己的主机上：DumpCat 从共享文件夹读取，或由该主机上的 Agent 传输文件，无需任何共享。</p>
     </div>
   </section>
 
@@ -401,7 +409,7 @@
     binlog/20261018/
       mysql-bin.000123.zst.age</code></pre>
           </div>
-          <p>运行 DumpCat 的机器没了？重新装一份，再次添加存储，点击 <em>Import backup catalog</em>：所有备份都会重新列出来。即使没有 DumpCat，也能用 <code>age</code>、<code>zstd</code> 加上 <code>mysql</code> 或 <code>pg_restore</code> 完成恢复。</p>
+          <p>运行 DumpCat 的机器没了？重新装一份，再次添加存储，点击 <em>Import backup catalog</em>：所有备份都会重新列出来。即使没有 DumpCat，也能用 <code>age</code>、<code>zstd</code> 加上 <code>mysql</code>、<code>pg_restore</code> 或 SQL Server 的 <code>RESTORE DATABASE</code> 完成恢复。</p>
         </div>
       </div>
     </div>
@@ -438,7 +446,7 @@
           </dl>
         </article>
       </div>
-      <p class="conn-note">连接由数据库主机发起，数据在连接内双向传输。物理备份（XtraBackup / MariaBackup）可以通过以 <code>--allow-physical</code> 启动的 Agent 进行；走 WireGuard 时，仍需在数据库主机上安装 DumpCat。</p>
+      <p class="conn-note">连接由数据库主机发起，数据在连接内双向传输。物理备份（XtraBackup / MariaBackup）可以通过以 <code>--allow-physical</code> 启动的 Agent 进行；走 WireGuard 时，仍需在数据库主机上安装 DumpCat。SQL Server 的备份文件也可以通过以 <code>--allow-mssql-dir</code> 启动的 Agent 传输，无需共享文件夹。</p>
     </div>
   </section>
 
@@ -523,14 +531,14 @@ go build -o dumpcat ./cmd/dumpcat</code></pre>
       <div class="section-body release" id="release" hidden>
         <div class="release-files">
           <div class="pkgs">
-            <a class="pkg" id="pkg-linux" href="https://downloads.dumpcat.cc/1.7.0/dumpcat-1.7.0-linux.tar.gz">
+            <a class="pkg" id="pkg-linux" href="https://downloads.dumpcat.cc/1.8.0/dumpcat-1.8.0-linux.tar.gz">
               <span class="pkg-os">Linux</span>
-              <span class="pkg-file" id="pkg-linux-file">dumpcat-1.7.0-linux.tar.gz</span>
+              <span class="pkg-file" id="pkg-linux-file">dumpcat-1.8.0-linux.tar.gz</span>
               <span class="pkg-desc">amd64 和 arm64，含安装程序、systemd 服务和使用手册</span>
             </a>
-            <a class="pkg" id="pkg-windows" href="https://downloads.dumpcat.cc/1.7.0/dumpcat-1.7.0-windows-amd64.zip">
+            <a class="pkg" id="pkg-windows" href="https://downloads.dumpcat.cc/1.8.0/dumpcat-1.8.0-windows-amd64.zip">
               <span class="pkg-os">Windows</span>
-              <span class="pkg-file" id="pkg-windows-file">dumpcat-1.7.0-windows-amd64.zip</span>
+              <span class="pkg-file" id="pkg-windows-file">dumpcat-1.8.0-windows-amd64.zip</span>
               <span class="pkg-desc">64 位，含 Windows 服务安装程序和使用手册</span>
             </a>
           </div>
@@ -539,7 +547,7 @@ go build -o dumpcat ./cmd/dumpcat</code></pre>
           <ul class="bins" id="rel-bins"></ul>
           <p class="old">旧版本仍可在 <code>downloads.dumpcat.cc/&lt;version&gt;/</code> 下载。</p>
         </div>
-        <div class="notes wn" data-wn-version="1.7.0"><p class="wn-label">更新内容</p><h3><a href="/changelog/1.7.0/">DumpCat 1.7.0</a> <span class="wn-date">2026年10月20日</span></h3><p class="wn-lead" lang="en">AI assistants can set backups up: MCP tools that add and change database servers, storages, jobs and restore drills, for API tokens with the new Manage access. Passwords, keys and passphrases still never go through MCP.</p><ul class="wn-list" lang="en"><li><a href="/changelog/1.7.0/#ai-assistants-mcp">AI assistants (MCP)</a></li></ul><p class="wn-links"><a href="/changelog/1.7.0/">查看全部更新 →</a><a href="/changelog/">历史版本</a></p><p class="wn-note">发布说明为英文。</p></div>
+        <div class="notes wn" data-wn-version="1.8.0"><p class="wn-label">更新内容</p><h3><a href="/changelog/1.8.0/">DumpCat 1.8.0</a> <span class="wn-date">2026年10月21日</span></h3><p class="wn-lead" lang="en">Microsoft SQL Server is the third database engine: native full and differential backups, restores under new names or onto another server, restore drills with <code>DBCC CHECKDB</code>, and scheduled log backups for point-in-time recovery — also for SQL Server hosts that share no folder with DumpCat, through the agent.</p><ul class="wn-list" lang="en"><li><a href="/changelog/1.8.0/#sql-server">SQL Server</a></li><li><a href="/changelog/1.8.0/#everything-else">Everything else</a></li></ul><p class="wn-links"><a href="/changelog/1.8.0/">查看全部更新 →</a><a href="/changelog/">历史版本</a></p><p class="wn-note">发布说明为英文。</p></div>
       </div>
     </div>
   </section>
@@ -548,9 +556,10 @@ go build -o dumpcat ./cmd/dumpcat</code></pre>
 
 <footer class="foot">
   <div class="wrap">
-    <a class="brand" href="#top"><svg aria-hidden="true"><use href="#dc-logo"/></svg>DumpCat <span data-version>1.7.0</span></a>
+    <a class="brand" href="#top"><svg aria-hidden="true"><use href="#dc-logo"/></svg>DumpCat <span data-version>1.8.0</span></a>
     <p>基于 Apache-2.0 许可证开源，源码托管在 <a href="https://github.com/theweakestharrison/DumpCat">GitHub</a>。<a href="/compare/">与其他工具的对比</a>。完整的使用手册（英文和越南语）随每个安装包附带。</p>
     <p class="foot-mail">技术支持：<a href="mailto:fat@dumpcat.cc">fat@dumpcat.cc</a></p>
+    <p class="foot-tm">MySQL 是 Oracle 和/或其关联公司的商标，MariaDB 是 MariaDB plc 的商标，Percona Server 是 Percona 的商标，PostgreSQL 是 PostgreSQL Community Association of Canada 的商标，Microsoft 和 SQL Server 是 Microsoft 集团公司的商标。DumpCat 是独立的开源项目，与上述公司没有关联。</p>
   </div>
 </footer>
 </body>

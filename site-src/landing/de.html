@@ -1,8 +1,8 @@
 <!-- German text of the landing page: the same keys as en.html, translated; a key missing here stays in English.
      The two figures (c-agent-fig, c-wg-fig) list only their labels ("English label => Deutsch", data-labels).
      python scripts/build-site.py writes it to site/de/index.html. -->
-<template data-i18n="title">DumpCat: Backup und Point-in-Time-Recovery für MySQL, MariaDB und PostgreSQL</template>
-<template data-i18n="description">DumpCat: Backup, Wiederherstellung und Point-in-Time-Recovery für MySQL, MariaDB und PostgreSQL in einer einzigen Binärdatei mit Weboberfläche.</template>
+<template data-i18n="title">DumpCat: Backup und Point-in-Time-Recovery für MySQL, MariaDB, PostgreSQL und SQL Server</template>
+<template data-i18n="description">DumpCat: Backup, Wiederherstellung und Point-in-Time-Recovery für MySQL, MariaDB, PostgreSQL und SQL Server in einer einzigen Binärdatei mit Weboberfläche.</template>
 <template data-i18n="share">Backups, die die Datenbank nie sperren. Wiederherstellung auf die Sekunde genau. Eine selbst gehostete Binärdatei mit Weboberfläche.</template>
 <template data-i18n="share-alt">DumpCat: Backups, die die Datenbank nie sperren, Wiederherstellung auf die Sekunde genau. Eine Zeitleiste der Point-in-Time-Recovery.</template>
 <template data-i18n="share-alt-short">DumpCat: Backups, die die Datenbank nie sperren, Wiederherstellung auf die Sekunde genau.</template>
@@ -15,15 +15,15 @@
 <template data-i18n="nav-install">Installation</template>
 <template data-i18n="lang-aria">Sprache</template>
 <template data-i18n="hero-ai">KI-freundlich: Ein KI-Assistent richtet Ihre Backups ein und prüft sie</template>
-<template data-i18n="eyebrow">Open Source · Backup &amp; Wiederherstellung für MySQL, MariaDB und PostgreSQL</template>
+<template data-i18n="eyebrow">Open Source · Backup &amp; Wiederherstellung für MySQL, MariaDB, PostgreSQL und SQL Server</template>
 <template data-i18n="h1">Backups ohne Datenbanksperre. <span class="soft">Wiederherstellung auf die Sekunde genau.</span></template>
 <template data-i18n="lead">DumpCat ist eine einzige Binärdatei mit Weboberfläche. Es plant Backups, komprimiert und verschlüsselt sie, überträgt Kopien zu S3, Google Drive, OneDrive oder per SFTP, prüft sie und holt Ihre Daten zurück, wenn Sie sie brauchen. Läuft unter Linux und Windows, vollständig offline.</template>
-<template data-i18n="cta-install">Version <span data-version>1.7.0</span> installieren</template>
+<template data-i18n="cta-install">Version <span data-version>1.8.0</span> installieren</template>
 <template data-i18n="cta-demo">Oberfläche ansehen</template>
 <template data-i18n="cta-github">Quellcode auf GitHub</template>
 <template data-i18n="pitr-title">Point-in-Time-Recovery</template>
 <template data-i18n="pitr-tag">Simulation</template>
-<template data-i18n="pitr-sub">Jemand hat um 14:37:12 die Tabelle <code>orders</code> gelöscht. Ziehen Sie die Markierung auf einen Wiederherstellungspunkt: DumpCat wählt das neueste Basis-Backup und die Binlog-Dateien, die eingespielt werden müssen. PostgreSQL funktioniert genauso, mit archiviertem WAL.</template>
+<template data-i18n="pitr-sub">Jemand hat um 14:37:12 die Tabelle <code>orders</code> gelöscht. Ziehen Sie die Markierung auf einen Wiederherstellungspunkt: DumpCat wählt das neueste Basis-Backup und die Binlog-Dateien, die eingespielt werden müssen. PostgreSQL funktioniert genauso mit archiviertem WAL, SQL Server mit seinen Log-Backups.</template>
 <template data-i18n="tl-now">jetzt</template>
 <template data-i18n="ro-aria">Wiederherstellungspunkt</template>
 <template data-i18n="lg-backup">Vollbackup (mysqldump)</template>
@@ -54,6 +54,7 @@
   </tbody>
 </template>
 <template data-i18n="m-pg"><b>PostgreSQL</b> ab Version 10: <code>pg_dump</code> pro Datenbank, wobei Tabellen parallel gesichert und wiederhergestellt werden, auch unter neuem Namen oder auf einem anderen Server; <code>pg_basebackup</code> für den ganzen Cluster über eine Replikationsverbindung, mit kontinuierlicher WAL-Archivierung zur Wiederherstellung auf einen Zeitpunkt, einen Wiederherstellungspunkt oder eine WAL-Position.</template>
+<template data-i18n="m-ms"><b>SQL Server</b> ab 2012, unter Windows, Linux und in Containern: native Voll- und differenzielle Backups mit <code>BACKUP DATABASE</code> (ohne Client-Tools), Wiederherstellung unter neuem Namen oder auf einem anderen Server, Wiederherstellungstests mit <code>DBCC CHECKDB</code> und geplante Log-Backups zur Wiederherstellung auf einen Zeitpunkt, eine markierte Transaktion oder eine LSN. SQL Server schreibt seine Backups auf dem eigenen Host: DumpCat liest sie aus einem freigegebenen Ordner, oder ein Agent auf diesem Host überträgt sie, ganz ohne Freigabe.</template>
 <template data-i18n="s-label">Speicher</template>
 <template data-i18n="s-title">Ein Job, Kopien an mehreren Orten</template>
 <template data-i18n="s-intro">Auf die lokale Festplatte schreiben und danach hochladen, oder ohne temporären Speicherplatz direkt in die Cloud streamen. Jeder Speicher behält seine eigene Anzahl an Kopien, zum Beispiel 3 Backups lokal und 30 Tage auf S3.</template>
@@ -69,7 +70,7 @@
   <li><b>rclone</b><span>Über 70 weitere Backends</span></li>
 </template>
 <template data-i18n="s-aside-title">Standardformate, kein Lock-in</template>
-<template data-i18n="s-aside-text">Der Rechner mit DumpCat ist weg? Installieren Sie DumpCat neu, fügen Sie den Speicher wieder hinzu und klicken Sie auf <em>Import backup catalog</em>: Alle Backups erscheinen wieder in der Liste. Auch ohne DumpCat können Sie mit <code>age</code>, <code>zstd</code> und <code>mysql</code> oder <code>pg_restore</code> wiederherstellen.</template>
+<template data-i18n="s-aside-text">Der Rechner mit DumpCat ist weg? Installieren Sie DumpCat neu, fügen Sie den Speicher wieder hinzu und klicken Sie auf <em>Import backup catalog</em>: Alle Backups erscheinen wieder in der Liste. Auch ohne DumpCat können Sie mit <code>age</code>, <code>zstd</code> und <code>mysql</code>, <code>pg_restore</code> oder <code>RESTORE DATABASE</code> von SQL Server wiederherstellen.</template>
 <template data-i18n="c-label">Verbindung</template>
 <template data-i18n="c-title">Datenbank ohne offenen Port? Wird trotzdem gesichert.</template>
 <template data-i18n="c-intro">Wenn der Backup-Server die Datenbank nicht direkt erreicht, etwa wegen einer Firewall, NAT oder weil die Datenbank nur auf 127.0.0.1 lauscht, baut stattdessen der Datenbank-Host die Verbindung zu DumpCat auf. Dafür gibt es zwei Wege, und keiner öffnet einen Port auf dem Datenbank-Host. Backups, Wiederherstellungen und Point-in-Time-Recovery funktionieren wie bei einer direkten Verbindung.</template>
@@ -124,7 +125,7 @@
   <div><dt>Installation</dt><dd>Auf der WireGuard-Seite einschalten, <code>dumpcat.conf</code> kopieren, <code>systemctl enable --now wg-quick@dumpcat</code></dd></div>
   <div><dt>Ideal für</dt><dd>Teams, die WireGuard bereits nutzen, oder als Gateway zu einem ganzen Datenbanknetz</dd></div>
 </template>
-<template data-i18n="c-note">Der Datenbank-Host öffnet die Verbindung; die Daten fließen darin in beide Richtungen. Physische Backups (XtraBackup / MariaBackup) funktionieren über einen Agenten, der mit <code>--allow-physical</code> gestartet wurde; über WireGuard muss DumpCat dafür weiterhin auf dem Datenbank-Host installiert sein.</template>
+<template data-i18n="c-note">Der Datenbank-Host öffnet die Verbindung; die Daten fließen darin in beide Richtungen. Physische Backups (XtraBackup / MariaBackup) funktionieren über einen Agenten, der mit <code>--allow-physical</code> gestartet wurde; über WireGuard muss DumpCat dafür weiterhin auf dem Datenbank-Host installiert sein. Auch die Backup-Dateien von SQL Server laufen über einen Agenten, der mit <code>--allow-mssql-dir</code> gestartet wurde: Ein freigegebener Ordner ist nicht nötig.</template>
 <template data-i18n="o-label">Betrieb</template>
 <template data-i18n="o-title">Was Sie sonst selbst skripten müssten</template>
 <template data-i18n="o-intro">All das ist in DumpCat enthalten und wird in der Weboberfläche eingeschaltet und eingestellt.</template>
@@ -225,3 +226,5 @@
 <template data-i18n="meow">Tippen Sie 6-3-6-9 auf einer Telefontastatur, und Sie erhalten MEOW, englisch für „miau“. Das ist der Standardport der Weboberfläche.</template>
 <template data-i18n="foot">Open Source unter der Apache-2.0-Lizenz, der Quellcode liegt auf <a href="https://github.com/theweakestharrison/DumpCat">GitHub</a>. <a href="/compare/">So schneidet DumpCat im Vergleich mit anderen Tools ab</a>. Das vollständige Handbuch auf Englisch und Vietnamesisch liegt jedem Paket bei.</template>
 <template data-i18n="foot-mail">Support: <a href="mailto:fat@dumpcat.cc">fat@dumpcat.cc</a></template>
+<template data-i18n="engines-aria">Unterstützte Datenbanken</template>
+<template data-i18n="foot-tm">MySQL ist eine Marke von Oracle und/oder seinen verbundenen Unternehmen, MariaDB von MariaDB plc, Percona Server von Percona, PostgreSQL der PostgreSQL Community Association of Canada, Microsoft und SQL Server der Microsoft-Unternehmensgruppe. DumpCat ist ein unabhängiges Open-Source-Projekt und steht mit ihnen in keiner Verbindung.</template>

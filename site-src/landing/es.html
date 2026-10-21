@@ -1,8 +1,8 @@
 <!-- Spanish (es, neutral international Spanish) text of the landing page: the same keys as en.html, in the same order.
      A key missing here stays in English. The figures c-agent-fig and c-wg-fig are data-labels lists
      ("English label => translation") applied to the English figures of en.html. -->
-<template data-i18n="title">DumpCat: copias de seguridad y recuperación a un punto en el tiempo para MySQL, MariaDB y PostgreSQL</template>
-<template data-i18n="description">DumpCat: copias de seguridad, restauración y recuperación a un punto en el tiempo para MySQL, MariaDB y PostgreSQL en un solo binario con interfaz web.</template>
+<template data-i18n="title">DumpCat: copias de seguridad y recuperación a un punto en el tiempo para MySQL, MariaDB, PostgreSQL y SQL Server</template>
+<template data-i18n="description">DumpCat: copias de seguridad, restauración y recuperación a un punto en el tiempo para MySQL, MariaDB, PostgreSQL y SQL Server en un solo binario con interfaz web.</template>
 <template data-i18n="share">Copias de seguridad que nunca bloquean la base de datos. Recuperación al segundo exacto. Un solo binario autoalojado con interfaz web.</template>
 <template data-i18n="share-alt">DumpCat: copias de seguridad que nunca bloquean la base de datos, recuperación al segundo exacto. La línea temporal de una recuperación a un punto en el tiempo.</template>
 <template data-i18n="share-alt-short">DumpCat: copias de seguridad que nunca bloquean la base de datos, recuperación al segundo exacto.</template>
@@ -15,15 +15,15 @@
 <template data-i18n="nav-install">Instalar</template>
 <template data-i18n="lang-aria">Idioma</template>
 <template data-i18n="hero-ai">Pensado para IA: un asistente de IA configura y revisa tus copias de seguridad</template>
-<template data-i18n="eyebrow">Código abierto · Copias de seguridad y restauración para MySQL, MariaDB y PostgreSQL</template>
+<template data-i18n="eyebrow">Código abierto · Copias de seguridad y restauración para MySQL, MariaDB, PostgreSQL y SQL Server</template>
 <template data-i18n="h1">Copias de seguridad sin bloquear la base de datos. <span class="soft">Recuperación al segundo exacto.</span></template>
 <template data-i18n="lead">DumpCat es un solo binario con interfaz web. Programa las copias de seguridad, las comprime y las cifra, envía copias a S3, Google Drive, OneDrive o SFTP, las verifica y recupera tus datos cuando los necesitas. Funciona en Linux y Windows, totalmente sin conexión a internet.</template>
-<template data-i18n="cta-install">Instalar <span data-version>1.7.0</span></template>
+<template data-i18n="cta-install">Instalar <span data-version>1.8.0</span></template>
 <template data-i18n="cta-demo">Ver la interfaz</template>
 <template data-i18n="cta-github">Código en GitHub</template>
 <template data-i18n="pitr-title">Recuperación a un punto en el tiempo</template>
 <template data-i18n="pitr-tag">Simulación</template>
-<template data-i18n="pitr-sub">Alguien eliminó la tabla <code>orders</code> a las 14:37:12. Arrastra el marcador para elegir un punto de recuperación: DumpCat elige la copia base más reciente y los archivos binlog que hay que reaplicar. PostgreSQL funciona igual, con el WAL archivado.</template>
+<template data-i18n="pitr-sub">Alguien eliminó la tabla <code>orders</code> a las 14:37:12. Arrastra el marcador para elegir un punto de recuperación: DumpCat elige la copia base más reciente y los archivos binlog que hay que reaplicar. PostgreSQL funciona igual con el WAL archivado, y SQL Server con sus copias del log de transacciones.</template>
 <template data-i18n="tl-now">ahora</template>
 <template data-i18n="ro-aria">Punto de recuperación</template>
 <template data-i18n="lg-backup">Copia completa (mysqldump)</template>
@@ -54,6 +54,7 @@
   </tbody>
 </template>
 <template data-i18n="m-pg"><b>PostgreSQL</b> 10 y posteriores: <code>pg_dump</code> por base de datos, con volcado y restauración de tablas en paralelo, con otro nombre o en otro servidor; <code>pg_basebackup</code> para todo el clúster a través de una conexión de replicación, con archivado continuo de WAL para recuperar hasta un momento, un punto de restauración o una posición del WAL.</template>
+<template data-i18n="m-ms"><b>SQL Server</b> 2012 y posteriores, en Windows, Linux y contenedores: copias nativas completas y diferenciales con <code>BACKUP DATABASE</code> (sin herramientas cliente), restauración con otro nombre o en otro servidor, simulacros de restauración con <code>DBCC CHECKDB</code> y copias programadas del log de transacciones para recuperar hasta un momento, una transacción marcada o un LSN. SQL Server escribe sus copias en su propio servidor: DumpCat las lee de una carpeta compartida, o un agente en ese servidor las transfiere sin compartir nada.</template>
 <template data-i18n="s-label">Almacenamiento</template>
 <template data-i18n="s-title">Un trabajo, copias en varios lugares</template>
 <template data-i18n="s-intro">Guarda en el disco local y luego sube la copia, o envíala directamente a la nube sin disco temporal. Cada almacenamiento conserva su propio número de copias, por ejemplo 3 copias en local y 30 días en S3.</template>
@@ -69,7 +70,7 @@
   <li><b>rclone</b><span>Más de 70 backends adicionales</span></li>
 </template>
 <template data-i18n="s-aside-title">Formatos estándar, sin ataduras</template>
-<template data-i18n="s-aside-text">¿Se perdió la máquina donde se ejecutaba DumpCat? Instala DumpCat de nuevo, vuelve a agregar el almacenamiento y haz clic en <em>Import backup catalog</em>: todas las copias vuelven a aparecer. Sin DumpCat también puedes restaurar con <code>age</code>, <code>zstd</code> y <code>mysql</code> o <code>pg_restore</code>.</template>
+<template data-i18n="s-aside-text">¿Se perdió la máquina donde se ejecutaba DumpCat? Instala DumpCat de nuevo, vuelve a agregar el almacenamiento y haz clic en <em>Import backup catalog</em>: todas las copias vuelven a aparecer. Sin DumpCat también puedes restaurar con <code>age</code>, <code>zstd</code> y <code>mysql</code>, <code>pg_restore</code> o <code>RESTORE DATABASE</code> de SQL Server.</template>
 <template data-i18n="c-label">Conectividad</template>
 <template data-i18n="c-title">¿Base de datos sin puertos abiertos? También tiene copia de seguridad.</template>
 <template data-i18n="c-intro">Cuando el servidor de copias de seguridad no puede conectarse directamente a la base de datos, por un firewall, NAT o una base de datos que solo escucha en 127.0.0.1, deja que sea el servidor de base de datos el que se conecte a DumpCat. Hay dos maneras, y ninguna abre un puerto en el servidor de base de datos. Las copias de seguridad, las restauraciones y la recuperación a un punto en el tiempo funcionan igual que con una conexión directa.</template>
@@ -124,7 +125,7 @@
   <div><dt>Instalación</dt><dd>Actívalo en la página de WireGuard, copia <code>dumpcat.conf</code>, <code>systemctl enable --now wg-quick@dumpcat</code></dd></div>
   <div><dt>Ideal para</dt><dd>Equipos que ya usan WireGuard, o como puerta de enlace a toda una red de bases de datos</dd></div>
 </template>
-<template data-i18n="c-note">El servidor de base de datos abre la conexión; los datos circulan en ambos sentidos dentro de ella. Las copias físicas (XtraBackup / MariaBackup) funcionan a través de un agente iniciado con <code>--allow-physical</code>; con WireGuard siguen necesitando DumpCat instalado en el servidor de base de datos.</template>
+<template data-i18n="c-note">El servidor de base de datos abre la conexión; los datos circulan en ambos sentidos dentro de ella. Las copias físicas (XtraBackup / MariaBackup) funcionan a través de un agente iniciado con <code>--allow-physical</code>; con WireGuard siguen necesitando DumpCat instalado en el servidor de base de datos. Los archivos de copia de SQL Server también pasan por un agente iniciado con <code>--allow-mssql-dir</code>, sin carpeta compartida.</template>
 <template data-i18n="o-label">Operaciones</template>
 <template data-i18n="o-title">Lo que de otro modo tendrías que programar tú mismo</template>
 <template data-i18n="o-intro">Todo viene incluido en DumpCat y se activa y ajusta desde la interfaz web.</template>
@@ -225,3 +226,5 @@
 <template data-i18n="meow">Marca 6-3-6-9 en el teclado de un teléfono y obtendrás MEOW, “miau” en inglés. Es el puerto predeterminado de la interfaz web.</template>
 <template data-i18n="foot">Código abierto bajo la licencia Apache-2.0, con el código fuente en <a href="https://github.com/theweakestharrison/DumpCat">GitHub</a>. <a href="/compare/">Cómo se compara con otras herramientas</a>. El manual completo, en inglés y vietnamita, viene en cada paquete.</template>
 <template data-i18n="foot-mail">Soporte: <a href="mailto:fat@dumpcat.cc">fat@dumpcat.cc</a></template>
+<template data-i18n="engines-aria">Bases de datos compatibles</template>
+<template data-i18n="foot-tm">MySQL es una marca de Oracle y/o sus filiales; MariaDB, de MariaDB plc; Percona Server, de Percona; PostgreSQL, de la PostgreSQL Community Association of Canada; y Microsoft y SQL Server, del grupo de empresas Microsoft. DumpCat es un proyecto de código abierto independiente y no está afiliado a ellos.</template>

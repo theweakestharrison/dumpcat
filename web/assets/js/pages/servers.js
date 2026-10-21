@@ -168,7 +168,7 @@ function serverForm(s = {}, routes = { agents: [], peers: [], wgOn: false }, eng
       <div class="help ${ms ? '' : 'hidden'}" id="user-help">A SQL Server login, or <span class="mono">DOMAIN\\user</span> for Windows authentication (NTLM).</div></div>
     <div class="field"><label>Password</label><input type="password" name="password" placeholder="${s.has_password ? '•••••• saved — leave blank to keep' : ''}" autocomplete="new-password">
       <div class="help">Stored encrypted with AES-256-GCM; never appears on a command line.</div></div>
-    <div class="field ${pg ? 'hidden' : ''}" id="flavor-field"><label>Server flavor</label><select name="flavor">${[['auto', 'Auto-detect'], ['mysql', 'MySQL'], ['percona', 'Percona Server'], ['mariadb', 'MariaDB']].map(([a, b]) => html`<option value="${a}" ${v('flavor', 'auto') === a ? 'selected' : ''}>${b}</option>`)}</select></div>
+    <div class="field ${pg || ms ? 'hidden' : ''}" id="flavor-field"><label>Server flavor</label><select name="flavor">${[['auto', 'Auto-detect'], ['mysql', 'MySQL'], ['percona', 'Percona Server'], ['mariadb', 'MariaDB']].map(([a, b]) => html`<option value="${a}" ${v('flavor', 'auto') === a ? 'selected' : ''}>${b}</option>`)}</select></div>
     <div class="field"><label>TLS</label><select name="tls_mode">${[['', 'Client default'], ['disabled', 'Disabled'], ['required', 'Required (no certificate check)'], ['verify', 'Required + verify certificate']].map(([a, b]) => html`<option value="${a}" ${v('tls_mode') === a ? 'selected' : ''}>${b}</option>`)}</select></div>
     <div class="field full ${v('tls_mode') === 'verify' ? '' : 'hidden'}" id="ca-field"><label>CA certificate (PEM)</label><textarea name="ca_cert" rows="3">${v('ca_cert')}</textarea></div>
   </div>

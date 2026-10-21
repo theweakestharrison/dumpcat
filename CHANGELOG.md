@@ -6,7 +6,7 @@ page at dumpcat.cc/changelog/ (see `scripts/build-site.py`). Newest version
 first. Each section: `## <version> (<date>)`, a one-line summary, then `###`
 groups of bullets.
 
-## 1.8.0
+## 1.8.0 (2026-10-21)
 
 Microsoft SQL Server is the third database engine: native full and differential backups, restores under new names or
 onto another server, restore drills with `DBCC CHECKDB`, and scheduled log backups for point-in-time recovery — also

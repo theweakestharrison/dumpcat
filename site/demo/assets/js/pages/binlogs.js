@@ -50,16 +50,23 @@ function card(it) {
           <div>Streaming since</div><div>${s.since ? html`${fmtDate(s.since, true)}${s.restarts ? html` <span class="muted small">· ${s.restarts} restart(s)</span>` : ''}` : '—'}</div>` : ''}
         <div>Archive</div><div>${st.files ? html`<b class="num">${st.files}</b> file(s) · ${fmtBytes(st.raw_bytes)} ${L.name} → ${fmtBytes(st.stored_bytes)} stored` : html`<span class="muted">nothing archived yet</span>`}</div>
         <div>Events covered</div><div>${st.first ? html`${fmtDate(st.first, true)} → ${fmtDate(st.last, true)}` : '—'}</div>
-        <div>Close ${word}</div><div>${it.rotate_minutes ? `every ${it.rotate_minutes} min when it holds transactions` : `only when the server ${L.name === 'WAL' ? 'fills it' : 'rotates it'}`}</div>
+        ${L.prefix === 'trn' ? html`<div>Log backups</div><div>every ${it.rotate_minutes || 15} min${s && s.next_try && s.state === 'streaming' ? html` <span class="muted small">· next ${fmtAgo(s.next_try)}</span>` : ''}</div>`
+          : html`<div>Close ${word}</div><div>${it.rotate_minutes ? `every ${it.rotate_minutes} min when it holds transactions` : `only when the server ${L.name === 'WAL' ? 'fills it' : 'rotates it'}`}</div>`}
       </div>
       <div class="btn-group" style="margin-top:14px">
         ${canOperate() ? html`<a class="btn btn-primary btn-sm" href="#/pitr?job_id=${it.job_id}">${icon('restore')}Restore to a point in time</a>` : ''}
         <button class="btn btn-sm" data-files="${it.job_id}">${icon('list')}Files</button>
         <button class="btn btn-sm" data-log="${it.job_id}">${icon('file')}Log</button>
-        ${canOperate() && s ? html`<button class="btn btn-sm" data-rotate="${it.job_id}" title="${L.close}: the current ${word} is closed and uploaded now">${icon('upload')}Close ${L.name === 'WAL' ? 'segment' : 'binlog'} now</button>
+        ${canOperate() && s ? html`<button class="btn btn-sm" data-rotate="${it.job_id}" title="${L.prefix === 'trn' ? 'BACKUP LOG of every database of the job now, then upload' : `${L.close}: the current ${word} is closed and uploaded now`}">${icon('upload')}${L.prefix === 'trn' ? 'Back up the log now' : `Close ${L.name === 'WAL' ? 'segment' : 'binlog'} now`}</button>
           <button class="btn btn-sm btn-ghost" data-restart="${it.job_id}">${icon('refresh')}Restart</button>` : ''}
       </div>
     </div></div>`;
+}
+
+// what a SQL Server log backup holds: its database, LSN range and marked transactions
+function trnNote(f) {
+  const m = f.meta || {};
+  return html`${m.database ? html`<div class="sub">${m.database} · LSN ${m.first_lsn} → ${m.last_lsn}</div>` : ''}${(m.marks || []).map((x) => html`<div class="sub">${icon('check')} mark <code>${x.name}</code></div>`)}`;
 }
 
 // what a WAL segment holds besides its times: LSN range, restore points, timeline files
@@ -79,7 +86,7 @@ function filesModal(jobId, name, L) {
     try {
       const res = await get(`/jobs/${jobId}/binlogs?limit=${lim}&offset=${offset}`);
       setHTML(box, res.items.length ? html`<div class="table-wrap"><table class="table"><thead><tr><th>File</th><th>Events</th><th class="right">Size</th><th>Stored on</th><th class="hide-sm">Archived</th></tr></thead><tbody>
-        ${res.items.map((f) => html`<tr><td class="mono small">${f.file_name}<div class="sub">${f.encrypted ? html`${icon('lock')} ` : ''}${f.compression}</div>${L.name === 'WAL' ? walNote(f) : ''}</td>
+        ${res.items.map((f) => html`<tr><td class="mono small">${f.file_name}<div class="sub">${f.encrypted ? html`${icon('lock')} ` : ''}${f.compression}</div>${L.name === 'WAL' ? walNote(f) : L.prefix === 'trn' ? trnNote(f) : ''}</td>
           <td class="small nowrap">${f.first_ts ? html`${fmtDate(f.first_ts, true)}<div class="sub">→ ${fmtDate(f.last_ts, true)}</div>` : html`<span class="muted">no commit</span>`}</td>
           <td class="right num">${fmtBytes(f.size_bytes)}<div class="sub">${fmtBytes(f.stored_bytes)}</div></td>
           <td><span class="chips">${f.locations.map((l) => html`<span class="badge ${l.status === 'ok' ? 'good' : 'bad'}" title="${l.error || f.path}">${l.storage_name}</span>`)}</span></td>
@@ -93,7 +100,7 @@ function filesModal(jobId, name, L) {
 
 function logModal(ctx, jobId, name, L) {
   let open = true;
-  const m = modal({ title: `${L.name === 'WAL' ? 'WAL' : 'Binlog'} archiving log: ${name}`, size: 'xl', body: html`<pre class="log" id="bl-log" style="max-height:60vh"></pre>`,
+  const m = modal({ title: `${L.name === 'WAL' ? 'WAL' : L.prefix === 'trn' ? 'Log backup' : 'Binlog'} archiving log: ${name}`, size: 'xl', body: html`<pre class="log" id="bl-log" style="max-height:60vh"></pre>`,
     footer: html`<button class="btn btn-ghost" id="bl-copy">${icon('copy')}Copy</button><span style="flex:1"></span><button class="btn" data-close>Close</button>`,
     onClose: () => { open = false; } });
   const pre = m.el.querySelector('#bl-log');
@@ -121,9 +128,9 @@ export async function render(ctx) {
   const draw = () => {
     setHTML(el, html`
       <div class="page-head"><div><h1>Log archiving &amp; point-in-time recovery</h1>
-        <div class="sub">The server's transaction log (MySQL binary logs, PostgreSQL WAL) is streamed continuously and archived next to the backups, so a restore can stop at any moment — not just when a backup ran.</div></div>
+        <div class="sub">The server's transaction log (MySQL binary logs, PostgreSQL WAL, SQL Server log backups) is archived continuously next to the backups, so a restore can stop at any moment — not just when a backup ran.</div></div>
         ${canOperate() ? html`<a class="btn btn-primary" href="#/pitr">${icon('restore')}Restore to a point in time</a>` : ''}</div>
-      ${list.length ? list.map(card) : html`<div class="card">${empty(html`No job archives its server's log yet. Edit a job and turn on <b>continuous log archiving</b> (section "Log archiving &amp; point-in-time recovery"): binlogs for MySQL / MariaDB jobs, WAL for PostgreSQL <code>pg_basebackup</code> jobs.`, 'layers')}</div>`}`);
+      ${list.length ? list.map(card) : html`<div class="card">${empty(html`No job archives its server's log yet. Edit a job and turn on <b>continuous log archiving</b> (section "Log archiving &amp; point-in-time recovery"): binlogs for MySQL / MariaDB jobs, WAL for PostgreSQL <code>pg_basebackup</code> jobs, scheduled log backups for SQL Server jobs.`, 'layers')}</div>`}`);
   };
   draw();
   const byId = (id) => list.find((x) => x.job_id === +id);
@@ -131,8 +138,9 @@ export async function render(ctx) {
   on(el, 'click', '[data-files]', (e, b) => filesModal(+b.dataset.files, byId(b.dataset.files).job_name, logOf(b.dataset.files)));
   on(el, 'click', '[data-log]', (e, b) => logModal(ctx, +b.dataset.log, byId(b.dataset.log).job_name, logOf(b.dataset.log)));
   on(el, 'click', '[data-rotate]', async (e, b) => {
-    const word = fileWord(logOf(b.dataset.rotate));
-    try { await post(`/jobs/${b.dataset.rotate}/binlog/rotate`); toast(`The server was asked to close the current ${word} — it is uploaded within a few seconds`, 'info'); } catch (er) { toastErr(er); }
+    const L = logOf(b.dataset.rotate);
+    const word = fileWord(L);
+    try { await post(`/jobs/${b.dataset.rotate}/binlog/rotate`); toast(L.prefix === 'trn' ? 'Log backups start now — they are uploaded within a minute' : `The server was asked to close the current ${word} — it is uploaded within a few seconds`, 'info'); } catch (er) { toastErr(er); }
   });
   on(el, 'click', '[data-restart]', async (e, b) => {
     try { await post(`/jobs/${b.dataset.restart}/binlog/restart`); toast(`Restarting the ${logOf(b.dataset.restart).name} stream`, 'info'); } catch (er) { toastErr(er); }

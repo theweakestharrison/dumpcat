@@ -176,7 +176,26 @@ function wgView() {
     }),
   };
 }
+// a SQL Server: what internal/mssql reports, with the backup folder reached as the server's route allows
+function mssqlInfo(s) {
+  const agent = s.agent_id && db.agents.find((a) => a.id === s.agent_id);
+  const folder = agent && agent.live.caps && agent.live.caps.mssql;
+  const dir = s.backup_dir || (agent && folder && folder.dir) || '/var/opt/mssql/data';
+  const via = s.backup_dir_local ? (s.backup_dir_local === dir ? '' : `DumpCat: ${s.backup_dir_local}`) : agent ? `through agent ${agent.name} (${folder && folder.dir} on ${agent.hostname})` : '';
+  const err = agent && !s.backup_dir_local && !(folder && folder.dir) ? `the agent does not give DumpCat SQL Server's backup folder: start it with --allow-mssql-dir ${dir}` : '';
+  const coll = 'SQL_Latin1_General_CP1_CI_AS';
+  const dbs = (s.dbs || []).map(([name, size, tables]) => ({ name, charset: '', collation: coll, size_bytes: Math.round(size), tables, non_innodb: 0, system: false, recovery_model: 'FULL', state: 'ONLINE' }));
+  for (const n of ['master', 'model', 'msdb']) dbs.push({ name: n, charset: '', collation: coll, size_bytes: 14 * MiB, tables: 0, non_innodb: 0, system: true, recovery_model: 'SIMPLE', state: 'ONLINE' });
+  return {
+    ok: true,
+    info: { engine: 'mssql', version: s.version, version_comment: '', flavor: 'mssql', major: parseInt(s.version, 10), minor: 0, edition: 'Standard Edition (64-bit)', platform: 'Linux', service_account: 'mssql',
+      datadir: '/var/opt/mssql/data', backup_dir: err ? '' : dir, backup_dir_via: err ? '' : via, backup_dir_error: err, backup_compression: true, log_bin: false, binlog_format: '', gtid_mode: '', server_id: '',
+      read_only: false, is_replica: false, current_user: s.username, grants: [], warnings: [], databases: dbs, total_bytes: dbs.reduce((a, d) => a + d.size_bytes, 0), hostname: 'SQL01', uptime: 23 * 24 * 3600 + s.id * 3600 },
+    support: [err ? { method: 'mssql_native', ok: false, message: err } : { method: 'mssql_native', ok: true, message: `SQL Server 2022 ${s.version} · compressed · backup folder ${dir}` }],
+  };
+}
 function serverInfo(s) {
+  if (s.engine === 'mssql') return mssqlInfo(s);
   const flavor = s.flavorName || 'mysql';
   const dbs = (s.dbs || []).map(([name, size, tables]) => ({ name, charset: 'utf8mb4', collation: flavor === 'mariadb' ? 'utf8mb4_uca1400_ai_ci' : 'utf8mb4_0900_ai_ci', size_bytes: Math.round(size), tables, non_innodb: 0, system: false }));
   for (const n of ['mysql', 'sys', 'information_schema', 'performance_schema']) dbs.push({ name: n, charset: 'utf8mb4', collation: '', size_bytes: 2.5 * MiB, tables: 30, non_innodb: 0, system: true });
@@ -890,17 +909,22 @@ function applyServer(s, b) {
   if (!String(b.name || '').trim()) fail('server name is required');
   if (!b.host && !b.socket) fail('host or socket is required');
   if (b.agent_id && b.wg_peer_id) fail('connect through an agent or through WireGuard, not both');
-  Object.assign(s, { name: b.name.trim(), host: b.host || '', port: b.port || 3306, socket: b.socket || '', username: b.username || 'dumpcat', tls_mode: b.tls_mode || '', ca_cert: b.ca_cert || '', flavor: b.flavor || 'auto',
+  Object.assign(s, { name: b.name.trim(), engine: b.engine || 'mysql', host: b.host || '', port: b.port || (b.engine === 'mssql' ? 1433 : 3306), socket: b.socket || '', username: b.username || 'dumpcat', tls_mode: b.tls_mode || '', ca_cert: b.ca_cert || '', flavor: b.flavor || 'auto',
     datadir: b.datadir || s.datadir || '', service_name: b.service_name || '', os_user: b.os_user || '', notes: b.notes || '', restore_username: b.restore_username || '', has_password: true,
-    has_restore_password: !!b.restore_username, agent_id: b.agent_id || null, wg_peer_id: b.wg_peer_id || null, updated_at: iso(now()) });
+    has_restore_password: !!b.restore_username, agent_id: b.agent_id || null, wg_peer_id: b.wg_peer_id || null, backup_dir: b.backup_dir || '', backup_dir_local: b.backup_dir_local || '', updated_at: iso(now()) });
+}
+// the sample a new server answers with, by engine
+function newServer(body) {
+  if (body.engine === 'mssql') return { version: '16.0.4135.4', flavorName: 'mssql', comment: '', dbs: [['erp', 14.2 * 1024 * MiB, 412], ['erp_reports', 2.6 * 1024 * MiB, 58]] };
+  return { version: '8.0.39', flavorName: body.flavor && body.flavor !== 'auto' ? body.flavor : 'mysql', comment: 'MySQL Community Server - GPL', dbs: [['app', 1.8 * 1024 * MiB, 64], ['app_logs', 420 * MiB, 6]] };
 }
 route('POST', '/servers/test', ({ body }) => {
-  const s = { id: 99, version: '8.0.39', flavorName: body.flavor && body.flavor !== 'auto' ? body.flavor : 'mysql', comment: 'MySQL Community Server - GPL', dbs: [['app', 1.8 * 1024 * MiB, 64], ['app_logs', 420 * MiB, 6]] };
+  const s = { id: 99, ...newServer(body) };
   applyServer(s, body);
   return serverInfo(s);
 });
 route('POST', '/servers', ({ body }) => {
-  const s = { id: nextId(db.servers), version: '8.0.39', flavorName: 'mysql', comment: 'MySQL Community Server - GPL', dbs: [['app', 1.8 * 1024 * MiB, 64], ['app_logs', 420 * MiB, 6]], created_at: iso(now()) };
+  const s = { id: nextId(db.servers), ...newServer(body), created_at: iso(now()) };
   applyServer(s, body);
   db.servers.push(s);
   audit('server_create', `server:${s.name}`);

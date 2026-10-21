@@ -52,8 +52,11 @@ export function seed(now) {
       live: { online: true, since: iso(now - 4 * D), remote_addr: '203.0.113.24', allow: ['127.0.0.1:3306', '[::1]:3306', 'unix:/run/mysqld/mysqld.sock'], streams: 0,
         caps: { physical: { allowed: true, user: 'mysql', datadir: '/var/lib/mysql', tools: [
           { name: 'mariabackup', found: true, version: 'mariabackup based on MariaDB server 11.4.4-MariaDB Linux (x86_64)' },
-          { name: 'xtrabackup', found: false, hint: 'apt install percona-xtrabackup-80' }] } } } },
+          { name: 'xtrabackup', found: false, hint: 'apt install percona-xtrabackup-80' }] }, mssql: {} } } },
     { id: 2, name: 'legacy-erp', key_prefix: 'dca_Lq0vB3sE', created_at: iso(now - 12 * D), updated_at: iso(now - 12 * D), last_seen_at: iso(now - 2 * D - 5 * H), last_ip: '198.51.100.7', version: '1.2.0', hostname: 'erp-old', os: 'windows/amd64', live: { online: false } },
+    { id: 3, name: 'sql-host', key_prefix: 'dca_V8tN4cR1', created_at: iso(now - 6 * D), updated_at: iso(now - 6 * D), last_seen_at: iso(now - 6 * D), last_ip: '192.0.2.88', version: VERSION, hostname: 'sql01', os: 'linux/amd64',
+      live: { online: true, since: iso(now - 6 * D), remote_addr: '192.0.2.88', allow: ['127.0.0.1:1433'], streams: 0,
+        caps: { physical: { allowed: false }, mssql: { dir: '/var/opt/mssql/backup', user: 'mssql' } } } },
   ];
 
   const wireguard = {

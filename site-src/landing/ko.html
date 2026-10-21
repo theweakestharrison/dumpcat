@@ -1,8 +1,8 @@
 <!-- Korean text of the landing page: the keys of en.html, translated (site-src/landing/index.html is the page itself).
      A key missing here stays in English. The two figures (c-agent-fig, c-wg-fig) are not copied: each line
      "English label => translation" relabels the English figure. python scripts/build-site.py writes site/ko/index.html. -->
-<template data-i18n="title">DumpCat: MySQL, MariaDB, PostgreSQL을 위한 백업과 특정 시점 복구</template>
-<template data-i18n="description">DumpCat: 웹 UI를 갖춘 단일 바이너리 하나로 MySQL, MariaDB, PostgreSQL의 백업, 복원, 특정 시점 복구를 처리합니다.</template>
+<template data-i18n="title">DumpCat: MySQL, MariaDB, PostgreSQL, SQL Server를 위한 백업과 특정 시점 복구</template>
+<template data-i18n="description">DumpCat: 웹 UI를 갖춘 단일 바이너리 하나로 MySQL, MariaDB, PostgreSQL, SQL Server의 백업, 복원, 특정 시점 복구를 처리합니다.</template>
 <template data-i18n="share">데이터베이스를 잠그지 않는 백업. 1초 단위까지 정확한 복구. 웹 UI를 갖춘 셀프 호스팅 바이너리 하나.</template>
 <template data-i18n="share-alt">DumpCat: 데이터베이스를 잠그지 않는 백업, 1초 단위까지 정확한 복구. 특정 시점 복구 타임라인.</template>
 <template data-i18n="share-alt-short">DumpCat: 데이터베이스를 잠그지 않는 백업, 1초 단위까지 정확한 복구.</template>
@@ -15,15 +15,15 @@
 <template data-i18n="nav-install">설치</template>
 <template data-i18n="lang-aria">언어</template>
 <template data-i18n="hero-ai">AI 친화적: Claude 등 AI 어시스턴트에게 백업 구성과 점검을 맡기세요</template>
-<template data-i18n="eyebrow">오픈 소스 · MySQL, MariaDB, PostgreSQL을 위한 백업 및 복원</template>
+<template data-i18n="eyebrow">오픈 소스 · MySQL, MariaDB, PostgreSQL, SQL Server를 위한 백업 및 복원</template>
 <template data-i18n="h1">데이터베이스를 잠그지 않는 백업. <span class="soft">1초 단위까지 정확한 복구.</span></template>
 <template data-i18n="lead">DumpCat은 웹 UI를 갖춘 단일 바이너리입니다. 백업을 예약하고, 압축하고 암호화해 S3, Google Drive, OneDrive, SFTP로 사본을 보내고, 검증까지 마친 뒤, 필요할 때 데이터를 되살려 줍니다. Linux와 Windows에서 완전히 오프라인으로 동작합니다.</template>
-<template data-i18n="cta-install"><span data-version>1.7.0</span> 설치</template>
+<template data-i18n="cta-install"><span data-version>1.8.0</span> 설치</template>
 <template data-i18n="cta-demo">UI 미리 보기</template>
 <template data-i18n="cta-github">GitHub에서 소스 보기</template>
 <template data-i18n="pitr-title">특정 시점 복구</template>
 <template data-i18n="pitr-tag">시뮬레이션</template>
-<template data-i18n="pitr-sub">누군가 14:37:12에 <code>orders</code> 테이블을 삭제했습니다. 마커를 끌어 복구 시점을 고르면, DumpCat이 가장 최근의 베이스 백업과 재생할 binlog 파일을 골라 줍니다. PostgreSQL도 아카이브된 WAL로 똑같이 동작합니다.</template>
+<template data-i18n="pitr-sub">누군가 14:37:12에 <code>orders</code> 테이블을 삭제했습니다. 마커를 끌어 복구 시점을 고르면, DumpCat이 가장 최근의 베이스 백업과 재생할 binlog 파일을 골라 줍니다. PostgreSQL은 아카이브된 WAL로, SQL Server는 로그 백업으로 똑같이 동작합니다.</template>
 <template data-i18n="tl-now">지금</template>
 <template data-i18n="ro-aria">복구 시점</template>
 <template data-i18n="lg-backup">전체 백업 (mysqldump)</template>
@@ -54,6 +54,7 @@
   </tbody>
 </template>
 <template data-i18n="m-pg"><b>PostgreSQL</b> 10 이상: 데이터베이스별 <code>pg_dump</code>로 테이블을 병렬로 덤프하고 복원하며, 새 이름으로 또는 다른 서버에 복원할 수 있습니다. 클러스터 전체는 복제 연결을 통한 <code>pg_basebackup</code>으로 백업하고, 연속 WAL 아카이빙으로 특정 시각, 복원 지점(restore point), WAL 위치까지 복구합니다.</template>
+<template data-i18n="m-ms"><b>SQL Server</b> 2012 이상(Windows, Linux, 컨테이너): <code>BACKUP DATABASE</code>를 이용한 네이티브 전체 백업과 차등 백업(클라이언트 도구 불필요), 새 이름으로 또는 다른 서버에 복원, <code>DBCC CHECKDB</code>를 포함한 복원 훈련, 그리고 예약된 로그 백업으로 특정 시각, 표시된 트랜잭션, LSN까지 복구합니다. SQL Server는 백업을 자기 호스트에 쓰므로, DumpCat이 공유 폴더에서 읽거나, 공유 없이 그 호스트의 에이전트가 파일을 옮겨 줍니다.</template>
 <template data-i18n="s-label">스토리지</template>
 <template data-i18n="s-title">작업 하나로 여러 곳에 사본을</template>
 <template data-i18n="s-intro">로컬 디스크에 쓴 뒤 업로드하거나, 임시 디스크 없이 클라우드로 바로 스트리밍합니다. 스토리지마다 보관할 사본 수를 따로 정할 수 있습니다. 예를 들어 로컬에는 백업 3개, S3에는 30일 치를 둘 수 있습니다.</template>
@@ -69,7 +70,7 @@
   <li><b>rclone</b><span>70개 이상의 백엔드 추가 지원</span></li>
 </template>
 <template data-i18n="s-aside-title">표준 형식, 벤더 종속 없음</template>
-<template data-i18n="s-aside-text">DumpCat을 실행하던 머신을 잃었나요? 새로 설치하고 스토리지를 다시 추가한 뒤 <em>Import backup catalog</em>를 누르면 모든 백업이 다시 목록에 나타납니다. DumpCat 없이도 <code>age</code>, <code>zstd</code>와 <code>mysql</code> 또는 <code>pg_restore</code>로 복원할 수 있습니다.</template>
+<template data-i18n="s-aside-text">DumpCat을 실행하던 머신을 잃었나요? 새로 설치하고 스토리지를 다시 추가한 뒤 <em>Import backup catalog</em>를 누르면 모든 백업이 다시 목록에 나타납니다. DumpCat 없이도 <code>age</code>, <code>zstd</code>와 <code>mysql</code>, <code>pg_restore</code> 또는 SQL Server의 <code>RESTORE DATABASE</code>로 복원할 수 있습니다.</template>
 <template data-i18n="c-label">연결</template>
 <template data-i18n="c-title">열린 포트가 없는 데이터베이스? 그래도 백업됩니다.</template>
 <template data-i18n="c-intro">방화벽이나 NAT 때문에, 또는 데이터베이스가 127.0.0.1에서만 수신 대기해서 백업 서버가 데이터베이스에 직접 연결할 수 없다면, 반대로 데이터베이스 호스트가 DumpCat으로 연결하게 하세요. 방법은 두 가지이며, 어느 쪽도 데이터베이스 호스트에 포트를 열지 않습니다. 백업, 복원, 특정 시점 복구는 직접 연결할 때와 똑같이 동작합니다.</template>
@@ -127,7 +128,7 @@
   <div><dt>설치</dt><dd>WireGuard 페이지에서 켜고, <code>dumpcat.conf</code>를 복사한 뒤 <code>systemctl enable --now wg-quick@dumpcat</code></dd></div>
   <div><dt>적합한 경우</dt><dd>이미 WireGuard를 쓰는 팀, 또는 데이터베이스 네트워크 전체로 가는 게이트웨이</dd></div>
 </template>
-<template data-i18n="c-note">연결은 데이터베이스 호스트가 열고, 데이터는 그 연결 안에서 양방향으로 흐릅니다. 물리 백업(XtraBackup / MariaBackup)은 <code>--allow-physical</code>로 시작한 에이전트를 통해 동작하며, WireGuard를 통할 때는 여전히 데이터베이스 호스트에 DumpCat을 설치해야 합니다.</template>
+<template data-i18n="c-note">연결은 데이터베이스 호스트가 열고, 데이터는 그 연결 안에서 양방향으로 흐릅니다. 물리 백업(XtraBackup / MariaBackup)은 <code>--allow-physical</code>로 시작한 에이전트를 통해 동작하며, WireGuard를 통할 때는 여전히 데이터베이스 호스트에 DumpCat을 설치해야 합니다. SQL Server의 백업 파일도 <code>--allow-mssql-dir</code>로 시작한 에이전트가 옮겨 주므로 공유 폴더가 필요 없습니다.</template>
 <template data-i18n="o-label">운영</template>
 <template data-i18n="o-title">원래라면 직접 스크립트로 짜야 했을 것들</template>
 <template data-i18n="o-intro">모두 DumpCat에 기본으로 들어 있고, 웹 UI에서 켜고 조정합니다.</template>
@@ -228,3 +229,5 @@
 <template data-i18n="meow">전화 키패드의 영문자로 6-3-6-9를 누르면 고양이 울음소리 MEOW(야옹)가 됩니다. 웹 UI의 기본 포트입니다.</template>
 <template data-i18n="foot">Apache-2.0 라이선스의 오픈 소스이며, 소스는 <a href="https://github.com/theweakestharrison/DumpCat">GitHub</a>에 있습니다. <a href="/compare/">다른 도구와의 비교</a>. 영어와 베트남어로 된 전체 매뉴얼이 모든 패키지에 들어 있습니다.</template>
 <template data-i18n="foot-mail">문의: <a href="mailto:fat@dumpcat.cc">fat@dumpcat.cc</a></template>
+<template data-i18n="engines-aria">지원 데이터베이스</template>
+<template data-i18n="foot-tm">MySQL은 Oracle 및/또는 그 계열사의, MariaDB는 MariaDB plc의, Percona Server는 Percona의, PostgreSQL은 PostgreSQL Community Association of Canada의, Microsoft와 SQL Server는 Microsoft 그룹사의 상표입니다. DumpCat은 독립적인 오픈 소스 프로젝트이며 이들과 제휴 관계가 없습니다.</template>

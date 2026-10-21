@@ -6,14 +6,14 @@
 <!-- The landing page, in Vietnamese; site-src/landing/en.html has the English text and <lang>.html the other languages.
      python scripts/build-site.py writes site/index.html (English, https://dumpcat.cc/), site/vi/index.html
      (https://dumpcat.cc/vi/) and site/<lang>/index.html. See docs/website.vi.md. -->
-<title data-i18n="title">DumpCat: backup và khôi phục theo thời điểm cho MySQL, MariaDB và PostgreSQL</title>
-<meta name="description" content="DumpCat: backup, restore và khôi phục theo thời điểm cho MySQL, MariaDB và PostgreSQL, trong một file chạy duy nhất có giao diện web." data-i18n-content="description">
+<title data-i18n="title">DumpCat: backup và khôi phục theo thời điểm cho MySQL, MariaDB, PostgreSQL và SQL Server</title>
+<meta name="description" content="DumpCat: backup, restore và khôi phục theo thời điểm cho MySQL, MariaDB, PostgreSQL và SQL Server, trong một file chạy duy nhất có giao diện web." data-i18n-content="description">
 <!-- Release server read by app.js. If you move it, also update connect-src in _headers. -->
 <meta name="dumpcat-release-base" content="https://downloads.dumpcat.cc/">
 <!-- urls (scripts/build-site.py): canonical, hreflang, og:url, og:locale -->
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <meta property="og:type" content="website">
-<meta property="og:title" content="DumpCat: backup và khôi phục theo thời điểm cho MySQL và MariaDB" data-i18n-content="title">
+<meta property="og:title" content="DumpCat: backup và khôi phục theo thời điểm cho MySQL, MariaDB, PostgreSQL và SQL Server" data-i18n-content="title">
 <meta property="og:description" content="Backup không khóa database. Khôi phục đến đúng giây bạn cần. Một file chạy duy nhất, tự host, có giao diện web." data-i18n-content="share">
 <meta property="og:site_name" content="DumpCat">
 <!-- og.png is rendered from og-image.html; see docs/website.vi.md -->
@@ -23,7 +23,7 @@
 <meta property="og:image:height" content="630">
 <meta property="og:image:alt" content="DumpCat: backup không khóa database, khôi phục đến đúng giây. Dòng thời gian khôi phục theo thời điểm." data-i18n-content="share-alt">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="DumpCat: backup và khôi phục theo thời điểm cho MySQL và MariaDB" data-i18n-content="title">
+<meta name="twitter:title" content="DumpCat: backup và khôi phục theo thời điểm cho MySQL, MariaDB, PostgreSQL và SQL Server" data-i18n-content="title">
 <meta name="twitter:description" content="Backup không khóa database. Khôi phục đến đúng giây bạn cần. Một file chạy duy nhất, tự host, có giao diện web." data-i18n-content="share">
 <meta name="twitter:image" content="https://dumpcat.cc/og.png">
 <meta name="twitter:image:alt" content="DumpCat: backup không khóa database, khôi phục đến đúng giây." data-i18n-content="share-alt-short">
@@ -41,6 +41,7 @@
   <defs>
     <linearGradient id="dc-bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#3a86e8"/><stop offset="1" stop-color="#1c56b0"/></linearGradient>
     <symbol id="dc-logo" viewBox="0 0 64 64"><rect width="64" height="64" rx="15" fill="url(#dc-bg)"/><path d="M47.5 45.5c7.5 0 10.5-5.5 7.8-11.5" fill="none" stroke="#fff" stroke-width="4.2" stroke-linecap="round"/><path d="M15.6 25 18.4 7.6 30.5 17.5z" fill="#fff"/><path d="M48.4 25 45.6 7.6 33.5 17.5z" fill="#fff"/><path d="M19.4 18.6 20.4 12.4 25.6 16.4z" fill="#f9a8c9"/><path d="M44.6 18.6 43.6 12.4 38.4 16.4z" fill="#f9a8c9"/><path d="M15 21v24c0 3.9 7.6 7 17 7s17-3.1 17-7V21z" fill="#fff"/><ellipse cx="32" cy="21" rx="17" ry="7" fill="#d6e6fb"/><path d="M15 38c0 3.9 7.6 7 17 7s17-3.1 17-7" fill="none" stroke="#1c56b0" stroke-opacity=".28" stroke-width="2.4"/><circle cx="25.4" cy="31" r="2.5" fill="#1b2433"/><circle cx="38.6" cy="31" r="2.5" fill="#1b2433"/><path d="M30.1 34.2h3.8L32 36.4z" fill="#f27aa8"/></symbol>
+    <symbol id="db-icon" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><ellipse cx="12" cy="5.5" rx="7.5" ry="2.8"/><path d="M4.5 5.5v13c0 1.55 3.36 2.8 7.5 2.8s7.5-1.25 7.5-2.8v-13"/><path d="M4.5 12c0 1.55 3.36 2.8 7.5 2.8s7.5-1.25 7.5-2.8"/></g></symbol>
   </defs>
 </svg>
 
@@ -66,25 +67,31 @@
     <div class="hero-main">
       <div class="hero-copy">
         <a class="hero-ai" href="#ai"><span class="hero-ai-tag">MCP</span><span data-i18n="hero-ai">AI-friendly: nhờ Claude hay trợ lý AI khác thiết lập và theo dõi backup cho bạn</span></a>
-        <p class="eyebrow" data-i18n="eyebrow">Mã nguồn mở · Backup &amp; restore cho MySQL, MariaDB và PostgreSQL</p>
+        <p class="eyebrow" data-i18n="eyebrow">Mã nguồn mở · Backup &amp; restore cho MySQL, MariaDB, PostgreSQL và SQL Server</p>
         <h1 data-i18n="h1">Backup không khóa database. <span class="soft">Khôi phục đến đúng giây bạn cần.</span></h1>
         <p class="lead" data-i18n="lead">DumpCat là một file chạy duy nhất kèm giao diện web. Nó lên lịch backup, nén và mã hóa, đẩy bản sao lên S3, Google Drive, OneDrive hay SFTP, tự kiểm tra toàn vẹn và đưa dữ liệu về khi bạn cần. Chạy trên Linux lẫn Windows, không cần internet.</p>
         <div class="cta">
-          <a class="btn btn-light" href="#install" data-i18n="cta-install">Cài đặt bản <span data-version>1.7.0</span></a>
+          <a class="btn btn-light" href="#install" data-i18n="cta-install">Cài đặt bản <span data-version>1.8.0</span></a>
           <a class="btn btn-ghost" href="/demo/" data-i18n="cta-demo">Xem giao diện</a>
           <a class="btn btn-ghost" href="https://github.com/theweakestharrison/DumpCat"><svg class="gh" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 0c4.42 0 8 3.58 8 8a8.013 8.013 0 0 1-5.45 7.59c-.4.08-.55-.17-.55-.38 0-.27.01-1.13.01-2.2 0-.75-.25-1.23-.54-1.48 1.78-.2 3.65-.88 3.65-3.95 0-.88-.31-1.59-.82-2.15.08-.2.36-1.02-.08-2.12 0 0-.67-.22-2.2.82-.64-.18-1.32-.27-2-.27-.68 0-1.36.09-2 .27-1.53-1.03-2.2-.82-2.2-.82-.44 1.1-.16 1.92-.08 2.12-.51.56-.82 1.28-.82 2.15 0 3.06 1.86 3.75 3.64 3.95-.23.2-.44.55-.51 1.07-.46.21-1.61.55-2.33-.66-.15-.24-.6-.83-1.23-.82-.67.01-.27.38.01.53.34.19.73.9.82 1.13.16.45.68 1.31 2.69.94 0 .67.01 1.3.01 1.49 0 .21-.15.45-.55.38A7.995 7.995 0 0 1 0 8c0-4.42 3.58-8 8-8Z"/></svg><span data-i18n="cta-github">Mã nguồn trên GitHub</span></a>
         </div>
-        <p class="compat"><b>MySQL</b> 5.7 · 8.0 · 8.4 &nbsp;/&nbsp; <b>Percona Server</b> &nbsp;/&nbsp; <b>MariaDB</b> 10.x · 11.x &nbsp;/&nbsp; <b>PostgreSQL</b> 10+</p>
       </div>
       <div class="hero-mark" aria-hidden="true"><svg viewBox="0 0 64 64"><use href="#dc-logo"/></svg></div>
     </div>
+    <ul class="engines" aria-label="Database được hỗ trợ" data-i18n-aria-label="engines-aria">
+      <li><svg aria-hidden="true"><use href="#db-icon"/></svg><b>MySQL</b><span>5.7 · 8.0 · 8.4</span></li>
+      <li><svg aria-hidden="true"><use href="#db-icon"/></svg><b>Percona Server</b></li>
+      <li><svg aria-hidden="true"><use href="#db-icon"/></svg><b>MariaDB</b><span>10.x · 11.x</span></li>
+      <li><svg aria-hidden="true"><use href="#db-icon"/></svg><b>PostgreSQL</b><span>10+</span></li>
+      <li><svg aria-hidden="true"><use href="#db-icon"/></svg><b>SQL Server</b><span>2012+</span></li>
+    </ul>
 
     <section class="pitr" id="pitr" aria-labelledby="pitr-title">
       <div class="pitr-head">
         <h2 id="pitr-title" data-i18n="pitr-title">Khôi phục theo thời điểm</h2>
         <span class="tag" data-i18n="pitr-tag">Mô phỏng</span>
       </div>
-      <p class="pitr-sub" data-i18n="pitr-sub">Ai đó lỡ tay xóa bảng <code>orders</code> lúc 14:37:12. Kéo mốc thời gian để chọn điểm khôi phục: DumpCat tự lấy bản backup gốc gần nhất và các file binlog cần phát lại. PostgreSQL cũng vậy, với WAL đã lưu trữ.</p>
+      <p class="pitr-sub" data-i18n="pitr-sub">Ai đó lỡ tay xóa bảng <code>orders</code> lúc 14:37:12. Kéo mốc thời gian để chọn điểm khôi phục: DumpCat tự lấy bản backup gốc gần nhất và các file binlog cần phát lại. PostgreSQL cũng vậy với WAL đã lưu trữ, còn SQL Server thì với các bản log backup.</p>
 
       <div class="tl">
         <div class="tl-track" id="tl-track">
@@ -151,7 +158,7 @@
           </div>
           <div role="tabpanel" id="panel-windows" aria-labelledby="tab-windows" hidden>
             <ol class="win-steps">
-              <li><span data-i18n="i-win-1"><b>Tải file .zip</b></span> <a class="btn btn-solid dl" data-pkg="windows" href="https://downloads.dumpcat.cc/1.7.0/dumpcat-1.7.0-windows-amd64.zip"><span data-i18n="i-win-dl">Tải cho Windows</span> <small data-version>1.7.0</small></a></li>
+              <li><span data-i18n="i-win-1"><b>Tải file .zip</b></span> <a class="btn btn-solid dl" data-pkg="windows" href="https://downloads.dumpcat.cc/1.8.0/dumpcat-1.8.0-windows-amd64.zip"><span data-i18n="i-win-dl">Tải cho Windows</span> <small data-version>1.8.0</small></a></li>
               <li data-i18n="i-win-2"><b>Giải nén</b>: chuột phải vào file, chọn <i>Extract All</i>.</li>
               <li data-i18n="i-win-3"><b>Bấm đúp <i>Install DumpCat</i></b> rồi chọn <i>Yes</i>. Trình duyệt tự mở DumpCat, cửa sổ cài đặt hiện mã thiết lập.</li>
             </ol>
@@ -327,6 +334,7 @@
         </table>
       </div>
       <p class="conn-note" data-i18n="m-pg"><b>PostgreSQL</b> 10 trở lên: <code>pg_dump</code> cho từng database, dump và restore các bảng song song, sang tên mới hoặc sang server khác; <code>pg_basebackup</code> cho cả cluster qua kết nối replication, kèm lưu WAL liên tục để khôi phục về một thời điểm, một restore point hoặc một vị trí WAL.</p>
+      <p class="conn-note" data-i18n="m-ms"><b>SQL Server</b> 2012 trở lên, trên Windows, Linux và container: backup full và differential bằng chính <code>BACKUP DATABASE</code> của SQL Server (không cần cài client), restore sang tên mới hoặc sang server khác, diễn tập restore với <code>DBCC CHECKDB</code>, và log backup theo lịch để khôi phục về một thời điểm, một marked transaction hoặc một LSN. SQL Server ghi backup ngay trên máy của nó: DumpCat đọc file qua một thư mục chia sẻ, hoặc agent trên máy đó chuyển file về mà không cần chia sẻ gì.</p>
     </div>
   </section>
 
@@ -364,7 +372,7 @@
     binlog/20261018/
       mysql-bin.000123.zst.age</code></pre>
           </div>
-          <p data-i18n="s-aside-text">Mất máy chạy DumpCat? Cài bản mới, thêm lại nơi lưu, bấm <em>Import backup catalog</em> là thấy lại toàn bộ backup. Không có DumpCat vẫn restore được bằng <code>age</code>, <code>zstd</code> và <code>mysql</code> hoặc <code>pg_restore</code>.</p>
+          <p data-i18n="s-aside-text">Mất máy chạy DumpCat? Cài bản mới, thêm lại nơi lưu, bấm <em>Import backup catalog</em> là thấy lại toàn bộ backup. Không có DumpCat vẫn restore được bằng <code>age</code>, <code>zstd</code> và <code>mysql</code>, <code>pg_restore</code> hoặc <code>RESTORE DATABASE</code> của SQL Server.</p>
         </div>
       </div>
     </div>
@@ -391,7 +399,7 @@
           <dl class="conn-facts" data-i18n="c-wg-facts"><div><dt>Server database cần</dt><dd>WireGuard chuẩn, đi ra được DumpCat qua UDP 51820</dd></div><div><dt>Database</dt><dd>Nghe trên địa chỉ VPN, user cho phép từ 10.66.0.1</dd></div><div><dt>Cài</dt><dd>Bật trên trang WireGuard, chép <code>dumpcat.conf</code>, <code>systemctl enable --now wg-quick@dumpcat</code></dd></div><div><dt>Hợp khi</dt><dd>Đội đã quen WireGuard, hoặc một gateway dẫn tới cả mạng database</dd></div></dl>
         </article>
       </div>
-      <p class="conn-note" data-i18n="c-note">Đường kết nối do server database mở ra; dữ liệu đi hai chiều bên trong nó. Backup vật lý (XtraBackup / MariaBackup) chạy được qua agent khi agent bật <code>--allow-physical</code>; qua WireGuard thì vẫn cần cài DumpCat ngay trên server database.</p>
+      <p class="conn-note" data-i18n="c-note">Đường kết nối do server database mở ra; dữ liệu đi hai chiều bên trong nó. Backup vật lý (XtraBackup / MariaBackup) chạy được qua agent khi agent bật <code>--allow-physical</code>; qua WireGuard thì vẫn cần cài DumpCat ngay trên server database. File backup của SQL Server cũng đi qua agent khi agent bật <code>--allow-mssql-dir</code>, không cần thư mục chia sẻ.</p>
     </div>
   </section>
 
@@ -477,14 +485,14 @@ go build -o dumpcat ./cmd/dumpcat</code></pre>
       <div class="section-body release" id="release" hidden>
         <div class="release-files">
           <div class="pkgs">
-            <a class="pkg" id="pkg-linux" href="https://downloads.dumpcat.cc/1.7.0/dumpcat-1.7.0-linux.tar.gz">
+            <a class="pkg" id="pkg-linux" href="https://downloads.dumpcat.cc/1.8.0/dumpcat-1.8.0-linux.tar.gz">
               <span class="pkg-os">Linux</span>
-              <span class="pkg-file" id="pkg-linux-file">dumpcat-1.7.0-linux.tar.gz</span>
+              <span class="pkg-file" id="pkg-linux-file">dumpcat-1.8.0-linux.tar.gz</span>
               <span class="pkg-desc" data-i18n="d-linux">amd64 và arm64, script cài đặt, service systemd và hướng dẫn</span>
             </a>
-            <a class="pkg" id="pkg-windows" href="https://downloads.dumpcat.cc/1.7.0/dumpcat-1.7.0-windows-amd64.zip">
+            <a class="pkg" id="pkg-windows" href="https://downloads.dumpcat.cc/1.8.0/dumpcat-1.8.0-windows-amd64.zip">
               <span class="pkg-os">Windows</span>
-              <span class="pkg-file" id="pkg-windows-file">dumpcat-1.7.0-windows-amd64.zip</span>
+              <span class="pkg-file" id="pkg-windows-file">dumpcat-1.8.0-windows-amd64.zip</span>
               <span class="pkg-desc" data-i18n="d-windows">64-bit, script cài Windows service và hướng dẫn</span>
             </a>
           </div>
@@ -502,9 +510,10 @@ go build -o dumpcat ./cmd/dumpcat</code></pre>
 
 <footer class="foot">
   <div class="wrap">
-    <a class="brand" href="#top"><svg aria-hidden="true"><use href="#dc-logo"/></svg>DumpCat <span data-version>1.7.0</span></a>
+    <a class="brand" href="#top"><svg aria-hidden="true"><use href="#dc-logo"/></svg>DumpCat <span data-version>1.8.0</span></a>
     <p data-i18n="foot">Mã nguồn mở theo giấy phép Apache-2.0, mã nguồn trên <a href="https://github.com/theweakestharrison/DumpCat">GitHub</a>. <a href="/vi/compare/">So sánh với các công cụ khác</a>. Hướng dẫn đầy đủ bằng tiếng Anh và tiếng Việt có sẵn trong mọi gói cài đặt.</p>
     <p class="foot-mail" data-i18n="foot-mail">Hỗ trợ: <a href="mailto:fat@dumpcat.cc">fat@dumpcat.cc</a></p>
+    <p class="foot-tm" data-i18n="foot-tm">MySQL là thương hiệu của Oracle và/hoặc các công ty liên kết, MariaDB của MariaDB plc, Percona Server của Percona, PostgreSQL của PostgreSQL Community Association of Canada, Microsoft và SQL Server của tập đoàn Microsoft. DumpCat là dự án mã nguồn mở độc lập, không liên kết với các công ty này.</p>
   </div>
 </footer>
 </body>

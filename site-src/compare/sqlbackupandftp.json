@@ -40,7 +40,7 @@
   "en": {
     "title": "SQLBackupAndFTP alternative for MySQL: DumpCat, free, open source, Linux and Windows",
     "description": "DumpCat vs SQLBackupAndFTP for MySQL and MariaDB backups: price per computer, Windows vs Linux, binlog incrementals, point-in-time recovery, encryption and cloud storage. Sourced, October 2026.",
-    "lead": "SQLBackupAndFTP, from Pranas.NET, is a long-standing Windows app that backs up SQL Server, MySQL, MariaDB and PostgreSQL to local and cloud storage. DumpCat is a free, open-source MySQL and MariaDB backup manager for Linux and Windows. Here is how they compare.",
+    "lead": "SQLBackupAndFTP, from Pranas.NET, is a long-standing Windows app that backs up SQL Server, MySQL, MariaDB and PostgreSQL to local and cloud storage. DumpCat is a free, open-source backup manager for MySQL, MariaDB, PostgreSQL and SQL Server on Linux and Windows. Here is how they compare.",
     "values": {
       "price": "One-time licence per computer: Free (2 databases), Lite $39 (5 databases), Standard $89, Professional $129, Professional Lifetime $499. Optional yearly Full-Service plan.",
       "runs": "Windows desktop app plus a Windows service; needs .NET Framework 4.7.2. For Linux the vendor offers a separate product, SqlBak.",
@@ -56,7 +56,6 @@
       "alerts": "Email on every edition; Slack, Teams, Discord and webhooks from Lite."
     },
     "choose_them": [
-      "You are on Windows and also back up SQL Server or PostgreSQL, and want one tool for all of them.",
       "You prefer a one-time licence and a desktop app with guided setup wizards for cloud storage.",
       "You want vendor support with a paid service plan."
     ],
@@ -76,7 +75,7 @@
   "vi": {
     "title": "Thay thế SQLBackupAndFTP cho MySQL: DumpCat, miễn phí, mã nguồn mở, chạy Linux và Windows",
     "description": "So sánh DumpCat và SQLBackupAndFTP khi backup MySQL, MariaDB: giá theo máy, Windows hay Linux, incremental bằng binlog, khôi phục theo thời điểm, mã hóa và lưu lên cloud. Có dẫn nguồn, tháng 10/2026.",
-    "lead": "SQLBackupAndFTP của Pranas.NET là ứng dụng Windows lâu năm, backup SQL Server, MySQL, MariaDB và PostgreSQL ra ổ local và cloud. DumpCat là công cụ quản lý backup MySQL, MariaDB miễn phí, mã nguồn mở, chạy trên Linux và Windows. Dưới đây là khác biệt giữa hai bên.",
+    "lead": "SQLBackupAndFTP của Pranas.NET là ứng dụng Windows lâu năm, backup SQL Server, MySQL, MariaDB và PostgreSQL ra ổ local và cloud. DumpCat là công cụ quản lý backup MySQL, MariaDB, PostgreSQL và SQL Server miễn phí, mã nguồn mở, chạy trên Linux và Windows. Dưới đây là khác biệt giữa hai bên.",
     "values": {
       "price": "Mua một lần, theo từng máy: Free (2 database), Lite $39 (5 database), Standard $89, Professional $129, Professional Lifetime $499. Có thêm gói dịch vụ hằng năm tùy chọn.",
       "runs": "Ứng dụng desktop kèm Windows service; cần .NET Framework 4.7.2. Với Linux, hãng có sản phẩm riêng là SqlBak.",
@@ -92,7 +91,6 @@
       "alerts": "Email ở mọi phiên bản; Slack, Teams, Discord và webhook từ gói Lite."
     },
     "choose_them": [
-      "Bạn dùng Windows và còn backup SQL Server hoặc PostgreSQL, muốn chung một công cụ.",
       "Bạn thích mua bản quyền một lần và dùng ứng dụng desktop có wizard hướng dẫn cài storage cloud.",
       "Bạn muốn được hãng hỗ trợ qua gói dịch vụ trả phí."
     ],

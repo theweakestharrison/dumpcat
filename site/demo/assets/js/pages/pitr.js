@@ -46,10 +46,10 @@ export async function render(ctx) {
     const job = jobs.find((j) => j.job_id === jobId) || jobs[0];
     const L = logInfo(job.log);
     let points = [];
-    if (L.targets.includes('name')) {
+    if (L.targets.includes('name') || L.targets.includes('mark')) {
       try {
         const res = await get(`/jobs/${job.job_id}/binlogs?limit=1000`);
-        points = [...new Set(res.items.flatMap((f) => ((f.meta && f.meta.points) || []).map((x) => x.name)))];
+        points = [...new Set(res.items.flatMap((f) => ((f.meta && (f.meta.points || f.meta.marks)) || []).map((x) => x.name)))];
       } catch { /* suggestions only */ }
     }
     if (!ctx.alive()) return;
@@ -86,7 +86,7 @@ export async function render(ctx) {
     view = { job, from, to: now, min, max: last ? last.getTime() : now, backups, live, first, last };
     const inWindow = backups.filter((b) => b.at.getTime() >= from).length;
     setHTML($('#pt-facts', el), html`
-      <span class="chip-fact">${icon('layers')}${logInfo(job.log).name === 'WAL' ? 'WAL' : 'Binlogs'} ${first ? fmtDate(first) : '—'} → ${live ? html`<b class="live">now, streaming</b>` : (last ? fmtDate(last) : '—')}</span>
+      <span class="chip-fact">${icon('layers')}${logInfo(job.log).name === 'WAL' ? 'WAL' : logInfo(job.log).prefix === 'trn' ? 'Log backups' : 'Binlogs'} ${first ? fmtDate(first) : '—'} → ${live ? html`<b class="live">now, streaming</b>` : (last ? fmtDate(last) : '—')}</span>
       <span class="chip-fact">${icon('archive')}${inWindow} backup${inWindow === 1 ? '' : 's'} in this window</span>`);
     drawTimeline();
   };
@@ -112,13 +112,13 @@ export async function render(ctx) {
         <div class="pt-off" style="width:${pct(v.min)}%" title="Before the first backup with binlogs after it: not recoverable"></div>
         <div class="pt-stream" style="left:${streamL}%;width:${Math.max(0, streamR - streamL)}%"></div>
         <div class="pt-replay hidden" id="pt-replay"></div>
-        ${v.backups.filter((b) => b.at.getTime() >= v.from).map((b) => html`<span class="pt-bk ${b.type === 'incremental' ? 'incr' : 'full'}" data-run="${b.id}" style="left:${pct(b.at.getTime())}%" title="#${b.id} ${b.dir} · ${fmtDate(b.at, true)}"></span>`)}
+        ${v.backups.filter((b) => b.at.getTime() >= v.from).map((b) => html`<span class="pt-bk ${b.type === 'incremental' || b.type === 'differential' ? 'incr' : 'full'}" data-run="${b.id}" style="left:${pct(b.at.getTime())}%" title="#${b.id} ${b.dir} · ${fmtDate(b.at, true)}"></span>`)}
         <div class="pt-pin hidden" id="pt-pin"><span id="pt-pin-label"></span></div>
         <input type="range" class="pt-range" id="pt-range" min="${v.min}" max="${v.max}" step="1000" aria-label="Recovery point">
       </div>
       <div class="pt-axis">${axis()}</div>
       <ul class="pt-legend">
-        <li><i class="lg-full"></i>Full backup</li><li><i class="lg-incr"></i>Incremental</li>
+        <li><i class="lg-full"></i>Full backup</li><li><i class="lg-incr"></i>${logInfo(v.job.log).prefix === 'trn' ? 'Differential' : 'Incremental'}</li>
         <li><i class="lg-stream"></i>Archived ${logInfo(v.job.log).files}</li><li><i class="lg-replay"></i>Replayed on restore</li><li><i class="lg-pin"></i>Recovery point</li>
       </ul>
     </div>`);

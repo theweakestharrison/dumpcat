@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <!-- Written by scripts/build-site.py from site-src/landing/ (index.html, en.html, <lang>.html): edit those, then run it. -->
-<title>DumpCat: backup e recuperação point-in-time para MySQL, MariaDB e PostgreSQL</title>
-<meta name="description" content="DumpCat: backup, restauração e recuperação point-in-time para MySQL, MariaDB e PostgreSQL em um único binário com interface web.">
+<title>DumpCat: backup e recuperação point-in-time para MySQL, MariaDB, PostgreSQL e SQL Server</title>
+<meta name="description" content="DumpCat: backup, restauração e recuperação point-in-time para MySQL, MariaDB, PostgreSQL e SQL Server em um único binário com interface web.">
 <!-- Release server read by app.js. If you move it, also update connect-src in _headers. -->
 <meta name="dumpcat-release-base" content="https://downloads.dumpcat.cc/">
 <link rel="canonical" href="https://dumpcat.cc/pt/">
@@ -23,7 +23,7 @@
 <meta property="og:locale" content="pt_BR">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <meta property="og:type" content="website">
-<meta property="og:title" content="DumpCat: backup e recuperação point-in-time para MySQL, MariaDB e PostgreSQL">
+<meta property="og:title" content="DumpCat: backup e recuperação point-in-time para MySQL, MariaDB, PostgreSQL e SQL Server">
 <meta property="og:description" content="Backups que nunca bloqueiam o banco de dados. Recuperação até o segundo exato. Um único binário auto-hospedado com interface web.">
 <meta property="og:site_name" content="DumpCat">
 <!-- og.png is rendered from og-image.html; see docs/website.vi.md -->
@@ -33,7 +33,7 @@
 <meta property="og:image:height" content="630">
 <meta property="og:image:alt" content="DumpCat: backups que nunca bloqueiam o banco de dados, recuperação até o segundo exato. Uma linha do tempo de recuperação point-in-time.">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="DumpCat: backup e recuperação point-in-time para MySQL, MariaDB e PostgreSQL">
+<meta name="twitter:title" content="DumpCat: backup e recuperação point-in-time para MySQL, MariaDB, PostgreSQL e SQL Server">
 <meta name="twitter:description" content="Backups que nunca bloqueiam o banco de dados. Recuperação até o segundo exato. Um único binário auto-hospedado com interface web.">
 <meta name="twitter:image" content="https://dumpcat.cc/og.png">
 <meta name="twitter:image:alt" content="DumpCat: backups que nunca bloqueiam o banco de dados, recuperação até o segundo exato.">
@@ -49,7 +49,7 @@
   "@type": "SoftwareApplication",
   "name": "DumpCat",
   "url": "https://dumpcat.cc/pt/",
-  "description": "Backup, restauração e recuperação point-in-time de código aberto para MySQL, MariaDB e PostgreSQL: um único binário auto-hospedado com interface web.",
+  "description": "Backup, restauração e recuperação point-in-time de código aberto para MySQL, MariaDB, PostgreSQL e SQL Server: um único binário auto-hospedado com interface web.",
   "applicationCategory": "DeveloperApplication",
   "operatingSystem": "Linux, Windows",
   "license": "https://www.apache.org/licenses/LICENSE-2.0",
@@ -78,6 +78,7 @@
   <defs>
     <linearGradient id="dc-bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#3a86e8"/><stop offset="1" stop-color="#1c56b0"/></linearGradient>
     <symbol id="dc-logo" viewBox="0 0 64 64"><rect width="64" height="64" rx="15" fill="url(#dc-bg)"/><path d="M47.5 45.5c7.5 0 10.5-5.5 7.8-11.5" fill="none" stroke="#fff" stroke-width="4.2" stroke-linecap="round"/><path d="M15.6 25 18.4 7.6 30.5 17.5z" fill="#fff"/><path d="M48.4 25 45.6 7.6 33.5 17.5z" fill="#fff"/><path d="M19.4 18.6 20.4 12.4 25.6 16.4z" fill="#f9a8c9"/><path d="M44.6 18.6 43.6 12.4 38.4 16.4z" fill="#f9a8c9"/><path d="M15 21v24c0 3.9 7.6 7 17 7s17-3.1 17-7V21z" fill="#fff"/><ellipse cx="32" cy="21" rx="17" ry="7" fill="#d6e6fb"/><path d="M15 38c0 3.9 7.6 7 17 7s17-3.1 17-7" fill="none" stroke="#1c56b0" stroke-opacity=".28" stroke-width="2.4"/><circle cx="25.4" cy="31" r="2.5" fill="#1b2433"/><circle cx="38.6" cy="31" r="2.5" fill="#1b2433"/><path d="M30.1 34.2h3.8L32 36.4z" fill="#f27aa8"/></symbol>
+    <symbol id="db-icon" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><ellipse cx="12" cy="5.5" rx="7.5" ry="2.8"/><path d="M4.5 5.5v13c0 1.55 3.36 2.8 7.5 2.8s7.5-1.25 7.5-2.8v-13"/><path d="M4.5 12c0 1.55 3.36 2.8 7.5 2.8s7.5-1.25 7.5-2.8"/></g></symbol>
   </defs>
 </svg>
 
@@ -103,25 +104,31 @@
     <div class="hero-main">
       <div class="hero-copy">
         <a class="hero-ai" href="#ai"><span class="hero-ai-tag">MCP</span><span>Pronto para IA: um assistente de IA configura e acompanha seus backups</span></a>
-        <p class="eyebrow">Código aberto · Backup e restauração para MySQL, MariaDB e PostgreSQL</p>
+        <p class="eyebrow">Código aberto · Backup e restauração para MySQL, MariaDB, PostgreSQL e SQL Server</p>
         <h1>Backups que nunca bloqueiam o banco. <span class="soft">Recuperação até o segundo exato.</span></h1>
         <p class="lead">O DumpCat é um único binário com interface web. Ele agenda backups, compacta e criptografa os arquivos, envia cópias para S3, Google Drive, OneDrive ou SFTP, verifica cada uma e traz seus dados de volta quando você precisar. Roda em Linux e Windows, totalmente offline.</p>
         <div class="cta">
-          <a class="btn btn-light" href="#install">Instalar <span data-version>1.7.0</span></a>
+          <a class="btn btn-light" href="#install">Instalar <span data-version>1.8.0</span></a>
           <a class="btn btn-ghost" href="/demo/">Ver a interface</a>
           <a class="btn btn-ghost" href="https://github.com/theweakestharrison/DumpCat"><svg class="gh" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 0c4.42 0 8 3.58 8 8a8.013 8.013 0 0 1-5.45 7.59c-.4.08-.55-.17-.55-.38 0-.27.01-1.13.01-2.2 0-.75-.25-1.23-.54-1.48 1.78-.2 3.65-.88 3.65-3.95 0-.88-.31-1.59-.82-2.15.08-.2.36-1.02-.08-2.12 0 0-.67-.22-2.2.82-.64-.18-1.32-.27-2-.27-.68 0-1.36.09-2 .27-1.53-1.03-2.2-.82-2.2-.82-.44 1.1-.16 1.92-.08 2.12-.51.56-.82 1.28-.82 2.15 0 3.06 1.86 3.75 3.64 3.95-.23.2-.44.55-.51 1.07-.46.21-1.61.55-2.33-.66-.15-.24-.6-.83-1.23-.82-.67.01-.27.38.01.53.34.19.73.9.82 1.13.16.45.68 1.31 2.69.94 0 .67.01 1.3.01 1.49 0 .21-.15.45-.55.38A7.995 7.995 0 0 1 0 8c0-4.42 3.58-8 8-8Z"/></svg><span>Código no GitHub</span></a>
         </div>
-        <p class="compat"><b>MySQL</b> 5.7 · 8.0 · 8.4 &nbsp;/&nbsp; <b>Percona Server</b> &nbsp;/&nbsp; <b>MariaDB</b> 10.x · 11.x &nbsp;/&nbsp; <b>PostgreSQL</b> 10+</p>
       </div>
       <div class="hero-mark" aria-hidden="true"><svg viewBox="0 0 64 64"><use href="#dc-logo"/></svg></div>
     </div>
+    <ul class="engines" aria-label="Bancos de dados suportados">
+      <li><svg aria-hidden="true"><use href="#db-icon"/></svg><b>MySQL</b><span>5.7 · 8.0 · 8.4</span></li>
+      <li><svg aria-hidden="true"><use href="#db-icon"/></svg><b>Percona Server</b></li>
+      <li><svg aria-hidden="true"><use href="#db-icon"/></svg><b>MariaDB</b><span>10.x · 11.x</span></li>
+      <li><svg aria-hidden="true"><use href="#db-icon"/></svg><b>PostgreSQL</b><span>10+</span></li>
+      <li><svg aria-hidden="true"><use href="#db-icon"/></svg><b>SQL Server</b><span>2012+</span></li>
+    </ul>
 
     <section class="pitr" id="pitr" aria-labelledby="pitr-title">
       <div class="pitr-head">
         <h2 id="pitr-title">Recuperação point-in-time</h2>
         <span class="tag">Simulação</span>
       </div>
-      <p class="pitr-sub">Alguém apagou a tabela <code>orders</code> às 14:37:12. Arraste o marcador para escolher um ponto de recuperação: o DumpCat escolhe o backup base mais recente e os arquivos de binlog a reaplicar. O PostgreSQL funciona do mesmo jeito, com WAL arquivado.</p>
+      <p class="pitr-sub">Alguém apagou a tabela <code>orders</code> às 14:37:12. Arraste o marcador para escolher um ponto de recuperação: o DumpCat escolhe o backup base mais recente e os arquivos de binlog a reaplicar. O PostgreSQL funciona do mesmo jeito com WAL arquivado, e o SQL Server com seus backups de log.</p>
 
       <div class="tl">
         <div class="tl-track" id="tl-track">
@@ -188,7 +195,7 @@
           </div>
           <div role="tabpanel" id="panel-windows" aria-labelledby="tab-windows" hidden>
             <ol class="win-steps">
-              <li><span><b>Baixe o .zip</b></span> <a class="btn btn-solid dl" data-pkg="windows" href="https://downloads.dumpcat.cc/1.7.0/dumpcat-1.7.0-windows-amd64.zip"><span>Baixar para Windows</span> <small data-version>1.7.0</small></a></li>
+              <li><span><b>Baixe o .zip</b></span> <a class="btn btn-solid dl" data-pkg="windows" href="https://downloads.dumpcat.cc/1.8.0/dumpcat-1.8.0-windows-amd64.zip"><span>Baixar para Windows</span> <small data-version>1.8.0</small></a></li>
               <li><b>Descompacte</b>: clique com o botão direito no arquivo e escolha <i>Extract All</i>.</li>
               <li><b>Dê um duplo clique em <i>Install DumpCat</i></b> e responda <i>Yes</i>. O navegador abre o DumpCat; a janela de instalação mostra o token de configuração.</li>
             </ol>
@@ -364,6 +371,7 @@
         </table>
       </div>
       <p class="conn-note"><b>PostgreSQL</b> 10 ou mais recente: <code>pg_dump</code> por banco, com as tabelas exportadas e restauradas em paralelo, com outro nome ou em outro servidor; <code>pg_basebackup</code> para o cluster inteiro por uma conexão de replicação, com arquivamento contínuo de WAL para recuperar até um horário, um ponto de restauração ou uma posição do WAL.</p>
+      <p class="conn-note"><b>SQL Server</b> 2012 ou mais recente, no Windows, no Linux e em contêineres: backups nativos completos e diferenciais com <code>BACKUP DATABASE</code> (sem ferramentas cliente), restauração com outro nome ou em outro servidor, testes de restauração com <code>DBCC CHECKDB</code> e backups de log agendados para recuperar até um horário, uma transação marcada ou um LSN. O SQL Server grava os backups no próprio host: o DumpCat os lê de uma pasta compartilhada, ou um agente nesse host os transfere, sem compartilhar nada.</p>
     </div>
   </section>
 
@@ -401,7 +409,7 @@
     binlog/20261018/
       mysql-bin.000123.zst.age</code></pre>
           </div>
-          <p>Perdeu a máquina que roda o DumpCat? Instale uma cópia nova, adicione o armazenamento de novo e clique em <em>Import backup catalog</em>: todos os backups voltam para a lista. Sem o DumpCat, você ainda consegue restaurar com <code>age</code>, <code>zstd</code> e <code>mysql</code> ou <code>pg_restore</code>.</p>
+          <p>Perdeu a máquina que roda o DumpCat? Instale uma cópia nova, adicione o armazenamento de novo e clique em <em>Import backup catalog</em>: todos os backups voltam para a lista. Sem o DumpCat, você ainda consegue restaurar com <code>age</code>, <code>zstd</code> e <code>mysql</code>, <code>pg_restore</code> ou o <code>RESTORE DATABASE</code> do SQL Server.</p>
         </div>
       </div>
     </div>
@@ -438,7 +446,7 @@
           </dl>
         </article>
       </div>
-      <p class="conn-note">O host do banco abre a conexão; os dados trafegam nos dois sentidos dentro dela. Backups físicos (XtraBackup / MariaBackup) funcionam por um agente iniciado com <code>--allow-physical</code>; pelo WireGuard, eles ainda exigem o DumpCat instalado no host do banco.</p>
+      <p class="conn-note">O host do banco abre a conexão; os dados trafegam nos dois sentidos dentro dela. Backups físicos (XtraBackup / MariaBackup) funcionam por um agente iniciado com <code>--allow-physical</code>; pelo WireGuard, eles ainda exigem o DumpCat instalado no host do banco. Os arquivos de backup do SQL Server também passam por um agente iniciado com <code>--allow-mssql-dir</code>, sem pasta compartilhada.</p>
     </div>
   </section>
 
@@ -523,14 +531,14 @@ go build -o dumpcat ./cmd/dumpcat</code></pre>
       <div class="section-body release" id="release" hidden>
         <div class="release-files">
           <div class="pkgs">
-            <a class="pkg" id="pkg-linux" href="https://downloads.dumpcat.cc/1.7.0/dumpcat-1.7.0-linux.tar.gz">
+            <a class="pkg" id="pkg-linux" href="https://downloads.dumpcat.cc/1.8.0/dumpcat-1.8.0-linux.tar.gz">
               <span class="pkg-os">Linux</span>
-              <span class="pkg-file" id="pkg-linux-file">dumpcat-1.7.0-linux.tar.gz</span>
+              <span class="pkg-file" id="pkg-linux-file">dumpcat-1.8.0-linux.tar.gz</span>
               <span class="pkg-desc">amd64 e arm64, instalador, serviço systemd e manual</span>
             </a>
-            <a class="pkg" id="pkg-windows" href="https://downloads.dumpcat.cc/1.7.0/dumpcat-1.7.0-windows-amd64.zip">
+            <a class="pkg" id="pkg-windows" href="https://downloads.dumpcat.cc/1.8.0/dumpcat-1.8.0-windows-amd64.zip">
               <span class="pkg-os">Windows</span>
-              <span class="pkg-file" id="pkg-windows-file">dumpcat-1.7.0-windows-amd64.zip</span>
+              <span class="pkg-file" id="pkg-windows-file">dumpcat-1.8.0-windows-amd64.zip</span>
               <span class="pkg-desc">64 bits, instalador do serviço do Windows e manual</span>
             </a>
           </div>
@@ -539,7 +547,7 @@ go build -o dumpcat ./cmd/dumpcat</code></pre>
           <ul class="bins" id="rel-bins"></ul>
           <p class="old">Versões anteriores continuam disponíveis em <code>downloads.dumpcat.cc/&lt;version&gt;/</code>.</p>
         </div>
-        <div class="notes wn" data-wn-version="1.7.0"><p class="wn-label">Novidades</p><h3><a href="/changelog/1.7.0/">DumpCat 1.7.0</a> <span class="wn-date">20 de outubro de 2026</span></h3><p class="wn-lead" lang="en">AI assistants can set backups up: MCP tools that add and change database servers, storages, jobs and restore drills, for API tokens with the new Manage access. Passwords, keys and passphrases still never go through MCP.</p><ul class="wn-list" lang="en"><li><a href="/changelog/1.7.0/#ai-assistants-mcp">AI assistants (MCP)</a></li></ul><p class="wn-links"><a href="/changelog/1.7.0/">Ver todas as mudanças →</a><a href="/changelog/">Versões anteriores</a></p><p class="wn-note">As notas de versão estão em inglês.</p></div>
+        <div class="notes wn" data-wn-version="1.8.0"><p class="wn-label">Novidades</p><h3><a href="/changelog/1.8.0/">DumpCat 1.8.0</a> <span class="wn-date">21 de outubro de 2026</span></h3><p class="wn-lead" lang="en">Microsoft SQL Server is the third database engine: native full and differential backups, restores under new names or onto another server, restore drills with <code>DBCC CHECKDB</code>, and scheduled log backups for point-in-time recovery — also for SQL Server hosts that share no folder with DumpCat, through the agent.</p><ul class="wn-list" lang="en"><li><a href="/changelog/1.8.0/#sql-server">SQL Server</a></li><li><a href="/changelog/1.8.0/#everything-else">Everything else</a></li></ul><p class="wn-links"><a href="/changelog/1.8.0/">Ver todas as mudanças →</a><a href="/changelog/">Versões anteriores</a></p><p class="wn-note">As notas de versão estão em inglês.</p></div>
       </div>
     </div>
   </section>
@@ -548,9 +556,10 @@ go build -o dumpcat ./cmd/dumpcat</code></pre>
 
 <footer class="foot">
   <div class="wrap">
-    <a class="brand" href="#top"><svg aria-hidden="true"><use href="#dc-logo"/></svg>DumpCat <span data-version>1.7.0</span></a>
+    <a class="brand" href="#top"><svg aria-hidden="true"><use href="#dc-logo"/></svg>DumpCat <span data-version>1.8.0</span></a>
     <p>Código aberto sob a licença Apache-2.0, com o código-fonte no <a href="https://github.com/theweakestharrison/DumpCat">GitHub</a>. <a href="/compare/">Como ele se compara a outras ferramentas</a>. O manual completo, em inglês e vietnamita, vem dentro de cada pacote.</p>
     <p class="foot-mail">Suporte: <a href="mailto:fat@dumpcat.cc">fat@dumpcat.cc</a></p>
+    <p class="foot-tm">MySQL é uma marca da Oracle e/ou de suas afiliadas; MariaDB, da MariaDB plc; Percona Server, da Percona; PostgreSQL, da PostgreSQL Community Association of Canada; e Microsoft e SQL Server, do grupo de empresas Microsoft. O DumpCat é um projeto de código aberto independente, sem vínculo com elas.</p>
   </div>
 </footer>
 </body>

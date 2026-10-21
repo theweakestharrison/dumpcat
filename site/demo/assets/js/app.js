@@ -137,7 +137,7 @@ let pageLabel = '';
 // ---------- branding: the instance name and logo (Settings → Branding) ----------
 const DEFAULT_LOGO = '/demo/assets/favicon.svg';
 function brandHTML() {
-  return html`<div class="brand"><img class="brand-logo" src="${app.brand.logo || DEFAULT_LOGO}" alt="" width="30" height="30"><div>${app.brand.name}<small>MySQL · MariaDB · PostgreSQL</small></div></div>`;
+  return html`<div class="brand"><img class="brand-logo" src="${app.brand.logo || DEFAULT_LOGO}" alt="" width="30" height="30"><div>${app.brand.name}<small>MySQL · MariaDB · PostgreSQL · SQL Server</small></div></div>`;
 }
 /** Shows a new instance name or logo in the sidebar, the tab's title and its icon. */
 export function setBrand(b) {

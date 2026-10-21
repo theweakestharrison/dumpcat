@@ -18,10 +18,10 @@ export async function render(ctx) {
             <div class="sub">${j.encrypt ? html`${icon('lock')} encrypted · ` : ''}${j.compression}${j.retention.keep_last ? ` · keep ${j.retention.keep_last}` : ''}${j.retention.keep_days ? ` · ${j.retention.keep_days} days` : ''}</div></td>
           <td class="hide-sm">${j.server_name}</td>
           <td class="hide-sm">${methodBadge(j.method)}</td>
-          <td class="hide-sm" style="min-width:160px"><div>${describeCron(j.schedule)}</div>${j.incr_schedule ? html`<div class="sub">Incr: ${describeCron(j.incr_schedule)}</div>` : ''}</td>
+          <td class="hide-sm" style="min-width:160px"><div>${describeCron(j.schedule)}</div>${j.incr_schedule ? html`<div class="sub">${j.method === 'mssql_native' ? 'Diff' : 'Incr'}: ${describeCron(j.incr_schedule)}</div>` : ''}</td>
           <td class="hide-md"><span class="chips">${j.targets.map((t) => html`<span class="badge outline">${t.storage_name}</span>`)}</span></td>
           <td>${running ? statusBadge('running') : lr ? html`<a href="#/runs/${lr.id}">${statusBadge(lr.status)}</a><div class="sub">${fmtAgo(lr.started_at)}</div>` : html`<span class="muted">never run</span>`}</td>
-          <td class="hide-sm">${nr && j.enabled ? html`${fmtDate(nr.at)}${nr.type === 'incremental' ? html` <span class="badge info">incr</span>` : ''}` : html`<span class="muted">—</span>`}</td>
+          <td class="hide-sm">${nr && j.enabled ? html`${fmtDate(nr.at)}${nr.type === 'incremental' ? html` <span class="badge info">incr</span>` : nr.type === 'differential' ? html` <span class="badge info">diff</span>` : ''}` : html`<span class="muted">—</span>`}</td>
           <td class="actions">${canOperate() ? html`
             <button class="btn btn-sm btn-primary" data-key="run-${j.id}" data-run="${j.id}" data-method="${j.method}" ${running ? 'disabled' : ''} title="Run now">${icon('play')}Run</button>
             <span class="dropdown"><button class="btn btn-sm btn-icon btn-ghost" data-key="more-${j.id}" data-more="${j.id}" title="More actions" aria-label="More actions for ${j.name}">${icon('dots')}</button></span>` : ''}
@@ -34,17 +34,19 @@ export async function render(ctx) {
   const runJob = async (id, type) => {
     try {
       const run = await post(`/jobs/${id}/run`, { type });
-      toast(`Started ${type === 'incremental' ? 'incremental' : 'full'} backup — #${run.id}`);
+      toast(`Started ${run.type || type} backup — #${run.id}`);
       navigate(`/runs/${run.id}`);
     } catch (e) { toastErr(e); }
   };
 
   on(el, 'click', '[data-run]', (e, b) => {
-    if (b.dataset.method === 'physical') {
+    if (b.dataset.method === 'physical' || b.dataset.method === 'mssql_native') {
       e.stopPropagation();
+      const diff = b.dataset.method === 'mssql_native';
       dropdown(b, [
         { label: 'Full backup', icon: 'database', onClick: () => runJob(b.dataset.run, 'full') },
-        { label: 'Incremental backup', icon: 'layers', onClick: () => runJob(b.dataset.run, 'incremental') },
+        diff ? { label: 'Differential backup', icon: 'layers', onClick: () => runJob(b.dataset.run, 'differential') }
+          : { label: 'Incremental backup', icon: 'layers', onClick: () => runJob(b.dataset.run, 'incremental') },
       ]);
       return;
     }

@@ -70,7 +70,7 @@ def main() -> None:
     (OUT / "assets" / "demo.css").write_text((SRC / "demo.css").read_text(encoding="utf-8"), encoding="utf-8", newline="\n")
 
     page = rewrite((WEB / "index.html").read_text(encoding="utf-8"))
-    page = page.replace("<title>DumpCat: MySQL, MariaDB &amp; PostgreSQL Backup</title>", "<title>DumpCat: preview the web UI</title>\n"
+    page = page.replace("<title>DumpCat: MySQL, MariaDB, PostgreSQL &amp; SQL Server Backup</title>", "<title>DumpCat: preview the web UI</title>\n"
                         '  <meta name="description" content="The web interface DumpCat gives you after you install it on your own server, with sample data: backups, restores, point-in-time recovery, restore drills, agents and WireGuard. Runs in your browser.">')
     # the app keeps search engines out of a self-hosted DumpCat; the preview on dumpcat.cc may be indexed
     page = page.replace('<meta name="robots" content="noindex, nofollow">',

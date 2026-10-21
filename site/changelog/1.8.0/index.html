@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>What&#x27;s new in DumpCat 1.8.0</title>
+<meta name="description" content="Microsoft SQL Server is the third database engine: native full and differential backups, restores under new names or onto another server, restore drills with `DBCC CHECKDB`, and scheduled log backups for point-in-time recovery — also for SQL Server hosts that share no folder with DumpCat, through the agent.">
+<link rel="canonical" href="https://dumpcat.cc/changelog/1.8.0/">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://dumpcat.cc/changelog/1.8.0/">
+<meta property="og:site_name" content="DumpCat">
+<meta property="og:title" content="What&#x27;s new in DumpCat 1.8.0">
+<meta property="og:description" content="Microsoft SQL Server is the third database engine: native full and differential backups, restores under new names or onto another server, restore drills with `DBCC CHECKDB`, and scheduled log backups for point-in-time recovery — also for SQL Server hosts that share no folder with DumpCat, through the agent.">
+<meta property="og:locale" content="en_US">
+<meta property="og:image" content="https://dumpcat.cc/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://dumpcat.cc/og.png">
+<meta name="theme-color" content="#1f5fbf">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=Bricolage+Grotesque:opsz,wdth,wght@12..96,75..100,400..800&family=JetBrains+Mono:wght@400;600&display=swap">
+<link rel="stylesheet" href="/style.css">
+<script type="application/ld+json">{"@context": "https://schema.org", "@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "Home", "item": "https://dumpcat.cc/"}, {"@type": "ListItem", "position": 2, "name": "What's new", "item": "https://dumpcat.cc/changelog/"}, {"@type": "ListItem", "position": 3, "name": "1.8.0", "item": "https://dumpcat.cc/changelog/1.8.0/"}]}</script>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs><linearGradient id="dc-bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#3a86e8"/><stop offset="1" stop-color="#1c56b0"/></linearGradient><symbol id="dc-logo" viewBox="0 0 64 64"><rect width="64" height="64" rx="15" fill="url(#dc-bg)"/><path d="M47.5 45.5c7.5 0 10.5-5.5 7.8-11.5" fill="none" stroke="#fff" stroke-width="4.2" stroke-linecap="round"/><path d="M15.6 25 18.4 7.6 30.5 17.5z" fill="#fff"/><path d="M48.4 25 45.6 7.6 33.5 17.5z" fill="#fff"/><path d="M19.4 18.6 20.4 12.4 25.6 16.4z" fill="#f9a8c9"/><path d="M44.6 18.6 43.6 12.4 38.4 16.4z" fill="#f9a8c9"/><path d="M15 21v24c0 3.9 7.6 7 17 7s17-3.1 17-7V21z" fill="#fff"/><ellipse cx="32" cy="21" rx="17" ry="7" fill="#d6e6fb"/><path d="M15 38c0 3.9 7.6 7 17 7s17-3.1 17-7" fill="none" stroke="#1c56b0" stroke-opacity=".28" stroke-width="2.4"/><circle cx="25.4" cy="31" r="2.5" fill="#1b2433"/><circle cx="38.6" cy="31" r="2.5" fill="#1b2433"/><path d="M30.1 34.2h3.8L32 36.4z" fill="#f27aa8"/></symbol></defs></svg>
+<header class="hero page-hero">
+  <div class="wrap">
+    <div class="topbar">
+      <a class="brand" href="/"><svg aria-hidden="true"><use href="#dc-logo"/></svg>DumpCat</a>
+      <nav class="nav" aria-label="Site">
+        <a href="/#methods">Features</a>
+        <a href="/compare/">Compare</a>
+        <a href="/demo/">Preview</a>
+        <a href="/changelog/">What's new</a>
+        <a class="nav-gh" href="https://github.com/theweakestharrison/DumpCat" aria-label="GitHub" title="GitHub"><svg class="gh" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 0c4.42 0 8 3.58 8 8a8.013 8.013 0 0 1-5.45 7.59c-.4.08-.55-.17-.55-.38 0-.27.01-1.13.01-2.2 0-.75-.25-1.23-.54-1.48 1.78-.2 3.65-.88 3.65-3.95 0-.88-.31-1.59-.82-2.15.08-.2.36-1.02-.08-2.12 0 0-.67-.22-2.2.82-.64-.18-1.32-.27-2-.27-.68 0-1.36.09-2 .27-1.53-1.03-2.2-.82-2.2-.82-.44 1.1-.16 1.92-.08 2.12-.51.56-.82 1.28-.82 2.15 0 3.06 1.86 3.75 3.64 3.95-.23.2-.44.55-.51 1.07-.46.21-1.61.55-2.33-.66-.15-.24-.6-.83-1.23-.82-.67.01-.27.38.01.53.34.19.73.9.82 1.13.16.45.68 1.31 2.69.94 0 .67.01 1.3.01 1.49 0 .21-.15.45-.55.38A7.995 7.995 0 0 1 0 8c0-4.42 3.58-8 8-8Z"/></svg></a>
+      </nav>
+      <a class="nav-cta" href="/install/">Install</a>
+      <div class="lang" role="group" aria-label="Language"><a href="/changelog/1.8.0/" hreflang="en" lang="en" aria-current="true">EN</a></div>
+    </div>
+    <div class="page-head">
+      <nav class="crumbs" aria-label="Breadcrumb"><a href="/">Home</a> <span aria-hidden="true">/</span> <a href="/changelog/">What&#x27;s new</a> <span aria-hidden="true">/</span> <span aria-current="page">1.8.0</span></nav>
+      <p class="eyebrow">Released October 21, 2026 · latest version</p><h1>What&#x27;s new in DumpCat 1.8.0</h1>
+      <p class="lead">Microsoft SQL Server is the third database engine: native full and differential backups, restores under new names or onto another server, restore drills with <code>DBCC CHECKDB</code>, and scheduled log backups for point-in-time recovery — also for SQL Server hosts that share no folder with DumpCat, through the agent.</p>
+      <div class="cta"><a class="btn btn-light" href="/install/">Install DumpCat 1.8.0</a><a class="btn btn-ghost" href="/changelog/">All versions</a></div>
+    </div>
+  </div>
+</header>
+
+<main class="cl">
+  <section class="section">
+    <div class="wrap narrow">
+      <nav class="cl-toc" aria-label="In this release"><span>In this release</span><a href="#sql-server">SQL Server</a><a href="#everything-else">Everything else</a></nav><section class="cl-group"><h2 id="sql-server">SQL Server</h2><ul class="cl-items"><li>Choose <b>Microsoft SQL Server</b> when adding a server (SQL Server 2012 and newer on Windows, Linux and in containers; tested with SQL Server 2022 on Linux). SQL logins or Windows authentication (<code>DOMAIN\user</code>, NTLM), named instances through the SQL Server Browser, always-encrypted connections. No client tool: DumpCat speaks TDS itself (<a href="https://github.com/microsoft/go-mssqldb">go-mssqldb</a>, BSD-3-Clause).</li><li><b>Check</b> shows the version and edition, the service account, the recovery model of every database, what the account may not do, and whether SQL Server reads the server&#x27;s <b>backup folder</b>.</li><li>The <b>backup folder</b>: <code>BACKUP DATABASE</code> writes on the SQL Server host, so every file passes through a folder both SQL Server and DumpCat reach — the same path when DumpCat runs on the SQL Server host, otherwise a share or mount, entered as SQL Server sees it and as DumpCat sees it, or the agent (below). DumpCat reads each <code>.bak</code> into the usual compression, encryption and SHA-256 pipeline, uploads it to every storage of the job and deletes it; restores pass through it the other way. The connection test writes a file through one path and has SQL Server read it through the other.</li><li><b>Through the agent, nothing shared</b>: an agent started with <code>--allow-mssql-dir</code> and SQL Server&#x27;s backup folder (<code>install.sh --agent … --allow 127.0.0.1:1433 --allow-mssql-dir /var/opt/mssql/backup</code>, Windows <code>-AllowMSSQLDir</code>) reads the <code>.bak</code> / <code>.trn</code> files SQL Server writes there and streams them over its connection, and writes the files of restores there. Full, differential and log backups, restores, drills and point-in-time recovery then work for a SQL Server host behind NAT or without SMB, with <i>As DumpCat sees it</i> left empty; compression, encryption and SHA-256 stay on the DumpCat side. The agent only touches regular <code>dumpcat-*</code> files directly in that one folder, never replaces a file, and on Linux runs as the folder&#x27;s owner (<code>mssql</code>) with write access to that folder only. The Agents page has a <i>SQL Server folder</i> column and a <i>SQL Server</i> option in the install dialog; the server form fills the folder in from the agent, and <b>Check</b> says how DumpCat reaches it.</li><li>One method, <b>native backup</b>: full backups on the job&#x27;s schedule, <b>differential</b> backups on its second schedule (or <i>Run → Differential backup</i>), <code>WITH CHECKSUM</code>, <code>COMPRESSION</code> where the edition has it (then DumpCat stores the file without compressing it again), <code>RESTORE VERIFYONLY</code> on the server before each file is read, copy-only jobs, databases backed up in parallel, extra <code>BACKUP … WITH</code> options for admins. A differential whose base moved (a full backup taken by another tool) becomes a full backup, and says why.</li><li><b>Restores</b> go through the target&#x27;s backup folder: every file is checked there first (<code>RESTORE HEADERONLY</code> must show the backup set the catalog recorded, <code>RESTORE VERIFYONLY</code> must pass), then <code>RESTORE DATABASE … WITH MOVE</code> into the instance&#x27;s data and log folders under the new name, a differential on top of its full backup. A database that exists is only overwritten with <i>Replace existing databases</i> (<code>WITH REPLACE</code>, after closing its sessions); system databases never. Orphaned users and an unknown owner are listed in the log.</li><li><b>Restore drills</b> restore the full backup and the differential under temporary names, run <code>DBCC CHECKDB</code> on every copy, compare the tables and their row counts (<code>sys.partitions</code>, read right after the backup) and run the assertions in a transaction that is rolled back.</li><li><b>Point-in-time recovery</b>: with log archiving on, DumpCat runs <code>BACKUP LOG</code> for every database of the job on a schedule (every 15 minutes by default; <i>Back up the log now</i> on the archive page) and archives each log backup with its LSNs and the marked transactions it holds. Recovery to a <b>time</b> (<code>STOPAT</code>, converted to the server&#x27;s time zone), a <b>marked transaction</b> (<code>STOPATMARK</code>) or an <b>LSN</b> (decimal or <code>00000025:00000080:0001</code>), or the latest log backup: the backup is restored <code>WITH NORECOVERY</code>, the log backups follow until one reaches the target. The plan checks the LSN chain first: a log backup taken by another tool is reported as a gap that recovery cannot cross, databases in the SIMPLE recovery model are named and refused.</li></ul></section><section class="cl-group"><h2 id="everything-else">Everything else</h2><ul class="cl-items"><li>A backup can be a <b>differential</b>: it belongs to the chain of its full backup for retention, deletion, restores, drills and point-in-time recovery, and imported catalogs keep the link. The API and MCP take <code>type: differential</code> (an incremental schedule is a differential one for SQL Server jobs).</li><li>Servers have <code>backup_dir</code> and <code>backup_dir_local</code> (store migration 11), in the API and in MCP&#x27;s <code>create_server</code> / <code>update_server</code>; jobs have <code>copy_only</code>, <code>native_compression</code> and <code>verify_only</code>. Agents report <code>caps.mssql</code> (<code>dir</code>, <code>user</code>, <code>error</code>) in <code>GET /api/agents</code>, and a SQL Server&#x27;s <code>GET /api/servers/{id}/info</code> has <code>backup_dir_via</code>.</li><li>Agent: <code>--allow-mssql-dir</code> / <code>DUMPCAT_AGENT_MSSQL_DIR</code> (an agent without it, or from before 1.8.0, keeps working for everything else; DumpCat names it when a SQL Server behind it needs the folder).</li><li>The server list no longer shows a TLS badge for servers with TLS disabled.</li></ul></section><nav class="cl-pager" aria-label="Other versions"><a class="older" href="/changelog/1.7.0/"><small>Older</small>DumpCat 1.7.0</a><span></span></nav>
+    </div>
+  </section>
+</main>
+<footer class="foot">
+  <div class="wrap">
+    <a class="brand" href="/"><svg aria-hidden="true"><use href="#dc-logo"/></svg>DumpCat</a>
+    <p>Open source under the Apache-2.0 license, with the source on GitHub. <a href="https://github.com/theweakestharrison/DumpCat">GitHub</a> · <a href="/compare/">Compare</a> · <a href="/install/">Install</a> · <a href="/changelog/">What's new</a> · Support: <a href="mailto:fat@dumpcat.cc">fat@dumpcat.cc</a></p>
+  </div>
+</footer>
+</body>
+</html>

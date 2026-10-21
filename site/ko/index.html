@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <!-- Written by scripts/build-site.py from site-src/landing/ (index.html, en.html, <lang>.html): edit those, then run it. -->
-<title>DumpCat: MySQL, MariaDB, PostgreSQL을 위한 백업과 특정 시점 복구</title>
-<meta name="description" content="DumpCat: 웹 UI를 갖춘 단일 바이너리 하나로 MySQL, MariaDB, PostgreSQL의 백업, 복원, 특정 시점 복구를 처리합니다.">
+<title>DumpCat: MySQL, MariaDB, PostgreSQL, SQL Server를 위한 백업과 특정 시점 복구</title>
+<meta name="description" content="DumpCat: 웹 UI를 갖춘 단일 바이너리 하나로 MySQL, MariaDB, PostgreSQL, SQL Server의 백업, 복원, 특정 시점 복구를 처리합니다.">
 <!-- Release server read by app.js. If you move it, also update connect-src in _headers. -->
 <meta name="dumpcat-release-base" content="https://downloads.dumpcat.cc/">
 <link rel="canonical" href="https://dumpcat.cc/ko/">
@@ -23,7 +23,7 @@
 <meta property="og:locale" content="ko_KR">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <meta property="og:type" content="website">
-<meta property="og:title" content="DumpCat: MySQL, MariaDB, PostgreSQL을 위한 백업과 특정 시점 복구">
+<meta property="og:title" content="DumpCat: MySQL, MariaDB, PostgreSQL, SQL Server를 위한 백업과 특정 시점 복구">
 <meta property="og:description" content="데이터베이스를 잠그지 않는 백업. 1초 단위까지 정확한 복구. 웹 UI를 갖춘 셀프 호스팅 바이너리 하나.">
 <meta property="og:site_name" content="DumpCat">
 <!-- og.png is rendered from og-image.html; see docs/website.vi.md -->
@@ -33,7 +33,7 @@
 <meta property="og:image:height" content="630">
 <meta property="og:image:alt" content="DumpCat: 데이터베이스를 잠그지 않는 백업, 1초 단위까지 정확한 복구. 특정 시점 복구 타임라인.">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="DumpCat: MySQL, MariaDB, PostgreSQL을 위한 백업과 특정 시점 복구">
+<meta name="twitter:title" content="DumpCat: MySQL, MariaDB, PostgreSQL, SQL Server를 위한 백업과 특정 시점 복구">
 <meta name="twitter:description" content="데이터베이스를 잠그지 않는 백업. 1초 단위까지 정확한 복구. 웹 UI를 갖춘 셀프 호스팅 바이너리 하나.">
 <meta name="twitter:image" content="https://dumpcat.cc/og.png">
 <meta name="twitter:image:alt" content="DumpCat: 데이터베이스를 잠그지 않는 백업, 1초 단위까지 정확한 복구.">
@@ -49,7 +49,7 @@
   "@type": "SoftwareApplication",
   "name": "DumpCat",
   "url": "https://dumpcat.cc/ko/",
-  "description": "MySQL, MariaDB, PostgreSQL을 위한 오픈 소스 백업, 복원, 특정 시점 복구: 웹 UI가 포함된 셀프 호스팅 단일 바이너리.",
+  "description": "MySQL, MariaDB, PostgreSQL, SQL Server를 위한 오픈 소스 백업, 복원, 특정 시점 복구: 웹 UI가 포함된 셀프 호스팅 단일 바이너리.",
   "applicationCategory": "DeveloperApplication",
   "operatingSystem": "Linux, Windows",
   "license": "https://www.apache.org/licenses/LICENSE-2.0",
@@ -78,6 +78,7 @@
   <defs>
     <linearGradient id="dc-bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#3a86e8"/><stop offset="1" stop-color="#1c56b0"/></linearGradient>
     <symbol id="dc-logo" viewBox="0 0 64 64"><rect width="64" height="64" rx="15" fill="url(#dc-bg)"/><path d="M47.5 45.5c7.5 0 10.5-5.5 7.8-11.5" fill="none" stroke="#fff" stroke-width="4.2" stroke-linecap="round"/><path d="M15.6 25 18.4 7.6 30.5 17.5z" fill="#fff"/><path d="M48.4 25 45.6 7.6 33.5 17.5z" fill="#fff"/><path d="M19.4 18.6 20.4 12.4 25.6 16.4z" fill="#f9a8c9"/><path d="M44.6 18.6 43.6 12.4 38.4 16.4z" fill="#f9a8c9"/><path d="M15 21v24c0 3.9 7.6 7 17 7s17-3.1 17-7V21z" fill="#fff"/><ellipse cx="32" cy="21" rx="17" ry="7" fill="#d6e6fb"/><path d="M15 38c0 3.9 7.6 7 17 7s17-3.1 17-7" fill="none" stroke="#1c56b0" stroke-opacity=".28" stroke-width="2.4"/><circle cx="25.4" cy="31" r="2.5" fill="#1b2433"/><circle cx="38.6" cy="31" r="2.5" fill="#1b2433"/><path d="M30.1 34.2h3.8L32 36.4z" fill="#f27aa8"/></symbol>
+    <symbol id="db-icon" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><ellipse cx="12" cy="5.5" rx="7.5" ry="2.8"/><path d="M4.5 5.5v13c0 1.55 3.36 2.8 7.5 2.8s7.5-1.25 7.5-2.8v-13"/><path d="M4.5 12c0 1.55 3.36 2.8 7.5 2.8s7.5-1.25 7.5-2.8"/></g></symbol>
   </defs>
 </svg>
 
@@ -103,25 +104,31 @@
     <div class="hero-main">
       <div class="hero-copy">
         <a class="hero-ai" href="#ai"><span class="hero-ai-tag">MCP</span><span>AI 친화적: Claude 등 AI 어시스턴트에게 백업 구성과 점검을 맡기세요</span></a>
-        <p class="eyebrow">오픈 소스 · MySQL, MariaDB, PostgreSQL을 위한 백업 및 복원</p>
+        <p class="eyebrow">오픈 소스 · MySQL, MariaDB, PostgreSQL, SQL Server를 위한 백업 및 복원</p>
         <h1>데이터베이스를 잠그지 않는 백업. <span class="soft">1초 단위까지 정확한 복구.</span></h1>
         <p class="lead">DumpCat은 웹 UI를 갖춘 단일 바이너리입니다. 백업을 예약하고, 압축하고 암호화해 S3, Google Drive, OneDrive, SFTP로 사본을 보내고, 검증까지 마친 뒤, 필요할 때 데이터를 되살려 줍니다. Linux와 Windows에서 완전히 오프라인으로 동작합니다.</p>
         <div class="cta">
-          <a class="btn btn-light" href="#install"><span data-version>1.7.0</span> 설치</a>
+          <a class="btn btn-light" href="#install"><span data-version>1.8.0</span> 설치</a>
           <a class="btn btn-ghost" href="/demo/">UI 미리 보기</a>
           <a class="btn btn-ghost" href="https://github.com/theweakestharrison/DumpCat"><svg class="gh" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 0c4.42 0 8 3.58 8 8a8.013 8.013 0 0 1-5.45 7.59c-.4.08-.55-.17-.55-.38 0-.27.01-1.13.01-2.2 0-.75-.25-1.23-.54-1.48 1.78-.2 3.65-.88 3.65-3.95 0-.88-.31-1.59-.82-2.15.08-.2.36-1.02-.08-2.12 0 0-.67-.22-2.2.82-.64-.18-1.32-.27-2-.27-.68 0-1.36.09-2 .27-1.53-1.03-2.2-.82-2.2-.82-.44 1.1-.16 1.92-.08 2.12-.51.56-.82 1.28-.82 2.15 0 3.06 1.86 3.75 3.64 3.95-.23.2-.44.55-.51 1.07-.46.21-1.61.55-2.33-.66-.15-.24-.6-.83-1.23-.82-.67.01-.27.38.01.53.34.19.73.9.82 1.13.16.45.68 1.31 2.69.94 0 .67.01 1.3.01 1.49 0 .21-.15.45-.55.38A7.995 7.995 0 0 1 0 8c0-4.42 3.58-8 8-8Z"/></svg><span>GitHub에서 소스 보기</span></a>
         </div>
-        <p class="compat"><b>MySQL</b> 5.7 · 8.0 · 8.4 &nbsp;/&nbsp; <b>Percona Server</b> &nbsp;/&nbsp; <b>MariaDB</b> 10.x · 11.x &nbsp;/&nbsp; <b>PostgreSQL</b> 10+</p>
       </div>
       <div class="hero-mark" aria-hidden="true"><svg viewBox="0 0 64 64"><use href="#dc-logo"/></svg></div>
     </div>
+    <ul class="engines" aria-label="지원 데이터베이스">
+      <li><svg aria-hidden="true"><use href="#db-icon"/></svg><b>MySQL</b><span>5.7 · 8.0 · 8.4</span></li>
+      <li><svg aria-hidden="true"><use href="#db-icon"/></svg><b>Percona Server</b></li>
+      <li><svg aria-hidden="true"><use href="#db-icon"/></svg><b>MariaDB</b><span>10.x · 11.x</span></li>
+      <li><svg aria-hidden="true"><use href="#db-icon"/></svg><b>PostgreSQL</b><span>10+</span></li>
+      <li><svg aria-hidden="true"><use href="#db-icon"/></svg><b>SQL Server</b><span>2012+</span></li>
+    </ul>
 
     <section class="pitr" id="pitr" aria-labelledby="pitr-title">
       <div class="pitr-head">
         <h2 id="pitr-title">특정 시점 복구</h2>
         <span class="tag">시뮬레이션</span>
       </div>
-      <p class="pitr-sub">누군가 14:37:12에 <code>orders</code> 테이블을 삭제했습니다. 마커를 끌어 복구 시점을 고르면, DumpCat이 가장 최근의 베이스 백업과 재생할 binlog 파일을 골라 줍니다. PostgreSQL도 아카이브된 WAL로 똑같이 동작합니다.</p>
+      <p class="pitr-sub">누군가 14:37:12에 <code>orders</code> 테이블을 삭제했습니다. 마커를 끌어 복구 시점을 고르면, DumpCat이 가장 최근의 베이스 백업과 재생할 binlog 파일을 골라 줍니다. PostgreSQL은 아카이브된 WAL로, SQL Server는 로그 백업으로 똑같이 동작합니다.</p>
 
       <div class="tl">
         <div class="tl-track" id="tl-track">
@@ -188,7 +195,7 @@
           </div>
           <div role="tabpanel" id="panel-windows" aria-labelledby="tab-windows" hidden>
             <ol class="win-steps">
-              <li><span><b>.zip 다운로드</b></span> <a class="btn btn-solid dl" data-pkg="windows" href="https://downloads.dumpcat.cc/1.7.0/dumpcat-1.7.0-windows-amd64.zip"><span>Windows용 다운로드</span> <small data-version>1.7.0</small></a></li>
+              <li><span><b>.zip 다운로드</b></span> <a class="btn btn-solid dl" data-pkg="windows" href="https://downloads.dumpcat.cc/1.8.0/dumpcat-1.8.0-windows-amd64.zip"><span>Windows용 다운로드</span> <small data-version>1.8.0</small></a></li>
               <li><b>압축 풀기</b>: 파일을 마우스 오른쪽 버튼으로 클릭하고 <i>Extract All</i>을 선택합니다.</li>
               <li><b><i>Install DumpCat</i>을 더블클릭</b>하고 <i>Yes</i>를 누릅니다. 브라우저에서 DumpCat이 열리고, 설치 창에 설정 토큰이 표시됩니다.</li>
             </ol>
@@ -364,6 +371,7 @@
         </table>
       </div>
       <p class="conn-note"><b>PostgreSQL</b> 10 이상: 데이터베이스별 <code>pg_dump</code>로 테이블을 병렬로 덤프하고 복원하며, 새 이름으로 또는 다른 서버에 복원할 수 있습니다. 클러스터 전체는 복제 연결을 통한 <code>pg_basebackup</code>으로 백업하고, 연속 WAL 아카이빙으로 특정 시각, 복원 지점(restore point), WAL 위치까지 복구합니다.</p>
+      <p class="conn-note"><b>SQL Server</b> 2012 이상(Windows, Linux, 컨테이너): <code>BACKUP DATABASE</code>를 이용한 네이티브 전체 백업과 차등 백업(클라이언트 도구 불필요), 새 이름으로 또는 다른 서버에 복원, <code>DBCC CHECKDB</code>를 포함한 복원 훈련, 그리고 예약된 로그 백업으로 특정 시각, 표시된 트랜잭션, LSN까지 복구합니다. SQL Server는 백업을 자기 호스트에 쓰므로, DumpCat이 공유 폴더에서 읽거나, 공유 없이 그 호스트의 에이전트가 파일을 옮겨 줍니다.</p>
     </div>
   </section>
 
@@ -401,7 +409,7 @@
     binlog/20261018/
       mysql-bin.000123.zst.age</code></pre>
           </div>
-          <p>DumpCat을 실행하던 머신을 잃었나요? 새로 설치하고 스토리지를 다시 추가한 뒤 <em>Import backup catalog</em>를 누르면 모든 백업이 다시 목록에 나타납니다. DumpCat 없이도 <code>age</code>, <code>zstd</code>와 <code>mysql</code> 또는 <code>pg_restore</code>로 복원할 수 있습니다.</p>
+          <p>DumpCat을 실행하던 머신을 잃었나요? 새로 설치하고 스토리지를 다시 추가한 뒤 <em>Import backup catalog</em>를 누르면 모든 백업이 다시 목록에 나타납니다. DumpCat 없이도 <code>age</code>, <code>zstd</code>와 <code>mysql</code>, <code>pg_restore</code> 또는 SQL Server의 <code>RESTORE DATABASE</code>로 복원할 수 있습니다.</p>
         </div>
       </div>
     </div>
@@ -438,7 +446,7 @@
           </dl>
         </article>
       </div>
-      <p class="conn-note">연결은 데이터베이스 호스트가 열고, 데이터는 그 연결 안에서 양방향으로 흐릅니다. 물리 백업(XtraBackup / MariaBackup)은 <code>--allow-physical</code>로 시작한 에이전트를 통해 동작하며, WireGuard를 통할 때는 여전히 데이터베이스 호스트에 DumpCat을 설치해야 합니다.</p>
+      <p class="conn-note">연결은 데이터베이스 호스트가 열고, 데이터는 그 연결 안에서 양방향으로 흐릅니다. 물리 백업(XtraBackup / MariaBackup)은 <code>--allow-physical</code>로 시작한 에이전트를 통해 동작하며, WireGuard를 통할 때는 여전히 데이터베이스 호스트에 DumpCat을 설치해야 합니다. SQL Server의 백업 파일도 <code>--allow-mssql-dir</code>로 시작한 에이전트가 옮겨 주므로 공유 폴더가 필요 없습니다.</p>
     </div>
   </section>
 
@@ -523,14 +531,14 @@ go build -o dumpcat ./cmd/dumpcat</code></pre>
       <div class="section-body release" id="release" hidden>
         <div class="release-files">
           <div class="pkgs">
-            <a class="pkg" id="pkg-linux" href="https://downloads.dumpcat.cc/1.7.0/dumpcat-1.7.0-linux.tar.gz">
+            <a class="pkg" id="pkg-linux" href="https://downloads.dumpcat.cc/1.8.0/dumpcat-1.8.0-linux.tar.gz">
               <span class="pkg-os">Linux</span>
-              <span class="pkg-file" id="pkg-linux-file">dumpcat-1.7.0-linux.tar.gz</span>
+              <span class="pkg-file" id="pkg-linux-file">dumpcat-1.8.0-linux.tar.gz</span>
               <span class="pkg-desc">amd64 및 arm64, 설치 프로그램, systemd 서비스, 매뉴얼</span>
             </a>
-            <a class="pkg" id="pkg-windows" href="https://downloads.dumpcat.cc/1.7.0/dumpcat-1.7.0-windows-amd64.zip">
+            <a class="pkg" id="pkg-windows" href="https://downloads.dumpcat.cc/1.8.0/dumpcat-1.8.0-windows-amd64.zip">
               <span class="pkg-os">Windows</span>
-              <span class="pkg-file" id="pkg-windows-file">dumpcat-1.7.0-windows-amd64.zip</span>
+              <span class="pkg-file" id="pkg-windows-file">dumpcat-1.8.0-windows-amd64.zip</span>
               <span class="pkg-desc">64비트, Windows 서비스용 설치 프로그램, 매뉴얼</span>
             </a>
           </div>
@@ -539,7 +547,7 @@ go build -o dumpcat ./cmd/dumpcat</code></pre>
           <ul class="bins" id="rel-bins"></ul>
           <p class="old">이전 버전은 <code>downloads.dumpcat.cc/&lt;version&gt;/</code>에서 계속 받을 수 있습니다.</p>
         </div>
-        <div class="notes wn" data-wn-version="1.7.0"><p class="wn-label">새 소식</p><h3><a href="/changelog/1.7.0/">DumpCat 1.7.0</a> <span class="wn-date">2026년 10월 20일</span></h3><p class="wn-lead" lang="en">AI assistants can set backups up: MCP tools that add and change database servers, storages, jobs and restore drills, for API tokens with the new Manage access. Passwords, keys and passphrases still never go through MCP.</p><ul class="wn-list" lang="en"><li><a href="/changelog/1.7.0/#ai-assistants-mcp">AI assistants (MCP)</a></li></ul><p class="wn-links"><a href="/changelog/1.7.0/">모든 변경 사항 보기 →</a><a href="/changelog/">이전 버전</a></p><p class="wn-note">릴리스 노트는 영어로 작성됩니다.</p></div>
+        <div class="notes wn" data-wn-version="1.8.0"><p class="wn-label">새 소식</p><h3><a href="/changelog/1.8.0/">DumpCat 1.8.0</a> <span class="wn-date">2026년 10월 21일</span></h3><p class="wn-lead" lang="en">Microsoft SQL Server is the third database engine: native full and differential backups, restores under new names or onto another server, restore drills with <code>DBCC CHECKDB</code>, and scheduled log backups for point-in-time recovery — also for SQL Server hosts that share no folder with DumpCat, through the agent.</p><ul class="wn-list" lang="en"><li><a href="/changelog/1.8.0/#sql-server">SQL Server</a></li><li><a href="/changelog/1.8.0/#everything-else">Everything else</a></li></ul><p class="wn-links"><a href="/changelog/1.8.0/">모든 변경 사항 보기 →</a><a href="/changelog/">이전 버전</a></p><p class="wn-note">릴리스 노트는 영어로 작성됩니다.</p></div>
       </div>
     </div>
   </section>
@@ -548,9 +556,10 @@ go build -o dumpcat ./cmd/dumpcat</code></pre>
 
 <footer class="foot">
   <div class="wrap">
-    <a class="brand" href="#top"><svg aria-hidden="true"><use href="#dc-logo"/></svg>DumpCat <span data-version>1.7.0</span></a>
+    <a class="brand" href="#top"><svg aria-hidden="true"><use href="#dc-logo"/></svg>DumpCat <span data-version>1.8.0</span></a>
     <p>Apache-2.0 라이선스의 오픈 소스이며, 소스는 <a href="https://github.com/theweakestharrison/DumpCat">GitHub</a>에 있습니다. <a href="/compare/">다른 도구와의 비교</a>. 영어와 베트남어로 된 전체 매뉴얼이 모든 패키지에 들어 있습니다.</p>
     <p class="foot-mail">문의: <a href="mailto:fat@dumpcat.cc">fat@dumpcat.cc</a></p>
+    <p class="foot-tm">MySQL은 Oracle 및/또는 그 계열사의, MariaDB는 MariaDB plc의, Percona Server는 Percona의, PostgreSQL은 PostgreSQL Community Association of Canada의, Microsoft와 SQL Server는 Microsoft 그룹사의 상표입니다. DumpCat은 독립적인 오픈 소스 프로젝트이며 이들과 제휴 관계가 없습니다.</p>
   </div>
 </footer>
 </body>

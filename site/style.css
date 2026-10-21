@@ -183,8 +183,14 @@ p code, li code, dd code, td code { background: var(--accent-soft); color: var(-
 .btn-light { background: var(--on-brand); color: var(--brand-deep); }
 .btn-ghost { color: var(--on-brand); border-color: var(--on-brand-line); }
 .btn-ghost:hover { background: rgba(255, 255, 255, 0.08); }
-.compat { margin: 26px 0 0; font: 500 0.8125rem/1.6 var(--font-mono); color: var(--on-brand-2); }
-.compat b { color: var(--on-brand); font-weight: 600; }
+/* supported databases: a neutral icon and the name (the vendors' logos need their licence) */
+.engines { display: flex; flex-wrap: wrap; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.engines li { display: inline-flex; align-items: center; gap: 8px; padding: 7px 12px 7px 9px; border: 1px solid var(--on-brand-line); border-radius: 10px;
+  background: rgba(255, 255, 255, 0.07); color: var(--on-brand-2); font: 500 0.75rem/1.2 var(--font-mono); white-space: nowrap; }
+.engines svg { width: 18px; height: 18px; flex: none; color: var(--on-brand); }
+.engines b { color: var(--on-brand); font: 650 0.875rem/1.2 var(--font-body); }
+@media (max-width: 560px) { .engines { gap: 6px; } .engines li { gap: 6px; padding: 5px 9px 5px 7px; font-size: 0.6875rem; }
+  .engines svg { width: 15px; height: 15px; } .engines b { font-size: 0.8125rem; } }
 .hero-mark { width: clamp(150px, 18vw, 210px); filter: drop-shadow(0 12px 24px rgba(4, 20, 50, 0.28)); }
 .hero-mark svg { display: block; width: 100%; height: auto; }
 @media (max-width: 860px) { .hero-main { grid-template-columns: minmax(0, 1fr); } .hero-mark { display: none; } }
@@ -428,6 +434,7 @@ tr.fit td { font-weight: 600; }
 .foot .brand { color: var(--ink); font-size: 1.05rem; }
 .foot .brand svg { width: 26px; height: 26px; box-shadow: none; }
 .foot p { margin: 0; }
+.foot .foot-tm { flex-basis: 100%; font-size: 0.75rem; line-height: 1.5; }
 
 /* download */
 .intro b { color: var(--ink); font-weight: 600; }

@@ -69,7 +69,6 @@
     },
     "choose_them": [
       "You manage many servers and want one cloud dashboard that also warns you when a server stops responding.",
-      "You also back up SQL Server and want one tool for both.",
       "You want automatic restores to another server, for example to keep a test copy up to date."
     ],
     "choose_us": [
@@ -105,7 +104,6 @@
     },
     "choose_them": [
       "Bạn quản lý nhiều server và muốn một bảng điều khiển trên cloud, báo cả khi server ngừng phản hồi.",
-      "Bạn cũng backup SQL Server và muốn dùng chung một công cụ.",
       "Bạn muốn tự động khôi phục sang server khác, ví dụ để giữ một bản test luôn mới."
     ],
     "choose_us": [
