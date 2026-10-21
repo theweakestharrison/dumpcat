@@ -124,7 +124,7 @@ export async function render(ctx) {
         <td class="hide-sm">${methodBadge(j.method)}</td>
         <td>${j.running ? statusBadge('running') : j.last_status ? html`${statusBadge(j.last_status)} <span class="sub">${fmtAgo(j.last_at)}</span>` : html`<span class="muted">never run</span>`}</td>
         <td class="hide-sm">${j.last_success_at ? fmtAgo(j.last_success_at) : html`<span class="muted">—</span>`}</td>
-        <td>${j.next_at ? html`${fmtDate(j.next_at)}${j.next_type === 'incremental' ? html` <span class="badge info">incr</span>` : ''}` : html`<span class="muted">manual</span>`}</td>
+        <td>${j.next_at ? html`${fmtDate(j.next_at)}${j.next_type === 'incremental' ? html` <span class="badge info">incr</span>` : j.next_type === 'differential' ? html` <span class="badge info">diff</span>` : ''}` : html`<span class="muted">manual</span>`}</td>
       </tr>`)}</tbody></table>` : empty('No backup jobs yet', 'clock', canOperate() ? { label: 'Create a job', href: '#/jobs/new' } : null));
     patch(el.querySelector('#d-recent'), d.recent.length ? html`<table class="table"><thead><tr><th>Backup</th><th>Job</th><th class="hide-sm">Type</th><th class="right hide-sm">Size</th><th>Status</th><th class="hide-md">Stored at</th></tr></thead><tbody>
       ${d.recent.map((r) => html`<tr class="clickable">

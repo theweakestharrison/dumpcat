@@ -53,7 +53,7 @@ export async function render(ctx) {
           <div class="field"><label class="req">Sandbox server</label><select name="target_server_id">${serverOptions(d.target_server_id)}</select>
             <div class="help">The drill connects with the server's restore account (or its backup account), creates the temporary databases and drops them afterwards. A staging or spare server is best.</div>
             <div id="same-warn"></div></div>
-          <div class="field"><label id="threads-label">Restore threads (databases in parallel)</label><input type="number" name="threads" min="0" max="32" value="${d.options.threads}"></div>
+          <div class="field" id="threads-field"><label id="threads-label">Restore threads (databases in parallel)</label><input type="number" name="threads" min="0" max="32" value="${d.options.threads}"></div>
         </div>
         <div class="section-title" style="margin-top:16px">Databases</div>
         <div class="help" style="margin-bottom:8px">None selected: every database of the backup.</div>
@@ -73,13 +73,13 @@ export async function render(ctx) {
       </div></div>
 
       <div class="card"><div class="card-head"><h2>3. Checks</h2></div><div class="card-body">
-        <p class="help" style="margin-top:0">Always checked: the restore succeeds, every table of the backup exists in the copy, and each table holds exactly the rows the backup recorded (DumpCat counts them while it writes the dump).</p>
+        <p class="help" style="margin-top:0" id="checks-help">Always checked: the restore succeeds, every table of the backup exists in the copy, and each table holds exactly the rows the backup recorded (DumpCat counts them while it writes the dump).</p>
         <div class="field hidden" id="rows-field" style="max-width:560px;margin-bottom:14px"><label for="row_counts">Row counts</label><select name="row_counts" id="row_counts">
           <option value="" ${d.options.row_counts ? '' : 'selected'}>Count every row (COUNT(*) per table)</option>
-          <option value="estimate" ${d.options.row_counts === 'estimate' ? 'selected' : ''}>Estimate after ANALYZE (fast for very large tables; more than 10 % off is a warning)</option></select>
-          <div class="help">The server's statistics are exact for tables up to about 30,000 rows and close beyond.</div></div>
+          <option value="estimate" id="estimate-opt" ${d.options.row_counts === 'estimate' ? 'selected' : ''}>Estimate after ANALYZE (fast for very large tables; more than 10 % off is a warning)</option></select>
+          <div class="help" id="estimate-help">The server's statistics are exact for tables up to about 30,000 rows and close beyond.</div></div>
         <div class="section-title">Assertions (optional)</div>
-        <div class="help" style="margin-bottom:10px">One <code>SELECT</code> each, run inside the copy of the chosen database in a read-only session. It passes when the first column of the first row is true (not NULL, 0 or empty), e.g. <code>SELECT MAX(created_at) &gt; NOW() - INTERVAL 2 DAY FROM orders</code>.</div>
+        <div class="help" style="margin-bottom:10px" id="assert-help">One <code>SELECT</code> each, run inside the copy of the chosen database in a read-only session. It passes when the first column of the first row is true (not NULL, 0 or empty), e.g. <code>SELECT MAX(created_at) &gt; NOW() - INTERVAL 2 DAY FROM orders</code>.</div>
         <div id="asserts"></div>
         <button type="button" class="btn btn-sm" id="add-assert">${icon('plus')}Add assertion</button>
       </div></div>
@@ -153,6 +153,17 @@ export async function render(ctx) {
     $('#rows-field', el).classList.toggle('hidden', !mi.method.estimates);
     $('#no-binlog-box', el).classList.toggle('hidden', mi.engine.engine !== 'mysql');
     $('#threads-label', el).textContent = j && j.job.method === 'pg_dump' ? 'Restore threads (pg_restore --jobs)' : 'Restore threads (databases in parallel)';
+    // SQL Server: native restores one database at a time, counts from sys.partitions, DBCC CHECKDB
+    const ms = mi.engine.engine === 'mssql';
+    $('#threads-field', el).classList.toggle('hidden', ms);
+    setHTML($('#checks-help', el), ms
+      ? html`Always checked: the restore succeeds (the full backup, then the differential), <code>DBCC CHECKDB</code> finds no allocation or consistency error in each copy, every table of the backup exists in the copy, and each table holds the rows SQL Server counted right after the backup (<code>sys.partitions</code>). A database written to while the backup ran can differ by those rows: use the estimate below for it.`
+      : html`Always checked: the restore succeeds, every table of the backup exists in the copy, and each table holds exactly the rows the backup recorded (DumpCat counts them while it writes the dump).`);
+    $('#estimate-opt', el).textContent = ms ? 'The server\'s row counts (sys.partitions; more than 10 % off is a warning)' : 'Estimate after ANALYZE (fast for very large tables; more than 10 % off is a warning)';
+    $('#estimate-help', el).textContent = ms ? 'Fast for very large tables: no COUNT(*) on the copy.' : 'The server\'s statistics are exact for tables up to about 30,000 rows and close beyond.';
+    setHTML($('#assert-help', el), ms
+      ? html`One <code>SELECT</code> each, run inside the copy of the chosen database in a transaction that is rolled back. It passes when the first column of the first row is true (not NULL, 0 or empty), e.g. <code>SELECT CASE WHEN MAX(created_at) &gt; DATEADD(day, -2, SYSDATETIME()) THEN 1 ELSE 0 END FROM orders</code>.`
+      : html`One <code>SELECT</code> each, run inside the copy of the chosen database in a read-only session. It passes when the first column of the first row is true (not NULL, 0 or empty), e.g. <code>SELECT MAX(created_at) &gt; NOW() - INTERVAL 2 DAY FROM orders</code>.`);
   };
 
   const cronPreview = async () => {

@@ -25,6 +25,7 @@ export async function render(ctx) {
   let servers = ofEngine(srvList);
   const physical = !!mi.physical;
   const pg = eng.engine === 'postgres';
+  const ms = eng.engine === 'mssql';
   const L = logInfo(eng.log);
   const single = r.meta && r.meta.single_file === true;
   const hasUsers = r.files.some((f) => f.kind === 'users');
@@ -32,7 +33,9 @@ export async function render(ctx) {
   const needPass = r.encrypted && !r.has_passphrase;
   const srcServer = servers.find((s) => s.id === r.server_id);
   // where replaying the archived log starts: a binlog position, the end of a pg_basebackup's WAL
-  const hasPos = pg ? !!(r.meta && r.meta.end_lsn) : !!(r.meta && r.meta.binlog_file) || r.databases.some((d) => d.binlog_file);
+  const hasPos = pg ? !!(r.meta && r.meta.end_lsn)
+    : ms ? Object.values((r.meta && r.meta.mssql) || {}).some((h) => h.last_lsn && h.recovery_model !== 'SIMPLE')
+      : !!(r.meta && r.meta.binlog_file) || r.databases.some((d) => d.binlog_file);
   // MySQL replays binlogs into the server it applied a physical backup to; PostgreSQL recovers the directory itself
   const canPITR = hasPos && (!physical || pg || isAdmin());
   // the driver's restore options for this backup: "options" and "compat" (ticked from the target check)
@@ -47,8 +50,8 @@ export async function render(ctx) {
   try { pitrPre = query.pitr ? JSON.parse(query.pitr) : null; } catch { pitrPre = null; }
   // restore points of the job's archived WAL, suggested as targets
   let points = [];
-  if (mi.log_archive && L.targets.includes('name') && r.job_id) {
-    try { points = [...new Set((await get(`/jobs/${r.job_id}/binlogs?limit=1000`)).items.flatMap((f) => ((f.meta && f.meta.points) || []).map((x) => x.name)))]; } catch { points = []; }
+  if (mi.log_archive && (L.targets.includes('name') || L.targets.includes('mark')) && r.job_id) {
+    try { points = [...new Set((await get(`/jobs/${r.job_id}/binlogs?limit=1000`)).items.flatMap((f) => ((f.meta && (f.meta.points || f.meta.marks)) || []).map((x) => x.name)))]; } catch { points = []; }
   }
 
   setHTML(el, html`
@@ -59,7 +62,7 @@ export async function render(ctx) {
         <div class="field"><label>Read data from</label><select name="location_id">
           <option value="0">Automatic (prefer local storage)</option>
           ${okLocs.map((l) => html`<option value="${l.id}">${l.storage_name} (${l.storage_type})</option>`)}</select>
-          <div class="help">Data is streamed directly: download → decrypt → decompress → load into the database, with no temporary files (except mydumper, pg_dump and physical backups, which are extracted to a directory first).</div></div>
+          <div class="help">${ms ? 'Each file is downloaded, decrypted and decompressed into the target server\'s backup folder, checked there (RESTORE VERIFYONLY) and restored by SQL Server, then deleted.' : 'Data is streamed directly: download → decrypt → decompress → load into the database, with no temporary files (except mydumper, pg_dump and physical backups, which are extracted to a directory first).'}</div></div>
         <div class="field"><label>Size</label><div style="padding-top:8px">${fmtBytes(r.size_bytes)} stored · ${fmtBytes(r.raw_bytes)} raw data</div></div>
         ${needPass ? html`<div class="field full"><label class="req">Decryption passphrase</label><input type="password" name="passphrase" required autocomplete="off"><div class="help">This backup was imported from storage, so its passphrase isn't stored in DumpCat.</div></div>` : ''}
       </div>
@@ -111,7 +114,7 @@ export async function render(ctx) {
       <div class="form-grid">
         <div class="field"><label class="req">Restore to server</label><div style="display:flex;gap:8px"><select name="target_server_id" style="flex:1;min-width:0">${serverOptions(false)}</select>${newServerBtn}</div>
           <div class="help">The source server or any other instance DumpCat can reach: another host, port or version${srcVersion ? html` (backup taken from ${srcVersion})` : ''}.</div></div>
-        <div class="field"><label>${r.method === 'pg_dump' ? 'pg_restore jobs' : 'Databases restored in parallel'}</label><input type="number" name="threads" value="${r.method === 'mydumper' || r.method === 'pg_dump' ? 4 : 1}" min="1" max="32">
+        <div class="field ${ms ? 'hidden' : ''}"><label>${r.method === 'pg_dump' ? 'pg_restore jobs' : 'Databases restored in parallel'}</label><input type="number" name="threads" value="${r.method === 'mydumper' || r.method === 'pg_dump' ? 4 : 1}" min="1" max="32">
           <div class="help">${r.method === 'mydumper' ? 'Number of myloader threads (loads many tables/chunks in parallel).' : r.method === 'pg_dump' ? 'Tables and indexes restored in parallel (pg_restore --jobs), one database at a time.' : 'Each database uses its own mysql process.'}</div></div>
       </div>
       <div id="target-info" style="margin-top:12px"></div>
@@ -129,14 +132,15 @@ export async function render(ctx) {
       <div class="help" style="margin-bottom:8px">${eng.engine === 'mysql' ? 'For restores onto another instance or version. Schema statements are rewritten while streaming; row data is never changed.' : 'For restores onto another server, where the roles of the source may not exist.'} Ticked automatically from what DumpCat finds on the target.</div>
       <div class="checks">${optList('compat').map(optBox)}</div>` : ''}
     </div></div>`}
-    <div class="card ${mi.log_archive ? '' : 'hidden'}"><div class="card-head"><h2>Point-in-time recovery</h2>${hasPos ? '' : html`<span class="badge">no ${pg ? 'WAL' : 'binlog'} position</span>`}</div><div class="card-body">
-      <label class="check"><input type="checkbox" name="pitr" ${canPITR && pitrPre ? 'checked' : ''} ${canPITR ? '' : 'disabled'}><span><b>Replay the archived ${pg ? 'WAL' : 'binlogs'} after the restore</b><span class="help">${!hasPos
-        ? (pg ? 'This backup does not record where its WAL ends, so it cannot be a starting point.' : 'This backup does not record its binlog position (mysqldump: enable "Record binlog position", or turn on binlog archiving for the job), so it cannot be a starting point.')
+    <div class="card ${mi.log_archive ? '' : 'hidden'}"><div class="card-head"><h2>Point-in-time recovery</h2>${hasPos ? '' : html`<span class="badge">no ${pg ? 'WAL position' : ms ? 'log chain' : 'binlog position'}</span>`}</div><div class="card-body">
+      <label class="check"><input type="checkbox" name="pitr" ${canPITR && pitrPre ? 'checked' : ''} ${canPITR ? '' : 'disabled'}><span><b>${ms ? 'Restore the archived log backups after the backup' : html`Replay the archived ${pg ? 'WAL' : 'binlogs'} after the restore`}</b><span class="help">${!hasPos
+        ? (pg ? 'This backup does not record where its WAL ends, so it cannot be a starting point.' : ms ? 'This backup records no LSNs of a database in the FULL or BULK_LOGGED recovery model, so no log backups can follow it.' : 'This backup does not record its binlog position (mysqldump: enable "Record binlog position", or turn on binlog archiving for the job), so it cannot be a starting point.')
+        : ms ? html`The backup is restored <code>WITH NORECOVERY</code>, then the archived log backups of each database in order, up to the moment you choose — a time, a marked transaction or an LSN (<code>RESTORE LOG … WITH STOPAT / STOPATMARK</code>), e.g. just before an accidental <code>DROP TABLE</code>. Every log backup is downloaded and checked <b>before</b> anything is changed; a broken log chain stops the plan.`
         : pg ? html`PostgreSQL recovers the restored cluster from the archived WAL up to the moment you choose — a time, a restore point or a WAL position — e.g. just before an accidental <code>DROP TABLE</code>, then it is promoted on a new timeline. Every WAL segment is downloaded and checked <b>before</b> anything is changed.`
         : html`Restores this backup, then applies the archived binary logs up to the moment you choose — e.g. just before an accidental DROP TABLE. All binlogs are downloaded and checked <b>before</b> anything is changed.${physical ? html` For a physical backup this needs <b>Apply right away</b> and a server (to connect to after it starts); the whole instance is replayed.${isAdmin() ? '' : ' Only admins can do this.'}` : ' Only the restored databases are replayed, each from its own snapshot position, under their new names.'}`}</span></span></label>
       <div id="pitr-box" class="${canPITR && pitrPre ? '' : 'hidden'}" style="margin-top:14px">
         ${pitrTargetFields(pitrPre || {}, eng.log, points)}
-        ${physical ? '' : html`<div class="help" style="margin-top:6px">With <code>binlog_format</code> MIXED/STATEMENT, statements are filtered by their default database: statements naming other databases explicitly (<code>UPDATE other.t …</code>) are not renamed. Use ROW format for exact renamed restores.</div>`}
+        ${physical || ms ? '' : html`<div class="help" style="margin-top:6px">With <code>binlog_format</code> MIXED/STATEMENT, statements are filtered by their default database: statements naming other databases explicitly (<code>UPDATE other.t …</code>) are not renamed. Use ROW format for exact renamed restores.</div>`}
         <div id="pitr-plan" style="margin-top:12px"></div>
       </div>
     </div></div>
@@ -195,6 +199,10 @@ export async function render(ctx) {
     });
     const live = overwrites();
     const srv = servers.find((x) => x.id === targetId());
+    if (ms && live.length && !(form.drop_existing && form.drop_existing.checked)) {
+      setHTML($('#overwrite-warn', el), html`<div class="alert warn" role="alert">${icon('alert')}<div><b>${live.join(', ')} already exist${live.length === 1 ? 's' : ''} on ${srv ? srv.name : 'the target server'}.</b> SQL Server restores whole databases: tick <b>Replace existing databases</b> to overwrite ${live.length === 1 ? 'it' : 'them'}, or <button type="button" class="btn btn-sm" data-suffix>restore under new names</button>.</div></div>`);
+      return;
+    }
     setHTML($('#overwrite-warn', el), live.length ? html`<div class="banner-danger" role="alert">${icon('alert')}<div>
         <b>This will overwrite ${live.length} ${sameTarget() ? 'live' : 'existing'} database${live.length === 1 ? '' : 's'} on ${srv ? srv.name : 'the target server'}:</b> <code>${live.join(', ')}</code>.
         Current data in ${live.length === 1 ? 'it' : 'them'} is replaced by the backup from ${fmtDate(r.started_at)}.
@@ -242,7 +250,7 @@ export async function render(ctx) {
     if (!pitrOn()) return;
     const target = readPITRTarget(pitrBox);
     if (!target) { plan = null; setHTML(box, html`<div class="muted small">Enter where to stop.</div>`); return; }
-    setHTML(box, html`<div class="muted small">${icon('loader', 'spin')} Checking the archived ${pg ? 'WAL' : 'binlogs'}…</div>`);
+    setHTML(box, html`<div class="muted small">${icon('loader', 'spin')} Checking the archived ${L.files}…</div>`);
     try { plan = await post('/pitr/plan', { run_id: r.id, target }); } catch (er) { plan = { ok: false, target: target.type, error: er.message }; }
     if (ctx.alive()) setHTML(box, pitrPlanView(plan, r.id, target));
   };
@@ -299,7 +307,10 @@ export async function render(ctx) {
       const fixes = PORTABLE.filter((k) => req[k]).map((k) => SHORT[k] || k);
       // overwriting existing databases on the target needs the typed confirmation too
       dangerous = req.drop_existing || overwrites().length > 0;
-      summary = html`Restore ${dbs.length} database(s) to <b>${target ? target.name : ''}</b>${check && check.ok ? html` (${flavorName(check.flavor, check.version)}${check.same_server ? '' : ', another instance'})` : ''}: <code>${names.join(', ')}</code>.${req.drop_existing ? html`<br><b style="color:var(--critical-ink)">The target databases will be dropped first.</b>` : html`<br>Tables with the same name in the target databases will be overwritten.`}${fixes.length ? html`<br>Compatibility: ${fixes.join(', ')}.` : ''}`;
+      const effect = ms
+        ? (req.drop_existing ? html`<br><b style="color:var(--critical-ink)">Databases of the same name are replaced (WITH REPLACE).</b>` : html`<br>A database of the same name stops the restore before anything is changed.`)
+        : req.drop_existing ? html`<br><b style="color:var(--critical-ink)">The target databases will be dropped first.</b>` : html`<br>Tables with the same name in the target databases will be overwritten.`;
+      summary = html`Restore ${dbs.length} database(s) to <b>${target ? target.name : ''}</b>${check && check.ok ? html` (${flavorName(check.flavor, check.version)}${check.same_server ? '' : ', another instance'})` : ''}: <code>${names.join(', ')}</code>.${effect}${fixes.length ? html`<br>Compatibility: ${fixes.join(', ')}.` : ''}`;
     }
     if (pitrOn()) {
       const target = readPITRTarget(pitrBox);
@@ -308,7 +319,7 @@ export async function render(ctx) {
       if (physical && !pg && !req.target_server_id) { toast('Choose the server to replay the binlogs into', 'bad'); return; }
       if (!plan || !plan.ok || !plan.run_ok) { toast(plan && (plan.run_error || plan.error) ? (plan.run_error || plan.error) : 'Point-in-time recovery is not possible from this backup', 'bad', 9000); return; }
       req.pitr = target;
-      summary = html`${summary || html`Restore backup <b>${r.dir_name}</b>.`}<br>${pg ? html`Recovered from the archived WAL up to <b>${plan.target}</b>.` : html`Then replay binlogs up to <b>${plan.target}</b>.`}`;
+      summary = html`${summary || html`Restore backup <b>${r.dir_name}</b>.`}<br>${pg ? html`Recovered from the archived WAL up to <b>${plan.target}</b>.` : ms ? html`Then the archived log backups up to <b>${plan.target}</b>.` : html`Then replay binlogs up to <b>${plan.target}</b>.`}`;
     }
     const okd = await confirmBox({ title: 'Confirm restore', message: summary || 'Start the restore?', danger: dangerous, okText: 'Restore', typeText: dangerous ? 'RESTORE' : '' });
     if (!okd) return;

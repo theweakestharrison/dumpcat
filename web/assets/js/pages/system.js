@@ -20,7 +20,8 @@ sudo percona-release enable pxb-80   # MySQL 8.4: pxb-84-lts
 sudo apt update && sudo apt install -y percona-xtrabackup-80   # or percona-xtrabackup-84
 # PostgreSQL: the client tools of your server's major version (here 16), from apt.postgresql.org
 sudo apt install -y postgresql-common && sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
-sudo apt install -y postgresql-client-16`,
+sudo apt install -y postgresql-client-16
+# SQL Server: nothing to install (BACKUP and RESTORE run inside SQL Server; see the backup folder of the server)`,
   'RHEL / Rocky / Alma': `sudo dnf install -y mariadb  # or: mysql
 curl https://rclone.org/install.sh | sudo bash
 # mydumper: download the .rpm from https://github.com/mydumper/mydumper/releases
@@ -32,7 +33,8 @@ sudo percona-release enable pxb-80
 sudo dnf install -y percona-xtrabackup-80
 # PostgreSQL: the client tools of your server's major version (here 16), from the PGDG repository
 sudo dnf install -y https://download.postgresql.org/pub/repos/yum/reporpms/EL-$(rpm -E %rhel)-x86_64/pgdg-redhat-repo-latest.noarch.rpm
-sudo dnf install -y postgresql16`,
+sudo dnf install -y postgresql16
+# SQL Server: nothing to install (BACKUP and RESTORE run inside SQL Server; see the backup folder of the server)`,
 };
 
 function diskBar(d) {

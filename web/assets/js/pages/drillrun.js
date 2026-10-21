@@ -5,7 +5,7 @@ import { taskList, attachLog, backBtn, fmtRTO } from '../components.js';
 
 export const title = 'Drill result';
 
-const KIND = { restore: 'Restore', tables: 'Tables', rows: 'Row counts', sql: 'Assertion', rto: 'Restore time', cleanup: 'Cleanup' };
+const KIND = { restore: 'Restore', tables: 'Tables', rows: 'Row counts', integrity: 'Integrity', sql: 'Assertion', rto: 'Restore time', cleanup: 'Cleanup' };
 
 function checkRows(checks) {
   return checks.map((c) => html`<tr>

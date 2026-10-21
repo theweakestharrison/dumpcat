@@ -39,20 +39,47 @@ GRANT pg_read_all_data TO dumpcat;
 CREATE ROLE dumpcat_restore LOGIN CREATEDB CREATEROLE PASSWORD 'another_password';
 -- pg_hba.conf must let the DumpCat host (or the agent) in, e.g.
 --   host  all  dumpcat,dumpcat_restore  10.0.0.5/32  scram-sha-256`,
+  mssql: `-- a SQL Server login for backups (or a Windows login: CREATE LOGIN [DOMAIN\\dumpcat] FROM WINDOWS)
+CREATE LOGIN dumpcat WITH PASSWORD = 'a_strong_password';
+-- reading backup headers (the log chain) needs CREATE DATABASE permission;
+-- server state and file locations for the checks
+GRANT CREATE ANY DATABASE, VIEW SERVER STATE, VIEW ANY DEFINITION TO dumpcat;
+-- in every database to back up:
+USE [shop];
+CREATE USER dumpcat FOR LOGIN dumpcat;
+ALTER ROLE db_backupoperator ADD MEMBER dumpcat;
+ALTER ROLE db_datareader ADD MEMBER dumpcat; -- row counts for restore drills
+-- (or simply: ALTER SERVER ROLE sysadmin ADD MEMBER dumpcat;)
+-- restores create and replace databases: a separate login
+CREATE LOGIN dumpcat_restore WITH PASSWORD = 'another_password';
+ALTER SERVER ROLE dbcreator ADD MEMBER dumpcat_restore;
+-- replacing an existing database needs its owner or sysadmin.
+-- Windows: the SQL Server service account (NT Service\\MSSQLSERVER) needs Modify
+-- permission on the backup folder; Linux: chown mssql:mssql <folder>`,
 };
 
 // The engine a server form is about.
 const isPG = (e) => e === 'postgres';
+const isMS = (e) => e === 'mssql';
+const PRODUCT = { postgres: 'PostgreSQL', mssql: 'SQL Server' };
 
 function infoView(res) {
   if (!res.ok) return html`<div class="alert bad">${icon('alert')}<div><b>Connection failed:</b> ${res.error}</div></div>`;
   const i = res.info;
   const user = i.databases.filter((d) => !d.system);
   const pg = isPG(i.engine);
+  const ms = isMS(i.engine);
   return html`
-    <div class="alert good" style="margin-bottom:14px">${icon('check')}<div>Connected — <b>${pg ? 'PostgreSQL ' : ''}${i.version}</b> ${i.version_comment ? html`<span class="muted">(${i.version_comment})</span>` : ''}</div></div>
+    <div class="alert good" style="margin-bottom:14px">${icon('check')}<div>Connected — <b>${pg ? 'PostgreSQL ' : ms ? (i.edition || 'SQL Server') + ' ' : ''}${i.version}</b> ${i.version_comment ? html`<span class="muted">(${i.version_comment})</span>` : ''}</div></div>
     <div class="kv" style="margin-bottom:14px">
-      ${pg ? html`<div>Cluster / address</div><div>${i.hostname}</div>
+      ${ms ? html`<div>Server</div><div>${i.hostname} · ${i.platform}</div>
+        <div>Service account</div><div class="mono small">${i.service_account || html`<span class="muted">not visible to this account (VIEW SERVER STATE)</span>`}</div>
+        <div>Backup folder</div><div class="mono small">${i.backup_dir || html`<span class="muted">—</span>`}</div>
+        <div>Data files</div><div class="mono small">${i.datadir || '—'}</div>
+        <div>Compression</div><div>${i.backup_compression ? 'Available in this edition' : 'Not in this edition: DumpCat compresses'}</div>
+        <div>Replication</div><div>${i.is_replica ? 'Secondary replica of an availability group' : 'Primary'}</div>
+        <div>Current login</div><div class="mono small">${i.current_user}${i.grants && i.grants.length ? html` <span class="muted">(${i.grants.join(', ')})</span>` : ''}</div>`
+    : pg ? html`<div>Cluster / address</div><div>${i.hostname}</div>
         <div>Data directory</div><div class="mono small">${i.datadir || html`<span class="muted">not readable by this account</span>`}</div>
         <div>WAL level</div><div>${i.wal_level || '—'}</div>
         <div>Replication</div><div>${i.is_replica ? 'This is a standby' : 'Primary'}${i.read_only ? ' · default_transaction_read_only' : ''}</div>
@@ -65,11 +92,12 @@ function infoView(res) {
       <div>Uptime</div><div>${fmtDur(i.uptime)}</div>
       <div>Total data</div><div>${fmtBytes(i.total_bytes)} · ${user.length} database(s)</div>
     </div>
+    ${i.backup_dir_error ? html`<div class="alert bad" style="margin-bottom:14px">${icon('alert')}<div><b>Backup folder:</b> ${i.backup_dir_error}</div></div>` : ''}
     ${res.support ? html`<div class="section-title">Backup methods</div>
-      ${res.support.map((s) => html`<div class="alert ${s.ok ? 'good' : 'warn'}">${icon(s.ok ? 'check' : 'alert')}<div><b>${s.method === 'physical' ? 'Physical (xtrabackup/mariabackup)' : s.method}</b> — ${s.message}</div></div>`)}` : ''}
+      ${res.support.map((s) => html`<div class="alert ${s.ok ? 'good' : 'warn'}">${icon(s.ok ? 'check' : 'alert')}<div><b>${s.method === 'physical' ? 'Physical (xtrabackup/mariabackup)' : s.method === 'mssql_native' ? 'Native backup (BACKUP DATABASE)' : s.method}</b> — ${s.message}</div></div>`)}` : ''}
     ${i.warnings && i.warnings.length ? html`<div class="section-title" style="margin-top:14px">Notes</div>${i.warnings.map((w) => html`<div class="alert warn">${icon('alert')}<div>${w}</div></div>`)}` : ''}
-    ${user.length ? html`<div class="section-title" style="margin-top:14px">Databases</div><div class="table-wrap" style="max-height:300px;overflow:auto"><table class="table"><thead><tr><th>Name</th><th class="right">Size</th><th class="right">Tables</th><th>${pg ? 'Encoding · locale' : 'Charset'}</th></tr></thead><tbody>
-      ${user.map((d) => html`<tr><td><b>${d.name}</b>${d.non_innodb ? html` <span class="badge warn" title="Non-InnoDB tables">${d.non_innodb} non-InnoDB</span>` : ''}</td><td class="right num">${fmtBytes(d.size_bytes)}</td><td class="right num">${d.tables}</td><td class="small">${d.charset}${pg && d.collation ? ' · ' + d.collation : ''}</td></tr>`)}</tbody></table></div>` : ''}`;
+    ${user.length ? html`<div class="section-title" style="margin-top:14px">Databases</div><div class="table-wrap" style="max-height:300px;overflow:auto"><table class="table"><thead><tr><th>Name</th><th class="right">Size</th><th class="right">Tables</th><th>${pg ? 'Encoding · locale' : ms ? 'Recovery model · collation' : 'Charset'}</th></tr></thead><tbody>
+      ${user.map((d) => html`<tr><td><b>${d.name}</b>${d.non_innodb ? html` <span class="badge warn" title="Non-InnoDB tables">${d.non_innodb} non-InnoDB</span>` : ''}</td><td class="right num">${fmtBytes(d.size_bytes)}</td><td class="right num">${d.tables}</td><td class="small">${ms ? html`<span class="${d.recovery_model === 'SIMPLE' ? 'badge warn' : ''}">${d.recovery_model}</span> · ${d.collation}` : d.charset}${pg && d.collation ? ' · ' + d.collation : ''}</td></tr>`)}</tbody></table></div>` : ''}`;
 }
 
 // Ways to reach a server: directly, through an agent or a WireGuard peer.
@@ -88,6 +116,12 @@ function findRoute(routes, value) {
 // Help under the Connect select: where the address is seen from.
 function connectHelp(rt, wgOn, engine) {
   const pg = isPG(engine);
+  if (isMS(engine)) {
+    if (!rt) return html`DumpCat connects to the address below (TCP; <span class="mono">host\\INSTANCE</span> with an empty port asks the SQL Server Browser). SQL Server writes its backups on its own disk: see <b>Backup folder</b> below.`;
+    if (rt.kind === 'wg') return html`DumpCat connects through its built-in WireGuard: enter the SQL Server host's WireGuard address <span class="mono">${rt.p.peer.address}</span> and the instance's TCP port. The backup folder must be shared with the DumpCat host (below).`;
+    return html`The agent opens the connection: enter the address <b>as seen from the agent host</b>, usually 127.0.0.1 port 1433; the agent must allow it (<span class="mono">-allow 127.0.0.1:1433</span>). The backup folder must be shared with the DumpCat host (below).
+      <div style="margin-top:6px">${rt.a.status.online ? html`<span class="badge good">${icon('check')}Online</span>${rt.a.status.hostname ? ` on ${rt.a.status.hostname}` : ''}` : html`<span class="badge warn">${icon('alert')}Offline</span> start the agent on the database host`}</div>`;
+  }
   if (!rt) return html`DumpCat connects to the address below. If the database host accepts no inbound connections, add an <a href="#/agents">agent</a> or a <a href="#/wireguard">WireGuard peer</a> on it.`;
   if (rt.kind === 'wg') {
     const { peer: p, status: st } = rt.p;
@@ -107,6 +141,7 @@ function serverForm(s = {}, routes = { agents: [], peers: [], wgOn: false }, eng
   const rt = findRoute(routes, cur);
   const engine = engineOf(engs, s.engine).engine;
   const pg = isPG(engine);
+  const ms = isMS(engine);
   return html`<form id="srv-form" autocomplete="off">
   ${!s.id ? html`<div class="alert info" style="margin-bottom:14px">${icon('shield')}<div>Use a dedicated, least-privilege database account for backups (not root or postgres).
     <button type="button" class="btn btn-sm" id="show-grant" style="margin-left:4px">Show the SQL to create it</button></div></div>` : ''}
@@ -118,23 +153,32 @@ function serverForm(s = {}, routes = { agents: [], peers: [], wgOn: false }, eng
       ${routes.agents.length ? html`<optgroup label="Agents">${routes.agents.map(({ agent: a, status: st }) => html`<option value="agent:${a.id}" ${cur === `agent:${a.id}` ? 'selected' : ''}>Through agent: ${a.name}${st.online ? '' : ' (offline)'}</option>`)}</optgroup>` : ''}
       ${routes.peers.length ? html`<optgroup label="WireGuard">${routes.peers.map(({ peer: p, status: st }) => html`<option value="wg:${p.id}" ${cur === `wg:${p.id}` ? 'selected' : ''}>Through WireGuard: ${p.name} (${p.address})${!routes.wgOn ? ' — WireGuard off' : st.online ? '' : ' (not connected)'}</option>`)}</optgroup>` : ''}</select>
       <div class="help" id="connect-help">${connectHelp(rt, routes.wgOn, engine)}</div></div>
-    <div class="field"><label>Host</label><input type="text" name="host" value="${v('host', '127.0.0.1')}" placeholder="127.0.0.1 or db.example.com"></div>
+    <div class="field"><label>Host</label><input type="text" name="host" value="${v('host', '127.0.0.1')}" placeholder="${ms ? 'sql01.example.com or sql01\\SQLEXPRESS' : '127.0.0.1 or db.example.com'}"></div>
     <div class="field"><label>Port</label><input type="number" name="port" value="${v('port', engineOf(engs, engine).default_port)}" min="1" max="65535"></div>
-    <div class="field full"><label>Unix socket <span class="muted" id="socket-note">(optional — used when host is localhost${pg ? '; the socket directory' : ''})</span></label><input type="text" name="socket" value="${v('socket')}" placeholder="${pg ? '/var/run/postgresql' : '/var/run/mysqld/mysqld.sock'}"></div>
-    <div class="field"><label class="req">User</label><input type="text" name="username" value="${v('username', 'dumpcat')}" required autocomplete="off"></div>
+    <div class="field full ${ms ? 'hidden' : ''}" id="socket-field"><label>Unix socket <span class="muted" id="socket-note">(optional — used when host is localhost${pg ? '; the socket directory' : ''})</span></label><input type="text" name="socket" value="${v('socket')}" placeholder="${pg ? '/var/run/postgresql' : '/var/run/mysqld/mysqld.sock'}"></div>
+    <div class="field"><label class="req">User</label><input type="text" name="username" value="${v('username', 'dumpcat')}" required autocomplete="off">
+      <div class="help ${ms ? '' : 'hidden'}" id="user-help">A SQL Server login, or <span class="mono">DOMAIN\\user</span> for Windows authentication (NTLM).</div></div>
     <div class="field"><label>Password</label><input type="password" name="password" placeholder="${s.has_password ? '•••••• saved — leave blank to keep' : ''}" autocomplete="new-password">
       <div class="help">Stored encrypted with AES-256-GCM; never appears on a command line.</div></div>
     <div class="field ${pg ? 'hidden' : ''}" id="flavor-field"><label>Server flavor</label><select name="flavor">${[['auto', 'Auto-detect'], ['mysql', 'MySQL'], ['percona', 'Percona Server'], ['mariadb', 'MariaDB']].map(([a, b]) => html`<option value="${a}" ${v('flavor', 'auto') === a ? 'selected' : ''}>${b}</option>`)}</select></div>
     <div class="field"><label>TLS</label><select name="tls_mode">${[['', 'Client default'], ['disabled', 'Disabled'], ['required', 'Required (no certificate check)'], ['verify', 'Required + verify certificate']].map(([a, b]) => html`<option value="${a}" ${v('tls_mode') === a ? 'selected' : ''}>${b}</option>`)}</select></div>
     <div class="field full ${v('tls_mode') === 'verify' ? '' : 'hidden'}" id="ca-field"><label>CA certificate (PEM)</label><textarea name="ca_cert" rows="3">${v('ca_cert')}</textarea></div>
   </div>
+  <details class="adv ${ms ? '' : 'hidden'}" id="folder-box" style="margin-top:14px" open><summary>Backup folder (SQL Server writes its backups on its own host)</summary>
+    <div class="help" style="margin-bottom:10px">BACKUP DATABASE writes on the SQL Server host. DumpCat reads each file from this folder, stores it on the job's storages and deletes it; restores pass through it the other way. When DumpCat runs on the SQL Server host the two paths are the same: leave the second one empty. Otherwise share the folder (an SMB share, or a mount on Linux) and enter how DumpCat sees it.</div>
+    <div class="form-grid">
+      <div class="field"><label>As SQL Server sees it</label><input type="text" name="backup_dir" value="${v('backup_dir')}" placeholder="empty: the instance's default backup folder">
+        <div class="help">e.g. <span class="mono">D:\\Backup\\DumpCat</span>, <span class="mono">\\\\nas\\sql-backup</span>, <span class="mono">/var/opt/mssql/dumpcat</span>. SQL Server's service account needs Modify permission there.</div></div>
+      <div class="field"><label>As DumpCat sees it</label><input type="text" name="backup_dir_local" value="${v('backup_dir_local')}" placeholder="empty: the same path">
+        <div class="help">e.g. <span class="mono">\\\\sql01\\DumpCat$</span> (Windows), <span class="mono">/mnt/sql01-backup</span> (Linux, a CIFS mount). "Test connection" checks that both name the same folder.</div></div>
+    </div></details>
   <details class="adv" style="margin-top:14px" ${s.restore_username ? 'open' : ''}><summary>Separate account for restores (recommended)</summary>
     <div class="help" style="margin-bottom:10px" id="restore-help">${restoreHelp(engine)}</div>
     <div class="form-grid">
       <div class="field"><label>Restore user</label><input type="text" name="restore_username" value="${v('restore_username')}" autocomplete="off"></div>
       <div class="field"><label>Restore password</label><input type="password" name="restore_password" placeholder="${s.has_restore_password ? '•••••• saved — leave blank to keep' : ''}" autocomplete="new-password"></div>
     </div></details>
-  <details class="adv ${(rt && rt.kind === 'wg') || pg ? 'hidden' : ''}" id="physical-box" style="margin-top:14px"><summary>For physical backup/restore (DumpCat on the database server itself, or an agent with --allow-physical)</summary>
+  <details class="adv ${(rt && rt.kind === 'wg') || pg || ms ? 'hidden' : ''}" id="physical-box" style="margin-top:14px"><summary>For physical backup/restore (DumpCat on the database server itself, or an agent with --allow-physical)</summary>
     <div class="form-grid">
       <div class="field"><label>Datadir</label><input type="text" name="datadir" value="${v('datadir')}" placeholder="auto-detected from @@datadir"></div>
       <div class="field ${rt ? 'hidden' : ''}" data-local><label>systemd service name</label><input type="text" name="service_name" value="${v('service_name')}" placeholder="mysql / mariadb / mysqld"></div>
@@ -143,12 +187,13 @@ function serverForm(s = {}, routes = { agents: [], peers: [], wgOn: false }, eng
   <div class="field" style="margin-top:14px"><label>Notes</label><input type="text" name="notes" value="${v('notes')}"></div>
   <div id="test-result" style="margin-top:14px"></div>
   <details class="adv" id="grant-box" style="margin-top:14px"><summary>SQL to create a least-privilege backup user</summary>
-    <div class="tabs" style="margin-bottom:8px"><button type="button" class="${pg ? '' : 'active'}" data-grant="mysql">MySQL / Percona</button><button type="button" data-grant="mariadb">MariaDB</button><button type="button" class="${pg ? 'active' : ''}" data-grant="postgres">PostgreSQL</button></div>
-    <pre class="code" id="grant-sql">${GRANT_SQL[pg ? 'postgres' : 'mysql']}</pre><button type="button" class="btn btn-sm" id="copy-grant" style="margin-top:8px">${icon('copy')}Copy</button>
+    <div class="tabs" style="margin-bottom:8px"><button type="button" class="${pg || ms ? '' : 'active'}" data-grant="mysql">MySQL / Percona</button><button type="button" data-grant="mariadb">MariaDB</button><button type="button" class="${pg ? 'active' : ''}" data-grant="postgres">PostgreSQL</button><button type="button" class="${ms ? 'active' : ''}" data-grant="mssql">SQL Server</button></div>
+    <pre class="code" id="grant-sql">${GRANT_SQL[pg ? 'postgres' : ms ? 'mssql' : 'mysql']}</pre><button type="button" class="btn btn-sm" id="copy-grant" style="margin-top:8px">${icon('copy')}Copy</button>
   </details></form>`;
 }
 
 function restoreHelp(engine) {
+  if (isMS(engine)) return 'Keep the backup login read-only; restores use a login that may create databases (dbcreator) — to replace an existing database it must own it, or be sysadmin. Leave blank to use the account above.';
   return isPG(engine)
     ? 'Keep the backup account read-only; restores use an account that may create databases (CREATEDB) and, to restore roles, CREATEROLE — or a superuser. Leave blank to use the account above.'
     : 'Keep the backup user read-only; restores use a user with write privileges (CREATE, DROP, INSERT, ALTER, CREATE ROUTINE, EVENT, TRIGGER… or ALL PRIVILEGES). Leave blank to use the account above.';
@@ -181,23 +226,28 @@ export async function openServerForm(s, onSaved, defaults = {}) {
   form.engine.addEventListener('change', () => {
     const e = form.engine.value;
     const pg = isPG(e);
+    const ms = isMS(e);
     const ports = engs.map((x) => String(x.default_port));
     if (!form.port.value || ports.includes(form.port.value)) form.port.value = engineOf(engs, e).default_port;
-    m.el.querySelector('#flavor-field').classList.toggle('hidden', pg);
+    m.el.querySelector('#flavor-field').classList.toggle('hidden', pg || ms);
+    m.el.querySelector('#socket-field').classList.toggle('hidden', ms);
+    m.el.querySelector('#folder-box').classList.toggle('hidden', !ms);
+    m.el.querySelector('#user-help').classList.toggle('hidden', !ms);
+    form.host.placeholder = ms ? 'sql01.example.com or sql01\\SQLEXPRESS' : '127.0.0.1 or db.example.com';
     form.socket.placeholder = pg ? '/var/run/postgresql' : '/var/run/mysqld/mysqld.sock';
     m.el.querySelector('#socket-note').textContent = `(optional — used when host is localhost${pg ? '; the socket directory' : ''})`;
     m.el.querySelector('#restore-help').textContent = restoreHelp(e);
     const rt = findRoute(routes, form.connect.value);
     setHTML(m.el.querySelector('#connect-help'), connectHelp(rt, routes.wgOn, e));
-    m.el.querySelector('#physical-box').classList.toggle('hidden', (!!rt && rt.kind === 'wg') || pg);
-    showGrant(pg ? 'postgres' : 'mysql');
+    m.el.querySelector('#physical-box').classList.toggle('hidden', (!!rt && rt.kind === 'wg') || pg || ms);
+    showGrant(pg ? 'postgres' : ms ? 'mssql' : 'mysql');
   });
   form.connect.addEventListener('change', () => {
     const rt = findRoute(routes, form.connect.value);
     setHTML(m.el.querySelector('#connect-help'), connectHelp(rt, routes.wgOn, form.engine.value));
     // through an agent the backup tool runs on the database host; replacing
     // its datadir (service, owner) only works where DumpCat runs
-    m.el.querySelector('#physical-box').classList.toggle('hidden', (!!rt && rt.kind === 'wg') || isPG(form.engine.value));
+    m.el.querySelector('#physical-box').classList.toggle('hidden', (!!rt && rt.kind === 'wg') || isPG(form.engine.value) || isMS(form.engine.value));
     m.el.querySelectorAll('[data-local]').forEach((f) => f.classList.toggle('hidden', !!rt));
     // through WireGuard the host is the peer's VPN address, not localhost
     if (rt && rt.kind === 'wg' && ['', '127.0.0.1', 'localhost', '::1'].includes(form.host.value.trim())) form.host.value = rt.p.peer.address;
@@ -236,14 +286,14 @@ export async function render(ctx) {
   };
   const draw = () => {
     setHTML(el, html`
-      <div class="page-head"><div><h1>Database servers</h1><div class="sub">The MySQL, MariaDB, Percona and PostgreSQL servers to back up</div></div>
+      <div class="page-head"><div><h1>Database servers</h1><div class="sub">The MySQL, MariaDB, Percona, PostgreSQL and SQL Server servers to back up</div></div>
         ${canOperate() ? html`<button class="btn btn-primary" id="add">${icon('plus')}Add server</button>` : ''}</div>
       <div class="card"><div class="table-wrap">${list.length ? html`<table class="table"><thead><tr><th>Name</th><th>Connection</th><th>Version</th><th class="hide-sm">User</th><th class="hide-sm">Notes</th><th></th></tr></thead><tbody>
-        ${list.map((s) => html`<tr><td><b>${s.name}</b></td><td class="mono small">${s.socket && (!s.host || s.host === 'localhost') ? s.socket : `${s.host}:${s.port}`}${s.tls_mode ? html` <span class="badge outline">${icon('lock')}TLS</span>` : ''}${routeBadge(s)}</td>
-          <td>${isPG(s.engine) ? html`<span class="badge outline">PostgreSQL</span> ` : ''}${s.version || html`<span class="muted">unknown</span>`}</td><td class="hide-sm">${s.username}</td><td class="hide-sm muted">${s.notes}</td>
+        ${list.map((s) => html`<tr><td><b>${s.name}</b></td><td class="mono small">${s.socket && (!s.host || s.host === 'localhost') ? s.socket : s.port ? `${s.host}:${s.port}` : s.host}${s.tls_mode && s.tls_mode !== 'disabled' ? html` <span class="badge outline">${icon('lock')}TLS</span>` : ''}${routeBadge(s)}</td>
+          <td>${PRODUCT[s.engine] ? html`<span class="badge outline">${PRODUCT[s.engine]}</span> ` : ''}${s.version || html`<span class="muted">unknown</span>`}</td><td class="hide-sm">${s.username}</td><td class="hide-sm muted">${s.notes}</td>
           <td class="actions"><button class="btn btn-sm" data-info="${s.id}">${icon('eye')}Check</button>
             ${canOperate() ? html`<button class="btn btn-sm btn-ghost btn-icon" data-edit="${s.id}" title="Edit">${icon('edit')}</button><button class="btn btn-sm btn-ghost btn-icon" data-del="${s.id}" title="Delete">${icon('trash')}</button>` : ''}</td></tr>`)}
-      </tbody></table>` : empty('No servers yet. Add your first MySQL, MariaDB or PostgreSQL server.', 'database')}</div></div>`);
+      </tbody></table>` : empty('No servers yet. Add your first MySQL, MariaDB, PostgreSQL or SQL Server server.', 'database')}</div></div>`);
   };
   draw();
   const reload = async () => {

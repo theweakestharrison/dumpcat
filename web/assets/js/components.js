@@ -24,6 +24,7 @@ export const helpText = (s) => html`${String(s || '').split('`').map((p, i) => (
 /** "MySQL 8.0.36", "MariaDB 11.4.13", "PostgreSQL 16.15". */
 export function productName(flavor, version) {
   if (flavor === 'postgres') return `PostgreSQL ${version || ''}`.trim();
+  if (flavor === 'mssql') return `SQL Server ${version || ''}`.trim();
   return `${flavor === 'mariadb' || /mariadb/i.test(version || '') ? 'MariaDB' : 'MySQL'} ${version || ''}`.trim();
 }
 
@@ -84,7 +85,7 @@ export function drillBadge(st, msg) {
 
 export function methodBadge(m, type) {
   const label = m === 'physical' ? 'Physical' : m;
-  return html`<span class="badge outline">${label}</span>${type === 'incremental' ? html` <span class="badge info">incr</span>` : ''}`;
+  return html`<span class="badge outline">${label}</span>${type === 'incremental' ? html` <span class="badge info">incr</span>` : type === 'differential' ? html` <span class="badge info">diff</span>` : ''}`;
 }
 
 // What an online agent reported about physical backups on its host:
@@ -165,8 +166,10 @@ export function localInput(d) {
 }
 
 export const PITR_TYPES = {
-  time: 'Point in time', gtid: 'Before a GTID', position: 'Binlog position', name: 'Restore point', lsn: 'WAL position (LSN)', latest: 'Latest available',
+  time: 'Point in time', gtid: 'Before a GTID', position: 'Binlog position', name: 'Restore point', lsn: 'WAL position (LSN)', mark: 'Marked transaction', latest: 'Latest available',
 };
+/** SQL Server's log: scheduled log backups, replayed by RESTORE LOG. */
+const isTrn = (L) => L.prefix === 'trn';
 
 /** MySQL's binlog: the log of servers that do not say otherwise. */
 const BINLOG = { name: 'binlog', file: 'binlog', files: 'binlogs', prefix: 'binlog', targets: ['time', 'gtid', 'position', 'latest'], close: 'FLUSH BINARY LOGS', recovery: false };
@@ -185,7 +188,9 @@ export function pitrTargetFields(t = {}, log, points = []) {
   const type = L.targets.includes(t.type) ? t.type : 'time';
   const when = t.time ? toDate(t.time) : new Date(Date.now() - 60000);
   const row = (pt, body) => (L.targets.includes(pt) ? html`<div class="pitr-row" data-pt="${pt}">${body}</div>` : '');
-  return html`<div class="seg pitr-seg" role="radiogroup" aria-label="Stop the recovery">${L.targets.map((v) => html`<label><input type="radio" name="pitr_type" value="${v}" ${type === v ? 'checked' : ''}><span>${PITR_TYPES[v] || v}</span></label>`)}</div>
+  const trn = isTrn(L);
+  const typeLabel = (v) => (v === 'lsn' && trn ? 'LSN' : PITR_TYPES[v] || v);
+  return html`<div class="seg pitr-seg" role="radiogroup" aria-label="Stop the recovery">${L.targets.map((v) => html`<label><input type="radio" name="pitr_type" value="${v}" ${type === v ? 'checked' : ''}><span>${typeLabel(v)}</span></label>`)}</div>
     <div class="pitr-fields">
       ${row('time', html`
         <div class="field"><label>Recover up to <span class="muted">(your local time)</span></label><input type="datetime-local" step="1" name="pitr_time" value="${localInput(when)}"></div>
@@ -202,10 +207,17 @@ export function pitrTargetFields(t = {}, log, points = []) {
         <div class="field grow"><label>Restore point</label><input type="text" name="pitr_name" value="${t.name || ''}" list="pitr-points" placeholder="before_migration" spellcheck="false" maxlength="63">
           <datalist id="pitr-points">${points.map((n) => html`<option value="${n}">`)}</datalist></div>
         <div class="help full">A point created on the server with <code>SELECT pg_create_restore_point('before_migration')</code>: the recovery stops exactly there.${points.length ? ` ${points.length} found in the archived WAL.` : ''}</div>`)}
-      ${row('lsn', html`
+      ${row('mark', html`
+        <div class="field grow"><label>Marked transaction</label><input type="text" name="pitr_mark" value="${t.type === 'mark' ? t.name || '' : ''}" list="pitr-marks" placeholder="before_migration" spellcheck="false" maxlength="128">
+          <datalist id="pitr-marks">${points.map((n) => html`<option value="${n}">`)}</datalist></div>
+        <div class="help full">A transaction started with <code>BEGIN TRANSACTION before_migration WITH MARK</code>: the recovery stops right after it commits (<code>STOPATMARK</code>).${points.length ? ` ${points.length} found in the archived log backups.` : ''}</div>`)}
+      ${row('lsn', trn ? html`
+        <div class="field grow"><label>Stop at LSN</label><input type="text" name="pitr_lsn" value="${t.lsn || ''}" placeholder="37000000012800001 or 00000025:00000080:0001" spellcheck="false"></div>
+        <div class="help full">The log record at this LSN is the last one restored (<code>STOPATMARK = 'lsn:…'</code>), e.g. from <code>fn_dblog</code> or the backup history.</div>` : html`
         <div class="field grow"><label>Stop at WAL position</label><input type="text" name="pitr_lsn" value="${t.lsn || ''}" placeholder="16/B374D848" spellcheck="false"></div>
         <div class="help full">The record at this position is the last one replayed, e.g. <code>pg_current_wal_lsn()</code> noted just before a risky change.</div>`)}
-      ${row('latest', html`
+      ${row('latest', trn ? html`
+        <div class="help full">Restores every archived log backup: the state of the newest one. To include the last minutes, close the log on the archive page first (a log backup at once).</div>` : html`
         <div class="help full">Replays every archived ${L.name === 'WAL' ? 'WAL segment' : 'binlog'}, plus the ${L.name === 'WAL' ? 'segment' : 'binlog'} DumpCat is still receiving: the most recent state that can be recovered.</div>`)}
     </div>`;
 }
@@ -236,7 +248,8 @@ function pitrStopText(t, p) {
     case 'gtid': return ['Just before a GTID', html`<code>${t.gtid}</code>`];
     case 'position': return ['At a binlog position', html`<code>${t.file}:${t.pos}</code>`];
     case 'name': return ['At a restore point', html`<code>${t.name}</code>`];
-    case 'lsn': return ['At a WAL position', html`<code>${t.lsn}</code>`];
+    case 'mark': return ['At a marked transaction', html`<code>${t.name}</code>`];
+    case 'lsn': return [log === 'WAL' ? 'At a WAL position' : 'At an LSN', html`<code>${t.lsn}</code>`];
     default: return ['Latest available', p.partial ? `including the ${log === 'WAL' ? 'segment' : 'binlog'} still being received` : (p.coverage ? `${p.files_name || 'binlogs'} up to ${fmtDate(p.coverage, true)}` : '')];
   }
 }
@@ -253,6 +266,7 @@ export function readPITRTarget(root) {
     case 'gtid': return v('pitr_gtid').trim() ? { type, gtid: v('pitr_gtid').trim() } : null;
     case 'position': return v('pitr_file').trim() && +v('pitr_pos') ? { type, file: v('pitr_file').trim(), pos: +v('pitr_pos') } : null;
     case 'name': return v('pitr_name') ? { type, name: v('pitr_name') } : null;
+    case 'mark': return v('pitr_mark').trim() ? { type, name: v('pitr_mark').trim() } : null;
     case 'lsn': return v('pitr_lsn').trim() ? { type, lsn: v('pitr_lsn').trim().toUpperCase() } : null;
     default: return { type: 'latest' };
   }

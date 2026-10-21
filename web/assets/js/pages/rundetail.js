@@ -12,7 +12,14 @@ const META_LABELS = {
   consistent_at: 'Data consistent at',
   start_lsn: 'WAL start (LSN)', end_lsn: 'WAL end (LSN)', timeline: 'Timeline', system_id: 'System identifier', wal_segment_size: 'WAL segment size',
   pg_major: 'PostgreSQL version', pg_dump_major: 'pg_dump version',
+  copy_only: 'Copy-only (COPY_ONLY)', native_compression: 'Compressed by SQL Server', edition: 'Edition', platform: 'Host OS',
 };
+
+// a SQL Server database's backup: its kind, recovery model and LSN range (what chains it to the others)
+function mssqlNote(r, d) {
+  const h = r.meta && r.meta.mssql && r.meta.mssql[d.name];
+  return h ? html`<div class="sub">${h.type}${h.copy_only ? ' (copy-only)' : ''} · ${h.recovery_model || '?'} · LSN ${h.first_lsn || '?'} → ${h.last_lsn || '?'}</div>` : '';
+}
 
 export async function render(ctx) {
   const { el, params } = ctx;
@@ -63,9 +70,9 @@ export async function render(ctx) {
               <td>${statusBadge(l.status)}${l.error ? html`<div class="sub" style="color:var(--critical-ink)">${l.error}</div>` : ''}</td>
               <td class="actions">${canOperate() && l.status === 'ok' && okLocs.length > 1 ? html`<button class="btn btn-sm btn-ghost" data-del-loc="${l.id}" title="Delete from this storage">${icon('trash')}</button>` : ''}</td></tr>`)}
           </tbody></table></div>` : html`<div class="card-body muted">None yet</div>`}
-          ${metaRows.length ? html`<div class="card-body" style="border-top:1px solid var(--border)"><div class="kv">${metaRows.map(([k, v]) => html`<div>${META_LABELS[k] || k}</div><div class="mono small break">${k === 'consistent_at' ? fmtDate(v * 1000, true) : v}</div>`)}</div></div>` : ''}
-          ${chain && chain.length > 1 ? html`<div class="card-body" style="border-top:1px solid var(--border)"><div class="section-title">Incremental chain (restore needs the whole chain)</div>
-            <div class="chips">${chain.map((c, i) => html`${i ? icon('back', 'muted') : ''}<a class="badge ${c.id === r.id ? 'info' : 'outline'}" href="#/runs/${c.id}">#${c.id} ${c.type === 'full' ? 'FULL' : 'incr'}</a>`)}</div></div>` : ''}
+          ${metaRows.length ? html`<div class="card-body" style="border-top:1px solid var(--border)"><div class="kv">${metaRows.map(([k, v]) => html`<div>${META_LABELS[k] || k}</div><div class="mono small break">${k === 'consistent_at' ? fmtDate(v * 1000, true) : typeof v === 'boolean' ? (v ? 'yes' : 'no') : v}</div>`)}</div></div>` : ''}
+          ${chain && chain.length > 1 ? html`<div class="card-body" style="border-top:1px solid var(--border)"><div class="section-title">${r.type === 'differential' ? 'Differential chain (restored on top of its full backup)' : 'Incremental chain (restore needs the whole chain)'}</div>
+            <div class="chips">${chain.map((c, i) => html`${i ? icon('back', 'muted') : ''}<a class="badge ${c.id === r.id ? 'info' : 'outline'}" href="#/runs/${c.id}">#${c.id} ${c.type === 'full' ? 'FULL' : c.type === 'differential' ? 'diff' : 'incr'}</a>`)}</div></div>` : ''}
           ${dependents.length ? html`<div class="card-body" style="border-top:1px solid var(--border)"><span class="muted small">${dependents.length} incremental backup(s) depend on this one.</span></div>` : ''}
         </div>
       </div>`);
@@ -78,7 +85,7 @@ export async function render(ctx) {
         ${drillRuns.length ? drillRunsTable(drillRuns, { backup: false }) : html`<div class="card-body muted small">Not drilled yet: a restore drill restores this backup into a sandbox server under temporary names, compares every table and its rows with the backup and drops the copies.</div>`}</div>` : ''}
       ${r.databases.length ? html`<div class="card"><div class="card-head"><h2>Database (${r.databases.length})</h2></div><div class="table-wrap"><table class="table">
         <thead><tr><th>Database</th><th>Charset / collation</th><th class="right">Raw size</th><th class="right">Tables</th><th class="right hide-sm">Rows</th><th>File</th></tr></thead>
-        <tbody>${r.databases.map((d) => html`<tr><td><b>${d.name}</b></td><td class="small">${d.charset} / ${d.collation}</td><td class="right num">${fmtBytes(d.size_bytes)}</td><td class="right num">${d.tables}</td><td class="right num hide-sm">${d.rows ? d.rows.toLocaleString('en-US') : '—'}</td><td class="mono small">${d.file || ''}</td></tr>`)}</tbody></table></div></div>` : ''}
+        <tbody>${r.databases.map((d) => html`<tr><td><b>${d.name}</b>${mssqlNote(r, d)}</td><td class="small">${[d.charset, d.collation].filter(Boolean).join(' / ')}</td><td class="right num">${fmtBytes(d.size_bytes)}</td><td class="right num">${d.tables}</td><td class="right num hide-sm">${d.rows ? d.rows.toLocaleString('en-US') : '—'}</td><td class="mono small">${d.file || ''}</td></tr>`)}</tbody></table></div></div>` : ''}
       ${r.files.length ? html`<div class="card"><div class="card-head"><h2>Files (${r.files.length})</h2></div><div class="table-wrap"><table class="table">
         <thead><tr><th>File name</th><th class="right">Size</th><th class="hide-sm">SHA-256</th><th></th></tr></thead>
         <tbody>${r.files.map((f) => html`<tr><td class="mono small">${f.name}<div class="sub">${f.kind}${f.database ? ' · ' + f.database : ''}</div></td>

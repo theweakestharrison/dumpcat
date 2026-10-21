@@ -14,6 +14,7 @@ const DEFAULT_JOB = {
     chunk_rows: 500000, long_query_guard: 60, lock_mode: '', ftwrl_wait_timeout: 60, slave_info: false, safe_slave_backup: false,
     low_priority: true, stream_upload: false, verify_after: true, verify_mode: 'one', bwlimit: '', extra_args: '', pre_command: '', post_command: '',
     binlog_archive: false, binlog_rotate_minutes: 15, max_age_hours: 0,
+    copy_only: false, native_compression: '', verify_only: true,
   },
   retention: { keep_last: 7, keep_days: 0, keep_daily: 0, keep_weekly: 0, keep_monthly: 0 },
   targets: [], enabled: true, notify_success: false, notify_failure: true, timeout_minutes: 0,
@@ -23,7 +24,12 @@ const PRESETS = [
   ['', '— presets —'], ['0 2 * * *', 'Daily at 02:00'], ['0 1,13 * * *', 'Twice a day (01:00, 13:00)'], ['0 */6 * * *', 'Every 6 hours'],
   ['0 * * * *', 'Every hour'], ['30 3 * * 0', 'Weekly on Sunday at 03:30'], ['0 4 1 * *', 'Day 1 of every month at 04:00'], ['@manual', 'Manual only'],
 ];
-const INCR_PRESETS = [['', '— presets —'], ['0 * * * *', 'Every hour'], ['0 */4 * * *', 'Every 4 hours'], ['0 8-20/2 * * *', 'Every 2 hours (08:00–20:00)'], ['0 2 * * 1-6', 'Daily at 02:00 (Mon–Sat)'], ['@manual', 'No incrementals']];
+const INCR_PRESETS = [['', '— presets —'], ['0 * * * *', 'Every hour'], ['0 */4 * * *', 'Every 4 hours'], ['0 8-20/2 * * *', 'Every 2 hours (08:00–20:00)'], ['0 2 * * 1-6', 'Daily at 02:00 (Mon–Sat)'], ['@manual', 'None']];
+// the second schedule: incrementals (physical MySQL) or differentials (SQL Server)
+const SECOND = {
+  incremental: { label: 'Incremental schedule', help: 'Incrementals copy only the data pages changed since the previous backup — fast and small. Restore = full + incremental chain.' },
+  differential: { label: 'Differential schedule', help: 'Differentials copy only the extents changed since the last full backup — the newer the full, the smaller. Restore = the full backup + one differential.' },
+};
 
 // The method cards of an engine (from its driver).
 const methodCards = (eng, current) => html`${eng.methods.map((m) => html`<label class="radio-card ${current === m.id ? 'selected' : ''}">
@@ -34,6 +40,7 @@ const methodCards = (eng, current) => html`${eng.methods.map((m) => html`<label 
 const DB_HELP = {
   mysql: '"All" excludes system schemas (mysql, sys, information_schema, performance_schema). Users &amp; grants are backed up separately (option below).',
   postgres: '"All" excludes the template databases (template0, template1). Roles are backed up separately (option below).',
+  mssql: '"All" excludes the system databases (master, model, msdb, tempdb): pick master, model or msdb under "Only selected databases" to back them up too (tempdb never). Logins are server objects, not part of a database backup.',
 };
 // Section 8: what archiving the server's log means per engine
 const LOG_TEXT = {
@@ -51,9 +58,17 @@ const LOG_TEXT = {
     rotateHelp: 'Bounds how much could be lost if this server disappears: once the current segment holds commits this long, DumpCat runs pg_switch_wal() (a superuser, or GRANT EXECUTE ON FUNCTION pg_switch_wal() TO the account) so it is uploaded. 0 = only when the segment is full. Changes not uploaded yet are also kept in the DumpCat staging folder.',
     reqs: 'Requirements: <code>wal_level</code> replica (the default) or logical; the backup account needs the <code>REPLICATION</code> attribute and a <code>replication</code> line in <code>pg_hba.conf</code>; <code>pg_receivewal</code> on the DumpCat host. The replication slot <b>keeps WAL on the server</b> whenever DumpCat is not receiving it: set <code>max_slot_wal_keep_size</code> to bound it. Turning archiving off, disabling or deleting the job drops the slot.',
   },
+  mssql: {
+    label: 'Scheduled transaction log backups',
+    help: 'DumpCat runs BACKUP LOG for every database of this job on a schedule and stores each log backup — compressed and encrypted like the backups — on this job\'s storages. A restore can then stop at any moment: a time, a marked transaction or an LSN (RESTORE … WITH STOPAT / STOPATMARK). Log backups also let SQL Server reuse the space of its transaction log. Retention removes log backups older than the oldest kept backup.',
+    rotate: 'Back up the log every (minutes)',
+    rotateHelp: 'Bounds how much could be lost if this server disappears. 0 = every 15 minutes. "Close now" on the archive page takes one at once. Keep it below the lag alert of Settings (30 minutes by default).',
+    reqs: 'Requirements: the databases use the <code>FULL</code> (or <code>BULK_LOGGED</code>) recovery model and have a full backup (DumpCat\'s, or any other); the account may back up the log (<code>db_backupoperator</code>). <b>Only one tool may take log backups</b> of a database: a log backup made elsewhere (a maintenance plan, another backup tool) breaks DumpCat\'s chain — PITR stops at the gap until the next full backup. SIMPLE databases are skipped (a warning in the archive log).',
+  },
 };
 
 const EXCL_HELP = {
+  mssql: html`Exclude tables`,
   mysql: html`Exclude tables (one per line, as <code>database.table</code>)`,
   postgres: html`Exclude tables (one per line, as <code>database.table</code> or <code>database.schema.table</code>)`,
 };
@@ -100,7 +115,7 @@ export async function render(ctx) {
         <div class="form-grid">
           <div class="field"><label class="req">Job name</label><input type="text" name="name" value="${job.name}" required placeholder="e.g. shop-prod nightly"></div>
           <div class="field"><label class="req">Database server</label>
-            <div class="inline"><select name="server_id">${servers.map((s) => html`<option value="${s.id}" ${s.id === job.server_id ? 'selected' : ''}>${s.name} (${s.engine === 'postgres' ? 'PostgreSQL · ' : ''}${s.host || s.socket}${s.agent_id ? ' via agent' : s.wg_peer_id ? ' via WireGuard' : ''}${s.version ? ' · ' + s.version : ''})</option>`)}</select>
+            <div class="inline"><select name="server_id">${servers.map((s) => html`<option value="${s.id}" ${s.id === job.server_id ? 'selected' : ''}>${s.name} (${s.engine === 'postgres' ? 'PostgreSQL · ' : s.engine === 'mssql' ? 'SQL Server · ' : ''}${s.host || s.socket}${s.agent_id ? ' via agent' : s.wg_peer_id ? ' via WireGuard' : ''}${s.version ? ' · ' + s.version : ''})</option>`)}</select>
             <button type="button" class="btn" id="load-info" title="Check server">${icon('refresh')}</button></div>
             <div class="help" id="server-msg"></div></div>
         </div>
@@ -114,7 +129,7 @@ export async function render(ctx) {
         </div>
         <div class="help" style="margin-bottom:10px" id="db-help">${raw(DB_HELP[eng.engine] || DB_HELP.mysql)}</div>
         <div id="db-list" class="db-pick hidden"></div>
-        <div class="field" style="margin-top:14px"><label id="excl-label">${EXCL_HELP[eng.engine] || EXCL_HELP.mysql}</label>
+        <div class="field ${eng.engine === 'mssql' ? 'hidden' : ''}" style="margin-top:14px" id="excl-field"><label id="excl-label">${EXCL_HELP[eng.engine] || EXCL_HELP.mysql}</label>
           <textarea name="exclude_tables" rows="3" placeholder="shop.audit_log&#10;shop.sessions">${job.exclude_tables.join('\n')}</textarea>
           <div class="help">Useful for skipping very large log/cache tables that don't need backing up.</div></div>
       </div></div>
@@ -125,7 +140,7 @@ export async function render(ctx) {
             <div class="inline"><input type="text" name="schedule" value="${job.schedule}" placeholder="minute hour day month weekday — e.g. 0 2 * * *">
             <select id="preset" style="max-width:190px">${PRESETS.map(([v, l]) => html`<option value="${v}">${l}</option>`)}</select></div>
             <div class="help" id="cron-desc"></div><div class="help" id="cron-next"></div></div>
-          <div class="field" id="incr-field"><label>Incremental schedule (physical backups only)</label>
+          <div class="field" id="incr-field"><label id="incr-label">Incremental schedule</label>
             <div class="inline"><input type="text" name="incr_schedule" value="${job.incr_schedule}" placeholder="leave blank if not used">
             <select id="incr-preset" style="max-width:190px">${INCR_PRESETS.map(([v, l]) => html`<option value="${v}">${l}</option>`)}</select></div>
             <div class="help" id="incr-desc">Incrementals copy only the data pages changed since the previous backup — fast and small. Restore = full + incremental chain.</div><div class="help" id="incr-next"></div></div>
@@ -204,6 +219,16 @@ export async function render(ctx) {
               <div class="help">Only applies to mydumper ≥ 0.15. By default the lock is held only for the instant the snapshot transactions start; the dump itself runs lock-free (InnoDB).</div></div>
           </div>
         </div>
+        <div data-for="mssql_native" style="margin-top:14px">
+          <div class="section-title">SQL Server</div>
+          <div class="checks">
+            ${chk('verify_only', o.verify_only, 'Check each backup on the server (RESTORE VERIFYONLY WITH CHECKSUM)', 'SQL Server reads the new file once more before DumpCat copies it: a backup that would not restore fails the job.')}
+            ${chk('copy_only', o.copy_only, 'Copy-only backups (COPY_ONLY)', 'Leaves the server\'s own backup chain alone, e.g. next to a maintenance plan that takes the differentials. Copy-only jobs take full backups only.')}
+          </div>
+          <div class="field" style="max-width:420px;margin-top:10px"><label>Compression by SQL Server</label><select name="native_compression">
+            ${[['', 'When the edition has it (Standard, Enterprise, Developer)'], ['on', 'Always (WITH COMPRESSION)'], ['off', 'Never: DumpCat compresses instead']].map(([v, l]) => html`<option value="${v}" ${(o.native_compression || '') === v ? 'selected' : ''}>${l}</option>`)}</select>
+            <div class="help">A file SQL Server compressed is stored as it is (DumpCat does not compress it twice); Express and Web cannot compress, so DumpCat's compression above applies.</div></div>
+        </div>
         <div data-for="physical" style="margin-top:14px">
           <div class="section-title">Physical backup</div>
           <div class="form-grid">
@@ -215,7 +240,7 @@ export async function render(ctx) {
           </div>
         </div>
         <div style="margin-top:16px" class="section-title">General</div>
-        <div class="checks">
+        <div class="checks" data-not="mssql_native">
           ${chk('low_priority', o.low_priority, 'Low priority (nice + ionice)', 'Reduces the impact on the running database.')}
         </div>
         <div class="form-grid" style="margin-top:14px">
@@ -225,7 +250,7 @@ export async function render(ctx) {
             <div class="help">Reads the files back from storage, decrypts and decompresses them and checks their SHA-256, so a broken or incomplete copy is reported right away instead of at restore time.</div></div>
         </div>
         <div class="form-grid" style="margin-top:14px">
-          <div class="field full"><label>Extra arguments for the dump tool ${!isAdmin() ? html`<span class="muted">— admin only</span>` : ''}</label><input type="text" name="extra_args" value="${o.extra_args}" ${!isAdmin() ? 'disabled' : ''} placeholder="e.g. --skip-definer"><div class="help">Advanced — appended verbatim to the mysqldump/mydumper/xtrabackup/pg_dump command.</div></div>
+          <div class="field full"><label>Extra arguments for the dump tool ${!isAdmin() ? html`<span class="muted">— admin only</span>` : ''}</label><input type="text" name="extra_args" value="${o.extra_args}" ${!isAdmin() ? 'disabled' : ''} placeholder="e.g. --skip-definer"><div class="help" id="extra-help">Advanced — appended verbatim to the mysqldump/mydumper/xtrabackup/pg_dump command.</div></div>
           <div class="field"><label>Pre-command ${!isAdmin() ? html`<span class="muted">— admin only</span>` : ''}</label><input type="text" name="pre_command" value="${o.pre_command}" ${!isAdmin() ? 'disabled' : ''} placeholder="/usr/local/bin/before-backup.sh"></div>
           <div class="field"><label>Post-command</label><input type="text" name="post_command" value="${o.post_command}" ${!isAdmin() ? 'disabled' : ''} placeholder="receives DUMPCAT_STATUS, DUMPCAT_DIR..."></div>
         </div>
@@ -278,6 +303,7 @@ export async function render(ctx) {
     setHTML($('#methods', el), methodCards(eng, keep));
     setHTML($('#db-help', el), raw(DB_HELP[eng.engine] || DB_HELP.mysql));
     setHTML($('#excl-label', el), EXCL_HELP[eng.engine] || EXCL_HELP.mysql);
+    $('#excl-field', el).classList.toggle('hidden', eng.engine === 'mssql');
   };
 
   const updateVisibility = () => {
@@ -286,9 +312,17 @@ export async function render(ctx) {
     $$('.radio-card', el).forEach((c) => c.classList.toggle('selected', c.querySelector('input').checked));
     $('#sec-db', el).classList.toggle('hidden', !!mi.physical);
     $('[data-jump=sec-db]', el).classList.toggle('hidden', !!mi.physical);
-    $('#incr-field', el).classList.toggle('hidden', !mi.incremental);
-    $('#sched-label', el).textContent = `${mi.incremental ? 'FULL backup' : 'Backup'} schedule (cron)`;
+    const second = mi.differential ? SECOND.differential : mi.incremental ? SECOND.incremental : null;
+    // copy-only backups cannot be the base of a differential
+    const noSecond = mi.differential && form.copy_only.checked;
+    $('#incr-field', el).classList.toggle('hidden', !second || noSecond);
+    if (second) { $('#incr-label', el).textContent = second.label; if (!form.incr_schedule.value.trim()) $('#incr-desc', el).textContent = second.help; }
+    $('#sched-label', el).textContent = `${second ? 'FULL backup' : 'Backup'} schedule (cron)`;
     $$('[data-for]', el).forEach((d) => d.classList.toggle('hidden', !d.dataset.for.split(' ').includes(m)));
+    $$('[data-not]', el).forEach((d) => d.classList.toggle('hidden', d.dataset.not.split(' ').includes(m)));
+    $('#extra-help', el).textContent = m === 'mssql_native'
+      ? 'Advanced — more BACKUP … WITH options, e.g. BUFFERCOUNT = 64, MAXTRANSFERSIZE = 4194304.'
+      : 'Advanced — appended verbatim to the mysqldump/mydumper/xtrabackup/pg_dump command.';
     $('[data-users]', el).classList.toggle('hidden', !mi.users);
     if (mi.users) setHTML($('#users-label', el), html`${mi.users}<span class="help">${mi.users_help}</span>`);
     // the driver's log archiver: binlogs (MySQL), WAL (PostgreSQL pg_basebackup)
@@ -316,7 +350,7 @@ export async function render(ctx) {
     const extra = job.databases.filter((d) => !known.has(d));
     const sel = new Set(job.databases);
     setHTML(box, html`${!info ? html`<div class="muted small">Loading databases…</div>` : ''}
-      ${dbs.map((d) => html`<label class="check"><input type="checkbox" name="db" value="${d.name}" ${sel.has(d.name) ? 'checked' : ''}><span><b>${d.name}</b> <span class="muted small">${fmtBytes(d.size_bytes)} · ${d.tables} tables${d.non_innodb ? html` · <span style="color:var(--warning-ink)">${d.non_innodb} non-InnoDB tables</span>` : ''}</span></span></label>`)}
+      ${dbs.map((d) => html`<label class="check"><input type="checkbox" name="db" value="${d.name}" ${sel.has(d.name) ? 'checked' : ''}><span><b>${d.name}</b> <span class="muted small">${fmtBytes(d.size_bytes)} · ${d.tables} tables${d.non_innodb ? html` · <span style="color:var(--warning-ink)">${d.non_innodb} non-InnoDB tables</span>` : ''}${d.recovery_model ? html` · <span title="Recovery model" style="${d.recovery_model === 'SIMPLE' ? 'color:var(--warning-ink)' : ''}">${d.recovery_model}</span>` : ''}</span></span></label>`)}
       ${extra.map((n) => html`<label class="check"><input type="checkbox" name="db" value="${n}" checked><span><b>${n}</b> <span class="muted small">(not found on server)</span></span></label>`)}
       ${info && !dbs.length ? html`<div class="muted">The server has no user databases.</div>` : ''}`);
   };
@@ -340,7 +374,9 @@ export async function render(ctx) {
     const i = res.info;
     setHTML(msg, i.engine === 'postgres'
       ? html`${icon('check')} PostgreSQL ${i.version} · ${fmtBytes(i.total_bytes)}${i.is_replica ? ' · standby' : ''}`
-      : html`${icon('check')} ${i.version} · ${fmtBytes(i.total_bytes)} · binlog ${i.log_bin ? 'on' : 'off'}${i.is_replica ? ' · replica' : ''}`);
+      : i.engine === 'mssql'
+        ? html`${icon('check')} ${i.edition || 'SQL Server'} ${i.version} · ${fmtBytes(i.total_bytes)}${i.backup_dir ? html` · backup folder <span class="mono">${i.backup_dir}</span>` : ''}`
+        : html`${icon('check')} ${i.version} · ${fmtBytes(i.total_bytes)} · binlog ${i.log_bin ? 'on' : 'off'}${i.is_replica ? ' · replica' : ''}`);
     for (const s of res.support) {
       const box = el.querySelector(`[data-support="${s.method}"]`);
       if (box) setHTML(box, html`<span class="badge ${s.ok ? 'good' : 'warn'}">${icon(s.ok ? 'check' : 'alert')}${s.ok ? 'Ready' : 'Not ready'}</span> <span class="muted">${s.message}</span>`);
@@ -449,6 +485,7 @@ export async function render(ctx) {
         stream_upload: f.stream_upload.checked, verify_mode: f.verify_mode.value, verify_after: f.verify_mode.value !== 'off', bwlimit: f.bwlimit.value.trim(),
         extra_args: f.extra_args.value.trim(), pre_command: f.pre_command.value.trim(), post_command: f.post_command.value.trim(),
         binlog_archive: f.binlog_archive.checked, binlog_rotate_minutes: +f.binlog_rotate_minutes.value, max_age_hours: +f.max_age_hours.value || 0,
+        copy_only: f.copy_only.checked, native_compression: f.native_compression.value, verify_only: f.verify_only.checked,
       },
       retention: { keep_last: +f.keep_last.value, keep_days: +f.keep_days.value, keep_daily: +f.keep_daily.value, keep_weekly: +f.keep_weekly.value, keep_monthly: +f.keep_monthly.value },
       targets, enabled: f.enabled.checked, notify_success: f.notify_success.checked, notify_failure: f.notify_failure.checked,
