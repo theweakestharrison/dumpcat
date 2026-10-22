@@ -1,0 +1,114 @@
+{
+  "slug": "portabase",
+  "name": "Portabase",
+  "order": 12,
+  "checked": "2026-10-22",
+  "kind": {"en": "Self-hosted, open source (Apache-2.0), Docker dashboard + agents", "vi": "Tự host, mã nguồn mở (Apache-2.0), dashboard Docker + agent"},
+  "summary": {
+    "en": "Open-source backup dashboard with agents for 11 data sources; logical-only (mysqldump) for MySQL.",
+    "vi": "Dashboard backup mã nguồn mở dùng agent cho 11 nguồn dữ liệu; với MySQL chỉ backup logical (mysqldump)."
+  },
+  "hub": {
+    "open_source": true,
+    "self_hosted": {"en": "Yes (Docker, Kubernetes)", "vi": "Có (Docker, Kubernetes)"},
+    "pitr": {"en": "Not for MySQL (mysqldump snapshots)", "vi": "Không có cho MySQL (bản chụp mysqldump)"},
+    "price": {"en": "Free (Apache-2.0)", "vi": "Miễn phí (Apache-2.0)"}
+  },
+  "grid": {
+    "open_source": ["yes", {"en": "Apache-2.0", "vi": "Apache-2.0"}],
+    "free": ["yes"],
+    "self_hosted": ["yes", {"en": "Docker, Kubernetes or its CLI", "vi": "Docker, Kubernetes hoặc CLI"}],
+    "linux": ["yes", {"en": "With Docker", "vi": "Cần Docker"}],
+    "windows": ["unknown", {"en": "Docs list Linux and macOS", "vi": "Tài liệu chỉ ghi Linux và macOS"}],
+    "web_ui": ["yes"],
+    "mariadb": ["yes", {"en": "10 and 11", "vi": "10 và 11"}],
+    "logical": ["yes", {"en": "mysqldump", "vi": "mysqldump"}],
+    "parallel": ["no", {"en": "mysqldump only", "vi": "Chỉ mysqldump"}],
+    "physical": ["no", {"en": "mysqldump only", "vi": "Chỉ mysqldump"}],
+    "incremental": ["no", {"en": "mysqldump only", "vi": "Chỉ mysqldump"}],
+    "pitr": ["no", {"en": "mysqldump snapshots only", "vi": "Chỉ bản chụp mysqldump"}],
+    "restore_ui": ["yes", {"en": "Not for Redis / Valkey", "vi": "Trừ Redis / Valkey"}],
+    "verify": ["unknown"],
+    "cloud": ["yes", {"en": "S3, GCS, Azure, Drive, SFTP, rclone", "vi": "S3, GCS, Azure, Drive, SFTP, rclone"}],
+    "multi_storage": ["yes"],
+    "encryption": ["yes", {"en": "AES-GCM", "vi": "AES-GCM"}],
+    "direct": ["yes"],
+    "scheduler": ["yes", {"en": "Cron or intervals", "vi": "Cron hoặc chu kỳ"}],
+    "retention": ["yes", {"en": "Incl. GFS", "vi": "Có GFS"}],
+    "alerts": ["yes"]
+  },
+  "en": {
+    "title": "Portabase vs DumpCat: open-source MySQL backup tools compared",
+    "description": "Portabase and DumpCat are both open-source, self-hosted database backup tools. Compare them for MySQL and MariaDB: physical backups, point-in-time recovery, deployment, storage and restore checks. October 2026.",
+    "lead": "Portabase is an open-source (Apache-2.0), self-hosted backup platform: a web dashboard plus agents that run next to your databases, covering 11 data sources from PostgreSQL and MySQL to MongoDB, Redis and Docker volumes. DumpCat covers fewer engines (MySQL, MariaDB, PostgreSQL and SQL Server) and goes deeper on each: physical backups, point-in-time recovery and restore drills. Both can back up databases that accept no inbound connections: Portabase always through its agent, DumpCat through an optional agent or its built-in WireGuard. Here is where they differ for MySQL and MariaDB.",
+    "values": {
+      "price": "Free and open source (Apache-2.0), with no per-database licensing; presented as a non-profit initiative.",
+      "runs": "Self-hosted in two parts: a dashboard (a web app running as Docker containers) and an agent on each server that holds databases. The agent contacts the dashboard, so no inbound port is opened. Installed with its CLI, Docker, Kubernetes (Helm), Coolify, Dokploy or Unraid.",
+      "platforms": "Wherever Docker runs. The requirements list Linux and macOS; Windows is not mentioned. The agent is installed with the CLI or Docker.",
+      "databases": "MySQL 5.7, 8 and 9; MariaDB 10 and 11; also PostgreSQL 12 to 18, MongoDB, SQLite, Redis and Valkey (backup only), Firebird, SQL Server 2017 to 2022 and Azure SQL, Docker volumes and files.",
+      "methods": "Logical only for MySQL and MariaDB: the agent runs `mysqldump` and restores with `mysql`. No parallel dumps, physical or incremental backups are documented for MySQL.",
+      "pitr": "Not for MySQL or MariaDB: backups are `mysqldump` snapshots, and no binlog archiving is documented.",
+      "storage": "Local storage on the server, S3-compatible (AWS S3, MinIO, RustFS…), Google Drive, Azure Blob Storage, Google Cloud Storage, SFTP and rclone. The same backup can go to several destinations at once.",
+      "encryption": "AES-GCM.",
+      "schedule": "Cron expressions or fixed intervals, plus manual runs. Retention per database by GFS tiers (hourly to yearly), keep the last N or keep for X days.",
+      "restore": "Restores from the dashboard for the supported databases (not Redis or Valkey). Automatic restore checks are not documented.",
+      "datapath": "Your own infrastructure: from the agent next to your database to your storage, coordinated by the dashboard you host.",
+      "alerts": "Email, Slack, Discord, Telegram, Ntfy, Gotify and webhooks; organizations and projects, owner / admin / member roles, OIDC and OAuth2 sign-in, a REST API and an MCP server."
+    },
+    "choose_them": [
+      "You back up more than SQL databases: MongoDB, Redis / Valkey, SQLite, Firebird, Docker volumes and plain files from the same dashboard.",
+      "You deploy on Kubernetes, Coolify, Dokploy or Unraid and want an official chart or template.",
+      "You back up Azure SQL Database: DumpCat supports SQL Server 2012 and newer on your own servers, but not Azure SQL Database.",
+      "You want organizations and projects to keep several teams' databases apart."
+    ],
+    "choose_us": [
+      "You need point-in-time recovery: DumpCat archives MySQL / MariaDB binlogs, PostgreSQL WAL and SQL Server log backups, and restores to a second, a GTID, a restore point or an LSN.",
+      "Your MySQL databases are large: parallel `mydumper` and hot physical backups with XtraBackup / MariaBackup, including incrementals.",
+      "You do not want Docker: DumpCat is one binary, installed as a systemd service or a native Windows service, and it runs on Windows hosts.",
+      "You want every backup read back right after it is written, and scheduled restore drills that restore into a sandbox and compare every table's row count."
+    ],
+    "switch": []
+  },
+  "vi": {
+    "title": "Portabase và DumpCat: so sánh hai công cụ backup MySQL mã nguồn mở",
+    "description": "Portabase và DumpCat đều là công cụ backup database mã nguồn mở, tự host. So sánh khi dùng cho MySQL, MariaDB: backup vật lý, khôi phục theo thời điểm, cách triển khai, nơi lưu và kiểm tra khôi phục. Tháng 10/2026.",
+    "lead": "Portabase là nền tảng backup mã nguồn mở (Apache-2.0), tự host: một dashboard web cùng các agent chạy cạnh database, hỗ trợ 11 nguồn dữ liệu từ PostgreSQL, MySQL đến MongoDB, Redis và Docker volume. DumpCat hỗ trợ ít engine hơn (MySQL, MariaDB, PostgreSQL và SQL Server) nhưng làm sâu hơn với từng engine: backup vật lý, khôi phục theo thời điểm và diễn tập khôi phục. Cả hai đều backup được database không nhận kết nối từ ngoài vào: Portabase luôn qua agent, DumpCat qua agent tùy chọn hoặc WireGuard có sẵn. Dưới đây là chỗ khác nhau khi dùng cho MySQL và MariaDB.",
+    "values": {
+      "price": "Miễn phí, mã nguồn mở (Apache-2.0), không tính phí theo database; tự giới thiệu là một dự án phi lợi nhuận.",
+      "runs": "Tự host gồm hai phần: dashboard (ứng dụng web chạy bằng các container Docker) và một agent trên mỗi server có database. Agent tự kết nối tới dashboard nên không phải mở cổng vào. Cài bằng CLI, Docker, Kubernetes (Helm), Coolify, Dokploy hoặc Unraid.",
+      "platforms": "Nơi nào chạy được Docker. Phần yêu cầu hệ thống ghi Linux và macOS; không nhắc tới Windows. Agent cài bằng CLI hoặc Docker.",
+      "databases": "MySQL 5.7, 8 và 9; MariaDB 10 và 11; ngoài ra PostgreSQL 12 đến 18, MongoDB, SQLite, Redis và Valkey (chỉ backup), Firebird, SQL Server 2017 đến 2022 và Azure SQL, Docker volume và file.",
+      "methods": "Với MySQL và MariaDB chỉ có backup logical: agent chạy `mysqldump` và khôi phục bằng `mysql`. Tài liệu không có dump song song, backup vật lý hay incremental cho MySQL.",
+      "pitr": "Không có cho MySQL, MariaDB: bản backup là bản chụp `mysqldump`, tài liệu không có lưu trữ binlog.",
+      "storage": "Ổ local trên server, S3 và tương thích (AWS S3, MinIO, RustFS…), Google Drive, Azure Blob Storage, Google Cloud Storage, SFTP và rclone. Một bản backup có thể gửi tới nhiều nơi cùng lúc.",
+      "encryption": "AES-GCM.",
+      "schedule": "Biểu thức cron hoặc chu kỳ cố định, kèm chạy tay. Retention theo từng database: các mức GFS (giờ đến năm), giữ N bản cuối hoặc giữ trong X ngày.",
+      "restore": "Khôi phục ngay trên dashboard cho các database được hỗ trợ (trừ Redis và Valkey). Tài liệu không có tự kiểm tra khôi phục.",
+      "datapath": "Trong hạ tầng của bạn: từ agent cạnh database tới nơi lưu của bạn, điều phối bởi dashboard bạn tự host.",
+      "alerts": "Email, Slack, Discord, Telegram, Ntfy, Gotify và webhook; tổ chức và dự án, vai trò owner / admin / member, đăng nhập OIDC và OAuth2, REST API và MCP server."
+    },
+    "choose_them": [
+      "Bạn backup nhiều thứ hơn database SQL: MongoDB, Redis / Valkey, SQLite, Firebird, Docker volume và file thường trên cùng một dashboard.",
+      "Bạn triển khai trên Kubernetes, Coolify, Dokploy hoặc Unraid và muốn có chart hoặc template chính thức.",
+      "Bạn backup Azure SQL Database: DumpCat hỗ trợ SQL Server 2012 trở lên trên server của bạn, nhưng không hỗ trợ Azure SQL Database.",
+      "Bạn muốn tách database của nhiều nhóm theo tổ chức và dự án."
+    ],
+    "choose_us": [
+      "Bạn cần khôi phục theo thời điểm: DumpCat lưu binlog MySQL / MariaDB, WAL PostgreSQL và log backup SQL Server, rồi khôi phục đến từng giây, một GTID, một restore point hoặc một LSN.",
+      "Database MySQL của bạn lớn: `mydumper` song song và backup vật lý nóng bằng XtraBackup / MariaBackup, có incremental.",
+      "Bạn không muốn dùng Docker: DumpCat là một file chạy, cài như service systemd hoặc Windows service, và chạy được trên máy Windows.",
+      "Bạn muốn mỗi bản backup được đọc lại ngay sau khi ghi, và diễn tập khôi phục theo lịch: khôi phục vào sandbox rồi so số dòng của từng bảng."
+    ],
+    "switch": []
+  },
+  "sources": [
+    {"label": "Portabase: MySQL backup & restore", "url": "https://portabase.io/mysql-backup"},
+    {"label": "Portabase documentation: introduction (databases, storage, notifications, encryption)", "url": "https://portabase.io/docs"},
+    {"label": "Portabase documentation: MySQL agent (mysqldump)", "url": "https://portabase.io/docs/agent/db/mysql"},
+    {"label": "Portabase documentation: requirements", "url": "https://portabase.io/docs/requirements"},
+    {"label": "Portabase documentation: installation", "url": "https://portabase.io/docs/installation"},
+    {"label": "Portabase documentation: FAQ", "url": "https://portabase.io/docs/faq"},
+    {"label": "Portabase home page (retention, scheduling, OIDC, REST API & MCP)", "url": "https://portabase.io/"},
+    {"label": "Portabase on GitHub", "url": "https://github.com/portabase/portabase"}
+  ]
+}

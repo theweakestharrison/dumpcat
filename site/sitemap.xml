@@ -1,16 +1,16 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-  <url><loc>https://dumpcat.cc/</loc><lastmod>2026-10-21</lastmod></url>
-  <url><loc>https://dumpcat.cc/vi/</loc><lastmod>2026-10-21</lastmod></url>
-  <url><loc>https://dumpcat.cc/zh/</loc><lastmod>2026-10-21</lastmod></url>
-  <url><loc>https://dumpcat.cc/ja/</loc><lastmod>2026-10-21</lastmod></url>
-  <url><loc>https://dumpcat.cc/ko/</loc><lastmod>2026-10-21</lastmod></url>
-  <url><loc>https://dumpcat.cc/es/</loc><lastmod>2026-10-21</lastmod></url>
-  <url><loc>https://dumpcat.cc/pt/</loc><lastmod>2026-10-21</lastmod></url>
-  <url><loc>https://dumpcat.cc/de/</loc><lastmod>2026-10-21</lastmod></url>
-  <url><loc>https://dumpcat.cc/fr/</loc><lastmod>2026-10-21</lastmod></url>
-  <url><loc>https://dumpcat.cc/compare/</loc><lastmod>2026-10-21</lastmod></url>
-  <url><loc>https://dumpcat.cc/vi/compare/</loc><lastmod>2026-10-21</lastmod></url>
+  <url><loc>https://dumpcat.cc/</loc><lastmod>2026-10-22</lastmod></url>
+  <url><loc>https://dumpcat.cc/vi/</loc><lastmod>2026-10-22</lastmod></url>
+  <url><loc>https://dumpcat.cc/zh/</loc><lastmod>2026-10-22</lastmod></url>
+  <url><loc>https://dumpcat.cc/ja/</loc><lastmod>2026-10-22</lastmod></url>
+  <url><loc>https://dumpcat.cc/ko/</loc><lastmod>2026-10-22</lastmod></url>
+  <url><loc>https://dumpcat.cc/es/</loc><lastmod>2026-10-22</lastmod></url>
+  <url><loc>https://dumpcat.cc/pt/</loc><lastmod>2026-10-22</lastmod></url>
+  <url><loc>https://dumpcat.cc/de/</loc><lastmod>2026-10-22</lastmod></url>
+  <url><loc>https://dumpcat.cc/fr/</loc><lastmod>2026-10-22</lastmod></url>
+  <url><loc>https://dumpcat.cc/compare/</loc><lastmod>2026-10-22</lastmod></url>
+  <url><loc>https://dumpcat.cc/vi/compare/</loc><lastmod>2026-10-22</lastmod></url>
   <url><loc>https://dumpcat.cc/install/</loc><lastmod>2026-10-20</lastmod></url>
   <url><loc>https://dumpcat.cc/vi/install/</loc><lastmod>2026-10-20</lastmod></url>
   <url><loc>https://dumpcat.cc/demo/</loc><lastmod>2026-10-21</lastmod></url>
@@ -18,6 +18,8 @@
   <url><loc>https://dumpcat.cc/vi/compare/sqlbackupandftp/</loc><lastmod>2026-10-21</lastmod></url>
   <url><loc>https://dumpcat.cc/compare/simplebackups/</loc><lastmod>2026-10-19</lastmod></url>
   <url><loc>https://dumpcat.cc/vi/compare/simplebackups/</loc><lastmod>2026-10-19</lastmod></url>
+  <url><loc>https://dumpcat.cc/compare/portabase/</loc><lastmod>2026-10-22</lastmod></url>
+  <url><loc>https://dumpcat.cc/vi/compare/portabase/</loc><lastmod>2026-10-22</lastmod></url>
   <url><loc>https://dumpcat.cc/compare/databasus/</loc><lastmod>2026-10-19</lastmod></url>
   <url><loc>https://dumpcat.cc/vi/compare/databasus/</loc><lastmod>2026-10-19</lastmod></url>
   <url><loc>https://dumpcat.cc/compare/sqlbak/</loc><lastmod>2026-10-21</lastmod></url>
