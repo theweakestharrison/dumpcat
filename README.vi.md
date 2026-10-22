@@ -279,6 +279,32 @@ Server, một share cả hai máy cùng thấy, hoặc thư mục ngay trên má
 
 Chi tiết và khuyến nghị: [Chọn phương thức backup](docs/manual.vi.md#2-chọn-phương-thức-backup).
 
+## So sánh với các công cụ khác
+
+DumpCat so với các công cụ backup MySQL, MariaDB khác. Mỗi dấu đều được đối chiếu với tài liệu của chính hãng vào tháng 10/2026; bản so sánh đầy đủ, kèm ghi chú và nguồn, ở [dumpcat.cc/vi/compare](https://dumpcat.cc/vi/compare/).
+
+✅&nbsp;có · 💲 gói trả phí · 🟡 một phần · ❌ không · ❔ không có thông tin
+
+| | **DumpCat** | [Portabase](https://dumpcat.cc/vi/compare/portabase/) | [Databasus](https://dumpcat.cc/vi/compare/databasus/) | [SQLBackupAndFTP](https://dumpcat.cc/vi/compare/sqlbackupandftp/) | [SimpleBackups](https://dumpcat.cc/vi/compare/simplebackups/) | [SqlBak](https://dumpcat.cc/vi/compare/sqlbak/) |
+|---|:---:|:---:|:---:|:---:|:---:|:---:|
+| Mã nguồn mở | ✅ | ✅ | ✅ | ❌ | ❌ | ❌ |
+| Mọi tính năng miễn phí | ✅ | ✅ | ✅ | 🟡 | 🟡 | 🟡 |
+| Chạy trên server của bạn | ✅ | ✅ | ✅ | ✅ | ❌ | 🟡 |
+| Windows | ✅ | ❔ | ✅ | ✅ | 🟡 | ✅ |
+| Giao diện web | ✅ | ✅ | ✅ | ❌ | ✅ | ✅ |
+| Dump song song (mydumper) | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Backup vật lý nóng | ✅ | ❌ | ❌ | ❌ | 🟡 | ❌ |
+| Backup incremental | ✅ | ❌ | ❌ | 💲 | ✅ | ✅ |
+| Khôi phục theo thời điểm | ✅ | ❌ | ❌ | 🟡 | 🟡 | ✅ |
+| Restore ngay trong công cụ | ✅ | ✅ | ✅ | ✅ | 🟡 | ✅ |
+| Tự kiểm tra bản backup | ✅ | ❔ | ✅ | 🟡 | 🟡 | 🟡 |
+| Nhiều bản sao cho một backup | ✅ | ✅ | ❌ | ✅ | 💲 | ✅ |
+| Mã hóa | ✅ | ✅ | ✅ | 💲 | ✅ | 💲 |
+| Dữ liệu không qua hãng | ✅ | ✅ | ✅ | ✅ | 🟡 | ✅ |
+| Báo qua chat và webhook | ✅ | ✅ | ✅ | 💲 | 💲 | ❔ |
+
+Portabase và Databasus còn backup cả MongoDB, Redis và các engine khác; DumpCat chỉ tập trung vào MySQL, MariaDB, PostgreSQL và SQL Server nhưng làm sâu hơn với từng loại (xem [DumpCat hỗ trợ những gì](#dumpcat-hỗ-trợ-những-gì)).
+
 ## Tài liệu
 
 Hướng dẫn đầy đủ nằm ở [docs/manual.vi.md](docs/manual.vi.md) ([English](docs/manual.md)) và có sẵn trong mọi gói cài đặt.
