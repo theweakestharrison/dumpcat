@@ -75,6 +75,55 @@ binary Go có sẵn giao diện.
 - **Tự cập nhật an toàn.** `dumpcat update` chờ các job đang chạy, backup database của chính nó, có thể bắt buộc bản phát
   hành phải được ký, và rollback nếu phiên bản mới không khởi động được.
 
+## DumpCat hỗ trợ những gì
+
+✅&nbsp;có · ❌ chưa hỗ trợ · — không áp dụng cho database này
+
+| | <img src="docs/img/db/mysql.svg" width="110" alt="MySQL logo"><br>**MySQL** | <img src="docs/img/db/percona.svg" width="110" alt="Percona logo"><br>**Percona&nbsp;Server** | <img src="docs/img/db/mariadb.svg" width="110" alt="MariaDB logo"><br>**MariaDB** | <img src="docs/img/db/postgresql.svg" width="110" alt="PostgreSQL logo"><br>**PostgreSQL** | <img src="docs/img/db/sqlserver.svg" width="110" alt="SQL Server"><br>**SQL Server** |
+|---|:---:|:---:|:---:|:---:|:---:|
+| **Phiên bản** | 5.7 · 8.0 · 8.4 | 5.7 · 8.0 · 8.4 | 10.x · 11.x | 10 trở lên | 2012 trở lên<sup>1</sup> |
+| ***Backup*** | | | | | |
+| Backup logical | ✅&nbsp;mysqldump | ✅&nbsp;mysqldump | ✅&nbsp;mariadb&#8209;dump | ✅&nbsp;pg_dump | —<sup>2</sup> |
+| Dump và restore song song | ✅&nbsp;mydumper | ✅&nbsp;mydumper | ✅&nbsp;mydumper | ✅&nbsp;pg_dump&nbsp;-j | — |
+| Backup vật lý khi database đang chạy | ✅&nbsp;XtraBackup<sup>3</sup> | ✅&nbsp;XtraBackup<sup>3</sup> | ✅&nbsp;MariaBackup<sup>3</sup> | ✅&nbsp;pg_basebackup | ✅&nbsp;BACKUP&nbsp;DATABASE |
+| Incremental / differential | ✅&nbsp;incremental | ✅&nbsp;incremental | ✅&nbsp;incremental | ❌<sup>4</sup> | ✅&nbsp;differential |
+| User, role và quyền | ✅ | ✅ | ✅ | ✅&nbsp;role | ❌<sup>5</sup> |
+| Khôi phục theo thời điểm | ✅&nbsp;binlog | ✅&nbsp;binlog | ✅&nbsp;binlog | ✅&nbsp;WAL | ✅&nbsp;log backup |
+| ***Restore*** | | | | | |
+| Restore sang tên mới | ✅<sup>6</sup> | ✅<sup>6</sup> | ✅<sup>6</sup> | ✅<sup>6</sup> | ✅ |
+| Restore sang server hoặc phiên bản khác | ✅<sup>7</sup> | ✅<sup>7</sup> | ✅<sup>7</sup> | ✅<sup>7</sup> | ✅<sup>8</sup> |
+| Kiểm tra mọi file trước khi thay dữ liệu | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Diễn tập restore theo lịch | ✅<sup>6</sup> | ✅<sup>6</sup> | ✅<sup>6</sup> | ✅<sup>6</sup> | ✅&nbsp;+&nbsp;DBCC&nbsp;CHECKDB |
+| ***Đi kèm mọi bản backup*** | | | | | |
+| Nén, mã hóa age, SHA-256 | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Đọc lại và kiểm tra ngay sau mỗi bản backup | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Mọi nơi lưu trữ, lịch chạy, retention GFS | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Cảnh báo backup trễ, báo cáo hằng tuần, Prometheus metrics | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Qua agent (không mở cổng vào) | ✅<sup>3</sup> | ✅<sup>3</sup> | ✅<sup>3</sup> | ✅ | ✅<sup>9</sup> |
+| Qua WireGuard có sẵn | ✅<sup>3</sup> | ✅<sup>3</sup> | ✅<sup>3</sup> | ✅ | ✅<sup>9</sup> |
+| REST API và MCP cho trợ lý AI | ✅ | ✅ | ✅ | ✅ | ✅ |
+| ***DumpCat chạy trên*** | | | | | |
+| Linux (amd64, arm64) | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Windows | ✅<sup>10</sup> | ✅<sup>10</sup> | ✅<sup>11</sup> | ✅<sup>12</sup> | ✅ |
+
+1. Trên Windows, Linux và trong container; không hỗ trợ Azure SQL Database hay Managed Instance.
+2. SQL Server không có công cụ dump logical; DumpCat dùng chính backup gốc (native) của SQL Server.
+3. XtraBackup và MariaBackup chạy trên chính máy database: cài DumpCat ở đó, hoặc chạy agent ở đó với
+   `--allow-physical`. Backup logical chạy được qua mọi cách kết nối.
+4. `pg_basebackup` chỉ backup full.
+5. Login là đối tượng của server, không nằm trong bản backup database: hãy tạo lại trên server đích (log restore liệt kê
+   các user chưa có login ở đó).
+6. Từ backup logical (mysqldump mỗi database một file, mydumper, pg_dump). Backup vật lý restore cả instance và chưa
+   diễn tập được.
+7. Backup logical sang mọi server và phiên bản (MySQL / MariaDB có sửa DEFINER, collation và GTID); backup vật lý sang
+   cùng phiên bản.
+8. Cùng phiên bản SQL Server hoặc mới hơn.
+9. SQL Server ghi backup ngay trên máy của nó: agent chạy với `--allow-mssql-dir` sẽ chuyển file về; qua WireGuard thì
+   thư mục backup phải được chia sẻ với máy chạy DumpCat.
+10. mysqldump, lưu binlog và khôi phục theo thời điểm; mydumper và XtraBackup chỉ có cho Linux.
+11. mariadb-dump, MariaBackup (chép vào datadir bằng tay) và khôi phục theo thời điểm từ binlog; không có mydumper.
+12. Đủ mọi thứ, trừ việc thay data directory của cluster trên chính máy đó.
+
 ## Cách hoạt động
 
 ```mermaid

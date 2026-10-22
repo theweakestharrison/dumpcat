@@ -77,6 +77,55 @@ single Go binary with the UI built in.
 - **Safe self-updates.** `dumpcat update` waits for running jobs, backs up its own database, can require signed
   releases, and rolls back if the new version fails to start.
 
+## What DumpCat supports
+
+✅&nbsp;supported · ❌ not supported · — does not apply to this database
+
+| | <img src="docs/img/db/mysql.svg" width="110" alt="MySQL logo"><br>**MySQL** | <img src="docs/img/db/percona.svg" width="110" alt="Percona logo"><br>**Percona&nbsp;Server** | <img src="docs/img/db/mariadb.svg" width="110" alt="MariaDB logo"><br>**MariaDB** | <img src="docs/img/db/postgresql.svg" width="110" alt="PostgreSQL logo"><br>**PostgreSQL** | <img src="docs/img/db/sqlserver.svg" width="110" alt="SQL Server"><br>**SQL Server** |
+|---|:---:|:---:|:---:|:---:|:---:|
+| **Versions** | 5.7 · 8.0 · 8.4 | 5.7 · 8.0 · 8.4 | 10.x · 11.x | 10 and newer | 2012 and newer<sup>1</sup> |
+| ***Backup*** | | | | | |
+| Logical backup | ✅&nbsp;mysqldump | ✅&nbsp;mysqldump | ✅&nbsp;mariadb&#8209;dump | ✅&nbsp;pg_dump | —<sup>2</sup> |
+| Parallel dump and restore | ✅&nbsp;mydumper | ✅&nbsp;mydumper | ✅&nbsp;mydumper | ✅&nbsp;pg_dump&nbsp;-j | — |
+| Hot physical backup | ✅&nbsp;XtraBackup<sup>3</sup> | ✅&nbsp;XtraBackup<sup>3</sup> | ✅&nbsp;MariaBackup<sup>3</sup> | ✅&nbsp;pg_basebackup | ✅&nbsp;BACKUP&nbsp;DATABASE |
+| Incremental / differential | ✅&nbsp;incremental | ✅&nbsp;incremental | ✅&nbsp;incremental | ❌<sup>4</sup> | ✅&nbsp;differential |
+| Users, roles and grants | ✅ | ✅ | ✅ | ✅&nbsp;roles | ❌<sup>5</sup> |
+| Point-in-time recovery | ✅&nbsp;binlog | ✅&nbsp;binlog | ✅&nbsp;binlog | ✅&nbsp;WAL | ✅&nbsp;log backups |
+| ***Restore*** | | | | | |
+| Restore under a new name | ✅<sup>6</sup> | ✅<sup>6</sup> | ✅<sup>6</sup> | ✅<sup>6</sup> | ✅ |
+| Restore onto another server or version | ✅<sup>7</sup> | ✅<sup>7</sup> | ✅<sup>7</sup> | ✅<sup>7</sup> | ✅<sup>8</sup> |
+| Every file checked before any data is replaced | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Scheduled restore drills | ✅<sup>6</sup> | ✅<sup>6</sup> | ✅<sup>6</sup> | ✅<sup>6</sup> | ✅&nbsp;+&nbsp;DBCC&nbsp;CHECKDB |
+| ***Around every backup*** | | | | | |
+| Compression, age encryption, SHA-256 | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Read back and verified after each backup | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Every storage, schedules, GFS retention | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Overdue-backup alerts, weekly digest, Prometheus metrics | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Through the agent (no inbound port) | ✅<sup>3</sup> | ✅<sup>3</sup> | ✅<sup>3</sup> | ✅ | ✅<sup>9</sup> |
+| Through the built-in WireGuard | ✅<sup>3</sup> | ✅<sup>3</sup> | ✅<sup>3</sup> | ✅ | ✅<sup>9</sup> |
+| REST API and MCP for AI assistants | ✅ | ✅ | ✅ | ✅ | ✅ |
+| ***DumpCat runs on*** | | | | | |
+| Linux (amd64, arm64) | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Windows | ✅<sup>10</sup> | ✅<sup>10</sup> | ✅<sup>11</sup> | ✅<sup>12</sup> | ✅ |
+
+1. On Windows, Linux and in containers; not Azure SQL Database or Managed Instance.
+2. SQL Server has no logical dump tool; DumpCat uses SQL Server's own native backups.
+3. XtraBackup and MariaBackup run on the database host: install DumpCat there, or start the agent there with
+   `--allow-physical`. Logical backups work over any connection.
+4. `pg_basebackup` takes full backups only.
+5. Logins are server objects, outside a database backup: create them on the target server (the restore log lists the
+   users that have no login there).
+6. From logical backups (mysqldump with one file per database, mydumper, pg_dump). Physical backups restore the whole
+   instance and are not drilled yet.
+7. Logical backups onto any server and version (MySQL / MariaDB with DEFINER, collation and GTID rewrites); physical
+   backups onto the same version.
+8. The same or a newer SQL Server version.
+9. SQL Server writes backups on its own host: an agent started with `--allow-mssql-dir` moves the files; through
+   WireGuard the backup folder must be shared with the DumpCat host.
+10. mysqldump, binlog archiving and point-in-time recovery; mydumper and XtraBackup exist only for Linux.
+11. mariadb-dump, MariaBackup (copied into the datadir by hand) and binlog point-in-time recovery; no mydumper.
+12. Everything except replacing the data directory of a local cluster.
+
 ## How it works
 
 ```mermaid
