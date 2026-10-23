@@ -35,19 +35,13 @@ single Go binary with the UI built in.
 ## Highlights
 
 - **No locking.** InnoDB is backed up from a consistent snapshot while your application keeps reading and writing.
-- **Three backup engines.** `mysqldump` / `mariadb-dump`, parallel `mydumper` / `myloader`, and hot physical backups with
-  Percona XtraBackup or MariaBackup, including incrementals.
-- **PostgreSQL too.** `pg_dump` in directory format with tables dumped and restored in parallel, roles from
-  `pg_dumpall --globals-only`, restores under new names or onto another server, and restore drills; `pg_basebackup` for
-  the whole cluster. The client tools of each server's major version are picked automatically.
-- **And SQL Server.** Native full and differential backups (`WITH CHECKSUM`, compressed where the edition allows,
-  checked with `RESTORE VERIFYONLY`), copy-only when another tool owns the chain, restores under new names or onto
-  another server through SQL Server's backup folder, restore drills with `DBCC CHECKDB`, and scheduled log backups for
-  recovery to a time, a marked transaction or an LSN. No client tool to install.
-- **Point-in-time recovery.** Continuous binlog archiving restores to a timestamp, a binlog position or the moment just
-  before a GTID, for example just before an accidental `DROP TABLE`; continuous WAL archiving (`pg_receivewal` through a
-  replication slot) does the same for PostgreSQL, to a timestamp, a restore point or a WAL position, and scheduled
-  `BACKUP LOG` for SQL Server (`STOPAT` / `STOPATMARK`), with the log chain checked before anything is restored.
+- **Four databases, each with its own tools.** MySQL and Percona Server, MariaDB, PostgreSQL and SQL Server:
+  `mysqldump`, parallel `mydumper` and hot physical backups with XtraBackup or MariaBackup, including incrementals;
+  `pg_dump` with tables in parallel, and `pg_basebackup`; SQL Server's native full and differential backups, with no
+  client tool to install. The details are in [the table below](#what-dumpcat-supports).
+- **Point-in-time recovery.** Continuous binlog or WAL archiving, or scheduled SQL Server log backups, restore to a
+  timestamp or an exact position in the log, for example just before an accidental `DROP TABLE`. The log chain is
+  checked before anything is restored.
 - **Storage anywhere.** Local disk or NFS, S3 and compatibles (Cloudflare R2, MinIO, Wasabi…), Google Drive,
   OneDrive / SharePoint, FTP / FTPS, SFTP, WebDAV, Backblaze B2, Azure Blob, Dropbox and every rclone backend. One job can
   write to several storages, each with its own retention.
@@ -79,52 +73,55 @@ single Go binary with the UI built in.
 
 ## What DumpCat supports
 
-✅&nbsp;supported · ❌ not supported · — does not apply to this database
+<p align="center">
+  <img src="docs/img/db/mysql.svg" height="48" alt="MySQL">&nbsp;
+  <img src="docs/img/db/percona.svg" height="48" alt="Percona Server">&nbsp;
+  <img src="docs/img/db/mariadb.svg" height="48" alt="MariaDB">&nbsp;
+  <img src="docs/img/db/postgresql.svg" height="48" alt="PostgreSQL">&nbsp;
+  <img src="docs/img/db/sqlserver.svg" height="48" alt="SQL Server">
+</p>
 
-| | <img src="docs/img/db/mysql.svg" width="110" alt="MySQL logo"><br>**MySQL** | <img src="docs/img/db/percona.svg" width="110" alt="Percona logo"><br>**Percona&nbsp;Server** | <img src="docs/img/db/mariadb.svg" width="110" alt="MariaDB logo"><br>**MariaDB** | <img src="docs/img/db/postgresql.svg" width="110" alt="PostgreSQL logo"><br>**PostgreSQL** | <img src="docs/img/db/sqlserver.svg" width="110" alt="SQL Server"><br>**SQL Server** |
-|---|:---:|:---:|:---:|:---:|:---:|
-| **Versions** | 5.7 · 8.0 · 8.4 | 5.7 · 8.0 · 8.4 | 10.x · 11.x | 10 and newer | 2012 and newer<sup>1</sup> |
-| ***Backup*** | | | | | |
-| Logical backup | ✅&nbsp;mysqldump | ✅&nbsp;mysqldump | ✅&nbsp;mariadb&#8209;dump | ✅&nbsp;pg_dump | —<sup>2</sup> |
-| Parallel dump and restore | ✅&nbsp;mydumper | ✅&nbsp;mydumper | ✅&nbsp;mydumper | ✅&nbsp;pg_dump&nbsp;-j | — |
-| Hot physical backup | ✅&nbsp;XtraBackup<sup>3</sup> | ✅&nbsp;XtraBackup<sup>3</sup> | ✅&nbsp;MariaBackup<sup>3</sup> | ✅&nbsp;pg_basebackup | ✅&nbsp;BACKUP&nbsp;DATABASE |
-| Incremental / differential | ✅&nbsp;incremental | ✅&nbsp;incremental | ✅&nbsp;incremental | ❌<sup>4</sup> | ✅&nbsp;differential |
-| Users, roles and grants | ✅ | ✅ | ✅ | ✅&nbsp;roles | ❌<sup>5</sup> |
-| Point-in-time recovery | ✅&nbsp;binlog | ✅&nbsp;binlog | ✅&nbsp;binlog | ✅&nbsp;WAL | ✅&nbsp;log backups |
-| ***Restore*** | | | | | |
-| Restore under a new name | ✅<sup>6</sup> | ✅<sup>6</sup> | ✅<sup>6</sup> | ✅<sup>6</sup> | ✅ |
-| Restore onto another server or version | ✅<sup>7</sup> | ✅<sup>7</sup> | ✅<sup>7</sup> | ✅<sup>7</sup> | ✅<sup>8</sup> |
-| Every file checked before any data is replaced | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Scheduled restore drills | ✅<sup>6</sup> | ✅<sup>6</sup> | ✅<sup>6</sup> | ✅<sup>6</sup> | ✅&nbsp;+&nbsp;DBCC&nbsp;CHECKDB |
-| ***Around every backup*** | | | | | |
-| Compression, age encryption, SHA-256 | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Read back and verified after each backup | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Every storage, schedules, GFS retention | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Overdue-backup alerts, weekly digest, Prometheus metrics | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Through the agent (no inbound port) | ✅<sup>3</sup> | ✅<sup>3</sup> | ✅<sup>3</sup> | ✅ | ✅<sup>9</sup> |
-| Through the built-in WireGuard | ✅<sup>3</sup> | ✅<sup>3</sup> | ✅<sup>3</sup> | ✅ | ✅<sup>9</sup> |
-| REST API and MCP for AI assistants | ✅ | ✅ | ✅ | ✅ | ✅ |
-| ***DumpCat runs on*** | | | | | |
-| Linux (amd64, arm64) | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Windows | ✅<sup>10</sup> | ✅<sup>10</sup> | ✅<sup>11</sup> | ✅<sup>12</sup> | ✅ |
+| | MySQL · Percona · MariaDB | PostgreSQL | SQL Server |
+|---|:---:|:---:|:---:|
+| Versions | MySQL 5.7 · 8.0 · 8.4<br>MariaDB 10 · 11 | 10 and newer | 2012 and newer |
+| Logical backup | ✅&nbsp;mysqldump | ✅&nbsp;pg_dump | — |
+| Parallel dump and restore | ✅&nbsp;mydumper | ✅&nbsp;pg_dump&nbsp;-j | — |
+| Hot physical backup | ✅&nbsp;XtraBackup<br>✅&nbsp;MariaBackup | ✅&nbsp;pg_basebackup | ✅&nbsp;native&nbsp;backup |
+| Incremental / differential | ✅ | ❌ | ✅ |
+| Users, roles and grants | ✅ | ✅ | ❌ |
+| Point-in-time recovery | ✅&nbsp;binlog | ✅&nbsp;WAL | ✅&nbsp;log&nbsp;backups |
+| Restore to a new name or another server | ✅ | ✅ | ✅ |
+| Scheduled restore drills | ✅ | ✅ | ✅ |
+| Through the agent or WireGuard | ✅ | ✅ | ✅ |
+| DumpCat on Windows | 🟡 | ✅ | ✅ |
 
-1. On Windows, Linux and in containers; not Azure SQL Database or Managed Instance.
-2. SQL Server has no logical dump tool; DumpCat uses SQL Server's own native backups.
-3. XtraBackup and MariaBackup run on the database host: install DumpCat there, or start the agent there with
-   `--allow-physical`. Logical backups work over any connection.
-4. `pg_basebackup` takes full backups only.
-5. Logins are server objects, outside a database backup: create them on the target server (the restore log lists the
-   users that have no login there).
-6. From logical backups (mysqldump with one file per database, mydumper, pg_dump). Physical backups restore the whole
-   instance and are not drilled yet.
-7. Logical backups onto any server and version (MySQL / MariaDB with DEFINER, collation and GTID rewrites); physical
-   backups onto the same version.
-8. The same or a newer SQL Server version.
-9. SQL Server writes backups on its own host: an agent started with `--allow-mssql-dir` moves the files; through
-   WireGuard the backup folder must be shared with the DumpCat host.
-10. mysqldump, binlog archiving and point-in-time recovery; mydumper and XtraBackup exist only for Linux.
-11. mariadb-dump, MariaBackup (copied into the datadir by hand) and binlog point-in-time recovery; no mydumper.
-12. Everything except replacing the data directory of a local cluster.
+✅&nbsp;supported · 🟡 partly · ❌ not supported · — does not apply
+
+**Every database also gets** compression, age encryption and SHA-256, a read-back check after every backup, a check of
+every file before a restore replaces data, every storage with its own retention, schedules, overdue-backup alerts, a
+weekly digest, Prometheus metrics, the REST API and MCP. **DumpCat runs on** Linux amd64 / arm64 with systemd, and on
+Windows Server 2016+ / Windows 10+ 64-bit as a Windows service.
+
+<details>
+<summary><b>Notes and limits</b></summary>
+
+- **Physical backups.** XtraBackup and MariaBackup run on the database host: install DumpCat there, or start the agent
+  there with `--allow-physical`; logical backups work over any connection. Physical backups restore the whole instance
+  onto the same version and are not drilled yet. `pg_basebackup` takes full backups only.
+- **Restores and drills** under new names or onto other servers and versions use logical backups (mysqldump with one
+  file per database, mydumper, pg_dump); MySQL and MariaDB restores rewrite `DEFINER`, collation and `GTID_PURGED`.
+- **SQL Server** on Windows, Linux or in containers; not Azure SQL Database or Managed Instance. It has no logical dump
+  tool, so DumpCat uses SQL Server's own backups, which SQL Server writes on its own host: DumpCat reads them there,
+  through a shared folder, or through an agent started with `--allow-mssql-dir` that moves the files
+  ([backup folder](docs/manual.md#sql-server)). Restores go onto the same or a newer version, and drills end with
+  `DBCC CHECKDB`. Logins are server objects, outside a database backup: create them on the target server (the restore
+  log lists the users that have no login there).
+- **DumpCat on Windows.** MySQL gets mysqldump, binlog archiving and point-in-time recovery; MariaDB gets mariadb-dump,
+  MariaBackup (copied into the datadir by hand) and binlog point-in-time recovery; mydumper and XtraBackup exist only for
+  Linux. PostgreSQL gets everything except replacing the data directory of a local cluster. For databases of hundreds
+  of GB and for physical MySQL backups, run DumpCat on Linux ([what works on Windows](docs/manual.md#35-windows)).
+
+</details>
 
 ## How it works
 
@@ -198,19 +195,6 @@ flowchart RL
 | Best for | Same network or VPC, or DumpCat on the database host | Teams that already use WireGuard; one gateway to a whole private network | Hosts behind NAT or a strict firewall; no change to MySQL or the network |
 | Set up in | Database servers | WireGuard page, then Database servers | Agents page, then Database servers |
 
-## Supported platforms
-
-| | |
-|---|---|
-| **Databases** | MySQL 5.7, 8.0, 8.4 · Percona Server · MariaDB 10.x, 11.x · PostgreSQL 10 and newer · Microsoft SQL Server 2012 and newer on Windows, Linux and in containers (not Azure SQL Database / Managed Instance) |
-| **DumpCat host** | Linux amd64 / arm64 with systemd · Windows Server 2016+ / Windows 10+ 64-bit, as a Windows service |
-| **Backup tools** | mysqldump / mariadb-dump · mydumper / myloader · Percona XtraBackup · MariaBackup · pg_dump / pg_restore / pg_dumpall / pg_basebackup / pg_receivewal (the Linux installer picks the versions that match your server; `--postgres 16` adds the PostgreSQL 16 client) · SQL Server: none, SQL Server writes the backups into a folder DumpCat reads ([backup folder](docs/manual.md#sql-server)) |
-| **Storage** | Local directories and NFS / SMB shares, plus everything [rclone](https://rclone.org) supports |
-| **Databases behind a firewall** | The agent (`dumpcat agent`) on Linux with systemd or on Windows, outbound HTTPS only · or standard WireGuard (`wg-quick`), outbound UDP |
-
-mydumper and XtraBackup exist only for Linux. For databases of hundreds of GB and for physical MySQL backups, run
-DumpCat on Linux ([what works on Windows](docs/manual.md#35-windows)).
-
 ## Quick start
 
 Want to look around first? The **[demo](https://dumpcat.cc/demo/)** runs the real web UI with sample data, right in your
@@ -231,7 +215,8 @@ It downloads the latest package from `https://downloads.dumpcat.cc`, checks its 
 `SHA256SUMS` and runs the `install.sh` inside it. The installer puts the binary in `/opt/dumpcat`, creates the `dumpcat`
 systemd service, and installs rclone, the MySQL / MariaDB client and the backup tools that match the database server on
 the machine. Options go after `sh -s --`, for example `curl -fsSL https://dumpcat.cc/install.sh | sudo sh -s -- --port 9090`:
-`--port 9090`, `--listen 127.0.0.1`, `--tls-auto`, `--no-deps`, `--uninstall [--purge]`.
+`--port 9090`, `--listen 127.0.0.1`, `--tls-auto`, `--postgres 16` (also the PostgreSQL 16 client tools), `--no-deps`,
+`--uninstall [--purge]`.
 On a database host that accepts no inbound connections, the same installer sets up only the [agent](docs/manual.md#37-database-hosts-that-accept-no-inbound-connections-agent):
 `--agent --server https://backup.example.com --key dca_…` (the **Agents** page shows the command with the key).
 

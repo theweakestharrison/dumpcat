@@ -33,19 +33,13 @@ binary Go có sẵn giao diện.
 ## Điểm nổi bật
 
 - **Không khóa database.** InnoDB được backup từ một snapshot nhất quán trong khi ứng dụng vẫn đọc ghi bình thường.
-- **Ba công cụ backup.** `mysqldump` / `mariadb-dump`, `mydumper` / `myloader` chạy song song, và backup vật lý nóng bằng
-  Percona XtraBackup hoặc MariaBackup, có cả incremental.
-- **Có cả PostgreSQL.** `pg_dump` định dạng thư mục, dump và restore các bảng song song, role lấy từ
-  `pg_dumpall --globals-only`, restore dưới tên mới hoặc sang server khác, diễn tập restore; `pg_basebackup` cho cả
-  cluster. Công cụ client cùng major với từng server được chọn tự động.
-- **Và SQL Server.** Backup native full và differential (`WITH CHECKSUM`, nén khi edition cho phép, kiểm tra bằng
-  `RESTORE VERIFYONLY`), copy-only khi chuỗi backup thuộc về công cụ khác, restore dưới tên mới hoặc sang server khác
-  qua thư mục backup của SQL Server, diễn tập restore kèm `DBCC CHECKDB`, và log backup theo lịch để khôi phục về một mốc
-  thời gian, một marked transaction hoặc một LSN. Không cần cài công cụ client nào.
-- **Khôi phục theo thời điểm.** Lưu binlog liên tục để restore về một mốc thời gian, một vị trí binlog hoặc ngay trước một
-  GTID, ví dụ ngay trước một câu `DROP TABLE` lỡ tay; với PostgreSQL, WAL được lưu liên tục (`pg_receivewal` qua một
-  replication slot) để khôi phục về một mốc thời gian, một restore point hoặc một vị trí WAL; với SQL Server là
-  `BACKUP LOG` theo lịch (`STOPAT` / `STOPATMARK`), chuỗi log được kiểm tra trước khi restore bất cứ gì.
+- **Bốn loại database, mỗi loại một bộ công cụ riêng.** MySQL và Percona Server, MariaDB, PostgreSQL, SQL Server:
+  `mysqldump`, `mydumper` chạy song song và backup vật lý nóng bằng XtraBackup hoặc MariaBackup, có cả incremental;
+  `pg_dump` dump các bảng song song, và `pg_basebackup`; backup native full và differential của SQL Server, không cần
+  cài công cụ client nào. Chi tiết ở [bảng bên dưới](#dumpcat-hỗ-trợ-những-gì).
+- **Khôi phục theo thời điểm.** Lưu binlog hoặc WAL liên tục, hoặc log backup SQL Server theo lịch, để restore về một mốc
+  thời gian hay một vị trí chính xác trong log, ví dụ ngay trước một câu `DROP TABLE` lỡ tay. Chuỗi log được kiểm tra
+  trước khi restore bất cứ gì.
 - **Lưu ở đâu cũng được.** Ổ local hoặc NFS, S3 và các dịch vụ tương thích (Cloudflare R2, MinIO, Wasabi…), Google Drive,
   OneDrive / SharePoint, FTP / FTPS, SFTP, WebDAV, Backblaze B2, Azure Blob, Dropbox và mọi backend của rclone. Một job có
   thể ghi ra nhiều nơi, mỗi nơi có chính sách giữ bản riêng.
@@ -77,52 +71,55 @@ binary Go có sẵn giao diện.
 
 ## DumpCat hỗ trợ những gì
 
-✅&nbsp;có · ❌ chưa hỗ trợ · — không áp dụng cho database này
+<p align="center">
+  <img src="docs/img/db/mysql.svg" height="48" alt="MySQL">&nbsp;
+  <img src="docs/img/db/percona.svg" height="48" alt="Percona Server">&nbsp;
+  <img src="docs/img/db/mariadb.svg" height="48" alt="MariaDB">&nbsp;
+  <img src="docs/img/db/postgresql.svg" height="48" alt="PostgreSQL">&nbsp;
+  <img src="docs/img/db/sqlserver.svg" height="48" alt="SQL Server">
+</p>
 
-| | <img src="docs/img/db/mysql.svg" width="110" alt="MySQL logo"><br>**MySQL** | <img src="docs/img/db/percona.svg" width="110" alt="Percona logo"><br>**Percona&nbsp;Server** | <img src="docs/img/db/mariadb.svg" width="110" alt="MariaDB logo"><br>**MariaDB** | <img src="docs/img/db/postgresql.svg" width="110" alt="PostgreSQL logo"><br>**PostgreSQL** | <img src="docs/img/db/sqlserver.svg" width="110" alt="SQL Server"><br>**SQL Server** |
-|---|:---:|:---:|:---:|:---:|:---:|
-| **Phiên bản** | 5.7 · 8.0 · 8.4 | 5.7 · 8.0 · 8.4 | 10.x · 11.x | 10 trở lên | 2012 trở lên<sup>1</sup> |
-| ***Backup*** | | | | | |
-| Backup logical | ✅&nbsp;mysqldump | ✅&nbsp;mysqldump | ✅&nbsp;mariadb&#8209;dump | ✅&nbsp;pg_dump | —<sup>2</sup> |
-| Dump và restore song song | ✅&nbsp;mydumper | ✅&nbsp;mydumper | ✅&nbsp;mydumper | ✅&nbsp;pg_dump&nbsp;-j | — |
-| Backup vật lý khi database đang chạy | ✅&nbsp;XtraBackup<sup>3</sup> | ✅&nbsp;XtraBackup<sup>3</sup> | ✅&nbsp;MariaBackup<sup>3</sup> | ✅&nbsp;pg_basebackup | ✅&nbsp;BACKUP&nbsp;DATABASE |
-| Incremental / differential | ✅&nbsp;incremental | ✅&nbsp;incremental | ✅&nbsp;incremental | ❌<sup>4</sup> | ✅&nbsp;differential |
-| User, role và quyền | ✅ | ✅ | ✅ | ✅&nbsp;role | ❌<sup>5</sup> |
-| Khôi phục theo thời điểm | ✅&nbsp;binlog | ✅&nbsp;binlog | ✅&nbsp;binlog | ✅&nbsp;WAL | ✅&nbsp;log backup |
-| ***Restore*** | | | | | |
-| Restore sang tên mới | ✅<sup>6</sup> | ✅<sup>6</sup> | ✅<sup>6</sup> | ✅<sup>6</sup> | ✅ |
-| Restore sang server hoặc phiên bản khác | ✅<sup>7</sup> | ✅<sup>7</sup> | ✅<sup>7</sup> | ✅<sup>7</sup> | ✅<sup>8</sup> |
-| Kiểm tra mọi file trước khi thay dữ liệu | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Diễn tập restore theo lịch | ✅<sup>6</sup> | ✅<sup>6</sup> | ✅<sup>6</sup> | ✅<sup>6</sup> | ✅&nbsp;+&nbsp;DBCC&nbsp;CHECKDB |
-| ***Đi kèm mọi bản backup*** | | | | | |
-| Nén, mã hóa age, SHA-256 | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Đọc lại và kiểm tra ngay sau mỗi bản backup | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Mọi nơi lưu trữ, lịch chạy, retention GFS | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Cảnh báo backup trễ, báo cáo hằng tuần, Prometheus metrics | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Qua agent (không mở cổng vào) | ✅<sup>3</sup> | ✅<sup>3</sup> | ✅<sup>3</sup> | ✅ | ✅<sup>9</sup> |
-| Qua WireGuard có sẵn | ✅<sup>3</sup> | ✅<sup>3</sup> | ✅<sup>3</sup> | ✅ | ✅<sup>9</sup> |
-| REST API và MCP cho trợ lý AI | ✅ | ✅ | ✅ | ✅ | ✅ |
-| ***DumpCat chạy trên*** | | | | | |
-| Linux (amd64, arm64) | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Windows | ✅<sup>10</sup> | ✅<sup>10</sup> | ✅<sup>11</sup> | ✅<sup>12</sup> | ✅ |
+| | MySQL · Percona · MariaDB | PostgreSQL | SQL Server |
+|---|:---:|:---:|:---:|
+| Phiên bản | MySQL 5.7 · 8.0 · 8.4<br>MariaDB 10 · 11 | 10 trở lên | 2012 trở lên |
+| Backup logical | ✅&nbsp;mysqldump | ✅&nbsp;pg_dump | — |
+| Dump và restore song song | ✅&nbsp;mydumper | ✅&nbsp;pg_dump&nbsp;-j | — |
+| Backup vật lý khi database đang chạy | ✅&nbsp;XtraBackup<br>✅&nbsp;MariaBackup | ✅&nbsp;pg_basebackup | ✅&nbsp;backup&nbsp;native |
+| Incremental / differential | ✅ | ❌ | ✅ |
+| User, role và quyền | ✅ | ✅ | ❌ |
+| Khôi phục theo thời điểm | ✅&nbsp;binlog | ✅&nbsp;WAL | ✅&nbsp;log&nbsp;backup |
+| Restore sang tên mới hoặc server khác | ✅ | ✅ | ✅ |
+| Diễn tập restore theo lịch | ✅ | ✅ | ✅ |
+| Qua agent hoặc WireGuard | ✅ | ✅ | ✅ |
+| DumpCat chạy trên Windows | 🟡 | ✅ | ✅ |
 
-1. Trên Windows, Linux và trong container; không hỗ trợ Azure SQL Database hay Managed Instance.
-2. SQL Server không có công cụ dump logical; DumpCat dùng chính backup gốc (native) của SQL Server.
-3. XtraBackup và MariaBackup chạy trên chính máy database: cài DumpCat ở đó, hoặc chạy agent ở đó với
-   `--allow-physical`. Backup logical chạy được qua mọi cách kết nối.
-4. `pg_basebackup` chỉ backup full.
-5. Login là đối tượng của server, không nằm trong bản backup database: hãy tạo lại trên server đích (log restore liệt kê
-   các user chưa có login ở đó).
-6. Từ backup logical (mysqldump mỗi database một file, mydumper, pg_dump). Backup vật lý restore cả instance và chưa
-   diễn tập được.
-7. Backup logical sang mọi server và phiên bản (MySQL / MariaDB có sửa DEFINER, collation và GTID); backup vật lý sang
-   cùng phiên bản.
-8. Cùng phiên bản SQL Server hoặc mới hơn.
-9. SQL Server ghi backup ngay trên máy của nó: agent chạy với `--allow-mssql-dir` sẽ chuyển file về; qua WireGuard thì
-   thư mục backup phải được chia sẻ với máy chạy DumpCat.
-10. mysqldump, lưu binlog và khôi phục theo thời điểm; mydumper và XtraBackup chỉ có cho Linux.
-11. mariadb-dump, MariaBackup (chép vào datadir bằng tay) và khôi phục theo thời điểm từ binlog; không có mydumper.
-12. Đủ mọi thứ, trừ việc thay data directory của cluster trên chính máy đó.
+✅&nbsp;có · 🟡 một phần · ❌ chưa hỗ trợ · — không áp dụng
+
+**Database nào cũng có** nén, mã hóa age và SHA-256, đọc lại kiểm tra sau mỗi bản backup, kiểm tra mọi file trước khi
+restore thay dữ liệu, mọi nơi lưu trữ với retention riêng, lịch chạy, cảnh báo backup trễ, báo cáo hằng tuần,
+Prometheus metrics, REST API và MCP. **DumpCat chạy trên** Linux amd64 / arm64 có systemd, và Windows Server 2016+ /
+Windows 10+ 64-bit dưới dạng Windows service.
+
+<details>
+<summary><b>Ghi chú và giới hạn</b></summary>
+
+- **Backup vật lý.** XtraBackup và MariaBackup chạy trên chính máy database: cài DumpCat ở đó, hoặc chạy agent ở đó với
+  `--allow-physical`; backup logical chạy được qua mọi cách kết nối. Backup vật lý restore cả instance sang cùng phiên
+  bản và chưa diễn tập được. `pg_basebackup` chỉ backup full.
+- **Restore và diễn tập** sang tên mới, sang server hoặc phiên bản khác dùng backup logical (mysqldump mỗi database một
+  file, mydumper, pg_dump); với MySQL và MariaDB có sửa `DEFINER`, collation và `GTID_PURGED`.
+- **SQL Server** chạy trên Windows, Linux hoặc trong container; không hỗ trợ Azure SQL Database hay Managed Instance.
+  SQL Server không có công cụ dump logical nên DumpCat dùng chính backup của SQL Server, được ghi ngay trên máy SQL
+  Server: DumpCat đọc ở đó, qua một thư mục chia sẻ, hoặc qua agent chạy với `--allow-mssql-dir` để chuyển file về
+  ([thư mục backup](docs/manual.vi.md#sql-server)). Restore sang cùng phiên bản hoặc mới hơn, diễn tập kết thúc bằng
+  `DBCC CHECKDB`. Login là đối tượng của server, không nằm trong bản backup database: hãy tạo lại trên server đích (log
+  restore liệt kê các user chưa có login ở đó).
+- **DumpCat trên Windows.** MySQL có mysqldump, lưu binlog và khôi phục theo thời điểm; MariaDB có mariadb-dump,
+  MariaBackup (chép vào datadir bằng tay) và khôi phục theo thời điểm từ binlog; mydumper và XtraBackup chỉ có cho Linux.
+  PostgreSQL đủ mọi thứ, trừ việc thay data directory của cluster trên chính máy đó. Với database hàng trăm GB và backup
+  vật lý MySQL, hãy chạy DumpCat trên Linux ([những gì chạy được trên Windows](docs/manual.vi.md#35-windows)).
+
+</details>
 
 ## Cách hoạt động
 
@@ -196,19 +193,6 @@ flowchart RL
 | Hợp với | Cùng mạng hoặc VPC, hoặc DumpCat chạy trên server database | Đội đã dùng WireGuard; một gateway dẫn tới cả mạng nội bộ | Máy sau NAT hoặc firewall chặt; không đụng tới MySQL hay mạng |
 | Thiết lập ở | Database servers | Trang WireGuard, rồi Database servers | Trang Agents, rồi Database servers |
 
-## Nền tảng hỗ trợ
-
-| | |
-|---|---|
-| **Database** | MySQL 5.7, 8.0, 8.4 · Percona Server · MariaDB 10.x, 11.x · PostgreSQL 10 trở lên · Microsoft SQL Server 2012 trở lên trên Windows, Linux và trong container (không hỗ trợ Azure SQL Database / Managed Instance) |
-| **Máy chạy DumpCat** | Linux amd64 / arm64 có systemd · Windows Server 2016+ / Windows 10+ 64-bit, chạy như Windows service |
-| **Công cụ backup** | mysqldump / mariadb-dump · mydumper / myloader · Percona XtraBackup · MariaBackup · pg_dump / pg_restore / pg_dumpall / pg_basebackup / pg_receivewal (bộ cài Linux tự chọn phiên bản khớp với server; `--postgres 16` cài thêm client PostgreSQL 16) · SQL Server: không cần gì, SQL Server ghi backup vào một thư mục mà DumpCat đọc ([thư mục backup](docs/manual.vi.md#sql-server)) |
-| **Lưu trữ** | Thư mục local và ổ chia sẻ NFS / SMB, cùng mọi thứ [rclone](https://rclone.org) hỗ trợ |
-| **Database sau firewall** | Agent (`dumpcat agent`) trên Linux có systemd hoặc Windows, chỉ cần HTTPS đi ra · hoặc WireGuard chuẩn (`wg-quick`), UDP đi ra |
-
-mydumper và XtraBackup chỉ có cho Linux. Với database hàng trăm GB và backup vật lý MySQL, hãy chạy DumpCat trên Linux
-([những gì chạy được trên Windows](docs/manual.vi.md#35-windows)).
-
 ## Bắt đầu nhanh
 
 Muốn xem trước? **[Bản demo](https://dumpcat.cc/demo/)** chạy giao diện thật với dữ liệu mẫu ngay trong trình duyệt.
@@ -228,7 +212,7 @@ Lệnh này tải gói mới nhất từ `https://downloads.dumpcat.cc`, kiểm 
 chạy `install.sh` trong gói. Bộ cài đặt chép binary vào `/opt/dumpcat`, tạo service systemd `dumpcat`, và cài rclone,
 MySQL / MariaDB client cùng các công cụ backup khớp với database server trên máy. Tùy chọn đặt sau `sh -s --`, ví dụ
 `curl -fsSL https://dumpcat.cc/install.sh | sudo sh -s -- --port 9090`: `--port 9090`, `--listen 127.0.0.1`, `--tls-auto`,
-`--no-deps`, `--uninstall [--purge]`.
+`--postgres 16` (cài thêm client PostgreSQL 16), `--no-deps`, `--uninstall [--purge]`.
 Trên server database không cho kết nối vào, cùng bộ cài này chỉ cài [agent](docs/manual.vi.md#37-server-database-không-cho-kết-nối-vào-agent):
 `--agent --server https://backup.example.com --key dca_…` (trang **Agents** hiện sẵn lệnh kèm khóa).
 
