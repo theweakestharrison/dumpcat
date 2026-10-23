@@ -110,7 +110,7 @@
         <h1>Backups ohne Datenbanksperre. <span class="soft">Wiederherstellung auf die Sekunde genau.</span></h1>
         <p class="lead">DumpCat ist eine einzige Binärdatei mit Weboberfläche. Es plant Backups, komprimiert und verschlüsselt sie, überträgt Kopien zu S3, Google Drive, OneDrive oder per SFTP, prüft sie und holt Ihre Daten zurück, wenn Sie sie brauchen. Läuft unter Linux und Windows, vollständig offline.</p>
         <div class="cta">
-          <a class="btn btn-light" href="#install">Version <span data-version>1.8.0</span> installieren</a>
+          <a class="btn btn-light" href="#install">Version <span data-version>1.9.0</span> installieren</a>
           <a class="btn btn-ghost" href="/demo/">Oberfläche ansehen</a>
           <a class="btn btn-ghost" href="https://github.com/theweakestharrison/DumpCat"><svg class="gh" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 0c4.42 0 8 3.58 8 8a8.013 8.013 0 0 1-5.45 7.59c-.4.08-.55-.17-.55-.38 0-.27.01-1.13.01-2.2 0-.75-.25-1.23-.54-1.48 1.78-.2 3.65-.88 3.65-3.95 0-.88-.31-1.59-.82-2.15.08-.2.36-1.02-.08-2.12 0 0-.67-.22-2.2.82-.64-.18-1.32-.27-2-.27-.68 0-1.36.09-2 .27-1.53-1.03-2.2-.82-2.2-.82-.44 1.1-.16 1.92-.08 2.12-.51.56-.82 1.28-.82 2.15 0 3.06 1.86 3.75 3.64 3.95-.23.2-.44.55-.51 1.07-.46.21-1.61.55-2.33-.66-.15-.24-.6-.83-1.23-.82-.67.01-.27.38.01.53.34.19.73.9.82 1.13.16.45.68 1.31 2.69.94 0 .67.01 1.3.01 1.49 0 .21-.15.45-.55.38A7.995 7.995 0 0 1 0 8c0-4.42 3.58-8 8-8Z"/></svg><span>Quellcode auf GitHub</span></a>
         </div>
@@ -250,7 +250,7 @@
           </div>
           <div role="tabpanel" id="panel-windows" aria-labelledby="tab-windows" hidden>
             <ol class="win-steps">
-              <li><span><b>Die .zip-Datei herunterladen</b></span> <a class="btn btn-solid dl" data-pkg="windows" href="https://downloads.dumpcat.cc/1.8.0/dumpcat-1.8.0-windows-amd64.zip"><span>Für Windows herunterladen</span> <small data-version>1.8.0</small></a></li>
+              <li><span><b>Die .zip-Datei herunterladen</b></span> <a class="btn btn-solid dl" data-pkg="windows" href="https://downloads.dumpcat.cc/1.9.0/dumpcat-1.9.0-windows-amd64.zip"><span>Für Windows herunterladen</span> <small data-version>1.9.0</small></a></li>
               <li><b>Entpacken</b>: Rechtsklick auf die Datei, <i>Extract All</i> („Alle extrahieren“) wählen.</li>
               <li><b>Doppelklick auf <i>Install DumpCat</i></b>, dann mit <i>Yes</i> („Ja“) bestätigen. Ihr Browser öffnet DumpCat; das Installationsfenster zeigt das Setup-Token.</li>
             </ol>
@@ -586,14 +586,14 @@ go build -o dumpcat ./cmd/dumpcat</code></pre>
       <div class="section-body release" id="release" hidden>
         <div class="release-files">
           <div class="pkgs">
-            <a class="pkg" id="pkg-linux" href="https://downloads.dumpcat.cc/1.8.0/dumpcat-1.8.0-linux.tar.gz">
+            <a class="pkg" id="pkg-linux" href="https://downloads.dumpcat.cc/1.9.0/dumpcat-1.9.0-linux.tar.gz">
               <span class="pkg-os">Linux</span>
-              <span class="pkg-file" id="pkg-linux-file">dumpcat-1.8.0-linux.tar.gz</span>
+              <span class="pkg-file" id="pkg-linux-file">dumpcat-1.9.0-linux.tar.gz</span>
               <span class="pkg-desc">amd64 und arm64, Installer, systemd-Dienst und Handbuch</span>
             </a>
-            <a class="pkg" id="pkg-windows" href="https://downloads.dumpcat.cc/1.8.0/dumpcat-1.8.0-windows-amd64.zip">
+            <a class="pkg" id="pkg-windows" href="https://downloads.dumpcat.cc/1.9.0/dumpcat-1.9.0-windows-amd64.zip">
               <span class="pkg-os">Windows</span>
-              <span class="pkg-file" id="pkg-windows-file">dumpcat-1.8.0-windows-amd64.zip</span>
+              <span class="pkg-file" id="pkg-windows-file">dumpcat-1.9.0-windows-amd64.zip</span>
               <span class="pkg-desc">64-Bit, Installer für den Windows-Dienst und Handbuch</span>
             </a>
           </div>
@@ -602,7 +602,7 @@ go build -o dumpcat ./cmd/dumpcat</code></pre>
           <ul class="bins" id="rel-bins"></ul>
           <p class="old">Ältere Versionen bleiben unter <code>downloads.dumpcat.cc/&lt;version&gt;/</code> verfügbar.</p>
         </div>
-        <div class="notes wn" data-wn-version="1.8.0"><p class="wn-label">Neuigkeiten</p><h3><a href="/changelog/1.8.0/">DumpCat 1.8.0</a> <span class="wn-date">21. Oktober 2026</span></h3><p class="wn-lead" lang="en">Microsoft SQL Server is the third database engine: native full and differential backups, restores under new names or onto another server, restore drills with <code>DBCC CHECKDB</code>, and scheduled log backups for point-in-time recovery — also for SQL Server hosts that share no folder with DumpCat, through the agent.</p><ul class="wn-list" lang="en"><li><a href="/changelog/1.8.0/#sql-server">SQL Server</a></li><li><a href="/changelog/1.8.0/#everything-else">Everything else</a></li></ul><p class="wn-links"><a href="/changelog/1.8.0/">Alle Änderungen ansehen →</a><a href="/changelog/">Frühere Versionen</a></p><p class="wn-note">Die Versionshinweise sind auf Englisch.</p></div>
+        <div class="notes wn" data-wn-version="1.9.0"><p class="wn-label">Neuigkeiten</p><h3><a href="/changelog/1.9.0/">DumpCat 1.9.0</a> <span class="wn-date">23. Oktober 2026</span></h3><p class="wn-lead" lang="en">DumpCat keeps itself up to date: turn on automatic installs and new signed versions arrive over the air, in the hours you choose — the newest fixes and features without rebuilding or downloading anything.</p><ul class="wn-list" lang="en"><li><a href="/changelog/1.9.0/#updates">Updates</a></li></ul><p class="wn-links"><a href="/changelog/1.9.0/">Alle Änderungen ansehen →</a><a href="/changelog/">Frühere Versionen</a></p><p class="wn-note">Die Versionshinweise sind auf Englisch.</p></div>
       </div>
     </div>
   </section>
@@ -629,7 +629,7 @@ go build -o dumpcat ./cmd/dumpcat</code></pre>
 
 <footer class="foot">
   <div class="wrap">
-    <a class="brand" href="#top"><svg aria-hidden="true"><use href="#dc-logo"/></svg>DumpCat <span data-version>1.8.0</span></a>
+    <a class="brand" href="#top"><svg aria-hidden="true"><use href="#dc-logo"/></svg>DumpCat <span data-version>1.9.0</span></a>
     <p>Open Source unter der Apache-2.0-Lizenz, der Quellcode liegt auf <a href="https://github.com/theweakestharrison/DumpCat">GitHub</a>. <a href="/compare/">So schneidet DumpCat im Vergleich mit anderen Tools ab</a>. Das vollständige Handbuch auf Englisch und Vietnamesisch liegt jedem Paket bei.</p>
     <p class="foot-mail">Support: <a href="mailto:fat@dumpcat.cc">fat@dumpcat.cc</a></p>
     <p class="foot-tm">MySQL ist eine Marke von Oracle und/oder seinen verbundenen Unternehmen, MariaDB von MariaDB plc, Percona Server von Percona, PostgreSQL der PostgreSQL Community Association of Canada, Microsoft und SQL Server der Microsoft-Unternehmensgruppe. DumpCat ist ein unabhängiges Open-Source-Projekt und steht mit ihnen in keiner Verbindung.</p>

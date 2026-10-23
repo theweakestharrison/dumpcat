@@ -6,7 +6,7 @@ page at dumpcat.cc/changelog/ (see `scripts/build-site.py`). Newest version
 first. Each section: `## <version> (<date>)`, a one-line summary, then `###`
 groups of bullets.
 
-## 1.9.0
+## 1.9.0 (2026-10-23)
 
 DumpCat keeps itself up to date: turn on automatic installs and new signed versions arrive over the air, in the hours
 you choose — the newest fixes and features without rebuilding or downloading anything.

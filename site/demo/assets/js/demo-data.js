@@ -2,7 +2,7 @@
 // database servers, four storages and two weeks of backup history. Dates are
 // relative to the moment the page loads, so the demo always looks current.
 
-export const VERSION = '1.8.0'; // set by scripts/build-demo.py
+export const VERSION = '1.9.0'; // set by scripts/build-demo.py
 
 const MIN = 60e3;
 const H = 60 * MIN;
