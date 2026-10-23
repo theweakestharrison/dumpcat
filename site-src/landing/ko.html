@@ -134,11 +134,11 @@
 <template data-i18n="o-title">원래라면 직접 스크립트로 짜야 했을 것들</template>
 <template data-i18n="o-intro">모두 DumpCat에 기본으로 들어 있고, 웹 UI에서 켜고 조정합니다.</template>
 <template data-i18n="o-list">
-  <div><dt>업로드 전에 암호화</dt><dd>age(ChaCha20-Poly1305 + scrypt)가 사용자의 서버에서 실행되므로 클라우드 제공자는 데이터를 읽을 수 없습니다.</dd></div>
-  <div><dt>무결성 검사</dt><dd>모든 파일에 <span class="nw">SHA-256</span>. 검증(Verify)은 파일을 다시 읽어 복호화하고 압축을 푼 뒤 <code>Dump completed</code> 줄이 있는지 확인합니다.</dd></div>
+  <div><dt>암호화와 검증</dt><dd>age(ChaCha20-Poly1305 + scrypt)가 업로드 전에 서버에서 암호화합니다. 모든 파일에 <span class="nw">SHA-256</span>, 모든 백업은 기록 직후 다시 읽어 복호화·압축 해제로 확인합니다.</dd></div>
   <div><dt>GFS 보존 정책</dt><dd>백업 N개, N일, 그리고 일·주·월마다 마지막 백업 하나씩 보관합니다. 증분 체인은 해당 전체 백업과 함께만 삭제됩니다.</dd></div>
   <div><dt>신중한 복원</dt><dd>데이터베이스를 DROP하기 전에 모든 파일을 시험 복호화합니다. 새 이름으로, 또는 다른 서버와 다른 버전으로 복원할 수 있습니다(MySQL 8 ↔ MariaDB, PostgreSQL 15 → 16).</dd></div>
-  <div><dt>계정과 역할</dt><dd>admin, operator, viewer. TOTP 2단계 인증, API 토큰, 감사 로그, 로그인이 반복해서 실패하면 계정 잠금.</dd></div>
+  <div><dt>팀과 SSO</dt><dd>사용자 수 제한 없이 admin, operator, viewer 역할을 줄 수 있습니다. Google, Microsoft Entra ID 등 모든 OpenID Connect 공급자로 로그인, TOTP 2단계 인증, API 토큰, 감사 로그를 지원합니다.</dd></div>
+  <div><dt>우리 이름과 로고</dt><dd>화이트 라벨: 웹 UI, 로그인 페이지, 브라우저 탭, 모든 알림에서 DumpCat 대신 우리 이름과 로고가 보입니다.</dd></div>
   <div><dt>알림</dt><dd>이메일, Telegram, Slack, Discord, HMAC 서명 웹훅으로 실패 시 또는 성공 시 알려 줍니다.</dd></div>
   <div><dt>방화벽 뒤의 데이터베이스</dt><dd>데이터베이스 호스트의 에이전트가 HTTPS로 DumpCat에 연결하거나, 호스트가 내장 WireGuard에 참여합니다. 데이터베이스 쪽에 포트를 열 필요가 없습니다.</dd></div>
   <div><dt>OTA 업데이트</dt><dd>자동 설치를 켜면 서명된 새 버전이 정해 둔 시간대에 DumpCat 빌드 서버에서 알아서 도착합니다. 실행 중인 백업이 끝나기를 기다리고, 자체 데이터베이스를 백업하고, 실패하면 스스로 롤백합니다. 다시 빌드할 필요가 없습니다.</dd></div>

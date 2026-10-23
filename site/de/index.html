@@ -515,11 +515,11 @@
         <p class="intro">All das ist in DumpCat enthalten und wird in der Weboberfläche eingeschaltet und eingestellt.</p>
       </div>
       <dl class="section-body ops">
-        <div><dt>Vor dem Upload verschlüsselt</dt><dd>age (ChaCha20-Poly1305 + scrypt) läuft auf Ihrem Server, daher kann der Cloud-Anbieter Ihre Daten nicht lesen.</dd></div>
-        <div><dt>Integritätsprüfungen</dt><dd><span class="nw">SHA-256</span> für jede Datei. Die Verifizierung liest erneut, entschlüsselt, entpackt und sucht nach der Zeile <code>Dump completed</code>.</dd></div>
+        <div><dt>Verschlüsselt und geprüft</dt><dd>age (ChaCha20-Poly1305 + scrypt) verschlüsselt auf Ihrem Server, bevor etwas hochgeladen wird. <span class="nw">SHA-256</span> für jede Datei, und jedes Backup wird direkt nach dem Schreiben zurückgelesen, entschlüsselt und entpackt.</dd></div>
         <div><dt>GFS-Aufbewahrung</dt><dd>N Backups, N Tage, jeweils das letzte jedes Tages, jeder Woche und jedes Monats. Inkrementelle Ketten werden nur zusammen mit ihrem Vollbackup gelöscht.</dd></div>
         <div><dt>Umsichtige Wiederherstellung</dt><dd>Jede Datei wird probeweise entschlüsselt, bevor irgendeine Datenbank gelöscht wird. Wiederherstellung unter neuen Namen oder auf einen anderen Server und eine andere Version (MySQL 8 ↔ MariaDB, PostgreSQL 15 → 16).</dd></div>
-        <div><dt>Konten und Rollen</dt><dd>admin, operator, viewer. TOTP-Zwei-Faktor-Authentifizierung, API-Tokens, ein Audit-Log und Sperre nach wiederholt fehlgeschlagenen Anmeldungen.</dd></div>
+        <div><dt>Teams und Single Sign-on</dt><dd>Beliebig viele Benutzer, als admin, operator oder viewer. Anmeldung über Google, Microsoft Entra ID oder jeden OpenID-Connect-Anbieter, TOTP-Zwei-Faktor, API-Tokens und ein Audit-Log.</dd></div>
+        <div><dt>Ihr Name und Logo</dt><dd>White-Label: Ihr Name und Ihr Logo ersetzen DumpCat in der Weboberfläche, auf der Anmeldeseite, im Browser-Tab und in jeder Benachrichtigung.</dd></div>
         <div><dt>Benachrichtigungen</dt><dd>E-Mail, Telegram, Slack, Discord und HMAC-signierte Webhooks, bei Fehlern oder bei Erfolg.</dd></div>
         <div><dt>Datenbanken hinter einer Firewall</dt><dd>Ein Agent auf dem Datenbank-Host verbindet sich ausgehend per HTTPS mit DumpCat, oder der Host tritt dem integrierten WireGuard bei. Zur Datenbank muss kein Port geöffnet werden.</dd></div>
         <div><dt>Automatische Updates</dt><dd>Schalten Sie die automatische Installation ein, und neue signierte Versionen kommen in den von Ihnen gewählten Stunden vom Build-Server von DumpCat. DumpCat wartet laufende Backups ab, sichert die eigene Datenbank und rollt bei einem Fehler selbst zurück. Nichts neu zu bauen.</dd></div>

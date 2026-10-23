@@ -133,11 +133,11 @@
 <template data-i18n="o-title">Tout ce que vous auriez dû scripter vous-même</template>
 <template data-i18n="o-intro">Tout est inclus dans DumpCat, et s’active et se règle depuis l’interface web.</template>
 <template data-i18n="o-list">
-  <div><dt>Chiffré avant l’envoi</dt><dd>age (ChaCha20-Poly1305 + scrypt) tourne sur votre serveur&nbsp;: le fournisseur cloud ne peut pas lire vos données.</dd></div>
-  <div><dt>Contrôles d’intégrité</dt><dd><span class="nw">SHA-256</span> pour chaque fichier. La vérification relit, déchiffre, décompresse et cherche la ligne <code>Dump completed</code>.</dd></div>
+  <div><dt>Chiffré et vérifié</dt><dd>age (ChaCha20-Poly1305 + scrypt) chiffre sur votre serveur avant tout envoi. <span class="nw">SHA-256</span> pour chaque fichier, et chaque sauvegarde est relue, déchiffrée et décompressée juste après son écriture.</dd></div>
   <div><dt>Rétention GFS</dt><dd>Gardez N sauvegardes, N jours, la dernière de chaque jour, semaine et mois. Une chaîne incrémentale n’est supprimée qu’avec sa sauvegarde complète.</dd></div>
   <div><dt>Restaurations prudentes</dt><dd>Chaque fichier passe un test de déchiffrement avant la suppression de la moindre base. Restaurez sous de nouveaux noms, ou sur un autre serveur et une autre version (MySQL 8 ↔ MariaDB, PostgreSQL 15 → 16).</dd></div>
-  <div><dt>Comptes et rôles</dt><dd>admin, operator, viewer. Double authentification TOTP, jetons d’API, journal d’audit et verrouillage après des échecs de connexion répétés.</dd></div>
+  <div><dt>Équipes et authentification unique</dt><dd>Autant d’utilisateurs que nécessaire, en admin, operator ou viewer. Connexion avec Google, Microsoft Entra ID ou tout fournisseur OpenID Connect, double authentification TOTP, jetons d’API et journal d’audit.</dd></div>
+  <div><dt>Votre nom et votre logo</dt><dd>Marque blanche&nbsp;: votre nom et votre logo remplacent DumpCat dans l’interface web, sur la page de connexion, dans l’onglet du navigateur et dans chaque notification.</dd></div>
   <div><dt>Notifications</dt><dd>E-mail, Telegram, Slack, Discord et webhooks signés HMAC, en cas d’échec ou de succès.</dd></div>
   <div><dt>Bases derrière un pare-feu</dt><dd>Un agent sur le serveur de base de données se connecte à DumpCat en HTTPS, ou le serveur rejoint le WireGuard intégré. Aucun port à ouvrir vers la base.</dd></div>
   <div><dt>Mises à jour OTA</dt><dd>Activez l’installation automatique et les nouvelles versions signées arrivent du serveur de build de DumpCat aux heures que vous choisissez. DumpCat attend la fin des sauvegardes en cours, sauvegarde sa propre base et revient en arrière tout seul en cas d’échec. Rien à recompiler.</dd></div>

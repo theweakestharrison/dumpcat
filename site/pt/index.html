@@ -515,11 +515,11 @@
         <p class="intro">Tudo isso já vem no DumpCat e é ativado e ajustado pela interface web.</p>
       </div>
       <dl class="section-body ops">
-        <div><dt>Criptografado antes do upload</dt><dd>O age (ChaCha20-Poly1305 + scrypt) roda no seu servidor, então o provedor de nuvem não consegue ler seus dados.</dd></div>
-        <div><dt>Verificação de integridade</dt><dd><span class="nw">SHA-256</span> para cada arquivo. A verificação relê, descriptografa, descompacta e procura a linha <code>Dump completed</code>.</dd></div>
+        <div><dt>Criptografado e verificado</dt><dd>O age (ChaCha20-Poly1305 + scrypt) criptografa no seu servidor antes do upload. <span class="nw">SHA-256</span> para cada arquivo, e cada backup é relido, descriptografado e descompactado logo depois de gravado.</dd></div>
         <div><dt>Retenção GFS</dt><dd>Mantenha N backups, N dias, o último de cada dia, semana e mês. Cadeias incrementais só são apagadas junto com o seu backup completo.</dd></div>
         <div><dt>Restaurações cuidadosas</dt><dd>Cada arquivo passa por um teste de descriptografia antes de qualquer banco ser apagado. Restaure com novos nomes, ou em outro servidor e outra versão (MySQL 8 ↔ MariaDB, PostgreSQL 15 → 16).</dd></div>
-        <div><dt>Contas e papéis</dt><dd>admin, operator, viewer. Dois fatores com TOTP, tokens de API, log de auditoria e bloqueio após repetidas falhas de login.</dd></div>
+        <div><dt>Equipes e login único</dt><dd>Quantos usuários você precisar, como admin, operator ou viewer. Login com Google, Microsoft Entra ID ou qualquer provedor OpenID Connect, dois fatores com TOTP, tokens de API e log de auditoria.</dd></div>
+        <div><dt>Seu nome e seu logo</dt><dd>White-label: seu nome e seu logo substituem o DumpCat na interface web, na página de login, na aba do navegador e em cada notificação.</dd></div>
         <div><dt>Notificações</dt><dd>E-mail, Telegram, Slack, Discord e webhooks assinados com HMAC, em caso de falha ou de sucesso.</dd></div>
         <div><dt>Bancos atrás de firewall</dt><dd>Um agente no host do banco se conecta ao DumpCat por HTTPS, ou o host entra no WireGuard integrado. Nenhuma porta precisa ser aberta para o banco.</dd></div>
         <div><dt>Atualizações OTA</dt><dd>Ligue a instalação automática e as novas versões assinadas chegam do servidor de build do DumpCat no horário que você escolher. Ele espera os backups em andamento terminarem, faz backup do próprio banco de dados e reverte sozinho se algo falhar. Nada para recompilar.</dd></div>

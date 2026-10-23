@@ -515,11 +515,11 @@
         <p class="intro">All of it ships with DumpCat and is switched on and tuned from the web UI.</p>
       </div>
       <dl class="section-body ops">
-        <div><dt>Encrypted before upload</dt><dd>age (ChaCha20-Poly1305 + scrypt) runs on your server, so the cloud provider cannot read your data.</dd></div>
-        <div><dt>Integrity checks</dt><dd><span class="nw">SHA-256</span> for every file. Verify re-reads, decrypts, decompresses and looks for the <code>Dump completed</code> line.</dd></div>
+        <div><dt>Encrypted and verified</dt><dd>age (ChaCha20-Poly1305 + scrypt) encrypts on your server before upload. <span class="nw">SHA-256</span> for every file, and every backup is read back, decrypted and decompressed right after it is written.</dd></div>
         <div><dt>GFS retention</dt><dd>Keep N backups, N days, the last one of each day, week and month. Incremental chains go only with their full.</dd></div>
         <div><dt>Careful restores</dt><dd>Every file is test-decrypted before any database is dropped. Restore under new names, or onto another server and version (MySQL 8 ↔ MariaDB, PostgreSQL 15 → 16).</dd></div>
-        <div><dt>Accounts and roles</dt><dd>admin, operator, viewer. TOTP two-factor, API tokens, an audit log and lockout after repeated failed logins.</dd></div>
+        <div><dt>Teams and single sign-on</dt><dd>As many users as you need, as admin, operator or viewer. Sign in with Google, Microsoft Entra ID or any OpenID Connect provider, TOTP two-factor, API tokens and an audit log.</dd></div>
+        <div><dt>Your name and logo</dt><dd>White-label: your name and logo replace DumpCat in the web UI, on the sign-in page, in the browser tab and in every notification.</dd></div>
         <div><dt>Notifications</dt><dd>Email, Telegram, Slack, Discord and HMAC-signed webhooks, on failure or on success.</dd></div>
         <div><dt>Databases behind a firewall</dt><dd>An agent on the database host connects out to DumpCat over HTTPS, or the host joins the built-in WireGuard. No port has to be opened to the database.</dd></div>
         <div><dt>Updates over the air</dt><dd>Turn on automatic installs and new signed versions arrive from DumpCat’s build server in the hours you choose. It waits for running backups, backs up its own database and rolls back by itself if anything fails. Nothing to rebuild.</dd></div>

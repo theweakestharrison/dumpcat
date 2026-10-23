@@ -515,11 +515,11 @@
         <p class="intro">全部内置于 DumpCat，在 Web 界面中开启和调整。</p>
       </div>
       <dl class="section-body ops">
-        <div><dt>上传前加密</dt><dd>age（ChaCha20-Poly1305 + scrypt）在你自己的服务器上运行，云服务商无法读取你的数据。</dd></div>
-        <div><dt>完整性校验</dt><dd>每个文件都有 <span class="nw">SHA-256</span>。校验时会重新读取、解密、解压，并检查是否有 <code>Dump completed</code> 这一行。</dd></div>
+        <div><dt>加密与校验</dt><dd>age（ChaCha20-Poly1305 + scrypt）在上传前于你的服务器上加密。每个文件都有 <span class="nw">SHA-256</span>，每个备份写完后立即回读、解密、解压校验。</dd></div>
         <div><dt>GFS 保留策略</dt><dd>保留 N 份备份、N 天，或每天、每周、每月的最后一份。增量链只会随其全量备份一起删除。</dd></div>
         <div><dt>稳妥的恢复</dt><dd>删除任何数据库之前，先对每个文件做试解密。可以恢复为新名称，或恢复到另一台服务器、另一个版本（MySQL 8 ↔ MariaDB，PostgreSQL 15 → 16）。</dd></div>
-        <div><dt>账号与角色</dt><dd>admin、operator、viewer 三种角色。支持 TOTP 双因素认证、API 令牌、审计日志，多次登录失败后锁定账号。</dd></div>
+        <div><dt>团队与单点登录</dt><dd>用户数量不限，角色分为 admin、operator、viewer。可用 Google、Microsoft Entra ID 或任何 OpenID Connect 提供商登录，支持 TOTP 双因素认证、API 令牌和审计日志。</dd></div>
+        <div><dt>你的名称和 logo</dt><dd>白标（white-label）：你的名称和 logo 会取代 Web 界面、登录页、浏览器标签页和所有通知中的 DumpCat。</dd></div>
         <div><dt>通知</dt><dd>邮件、Telegram、Slack、Discord 以及 HMAC 签名的 Webhook，可在失败或成功时发送。</dd></div>
         <div><dt>防火墙后的数据库</dt><dd>数据库主机上的 Agent 通过 HTTPS 主动连接 DumpCat，或者让主机加入内置的 WireGuard。无需为数据库开放任何端口。</dd></div>
         <div><dt>OTA 在线更新</dt><dd>开启自动安装后，带签名的新版本会在你选定的时段从 DumpCat 的构建服务器自动送达。它会等待正在运行的备份完成、先备份自身数据库，出错时自动回滚。无需重新构建。</dd></div>

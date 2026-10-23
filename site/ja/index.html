@@ -515,11 +515,11 @@
         <p class="intro">どれも DumpCat に標準で含まれ、Web UI からオン・オフや調整ができます。</p>
       </div>
       <dl class="section-body ops">
-        <div><dt>アップロード前に暗号化</dt><dd>age（ChaCha20-Poly1305 + scrypt）があなたのサーバー上で動くので、クラウド事業者はデータを読めません。</dd></div>
-        <div><dt>整合性チェック</dt><dd>すべてのファイルに <span class="nw">SHA-256</span>。検証では再読み込み、復号、展開を行い、<code>Dump completed</code> 行があるかを確認します。</dd></div>
+        <div><dt>暗号化と検証</dt><dd>age（ChaCha20-Poly1305 + scrypt）でアップロード前にサーバー上で暗号化。すべてのファイルに <span class="nw">SHA-256</span>、各バックアップは書き込み直後に読み戻し、復号・展開して検証します。</dd></div>
         <div><dt>GFS 世代管理</dt><dd>N 個のバックアップ、N 日分、各日・各週・各月の最後の 1 つを保持。増分チェーンは、元のフルバックアップと一緒にしか削除されません。</dd></div>
         <div><dt>慎重なリストア</dt><dd>データベースを DROP する前に、すべてのファイルを試験的に復号します。別名でのリストアや、別のサーバー・バージョンへのリストアも可能です（MySQL 8 ↔ MariaDB、PostgreSQL 15 → 16）。</dd></div>
-        <div><dt>アカウントとロール</dt><dd>admin、operator、viewer。TOTP による二要素認証、API トークン、監査ログ、ログイン失敗が続いたときのロックアウト。</dd></div>
+        <div><dt>チームとシングルサインオン</dt><dd>ユーザー数は無制限で、admin・operator・viewer のロールを割り当てられます。Google、Microsoft Entra ID など OpenID Connect 対応のプロバイダーでサインインでき、TOTP 二要素認証、API トークン、監査ログも備えています。</dd></div>
+        <div><dt>自社の名前とロゴ</dt><dd>ホワイトラベル対応：Web UI、サインイン画面、ブラウザのタブ、すべての通知で、DumpCat の代わりに自社の名前とロゴを表示します。</dd></div>
         <div><dt>通知</dt><dd>メール、Telegram、Slack、Discord、HMAC 署名付き Webhook で、失敗時または成功時に通知します。</dd></div>
         <div><dt>ファイアウォール内のデータベース</dt><dd>データベースホスト上のエージェントが HTTPS で DumpCat に接続するか、ホストが内蔵 WireGuard に参加します。データベース側でポートを開ける必要はありません。</dd></div>
         <div><dt>OTA アップデート</dt><dd>自動インストールをオンにすると、署名付きの新バージョンが指定した時間帯に DumpCat のビルドサーバーから届きます。実行中のバックアップの完了を待ち、自身のデータベースをバックアップし、失敗したら自動でロールバックします。ビルドし直す必要はありません。</dd></div>

@@ -60,8 +60,12 @@ single Go binary with the UI built in.
 - **Careful restores.** Restore under new database names or onto another instance or version (with `DEFINER`,
   collation and `GTID_PURGED` rewrites), test-decrypt every file before anything is dropped, fast load mode, and
   automatic rollback when a physical restore replaces the datadir.
-- **Built for teams.** Admin, operator and viewer roles, TOTP two-factor login, read-only, full or Manage API tokens, an audit
-  log, and notifications by HTML email, Telegram, Slack, Discord or HMAC-signed webhook.
+- **Built for teams.** As many users as you need, as admin, operator or viewer; single sign-on with Google, Microsoft
+  Entra ID or any OpenID Connect provider, TOTP two-factor login, read-only, full or Manage API tokens, an audit log, and
+  notifications by HTML email, Telegram, Slack, Discord or HMAC-signed webhook.
+- **Your name and logo (white-label).** [Settings → Branding](docs/manual.md#branding) puts your name and logo in place of
+  DumpCat in the web UI, on the sign-in page, in the browser tab and in notifications (email subjects start with
+  `[your name]`), for example when you run backups for clients.
 - **Works with AI assistants.** An [MCP](docs/manual.md#ai-assistants-mcp) endpoint lets Claude Desktop, Claude Code
   and other MCP clients check status, read backups and logs and investigate failures, read-only by default; with a
   full-access token they can also run backups, verifications and restore drills, and with a Manage token set up and

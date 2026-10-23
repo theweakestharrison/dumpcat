@@ -515,11 +515,11 @@
         <p class="intro">Todo viene incluido en DumpCat y se activa y ajusta desde la interfaz web.</p>
       </div>
       <dl class="section-body ops">
-        <div><dt>Cifrado antes de subir</dt><dd>age (ChaCha20-Poly1305 + scrypt) se ejecuta en tu servidor, así que el proveedor de la nube no puede leer tus datos.</dd></div>
-        <div><dt>Comprobación de integridad</dt><dd><span class="nw">SHA-256</span> para cada archivo. La verificación vuelve a leer, descifra, descomprime y busca la línea <code>Dump completed</code>.</dd></div>
+        <div><dt>Cifrado y verificado</dt><dd>age (ChaCha20-Poly1305 + scrypt) cifra en tu servidor antes de subir nada. <span class="nw">SHA-256</span> para cada archivo, y cada copia se relee, se descifra y se descomprime justo después de escribirse.</dd></div>
         <div><dt>Retención GFS</dt><dd>Conserva N copias, N días, la última de cada día, semana y mes. Las cadenas incrementales solo se eliminan junto con su copia completa.</dd></div>
         <div><dt>Restauraciones cuidadosas</dt><dd>Se comprueba que cada archivo se puede descifrar antes de eliminar cualquier base de datos. Restaura con otros nombres, o en otro servidor y otra versión (MySQL 8 ↔ MariaDB, PostgreSQL 15 → 16).</dd></div>
-        <div><dt>Cuentas y roles</dt><dd>admin, operator, viewer. Doble factor TOTP, tokens de API, un registro de auditoría y bloqueo tras varios inicios de sesión fallidos.</dd></div>
+        <div><dt>Equipos e inicio de sesión único</dt><dd>Tantos usuarios como necesites, como admin, operator o viewer. Inicio de sesión con Google, Microsoft Entra ID o cualquier proveedor OpenID Connect, doble factor TOTP, tokens de API y registro de auditoría.</dd></div>
+        <div><dt>Tu nombre y tu logo</dt><dd>Marca blanca: tu nombre y tu logo sustituyen a DumpCat en la interfaz web, la página de inicio de sesión, la pestaña del navegador y cada notificación.</dd></div>
         <div><dt>Notificaciones</dt><dd>Correo electrónico, Telegram, Slack, Discord y webhooks firmados con HMAC, en caso de fallo o de éxito.</dd></div>
         <div><dt>Bases de datos tras un firewall</dt><dd>Un agente en el servidor de base de datos se conecta a DumpCat por HTTPS, o el servidor se une al WireGuard integrado. No hace falta abrir ningún puerto hacia la base de datos.</dd></div>
         <div><dt>Actualizaciones OTA</dt><dd>Activa la instalación automática y las nuevas versiones firmadas llegan desde el servidor de compilación de DumpCat en el horario que elijas. Espera a que terminen las copias en curso, hace una copia de su propia base de datos y revierte solo si algo falla. Nada que recompilar.</dd></div>

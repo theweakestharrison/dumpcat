@@ -505,11 +505,11 @@
         <p class="intro">Tất cả có sẵn trong DumpCat và được bật, chỉnh ngay trên giao diện web.</p>
       </div>
       <dl class="section-body ops">
-        <div><dt>Mã hóa trước khi upload</dt><dd>age (ChaCha20-Poly1305 + scrypt) chạy trên server của bạn, nhà cung cấp cloud không đọc được dữ liệu.</dd></div>
-        <div><dt>Kiểm tra toàn vẹn</dt><dd><span class="nw">SHA-256</span> cho từng file. Verify đọc lại, giải mã, giải nén và tìm dòng <code>Dump completed</code>.</dd></div>
+        <div><dt>Mã hóa và kiểm tra</dt><dd>age (ChaCha20-Poly1305 + scrypt) mã hóa ngay trên server trước khi upload. <span class="nw">SHA-256</span> cho từng file, và mỗi bản backup được đọc lại, giải mã, giải nén ngay sau khi ghi.</dd></div>
         <div><dt>Retention kiểu GFS</dt><dd>Giữ N bản, N ngày, bản cuối mỗi ngày, tuần, tháng. Chuỗi incremental chỉ bị xóa cùng bản full gốc.</dd></div>
         <div><dt>Restore cẩn thận</dt><dd>Thử giải mã mọi file trước khi DROP database. Restore sang tên mới, hoặc sang server và phiên bản khác (MySQL 8 ↔ MariaDB, PostgreSQL 15 → 16).</dd></div>
-        <div><dt>Tài khoản và phân quyền</dt><dd>admin, operator, viewer. 2FA bằng TOTP, API token, nhật ký thao tác, khóa sau nhiều lần đăng nhập sai.</dd></div>
+        <div><dt>Nhóm và đăng nhập một lần</dt><dd>Bao nhiêu user cũng được, với vai trò admin, operator hoặc viewer. Đăng nhập bằng Google, Microsoft Entra ID hay mọi nhà cung cấp OpenID Connect, 2FA bằng TOTP, API token và nhật ký thao tác.</dd></div>
+        <div><dt>Tên và logo của bạn</dt><dd>White-label: tên và logo riêng thay chữ DumpCat trên giao diện web, trang đăng nhập, tab trình duyệt và mọi thông báo.</dd></div>
         <div><dt>Thông báo</dt><dd>Email, Telegram, Slack, Discord và Webhook ký HMAC, khi lỗi hoặc khi thành công.</dd></div>
         <div><dt>Database sau firewall</dt><dd>Agent trên server database tự kết nối ra DumpCat qua HTTPS, hoặc dùng WireGuard tích hợp. Không cần mở port nào tới database.</dd></div>
         <div><dt>Cập nhật OTA</dt><dd>Bật tự động cài là bản mới có chữ ký từ máy chủ build của DumpCat tự về trong khung giờ bạn chọn. Nó chờ backup đang chạy xong, backup database của chính nó và tự rollback nếu có lỗi. Không phải build lại gì.</dd></div>
