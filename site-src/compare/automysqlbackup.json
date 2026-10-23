@@ -2,7 +2,7 @@
   "slug": "automysqlbackup",
   "name": "AutoMySQLBackup",
   "order": 35,
-  "checked": "2026-10-19",
+  "checked": "2026-10-23",
   "kind": {"en": "Bash script run from cron", "vi": "Script bash chạy bằng cron"},
   "summary": {
     "en": "Classic cron script with daily / weekly / monthly rotation; the original project stopped in 2011.",
@@ -33,9 +33,12 @@
     "multi_storage": ["no", {"en": "Local directory only", "vi": "Chỉ thư mục local"}],
     "encryption": ["yes", {"en": "OpenSSL (not in Debian pkg)", "vi": "OpenSSL (gói Debian không có)"}],
     "direct": ["yes", {"en": "Stays on the server", "vi": "Nằm lại trên server"}],
+    "agent": ["no", {"en": "Local script, no server", "vi": "Script local, không có server"}],
+    "vpn": ["no", {"en": "Local script, no server", "vi": "Script local, không có server"}],
     "scheduler": ["partial", {"en": "Via cron (packaged)", "vi": "Qua cron (có sẵn trong gói)"}],
     "retention": ["yes", {"en": "Daily / weekly / monthly", "vi": "Ngày / tuần / tháng"}],
-    "alerts": ["no", {"en": "Email only", "vi": "Chỉ email"}]
+    "alerts": ["no", {"en": "Email only", "vi": "Chỉ email"}],
+    "mcp": ["no", {"en": "None found", "vi": "Không có"}]
   },
   "en": {
     "title": "AutoMySQLBackup alternative: DumpCat, a maintained MySQL backup tool with a web UI",

@@ -11,7 +11,8 @@ TOOLS = ["portabase", "databasus", "sqlbackupandftp", "simplebackups", "sqlbak"]
 ROWS = ["open_source", "free", "self_hosted", "windows", "web_ui",
         "parallel", "physical", "incremental",
         "pitr", "restore_ui", "verify",
-        "multi_storage", "encryption", "direct", "alerts"]
+        "multi_storage", "encryption", "direct", "agent", "vpn",
+        "alerts", "mcp"]
 MARK = {"yes": "✅", "paid": "💲", "partial": "🟡", "no": "❌", "unknown": "❔"}
 labels = {k: l for _, rows in bs.GRID for k, l in rows}
 tools = [json.load(io.open(f"site-src/compare/{s}.json", encoding="utf-8")) for s in TOOLS]

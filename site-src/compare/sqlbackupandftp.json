@@ -2,7 +2,7 @@
   "slug": "sqlbackupandftp",
   "name": "SQLBackupAndFTP",
   "order": 5,
-  "checked": "2026-10-19",
+  "checked": "2026-10-23",
   "kind": {"en": "Windows desktop app and service", "vi": "Ứng dụng desktop và service cho Windows"},
   "summary": {
     "en": "Windows backup app for SQL Server, MySQL, MariaDB and PostgreSQL, licensed per computer.",
@@ -33,9 +33,12 @@
     "multi_storage": ["yes"],
     "encryption": ["paid", {"en": "Professional edition", "vi": "Bản Professional"}],
     "direct": ["yes"],
+    "agent": ["no", {"en": "Local Windows app, no server", "vi": "App Windows local, không có server"}],
+    "vpn": ["partial", {"en": "SSH tunnel, inbound SSH", "vi": "Tunnel SSH, cần mở SSH vào"}],
     "scheduler": ["yes"],
     "retention": ["yes", {"en": "Incl. GFS", "vi": "Có GFS"}],
-    "alerts": ["paid", {"en": "Lite edition and up", "vi": "Từ bản Lite"}]
+    "alerts": ["paid", {"en": "Lite edition and up", "vi": "Từ bản Lite"}],
+    "mcp": ["no", {"en": "None found", "vi": "Không có"}]
   },
   "en": {
     "title": "SQLBackupAndFTP alternative for MySQL: DumpCat, free, open source, Linux and Windows",
@@ -114,6 +117,9 @@
     {"label": "SQLBackupAndFTP docs: how MySQL backup and restore works", "url": "https://sqlbackupandftp.com/docs/docs/how-it-works/how-backup-restore-of-databases/mysql/"},
     {"label": "SQLBackupAndFTP docs: encryption", "url": "https://sqlbackupandftp.com/docs/docs/job-settings/backup-job/encryption/"},
     {"label": "SQLBackupAndFTP docs: destinations", "url": "https://sqlbackupandftp.com/docs/docs/job-settings/backup-job/destinations/"},
-    {"label": "SQLBackupAndFTP docs: restore job", "url": "https://sqlbackupandftp.com/docs/docs/job-settings/restore-job/"}
+    {"label": "SQLBackupAndFTP docs: restore job", "url": "https://sqlbackupandftp.com/docs/docs/job-settings/restore-job/"},
+    {"label": "SQLBackupAndFTP documentation: application architecture", "url": "https://sqlbackupandftp.com/docs/docs/how-it-works/application-architecture/"},
+    {"label": "SQLBackupAndFTP documentation: MySQL connection settings", "url": "https://sqlbackupandftp.com/docs/docs/job-settings/backup-job/connection-settings/mysql/"},
+    {"label": "SQLBackupAndFTP documentation: PostgreSQL connection settings", "url": "https://sqlbackupandftp.com/docs/docs/job-settings/backup-job/connection-settings/postgresql/"}
   ]
 }

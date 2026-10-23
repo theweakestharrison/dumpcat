@@ -145,7 +145,10 @@ How DumpCat compares with other MySQL and MariaDB backup tools. Every mark was c
 | Several copies per backup | ✅ | ✅ | ❌ | ✅ | 💲 | ✅ |
 | Encryption | ✅ | ✅ | ✅ | 💲 | ✅ | 💲 |
 | Data skips the vendor | ✅ | ✅ | ✅ | ✅ | 🟡 | ✅ |
+| Agent, no inbound port | ✅ | ✅ | ❌ | ❌ | ✅ | ✅ |
+| Built-in VPN tunnel | ✅ | ❌ | 🟡 | 🟡 | 🟡 | 🟡 |
 | Chat and webhook alerts | ✅ | ✅ | ✅ | 💲 | 💲 | ❔ |
+| MCP for AI assistants | ✅ | ✅ | ❌ | ❌ | 💲 | ❌ |
 
 Portabase and Databasus also back up MongoDB, Redis and other engines; DumpCat sticks to MySQL, MariaDB, PostgreSQL and SQL Server and goes deeper on each (see [What DumpCat supports](#what-dumpcat-supports)).
 

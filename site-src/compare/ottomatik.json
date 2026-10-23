@@ -2,7 +2,7 @@
   "slug": "ottomatik",
   "name": "Ottomatik",
   "order": 50,
-  "checked": "2026-10-19",
+  "checked": "2026-10-23",
   "kind": {
     "en": "Hosted backup service (SaaS) over SSH",
     "vi": "Dịch vụ backup trực tuyến (SaaS) qua SSH"
@@ -45,9 +45,12 @@
     "multi_storage": ["unknown"],
     "encryption": ["unknown", {"en": "File encryption not described", "vi": "Chưa mô tả mã hóa file backup"}],
     "direct": ["partial", {"en": "Not for remote backups", "vi": "Không với backup từ xa"}],
+    "agent": ["no", {"en": "Inbound SSH; agent retired", "vi": "Cần SSH vào; agent đã ngừng"}],
+    "vpn": ["partial", {"en": "Intermediary SSH host only", "vi": "Chỉ qua máy trung gian có SSH"}],
     "scheduler": ["yes"],
     "retention": ["yes", {"en": "Keep last N copies", "vi": "Giữ N bản gần nhất"}],
-    "alerts": ["yes", {"en": "Webhooks", "vi": "Webhook"}]
+    "alerts": ["yes", {"en": "Webhooks", "vi": "Webhook"}],
+    "mcp": ["no", {"en": "None found", "vi": "Không có"}]
   },
   "en": {
     "title": "Ottomatik alternative for MySQL: DumpCat, free and self-hosted",
@@ -146,6 +149,9 @@
     {"label": "Ottomatik help: remote MySQL backups", "url": "https://support.ottomatik.io/en/articles/2891410-remote-mysql-backups"},
     {"label": "Ottomatik help: hosted storage and remote servers", "url": "https://support.ottomatik.io/en/articles/4499138-what-is-the-difference-between-ottomatik-hosted-storage-and-the-ottomatik-remote-server"},
     {"label": "Ottomatik help: manual install for FreeBSD", "url": "https://support.ottomatik.io/en/articles/2345899-manual-install-for-freebsd"},
-    {"label": "Ottomatik help: backup rotation", "url": "https://support.ottomatik.io/en/articles/1816400-what-does-file-is-no-longer-available-due-to-backup-rotation-cycle-mean"}
+    {"label": "Ottomatik help: backup rotation", "url": "https://support.ottomatik.io/en/articles/1816400-what-does-file-is-no-longer-available-due-to-backup-rotation-cycle-mean"},
+    {"label": "Ottomatik documentation: moving from the salt-minion agent to SSH", "url": "https://support.ottomatik.io/en/articles/2345872-how-to-update-servers-from-salt-minion-to-ssh-backup-delivery-mechanism"},
+    {"label": "Ottomatik documentation: IP addresses to allowlist", "url": "https://support.ottomatik.io/en/articles/2345851-ip-addresses-for-ottomatik-servers"},
+    {"label": "Ottomatik documentation: back up Amazon RDS through an intermediary server", "url": "https://support.ottomatik.io/en/articles/2345860-how-to-backup-amazon-rds-instance-with-ottomatik"}
   ]
 }

@@ -143,7 +143,10 @@ DumpCat so với các công cụ backup MySQL, MariaDB khác. Mỗi dấu đều
 | Nhiều bản sao cho một backup | ✅ | ✅ | ❌ | ✅ | 💲 | ✅ |
 | Mã hóa | ✅ | ✅ | ✅ | 💲 | ✅ | 💲 |
 | Dữ liệu không qua hãng | ✅ | ✅ | ✅ | ✅ | 🟡 | ✅ |
+| Agent, không mở port vào | ✅ | ✅ | ❌ | ❌ | ✅ | ✅ |
+| VPN tunnel có sẵn | ✅ | ❌ | 🟡 | 🟡 | 🟡 | 🟡 |
 | Báo qua chat và webhook | ✅ | ✅ | ✅ | 💲 | 💲 | ❔ |
+| MCP cho trợ lý AI | ✅ | ✅ | ❌ | ❌ | 💲 | ❌ |
 
 Portabase và Databasus còn backup cả MongoDB, Redis và các engine khác; DumpCat chỉ tập trung vào MySQL, MariaDB, PostgreSQL và SQL Server nhưng làm sâu hơn với từng loại (xem [DumpCat hỗ trợ những gì](#dumpcat-hỗ-trợ-những-gì)).
 

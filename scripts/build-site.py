@@ -113,15 +113,20 @@ GRID = [
         ("encryption", {"en": "Encryption", "vi": "Mã hóa"}),
         ("direct", {"en": "Data skips the vendor", "vi": "Dữ liệu không qua hãng"}),
     ]),
+    ({"en": "Databases behind a firewall", "vi": "Database sau firewall"}, [
+        ("agent", {"en": "Agent, no inbound port", "vi": "Agent, không mở port vào"}),
+        ("vpn", {"en": "Built-in VPN tunnel", "vi": "VPN tunnel có sẵn"}),
+    ]),
     ({"en": "Operations", "vi": "Vận hành"}, [
         ("scheduler", {"en": "Built-in scheduler", "vi": "Lập lịch có sẵn"}),
         ("retention", {"en": "Automatic retention", "vi": "Tự dọn bản cũ"}),
         ("alerts", {"en": "Chat and webhook alerts", "vi": "Báo qua chat và webhook"}),
+        ("mcp", {"en": "MCP for AI assistants", "vi": "MCP cho trợ lý AI"}),
     ]),
 ]
 GRID_KEYS = [k for _, rows in GRID for k, _ in rows]
 # rows of the short comparison on the landing page
-LANDING_ROWS = ["free", "self_hosted", "linux", "physical", "pitr", "encryption", "direct", "verify"]
+LANDING_ROWS = ["free", "self_hosted", "linux", "physical", "pitr", "encryption", "direct", "verify", "agent", "vpn", "mcp"]
 
 US_GRID = {
     "open_source": ["yes", {"en": "Apache-2.0", "vi": "Apache-2.0"}],
@@ -142,9 +147,12 @@ US_GRID = {
     "multi_storage": ["yes"],
     "encryption": ["yes", {"en": "age, before upload", "vi": "age, trước khi upload"}],
     "direct": ["yes", {"en": "Server to your storage", "vi": "Từ server tới storage"}],
+    "agent": ["yes", {"en": "Outbound HTTPS only", "vi": "Chỉ HTTPS đi ra"}],
+    "vpn": ["yes", {"en": "WireGuard, built in", "vi": "WireGuard có sẵn"}],
     "scheduler": ["yes", {"en": "Cron", "vi": "Cron"}],
     "retention": ["yes", {"en": "Count, age or GFS", "vi": "Số bản, số ngày, GFS"}],
     "alerts": ["yes", {"en": "Slack, Telegram, Discord…", "vi": "Slack, Telegram, Discord…"}],
+    "mcp": ["yes", {"en": "Read-only by default", "vi": "Mặc định chỉ đọc"}],
 }
 
 VERDICT = {

@@ -2,7 +2,7 @@
   "slug": "databasus",
   "name": "Databasus",
   "order": 15,
-  "checked": "2026-10-19",
+  "checked": "2026-10-23",
   "kind": {"en": "Self-hosted, open source (Apache-2.0), Docker", "vi": "Tự host, mã nguồn mở (Apache-2.0), Docker"},
   "summary": {
     "en": "Open-source multi-database backup web app (formerly Postgresus); logical-only for MySQL.",
@@ -33,9 +33,12 @@
     "multi_storage": ["no", {"en": "One storage per database", "vi": "Một storage cho mỗi database"}],
     "encryption": ["yes", {"en": "AES-256-GCM", "vi": "AES-256-GCM"}],
     "direct": ["yes"],
+    "agent": ["no", {"en": "Connects in; agent removed", "vi": "Kết nối vào DB; đã bỏ agent"}],
+    "vpn": ["partial", {"en": "SSH tunnel, inbound SSH", "vi": "Tunnel SSH, cần mở SSH vào"}],
     "scheduler": ["yes"],
     "retention": ["yes", {"en": "Incl. GFS", "vi": "Có GFS"}],
-    "alerts": ["yes"]
+    "alerts": ["yes"],
+    "mcp": ["no", {"en": "Community server only", "vi": "Chỉ có server cộng đồng"}]
   },
   "en": {
     "title": "Databasus vs DumpCat: open-source MySQL backup tools compared",
@@ -104,6 +107,9 @@
     {"label": "Databasus: MySQL backup", "url": "https://databasus.com/mysql-backup"},
     {"label": "Databasus: restore verification", "url": "https://databasus.com/restore-verification"},
     {"label": "Databasus README", "url": "https://github.com/databasus/databasus/blob/main/README.md"},
-    {"label": "Databasus source: backup config (one storage per database)", "url": "https://github.com/databasus/databasus/blob/main/backend/internal/features/backups/config/logical/model.go"}
+    {"label": "Databasus source: backup config (one storage per database)", "url": "https://github.com/databasus/databasus/blob/main/backend/internal/features/backups/config/logical/model.go"},
+    {"label": "Databasus ADR-0009: remote physical backups instead of agents", "url": "https://github.com/databasus/databasus/blob/main/adr/0009-why-remote-physical-backups-instead-of-agents.md"},
+    {"label": "Databasus documentation: FAQ (remote backups, SSH tunnel)", "url": "https://databasus.com/faq"},
+    {"label": "Databasus documentation: agent mode (deprecated)", "url": "https://databasus.com/installation/agent"}
   ]
 }

@@ -2,7 +2,7 @@
   "slug": "percona-xtrabackup",
   "name": "Percona XtraBackup",
   "order": 37,
-  "checked": "2026-10-18",
+  "checked": "2026-10-23",
   "kind": {
     "en": "Command-line physical backup tool",
     "vi": "Công cụ backup vật lý dòng lệnh"
@@ -45,9 +45,12 @@
     "multi_storage": ["no", {"en": "One target per run", "vi": "Một đích mỗi lần chạy"}],
     "encryption": ["yes", {"en": "AES-256 (--encrypt)", "vi": "AES-256 (--encrypt)"}],
     "direct": ["yes"],
+    "agent": ["no", {"en": "Local tool, no server", "vi": "Công cụ local, không có server"}],
+    "vpn": ["no", {"en": "Local tool, no tunnel", "vi": "Công cụ local, không có tunnel"}],
     "scheduler": ["no", {"en": "None built in", "vi": "Không có sẵn"}],
     "retention": ["no", {"en": "None built in", "vi": "Không có sẵn"}],
-    "alerts": ["no", {"en": "None built in", "vi": "Không có sẵn"}]
+    "alerts": ["no", {"en": "None built in", "vi": "Không có sẵn"}],
+    "mcp": ["no", {"en": "None; command-line tool", "vi": "Không có; công cụ dòng lệnh"}]
   },
   "en": {
     "title": "Percona XtraBackup with a web UI: scheduling, retention and PITR with DumpCat",
@@ -129,6 +132,8 @@
     {
       "label": "MariaDB: backup and restore overview",
       "url": "https://mariadb.com/docs/server/server-usage/backup-and-restore/backup-and-restore-overview"
-    }
+    },
+    {"label": "Percona XtraBackup documentation: how XtraBackup works", "url": "https://docs.percona.com/percona-xtrabackup/8.4/how-xtrabackup-works.html"},
+    {"label": "Percona XtraBackup documentation: take a streaming backup", "url": "https://docs.percona.com/percona-xtrabackup/8.4/take-streaming-backup.html"}
   ]
 }

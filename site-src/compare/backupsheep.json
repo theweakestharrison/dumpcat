@@ -2,7 +2,7 @@
   "slug": "backupsheep",
   "name": "BackupSheep",
   "order": 60,
-  "checked": "2026-10-19",
+  "checked": "2026-10-23",
   "kind": {
     "en": "Self-hosted, open source (GPLv3), Docker",
     "vi": "Tự host, mã nguồn mở (GPLv3), Docker"
@@ -42,9 +42,12 @@
     "multi_storage": ["yes"],
     "encryption": ["yes"],
     "direct": ["yes"],
+    "agent": ["no", {"en": "Connects in: direct or SSH", "vi": "Kết nối vào: trực tiếp hoặc SSH"}],
+    "vpn": ["partial", {"en": "SSH tunnel, inbound SSH", "vi": "Tunnel SSH, cần mở SSH vào"}],
     "scheduler": ["yes"],
     "retention": ["yes", {"en": "Keep last N", "vi": "Giữ N bản gần nhất"}],
-    "alerts": ["yes", {"en": "Slack, Telegram", "vi": "Slack, Telegram"}]
+    "alerts": ["yes", {"en": "Slack, Telegram", "vi": "Slack, Telegram"}],
+    "mcp": ["no", {"en": "None found", "vi": "Không có"}]
   },
   "en": {
     "title": "BackupSheep vs DumpCat: open-source, self-hosted MySQL backups compared",

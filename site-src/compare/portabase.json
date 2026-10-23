@@ -2,7 +2,7 @@
   "slug": "portabase",
   "name": "Portabase",
   "order": 12,
-  "checked": "2026-10-22",
+  "checked": "2026-10-23",
   "kind": {"en": "Self-hosted, open source (Apache-2.0), Docker dashboard + agents", "vi": "Tự host, mã nguồn mở (Apache-2.0), dashboard Docker + agent"},
   "summary": {
     "en": "Open-source backup dashboard with agents for 11 data sources; logical-only (mysqldump) for MySQL.",
@@ -33,9 +33,12 @@
     "multi_storage": ["yes"],
     "encryption": ["yes", {"en": "AES-GCM", "vi": "AES-GCM"}],
     "direct": ["yes"],
+    "agent": ["yes", {"en": "Agent polls the dashboard", "vi": "Agent định kỳ gọi dashboard"}],
+    "vpn": ["no", {"en": "None; the agent dials out", "vi": "Không có; agent tự kết nối ra"}],
     "scheduler": ["yes", {"en": "Cron or intervals", "vi": "Cron hoặc chu kỳ"}],
     "retention": ["yes", {"en": "Incl. GFS", "vi": "Có GFS"}],
-    "alerts": ["yes"]
+    "alerts": ["yes"],
+    "mcp": ["yes", {"en": "Opt-in (MCP_ENABLED)", "vi": "Phải bật (MCP_ENABLED)"}]
   },
   "en": {
     "title": "Portabase vs DumpCat: open-source MySQL backup tools compared",
@@ -109,6 +112,9 @@
     {"label": "Portabase documentation: installation", "url": "https://portabase.io/docs/installation"},
     {"label": "Portabase documentation: FAQ", "url": "https://portabase.io/docs/faq"},
     {"label": "Portabase home page (retention, scheduling, OIDC, REST API & MCP)", "url": "https://portabase.io/"},
-    {"label": "Portabase on GitHub", "url": "https://github.com/portabase/portabase"}
+    {"label": "Portabase on GitHub", "url": "https://github.com/portabase/portabase"},
+    {"label": "Portabase documentation: MCP server", "url": "https://portabase.io/docs/dashboard/mcp/introduction"},
+    {"label": "Portabase documentation: MCP tools reference", "url": "https://portabase.io/docs/dashboard/mcp/tools"},
+    {"label": "Portabase documentation: agent environment (polling)", "url": "https://portabase.io/docs/agent/environment"}
   ]
 }

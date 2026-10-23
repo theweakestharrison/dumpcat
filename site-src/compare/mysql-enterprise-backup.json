@@ -2,7 +2,7 @@
   "slug": "mysql-enterprise-backup",
   "name": "MySQL Enterprise Backup",
   "order": 38,
-  "checked": "2026-10-19",
+  "checked": "2026-10-23",
   "kind": {"en": "Oracle's commercial command-line backup tool", "vi": "Công cụ backup dòng lệnh thương mại của Oracle"},
   "summary": {
     "en": "Oracle's commercial physical backup tool, part of MySQL Enterprise Edition.",
@@ -33,9 +33,12 @@
     "multi_storage": ["no", {"en": "One target per run", "vi": "Một đích mỗi lần chạy"}],
     "encryption": ["yes", {"en": "AES-256", "vi": "AES-256"}],
     "direct": ["yes"],
+    "agent": ["no", {"en": "Local tool, no server", "vi": "Công cụ local, không có server"}],
+    "vpn": ["no", {"en": "Runs on the DB host only", "vi": "Chỉ chạy trên máy database"}],
     "scheduler": ["no", {"en": "Use cron / Task Scheduler", "vi": "Dùng cron / Task Scheduler"}],
     "retention": ["no", {"en": "None built in", "vi": "Không có sẵn"}],
-    "alerts": ["no", {"en": "None built in", "vi": "Không có sẵn"}]
+    "alerts": ["no", {"en": "None built in", "vi": "Không có sẵn"}],
+    "mcp": ["no", {"en": "MySQL MCP server: no backup", "vi": "MCP của MySQL không có backup"}]
   },
   "en": {
     "title": "MySQL Enterprise Backup alternative: DumpCat, free and open source",
@@ -107,6 +110,9 @@
     {"label": "Oracle Store: MySQL", "url": "https://shop.oracle.com/apex/product?p1=MySQL"},
     {"label": "MySQL Enterprise Backup: restoring a backup", "url": "https://dev.mysql.com/doc/mysql-enterprise-backup/8.4/en/mysqlbackup.restore.html"},
     {"label": "MySQL Enterprise Backup: validation operations", "url": "https://dev.mysql.com/doc/mysql-enterprise-backup/8.4/en/backup-commands-validate.html"},
-    {"label": "MySQL Enterprise Backup: making scheduled backups", "url": "https://dev.mysql.com/doc/mysql-enterprise-backup/8.4/en/meb-scheduled-backups.html"}
+    {"label": "MySQL Enterprise Backup: making scheduled backups", "url": "https://dev.mysql.com/doc/mysql-enterprise-backup/8.4/en/meb-scheduled-backups.html"},
+    {"label": "MySQL Enterprise Backup documentation: connection options", "url": "https://dev.mysql.com/doc/mysql-enterprise-backup/8.4/en/connection-options.html"},
+    {"label": "MySQL Enterprise Backup documentation: single-file backups and streaming", "url": "https://dev.mysql.com/doc/mysql-enterprise-backup/8.4/en/meb-backup-single-file.html"},
+    {"label": "Oracle MCP servers: MySQL MCP Server (GitHub)", "url": "https://github.com/oracle/mcp/tree/main/src/mysql-mcp-server"}
   ]
 }

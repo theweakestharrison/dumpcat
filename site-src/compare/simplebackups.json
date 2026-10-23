@@ -2,7 +2,7 @@
   "slug": "simplebackups",
   "name": "SimpleBackups",
   "order": 10,
-  "checked": "2026-10-19",
+  "checked": "2026-10-23",
   "kind": {"en": "Hosted backup service (SaaS)", "vi": "Dịch vụ backup trực tuyến (SaaS)"},
   "summary": {
     "en": "Hosted service for server, database and storage backups, from a free plan to $299/month.",
@@ -33,9 +33,12 @@
     "multi_storage": ["paid", {"en": "Plus plan and up", "vi": "Từ gói Plus"}],
     "encryption": ["yes", {"en": "AES-256 with your RSA key", "vi": "AES-256 với khóa RSA của bạn"}],
     "direct": ["partial", {"en": "Not with serverless workers", "vi": "Không khi dùng serverless worker"}],
+    "agent": ["yes", {"en": "Outbound HTTPS", "vi": "Chỉ HTTPS đi ra"}],
+    "vpn": ["partial", {"en": "SSH tunnel or own Tailscale", "vi": "Tunnel SSH hoặc Tailscale riêng"}],
     "scheduler": ["yes", {"en": "Daily on the free plan", "vi": "Hằng ngày ở gói miễn phí"}],
     "retention": ["yes"],
-    "alerts": ["paid", {"en": "Lite plan and up", "vi": "Từ gói Lite"}]
+    "alerts": ["paid", {"en": "Lite plan and up", "vi": "Từ gói Lite"}],
+    "mcp": ["paid", {"en": "Paid plans and free trial", "vi": "Gói trả phí và bản dùng thử"}]
   },
   "en": {
     "title": "SimpleBackups alternative for MySQL: DumpCat, free and self-hosted",
@@ -124,6 +127,10 @@
     {"label": "SimpleBackups docs: restore a MySQL backup", "url": "https://simplebackups.com/docs/database-backup/mysql-backup/restore-a-mysql-backup"},
     {"label": "SimpleBackups docs: backup storage and multi-storage", "url": "https://simplebackups.com/docs/getting-started/features/backup-storage"},
     {"label": "SimpleBackups docs: anomaly detection", "url": "https://simplebackups.com/docs/getting-started/features/backup-anomaly-detection"},
-    {"label": "SimpleBackups docs: agent installation", "url": "https://simplebackups.com/docs/getting-started/architecture/agent-installation-and-usage-guide"}
+    {"label": "SimpleBackups docs: agent installation", "url": "https://simplebackups.com/docs/getting-started/architecture/agent-installation-and-usage-guide"},
+    {"label": "SimpleBackups documentation: MCP server", "url": "https://simplebackups.com/docs/mcp/overview"},
+    {"label": "SimpleBackups changelog: MCP server now available (July 2026)", "url": "https://simplebackups.com/changelog/introducing-simplebackups-mcp"},
+    {"label": "SimpleBackups documentation: private and internal databases (SSH tunnel)", "url": "https://simplebackups.com/docs/database-backup/faq"},
+    {"label": "SimpleBackups documentation: Tailscale with Docker", "url": "https://simplebackups.com/docs/help-tips-and-troubleshooting/connecting-a-server/using-tailscale-with-docker-for-secure-database-backups"}
   ]
 }

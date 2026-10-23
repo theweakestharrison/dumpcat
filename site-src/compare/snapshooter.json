@@ -2,7 +2,7 @@
   "slug": "snapshooter",
   "name": "SnapShooter",
   "order": 40,
-  "checked": "2026-10-19",
+  "checked": "2026-10-23",
   "kind": {
     "en": "Hosted backup service (SaaS), owned by DigitalOcean",
     "vi": "Dịch vụ backup trực tuyến (SaaS) của DigitalOcean"
@@ -45,9 +45,12 @@
     "multi_storage": ["unknown"],
     "encryption": ["paid", {"en": "Paid plans (tier unclear)", "vi": "Gói trả phí (chưa rõ gói nào)"}],
     "direct": ["partial", {"en": "Not with serverless backups", "vi": "Không khi backup serverless"}],
+    "agent": ["yes", {"en": "Outbound channel", "vi": "Kênh kết nối đi ra"}],
+    "vpn": ["no", {"en": "No tunnel; use the agent", "vi": "Không có tunnel; dùng agent"}],
     "scheduler": ["yes", {"en": "Daily on the free plan", "vi": "Hằng ngày ở gói miễn phí"}],
     "retention": ["yes"],
-    "alerts": ["yes", {"en": "Slack", "vi": "Slack"}]
+    "alerts": ["yes", {"en": "Slack", "vi": "Slack"}],
+    "mcp": ["no", {"en": "None; API only", "vi": "Không có; chỉ có API"}]
   },
   "en": {
     "title": "SnapShooter alternative for MySQL: DumpCat, free and self-hosted",
@@ -150,6 +153,11 @@
     {"label": "SnapShooter: database backups", "url": "https://snapshooter.com/database"},
     {"label": "SnapShooter: MySQL single database backups", "url": "https://snapshooter.com/database/mysql/single"},
     {"label": "SnapShooter docs: connect servers using the agent", "url": "https://docs.digitalocean.com/products/snapshooter/how-to/connect-using-agent/"},
-    {"label": "SnapShooter docs: restore backups", "url": "https://docs.digitalocean.com/products/snapshooter/how-to/restore-backups/"}
+    {"label": "SnapShooter docs: restore backups", "url": "https://docs.digitalocean.com/products/snapshooter/how-to/restore-backups/"},
+    {"label": "SnapShooter documentation: connect containers using the agent", "url": "https://docs.digitalocean.com/products/snapshooter/how-to/connect-using-containerized-agent/"},
+    {"label": "SnapShooter documentation: connect servers over SSH", "url": "https://docs.digitalocean.com/products/snapshooter/how-to/connect-servers/"},
+    {"label": "SnapShooter documentation: IP address allowlist", "url": "https://docs.digitalocean.com/products/snapshooter/details/ip-address-allowlist/"},
+    {"label": "SnapShooter documentation: reference (API)", "url": "https://docs.digitalocean.com/products/snapshooter/reference/"},
+    {"label": "DigitalOcean documentation: MCP servers", "url": "https://docs.digitalocean.com/reference/mcp/"}
   ]
 }

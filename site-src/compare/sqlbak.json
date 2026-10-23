@@ -2,7 +2,7 @@
   "slug": "sqlbak",
   "name": "SqlBak",
   "order": 30,
-  "checked": "2026-10-19",
+  "checked": "2026-10-23",
   "kind": {
     "en": "Agent + cloud dashboard (SaaS)",
     "vi": "Agent + bảng điều khiển trên cloud (SaaS)"
@@ -45,9 +45,12 @@
     "multi_storage": ["yes"],
     "encryption": ["paid", {"en": "Professional plan", "vi": "Gói Professional"}],
     "direct": ["yes", {"en": "Bypasses sqlbak.com", "vi": "Không đi qua sqlbak.com"}],
+    "agent": ["yes", {"en": "Agent dials out to sqlbak.com", "vi": "Agent tự kết nối ra sqlbak.com"}],
+    "vpn": ["partial", {"en": "SSH tunnel, inbound SSH", "vi": "Tunnel SSH, cần mở SSH vào"}],
     "scheduler": ["yes"],
     "retention": ["yes"],
-    "alerts": ["unknown", {"en": "Only email documented", "vi": "Tài liệu chỉ nói email"}]
+    "alerts": ["unknown", {"en": "Only email documented", "vi": "Tài liệu chỉ nói email"}],
+    "mcp": ["no", {"en": "REST API only, no MCP", "vi": "Chỉ có REST API, không MCP"}]
   },
   "en": {
     "title": "SqlBak alternative for MySQL: DumpCat, free and fully self-hosted",
@@ -132,6 +135,11 @@
       "label": "SqlBak blog",
       "url": "https://sqlbak.com/blog/"
     },
-    {"label": "SqlBak: how to back up MySQL", "url": "https://sqlbak.com/blog/how-to-backup-mysql-with-sqlbak/"}
+    {"label": "SqlBak: how to back up MySQL", "url": "https://sqlbak.com/blog/how-to-backup-mysql-with-sqlbak/"},
+    {"label": "SqlBak: your data is secure (how SqlBak works)", "url": "https://sqlbak.com/blog/your-data-even-more-secure/"},
+    {"label": "SqlBak: how to connect a computer to SqlBak", "url": "https://sqlbak.com/blog/how-to-connect-computer-to-sqlbak/"},
+    {"label": "SqlBak download (Windows, Linux, Docker)", "url": "https://sqlbak.com/download"},
+    {"label": "SqlBak: connect to MySQL over an SSH tunnel", "url": "https://sqlbak.com/blog/how-to-connect-to-mysql-server-using-ssh-key-pairs/"},
+    {"label": "SqlBak API reference", "url": "https://sqlbak.docs.apiary.io"}
   ]
 }

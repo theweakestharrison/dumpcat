@@ -2,7 +2,7 @@
   "slug": "navicat",
   "name": "Navicat",
   "order": 45,
-  "checked": "2026-10-18",
+  "checked": "2026-10-23",
   "kind": {"en": "Database GUI client with a backup feature", "vi": "Phần mềm quản trị database có tính năng backup"},
   "summary": {
     "en": "Popular paid database client; backups are a local, scheduled side feature.",
@@ -33,9 +33,12 @@
     "multi_storage": ["no", {"en": "Local folder only", "vi": "Chỉ thư mục local"}],
     "encryption": ["unknown"],
     "direct": ["yes", {"en": "Stays on your computer", "vi": "Nằm trên máy của bạn"}],
+    "agent": ["no", {"en": "Desktop app connects in", "vi": "App desktop kết nối vào DB"}],
+    "vpn": ["partial", {"en": "SSH or HTTP tunnel", "vi": "Tunnel SSH hoặc HTTP"}],
     "scheduler": ["yes", {"en": "Windows Task Scheduler", "vi": "Qua Windows Task Scheduler"}],
     "retention": ["unknown"],
-    "alerts": ["unknown", {"en": "Only email documented", "vi": "Tài liệu chỉ nói email"}]
+    "alerts": ["unknown", {"en": "Only email documented", "vi": "Tài liệu chỉ nói email"}],
+    "mcp": ["no", {"en": "In-app AI chat only", "vi": "Chỉ có AI chat trong app"}]
   },
   "en": {
     "title": "Navicat backup vs DumpCat: scheduled MySQL backups without a desktop client",
@@ -102,6 +105,9 @@
     {"label": "Navicat store: Navicat for MySQL", "url": "https://www.navicat.com/en/store/navicat-for-mysql"},
     {"label": "Navicat store: subscription plans", "url": "https://www.navicat.com/en/store/navicat-for-mysql-plan"},
     {"label": "Navicat manual: backup", "url": "https://www.navicat.com/manual/online_manual/en/navicat/win_manual/backup.html"},
-    {"label": "Navicat manual: automation", "url": "https://www.navicat.com/manual/online_manual/en/navicat/win_manual/automation.html"}
+    {"label": "Navicat manual: automation", "url": "https://www.navicat.com/manual/online_manual/en/navicat/win_manual/automation.html"},
+    {"label": "Navicat manual: SSH tunneling", "url": "https://www.navicat.com/manual/online_manual/en/navicat_18/win_manual/con_ssh_settings.html"},
+    {"label": "Navicat manual: HTTP tunneling", "url": "https://www.navicat.com/manual/online_manual/en/navicat_18/win_manual/con_http_settings.html"},
+    {"label": "Navicat manual: AI Assistant", "url": "https://www.navicat.com/manual/online_manual/en/navicat_18/win_manual/ai.html"}
   ]
 }
