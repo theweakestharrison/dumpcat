@@ -105,16 +105,16 @@
   <div><dt>Accounts and roles</dt><dd>admin, operator, viewer. TOTP two-factor, API tokens, an audit log and lockout after repeated failed logins.</dd></div>
   <div><dt>Notifications</dt><dd>Email, Telegram, Slack, Discord and HMAC-signed webhooks, on failure or on success.</dd></div>
   <div><dt>Databases behind a firewall</dt><dd>An agent on the database host connects out to DumpCat over HTTPS, or the host joins the built-in WireGuard. No port has to be opened to the database.</dd></div>
-  <div><dt>Self-update</dt><dd><code>dumpcat update</code> checks <span class="nw">SHA-256</span>, backs up the configuration, waits for running backups and rolls back on failure.</dd></div>
+  <div><dt>Updates over the air</dt><dd>Turn on automatic installs and new signed versions arrive from DumpCat’s build server in the hours you choose. It waits for running backups, backs up its own database and rolls back by itself if anything fails. Nothing to rebuild.</dd></div>
 </template>
 <template data-i18n="oss-label">Open source</template>
 <template data-i18n="oss-title">Free, open source, and your data stays yours</template>
 <template data-i18n="oss-intro">DumpCat is released under the Apache-2.0 license. No account, no license key, no paid edition holding features back: everything on this page is in the build you download.</template>
 <template data-i18n="oss-list">
   <div><dt>Apache-2.0 license</dt><dd>Use it at home or at work, modify it and redistribute it. The full text is in <a href="https://github.com/theweakestharrison/DumpCat/blob/main/LICENSE">LICENSE</a>.</dd></div>
-  <div><dt>No telemetry</dt><dd>DumpCat sends no usage data anywhere. The only call it makes on its own is reading <code>latest.json</code> once a day to announce new versions, and you can switch that off in Settings.</dd></div>
+  <div><dt>No telemetry</dt><dd>DumpCat sends no usage data anywhere. The only calls it makes on its own read <code>latest.json</code> to announce new versions and, when you turn on automatic installs, download them. You can switch both off in Settings.</dd></div>
   <div><dt>No middleman</dt><dd>Backups, database passwords and encryption keys travel only from your server to the storage you choose.</dd></div>
-  <div><dt>Signed releases</dt><dd>Every update is signed with ed25519 and checked against <span class="nw">SHA-256</span> before it is installed. Building it yourself only takes Go.</dd></div>
+  <div><dt>Signed releases, no rebuilding</dt><dd>Official builds come from DumpCat’s build server, signed with ed25519 and checked against <span class="nw">SHA-256</span> before they are installed. Building it yourself is optional and only takes Go.</dd></div>
 </template>
 <template data-i18n="oss-build-title">Build from source</template>
 <template data-i18n="oss-contrib">Bug reports, pull requests and translations are welcome, see <a href="https://github.com/theweakestharrison/DumpCat/blob/main/CONTRIBUTING.md">CONTRIBUTING.md</a>. Please report security problems privately, as described in <a href="https://github.com/theweakestharrison/DumpCat/blob/main/SECURITY.md">SECURITY.md</a>.</template>

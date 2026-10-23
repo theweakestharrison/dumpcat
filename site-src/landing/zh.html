@@ -140,16 +140,16 @@
   <div><dt>账号与角色</dt><dd>admin、operator、viewer 三种角色。支持 TOTP 双因素认证、API 令牌、审计日志，多次登录失败后锁定账号。</dd></div>
   <div><dt>通知</dt><dd>邮件、Telegram、Slack、Discord 以及 HMAC 签名的 Webhook，可在失败或成功时发送。</dd></div>
   <div><dt>防火墙后的数据库</dt><dd>数据库主机上的 Agent 通过 HTTPS 主动连接 DumpCat，或者让主机加入内置的 WireGuard。无需为数据库开放任何端口。</dd></div>
-  <div><dt>自我更新</dt><dd><code>dumpcat update</code> 会校验 <span class="nw">SHA-256</span>、备份配置、等待正在运行的备份完成，失败时自动回滚。</dd></div>
+  <div><dt>OTA 在线更新</dt><dd>开启自动安装后，带签名的新版本会在你选定的时段从 DumpCat 的构建服务器自动送达。它会等待正在运行的备份完成、先备份自身数据库，出错时自动回滚。无需重新构建。</dd></div>
 </template>
 <template data-i18n="oss-label">开源</template>
 <template data-i18n="oss-title">免费、开源，数据始终归你所有</template>
 <template data-i18n="oss-intro">DumpCat 以 Apache-2.0 许可证发布。无需注册账号，无需许可证密钥，也没有把功能藏起来的付费版：本页介绍的一切，都包含在你下载的版本里。</template>
 <template data-i18n="oss-list">
   <div><dt>Apache-2.0 许可证</dt><dd>个人和公司均可使用，可以修改和再分发。完整条款见 <a href="https://github.com/theweakestharrison/DumpCat/blob/main/LICENSE">LICENSE</a>。</dd></div>
-  <div><dt>无遥测</dt><dd>DumpCat 不向任何地方发送使用数据。它唯一主动发起的请求，是每天读取一次 <code>latest.json</code> 以提示新版本，而且可以在设置（Settings）中关闭。</dd></div>
+  <div><dt>无遥测</dt><dd>DumpCat 不向任何地方发送使用数据。它主动发起的请求只有读取 <code>latest.json</code> 以提示新版本，以及在你开启自动安装后下载新版本；两者都可以在设置（Settings）中关闭。</dd></div>
   <div><dt>没有中间商</dt><dd>备份、数据库密码和加密密钥只会从你的服务器传到你选择的存储。</dd></div>
-  <div><dt>签名发布</dt><dd>每次更新都使用 ed25519 签名，安装前会校验 <span class="nw">SHA-256</span>。自行构建只需要 Go。</dd></div>
+  <div><dt>签名发布，无需自行构建</dt><dd>官方版本来自 DumpCat 的构建服务器，使用 ed25519 签名，安装前会校验 <span class="nw">SHA-256</span>。自行构建是可选的，只需要 Go。</dd></div>
 </template>
 <template data-i18n="oss-build-title">从源码构建</template>
 <template data-i18n="oss-contrib">欢迎提交 Bug 报告、Pull Request 和翻译，详见 <a href="https://github.com/theweakestharrison/DumpCat/blob/main/CONTRIBUTING.md">CONTRIBUTING.md</a>。安全问题请按 <a href="https://github.com/theweakestharrison/DumpCat/blob/main/SECURITY.md">SECURITY.md</a> 中的说明私下报告。</template>

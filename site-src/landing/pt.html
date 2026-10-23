@@ -137,16 +137,16 @@
   <div><dt>Contas e papéis</dt><dd>admin, operator, viewer. Dois fatores com TOTP, tokens de API, log de auditoria e bloqueio após repetidas falhas de login.</dd></div>
   <div><dt>Notificações</dt><dd>E-mail, Telegram, Slack, Discord e webhooks assinados com HMAC, em caso de falha ou de sucesso.</dd></div>
   <div><dt>Bancos atrás de firewall</dt><dd>Um agente no host do banco se conecta ao DumpCat por HTTPS, ou o host entra no WireGuard integrado. Nenhuma porta precisa ser aberta para o banco.</dd></div>
-  <div><dt>Autoatualização</dt><dd><code>dumpcat update</code> confere o <span class="nw">SHA-256</span>, faz backup da configuração, espera os backups em andamento terminarem e reverte em caso de falha.</dd></div>
+  <div><dt>Atualizações OTA</dt><dd>Ligue a instalação automática e as novas versões assinadas chegam do servidor de build do DumpCat no horário que você escolher. Ele espera os backups em andamento terminarem, faz backup do próprio banco de dados e reverte sozinho se algo falhar. Nada para recompilar.</dd></div>
 </template>
 <template data-i18n="oss-label">Código aberto</template>
 <template data-i18n="oss-title">Grátis, de código aberto, e seus dados continuam seus</template>
 <template data-i18n="oss-intro">O DumpCat é distribuído sob a licença Apache-2.0. Sem conta, sem chave de licença, sem edição paga segurando recursos: tudo o que está nesta página vem na versão que você baixa.</template>
 <template data-i18n="oss-list">
   <div><dt>Licença Apache-2.0</dt><dd>Use em casa ou no trabalho, modifique e redistribua. O texto completo está em <a href="https://github.com/theweakestharrison/DumpCat/blob/main/LICENSE">LICENSE</a>.</dd></div>
-  <div><dt>Sem telemetria</dt><dd>O DumpCat não envia dados de uso para lugar nenhum. A única chamada que ele faz por conta própria é ler o <code>latest.json</code> uma vez por dia para avisar sobre novas versões, e você pode desligar isso nas configurações.</dd></div>
+  <div><dt>Sem telemetria</dt><dd>O DumpCat não envia dados de uso para lugar nenhum. As únicas chamadas que ele faz por conta própria leem o <code>latest.json</code> para avisar sobre novas versões e, se você ligar a instalação automática, baixam essas versões. Você pode desligar as duas nas configurações.</dd></div>
   <div><dt>Sem intermediários</dt><dd>Backups, senhas de banco e chaves de criptografia só trafegam do seu servidor para o armazenamento que você escolher.</dd></div>
-  <div><dt>Versões assinadas</dt><dd>Cada atualização é assinada com ed25519 e conferida com <span class="nw">SHA-256</span> antes de ser instalada. Para compilar você mesmo, basta ter Go.</dd></div>
+  <div><dt>Versões assinadas, sem compilar</dt><dd>As versões oficiais vêm do servidor de build do DumpCat, assinadas com ed25519 e conferidas com <span class="nw">SHA-256</span> antes de serem instaladas. Compilar você mesmo é opcional e basta ter Go.</dd></div>
 </template>
 <template data-i18n="oss-build-title">Compilar a partir do código-fonte</template>
 <template data-i18n="oss-contrib">Relatos de bugs, pull requests e traduções são bem-vindos, veja <a href="https://github.com/theweakestharrison/DumpCat/blob/main/CONTRIBUTING.md">CONTRIBUTING.md</a>. Informe problemas de segurança em privado, conforme descrito em <a href="https://github.com/theweakestharrison/DumpCat/blob/main/SECURITY.md">SECURITY.md</a>.</template>

@@ -522,7 +522,7 @@
         <div><dt>アカウントとロール</dt><dd>admin、operator、viewer。TOTP による二要素認証、API トークン、監査ログ、ログイン失敗が続いたときのロックアウト。</dd></div>
         <div><dt>通知</dt><dd>メール、Telegram、Slack、Discord、HMAC 署名付き Webhook で、失敗時または成功時に通知します。</dd></div>
         <div><dt>ファイアウォール内のデータベース</dt><dd>データベースホスト上のエージェントが HTTPS で DumpCat に接続するか、ホストが内蔵 WireGuard に参加します。データベース側でポートを開ける必要はありません。</dd></div>
-        <div><dt>セルフアップデート</dt><dd><code>dumpcat update</code> は <span class="nw">SHA-256</span> を検証し、設定をバックアップし、実行中のバックアップの完了を待ち、失敗したらロールバックします。</dd></div>
+        <div><dt>OTA アップデート</dt><dd>自動インストールをオンにすると、署名付きの新バージョンが指定した時間帯に DumpCat のビルドサーバーから届きます。実行中のバックアップの完了を待ち、自身のデータベースをバックアップし、失敗したら自動でロールバックします。ビルドし直す必要はありません。</dd></div>
       </dl>
     </div>
   </section>
@@ -554,9 +554,9 @@
       <div class="section-body storage-grid">
         <dl class="oss-list">
           <div><dt>Apache-2.0 ライセンス</dt><dd>個人でも業務でも利用でき、改変も再配布も自由です。全文は <a href="https://github.com/theweakestharrison/DumpCat/blob/main/LICENSE">LICENSE</a> にあります。</dd></div>
-          <div><dt>テレメトリなし</dt><dd>DumpCat は利用データをどこにも送信しません。自分から行う通信は、新バージョンを知らせるために 1 日 1 回 <code>latest.json</code> を読みに行くことだけで、これも Settings 画面でオフにできます。</dd></div>
+          <div><dt>テレメトリなし</dt><dd>DumpCat は利用データをどこにも送信しません。自分から行う通信は、新バージョンを知らせるために <code>latest.json</code> を読みに行くことと、自動インストールをオンにした場合のそのダウンロードだけで、どちらも Settings 画面でオフにできます。</dd></div>
           <div><dt>仲介者なし</dt><dd>バックアップ、データベースのパスワード、暗号鍵は、あなたのサーバーからあなたが選んだストレージへ直接届くだけです。</dd></div>
-          <div><dt>署名付きリリース</dt><dd>すべてのアップデートは ed25519 で署名され、インストール前に <span class="nw">SHA-256</span> で検証されます。自分でビルドするのに必要なのは Go だけです。</dd></div>
+          <div><dt>署名付きリリース、ビルド不要</dt><dd>公式ビルドは DumpCat のビルドサーバーから配信され、ed25519 で署名され、インストール前に <span class="nw">SHA-256</span> で検証されます。自分でビルドするのは任意で、必要なのは Go だけです。</dd></div>
         </dl>
         <div class="aside">
           <h3>ソースからビルド</h3>

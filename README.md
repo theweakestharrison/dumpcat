@@ -68,8 +68,10 @@ single Go binary with the UI built in.
   change servers, storages, jobs and drills. Passwords, keys and passphrases never go through the assistant.
 - **Standard formats.** Every backup carries a `manifest.json` and uses zstd / gzip / age / xbstream, so you can restore
   it with `age`, `zstd` and `mysql` alone, or import the catalog into a fresh DumpCat.
-- **Safe self-updates.** `dumpcat update` waits for running jobs, backs up its own database, can require signed
-  releases, and rolls back if the new version fails to start.
+- **Always up to date, over the air.** Official builds come signed from DumpCat's own build server, so there is nothing
+  to rebuild. Turn on automatic installs and new versions arrive by themselves in the hours you choose: DumpCat waits for
+  running jobs, backs up its own database, checks the release signature and rolls back if the new version fails to start.
+  [How it works](docs/manual.md#36-updating)
 
 ## What DumpCat supports
 
@@ -277,7 +279,8 @@ packages yourself, see [Building from source](#building-from-source).
    **Save & run now**. Each backup is verified right after it is written (one copy by default).
 
 For production, put DumpCat behind HTTPS with the [nginx sample or the built-in TLS](docs/manual.md#34-behind-nginx--https-recommended-for-production)
-and restrict who can reach it.
+and restrict who can reach it. To keep it current without lifting a finger, tick **Settings → Updates → Install new
+versions automatically**.
 
 ## Choosing a backup method
 

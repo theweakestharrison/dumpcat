@@ -66,8 +66,10 @@ binary Go có sẵn giao diện.
   storage, job và diễn tập. Mật khẩu, khóa và passphrase không bao giờ đi qua trợ lý.
 - **Định dạng chuẩn.** Mỗi bản backup có `manifest.json` và dùng zstd / gzip / age / xbstream, nên bạn restore được chỉ
   với `age`, `zstd` và `mysql`, hoặc import catalog vào một DumpCat cài mới.
-- **Tự cập nhật an toàn.** `dumpcat update` chờ các job đang chạy, backup database của chính nó, có thể bắt buộc bản phát
-  hành phải được ký, và rollback nếu phiên bản mới không khởi động được.
+- **Luôn là bản mới nhất, cập nhật OTA.** Bản chính thức được ký và phát hành từ máy chủ build của DumpCat, nên không phải
+  tự build lại. Bật tự động cài là bản mới tự về trong khung giờ bạn chọn: DumpCat chờ các job đang chạy, backup database
+  của chính nó, kiểm tra chữ ký bản phát hành và rollback nếu phiên bản mới không khởi động được.
+  [Cách hoạt động](docs/manual.vi.md#36-cập-nhật)
 
 ## DumpCat hỗ trợ những gì
 
@@ -271,7 +273,8 @@ hoặc `Get-FileHash` trên Windows). Muốn tự build gói cài đặt, xem [B
    **Save & run now**. Mỗi bản backup được kiểm tra ngay sau khi ghi (mặc định kiểm một bản).
 
 Khi chạy thật, hãy đặt DumpCat sau HTTPS bằng [cấu hình nginx mẫu hoặc TLS có sẵn](docs/manual.vi.md#34-đặt-sau-nginx--https-khuyến-nghị-cho-môi-trường-thật)
-và giới hạn ai được truy cập.
+và giới hạn ai được truy cập. Muốn DumpCat luôn là bản mới nhất mà không phải làm gì, hãy tích **Settings → Updates →
+Install new versions automatically**.
 
 ## Chọn phương thức backup
 

@@ -512,7 +512,7 @@
         <div><dt>Tài khoản và phân quyền</dt><dd>admin, operator, viewer. 2FA bằng TOTP, API token, nhật ký thao tác, khóa sau nhiều lần đăng nhập sai.</dd></div>
         <div><dt>Thông báo</dt><dd>Email, Telegram, Slack, Discord và Webhook ký HMAC, khi lỗi hoặc khi thành công.</dd></div>
         <div><dt>Database sau firewall</dt><dd>Agent trên server database tự kết nối ra DumpCat qua HTTPS, hoặc dùng WireGuard tích hợp. Không cần mở port nào tới database.</dd></div>
-        <div><dt>Tự cập nhật</dt><dd><code>dumpcat update</code> kiểm tra <span class="nw">SHA-256</span>, backup cấu hình, chờ backup đang chạy xong và tự rollback nếu lỗi.</dd></div>
+        <div><dt>Cập nhật OTA</dt><dd>Bật tự động cài là bản mới có chữ ký từ máy chủ build của DumpCat tự về trong khung giờ bạn chọn. Nó chờ backup đang chạy xong, backup database của chính nó và tự rollback nếu có lỗi. Không phải build lại gì.</dd></div>
       </dl>
     </div>
   </section>
@@ -544,9 +544,9 @@
       <div class="section-body storage-grid">
         <dl class="oss-list">
           <div><dt>Giấy phép Apache-2.0</dt><dd>Dùng cho cá nhân hay doanh nghiệp, sửa và phân phối lại đều được. Toàn văn giấy phép nằm trong <a href="https://github.com/theweakestharrison/DumpCat/blob/main/LICENSE">LICENSE</a>.</dd></div>
-          <div><dt>Không telemetry</dt><dd>DumpCat không gửi dữ liệu sử dụng đi đâu cả. Việc duy nhất nó tự gọi ra ngoài là mỗi ngày đọc <code>latest.json</code> một lần để báo bản mới, và bạn tắt được trong Settings.</dd></div>
+          <div><dt>Không telemetry</dt><dd>DumpCat không gửi dữ liệu sử dụng đi đâu cả. Việc duy nhất nó tự gọi ra ngoài là đọc <code>latest.json</code> để báo bản mới và, khi bạn bật tự động cài, tải bản đó về. Cả hai đều tắt được trong Settings.</dd></div>
           <div><dt>Không qua máy chủ trung gian</dt><dd>Backup, mật khẩu database và khóa mã hóa chỉ đi từ server của bạn tới nơi lưu trữ do bạn chọn.</dd></div>
-          <div><dt>Bản phát hành có ký</dt><dd>Mỗi bản cập nhật được ký ed25519 và kiểm tra <span class="nw">SHA-256</span> trước khi cài. Muốn tự build thì chỉ cần Go.</dd></div>
+          <div><dt>Bản phát hành có ký, không phải tự build</dt><dd>Bản chính thức đến từ máy chủ build của DumpCat, được ký ed25519 và kiểm tra <span class="nw">SHA-256</span> trước khi cài. Tự build là tùy bạn, chỉ cần Go.</dd></div>
         </dl>
         <div class="aside">
           <h3>Build từ mã nguồn</h3>

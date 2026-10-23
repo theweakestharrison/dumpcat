@@ -522,7 +522,7 @@
         <div><dt>Konten und Rollen</dt><dd>admin, operator, viewer. TOTP-Zwei-Faktor-Authentifizierung, API-Tokens, ein Audit-Log und Sperre nach wiederholt fehlgeschlagenen Anmeldungen.</dd></div>
         <div><dt>Benachrichtigungen</dt><dd>E-Mail, Telegram, Slack, Discord und HMAC-signierte Webhooks, bei Fehlern oder bei Erfolg.</dd></div>
         <div><dt>Datenbanken hinter einer Firewall</dt><dd>Ein Agent auf dem Datenbank-Host verbindet sich ausgehend per HTTPS mit DumpCat, oder der Host tritt dem integrierten WireGuard bei. Zur Datenbank muss kein Port geöffnet werden.</dd></div>
-        <div><dt>Selbst-Update</dt><dd><code>dumpcat update</code> prüft <span class="nw">SHA-256</span>, sichert die Konfiguration, wartet laufende Backups ab und rollt bei einem Fehler zurück.</dd></div>
+        <div><dt>Automatische Updates</dt><dd>Schalten Sie die automatische Installation ein, und neue signierte Versionen kommen in den von Ihnen gewählten Stunden vom Build-Server von DumpCat. DumpCat wartet laufende Backups ab, sichert die eigene Datenbank und rollt bei einem Fehler selbst zurück. Nichts neu zu bauen.</dd></div>
       </dl>
     </div>
   </section>
@@ -554,9 +554,9 @@
       <div class="section-body storage-grid">
         <dl class="oss-list">
           <div><dt>Apache-2.0-Lizenz</dt><dd>Nutzen Sie es privat oder im Unternehmen, ändern Sie es und geben Sie es weiter. Der vollständige Text steht in <a href="https://github.com/theweakestharrison/DumpCat/blob/main/LICENSE">LICENSE</a>.</dd></div>
-          <div><dt>Keine Telemetrie</dt><dd>DumpCat sendet keinerlei Nutzungsdaten. Die einzige Verbindung, die es von sich aus aufbaut, ist der tägliche Abruf von <code>latest.json</code>, um neue Versionen anzukündigen, und den können Sie in den Einstellungen abschalten.</dd></div>
+          <div><dt>Keine Telemetrie</dt><dd>DumpCat sendet keinerlei Nutzungsdaten. Von sich aus ruft es nur <code>latest.json</code> ab, um neue Versionen anzukündigen, und lädt sie herunter, wenn Sie die automatische Installation einschalten. Beides können Sie in den Einstellungen abschalten.</dd></div>
           <div><dt>Kein Umweg über Dritte</dt><dd>Backups, Datenbankpasswörter und Verschlüsselungsschlüssel gelangen nur von Ihrem Server zu dem Speicher, den Sie wählen.</dd></div>
-          <div><dt>Signierte Releases</dt><dd>Jedes Update ist mit ed25519 signiert und wird vor der Installation gegen <span class="nw">SHA-256</span> geprüft. Zum Selbstbauen brauchen Sie nur Go.</dd></div>
+          <div><dt>Signierte Releases, kein Selbstbauen</dt><dd>Offizielle Builds kommen vom Build-Server von DumpCat, mit ed25519 signiert und vor der Installation gegen <span class="nw">SHA-256</span> geprüft. Selbst bauen ist optional und braucht nur Go.</dd></div>
         </dl>
         <div class="aside">
           <h3>Aus dem Quellcode bauen</h3>
