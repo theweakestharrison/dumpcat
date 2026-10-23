@@ -82,12 +82,12 @@ binary Go có sẵn giao diện.
 | | MySQL · Percona · MariaDB | PostgreSQL | SQL Server |
 |---|:---:|:---:|:---:|
 | Phiên bản | MySQL 5.7 · 8.0 · 8.4<br>MariaDB 10 · 11 | 10 trở lên | 2012 trở lên |
-| Backup logical | ✅&nbsp;mysqldump | ✅&nbsp;pg_dump | — |
-| Dump và restore song song | ✅&nbsp;mydumper | ✅&nbsp;pg_dump&nbsp;-j | — |
-| Backup vật lý khi database đang chạy | ✅&nbsp;XtraBackup<br>✅&nbsp;MariaBackup | ✅&nbsp;pg_basebackup | ✅&nbsp;backup&nbsp;native |
+| Backup logical | ✅<br><small>mysqldump</small> | ✅<br><small>pg_dump</small> | — |
+| Dump và restore song song | ✅<br><small>mydumper</small> | ✅<br><small>pg_dump&nbsp;-j</small> | — |
+| Backup vật lý khi database đang chạy | ✅<br><small>XtraBackup&nbsp;/&nbsp;MariaBackup</small> | ✅<br><small>pg_basebackup</small> | ✅<br><small>backup&nbsp;native</small> |
 | Incremental / differential | ✅ | ❌ | ✅ |
 | User, role và quyền | ✅ | ✅ | ❌ |
-| Khôi phục theo thời điểm | ✅&nbsp;binlog | ✅&nbsp;WAL | ✅&nbsp;log&nbsp;backup |
+| Khôi phục theo thời điểm | ✅<br><small>binlog</small> | ✅<br><small>WAL</small> | ✅<br><small>log&nbsp;backup</small> |
 | Restore sang tên mới hoặc server khác | ✅ | ✅ | ✅ |
 | Diễn tập restore theo lịch | ✅ | ✅ | ✅ |
 | Qua agent hoặc WireGuard | ✅ | ✅ | ✅ |

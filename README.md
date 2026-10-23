@@ -84,12 +84,12 @@ single Go binary with the UI built in.
 | | MySQL · Percona · MariaDB | PostgreSQL | SQL Server |
 |---|:---:|:---:|:---:|
 | Versions | MySQL 5.7 · 8.0 · 8.4<br>MariaDB 10 · 11 | 10 and newer | 2012 and newer |
-| Logical backup | ✅&nbsp;mysqldump | ✅&nbsp;pg_dump | — |
-| Parallel dump and restore | ✅&nbsp;mydumper | ✅&nbsp;pg_dump&nbsp;-j | — |
-| Hot physical backup | ✅&nbsp;XtraBackup<br>✅&nbsp;MariaBackup | ✅&nbsp;pg_basebackup | ✅&nbsp;native&nbsp;backup |
+| Logical backup | ✅<br><small>mysqldump</small> | ✅<br><small>pg_dump</small> | — |
+| Parallel dump and restore | ✅<br><small>mydumper</small> | ✅<br><small>pg_dump&nbsp;-j</small> | — |
+| Hot physical backup | ✅<br><small>XtraBackup&nbsp;/&nbsp;MariaBackup</small> | ✅<br><small>pg_basebackup</small> | ✅<br><small>native&nbsp;backup</small> |
 | Incremental / differential | ✅ | ❌ | ✅ |
 | Users, roles and grants | ✅ | ✅ | ❌ |
-| Point-in-time recovery | ✅&nbsp;binlog | ✅&nbsp;WAL | ✅&nbsp;log&nbsp;backups |
+| Point-in-time recovery | ✅<br><small>binlog</small> | ✅<br><small>WAL</small> | ✅<br><small>log&nbsp;backups</small> |
 | Restore to a new name or another server | ✅ | ✅ | ✅ |
 | Scheduled restore drills | ✅ | ✅ | ✅ |
 | Through the agent or WireGuard | ✅ | ✅ | ✅ |
