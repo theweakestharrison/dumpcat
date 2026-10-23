@@ -18,7 +18,7 @@ tools = [json.load(io.open(f"site-src/compare/{s}.json", encoding="utf-8")) for 
 
 TEXT = {
     "en": {
-        "file": "README.md", "anchor": "## Documentation", "title": "## Compared with other tools",
+        "file": "README.md", "anchor": "## How it works", "title": "## Compared with other tools",
         "lead": ("How DumpCat compares with other MySQL and MariaDB backup tools. Every mark was checked against the "
                  "vendor's own documentation in October 2026; the full comparisons, with notes and sources, are on "
                  "[dumpcat.cc/compare](https://dumpcat.cc/compare/)."),
@@ -28,7 +28,7 @@ TEXT = {
                  "PostgreSQL and SQL Server and goes deeper on each (see [What DumpCat supports](#what-dumpcat-supports))."),
     },
     "vi": {
-        "file": "README.vi.md", "anchor": "## Tài liệu", "title": "## So sánh với các công cụ khác",
+        "file": "README.vi.md", "anchor": "## Cách hoạt động", "title": "## So sánh với các công cụ khác",
         "lead": ("DumpCat so với các công cụ backup MySQL, MariaDB khác. Mỗi dấu đều được đối chiếu với tài liệu của chính "
                  "hãng vào tháng 10/2026; bản so sánh đầy đủ, kèm ghi chú và nguồn, ở "
                  "[dumpcat.cc/vi/compare](https://dumpcat.cc/vi/compare/)."),

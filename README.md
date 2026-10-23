@@ -123,6 +123,32 @@ Windows Server 2016+ / Windows 10+ 64-bit as a Windows service.
 
 </details>
 
+## Compared with other tools
+
+How DumpCat compares with other MySQL and MariaDB backup tools. Every mark was checked against the vendor's own documentation in October 2026; the full comparisons, with notes and sources, are on [dumpcat.cc/compare](https://dumpcat.cc/compare/).
+
+✅&nbsp;yes · 💲 paid plan · 🟡 partly · ❌ no · ❔ not documented
+
+| | **DumpCat** | [Portabase](https://dumpcat.cc/compare/portabase/) | [Databasus](https://dumpcat.cc/compare/databasus/) | [SQLBackupAndFTP](https://dumpcat.cc/compare/sqlbackupandftp/) | [SimpleBackups](https://dumpcat.cc/compare/simplebackups/) | [SqlBak](https://dumpcat.cc/compare/sqlbak/) |
+|---|:---:|:---:|:---:|:---:|:---:|:---:|
+| Open source | ✅ | ✅ | ✅ | ❌ | ❌ | ❌ |
+| Every feature free | ✅ | ✅ | ✅ | 🟡 | 🟡 | 🟡 |
+| Runs on your own servers | ✅ | ✅ | ✅ | ✅ | ❌ | 🟡 |
+| Windows | ✅ | ❔ | ✅ | ✅ | 🟡 | ✅ |
+| Web interface | ✅ | ✅ | ✅ | ❌ | ✅ | ✅ |
+| Parallel dumps (mydumper) | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Hot physical backups | ✅ | ❌ | ❌ | ❌ | 🟡 | ❌ |
+| Incremental backups | ✅ | ❌ | ❌ | 💲 | ✅ | ✅ |
+| Point-in-time recovery | ✅ | ❌ | ❌ | 🟡 | 🟡 | ✅ |
+| Restore from the tool | ✅ | ✅ | ✅ | ✅ | 🟡 | ✅ |
+| Automatic backup check | ✅ | ❔ | ✅ | 🟡 | 🟡 | 🟡 |
+| Several copies per backup | ✅ | ✅ | ❌ | ✅ | 💲 | ✅ |
+| Encryption | ✅ | ✅ | ✅ | 💲 | ✅ | 💲 |
+| Data skips the vendor | ✅ | ✅ | ✅ | ✅ | 🟡 | ✅ |
+| Chat and webhook alerts | ✅ | ✅ | ✅ | 💲 | 💲 | ❔ |
+
+Portabase and Databasus also back up MongoDB, Redis and other engines; DumpCat sticks to MySQL, MariaDB, PostgreSQL and SQL Server and goes deeper on each (see [What DumpCat supports](#what-dumpcat-supports)).
+
 ## How it works
 
 ```mermaid
@@ -268,32 +294,6 @@ a share both machines reach, or the SQL Server host's own folder that the agent 
 [SQL Server](docs/manual.md#sql-server).
 
 More detail and recommendations: [Choosing a backup method](docs/manual.md#2-choosing-a-backup-method).
-
-## Compared with other tools
-
-How DumpCat compares with other MySQL and MariaDB backup tools. Every mark was checked against the vendor's own documentation in October 2026; the full comparisons, with notes and sources, are on [dumpcat.cc/compare](https://dumpcat.cc/compare/).
-
-✅&nbsp;yes · 💲 paid plan · 🟡 partly · ❌ no · ❔ not documented
-
-| | **DumpCat** | [Portabase](https://dumpcat.cc/compare/portabase/) | [Databasus](https://dumpcat.cc/compare/databasus/) | [SQLBackupAndFTP](https://dumpcat.cc/compare/sqlbackupandftp/) | [SimpleBackups](https://dumpcat.cc/compare/simplebackups/) | [SqlBak](https://dumpcat.cc/compare/sqlbak/) |
-|---|:---:|:---:|:---:|:---:|:---:|:---:|
-| Open source | ✅ | ✅ | ✅ | ❌ | ❌ | ❌ |
-| Every feature free | ✅ | ✅ | ✅ | 🟡 | 🟡 | 🟡 |
-| Runs on your own servers | ✅ | ✅ | ✅ | ✅ | ❌ | 🟡 |
-| Windows | ✅ | ❔ | ✅ | ✅ | 🟡 | ✅ |
-| Web interface | ✅ | ✅ | ✅ | ❌ | ✅ | ✅ |
-| Parallel dumps (mydumper) | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Hot physical backups | ✅ | ❌ | ❌ | ❌ | 🟡 | ❌ |
-| Incremental backups | ✅ | ❌ | ❌ | 💲 | ✅ | ✅ |
-| Point-in-time recovery | ✅ | ❌ | ❌ | 🟡 | 🟡 | ✅ |
-| Restore from the tool | ✅ | ✅ | ✅ | ✅ | 🟡 | ✅ |
-| Automatic backup check | ✅ | ❔ | ✅ | 🟡 | 🟡 | 🟡 |
-| Several copies per backup | ✅ | ✅ | ❌ | ✅ | 💲 | ✅ |
-| Encryption | ✅ | ✅ | ✅ | 💲 | ✅ | 💲 |
-| Data skips the vendor | ✅ | ✅ | ✅ | ✅ | 🟡 | ✅ |
-| Chat and webhook alerts | ✅ | ✅ | ✅ | 💲 | 💲 | ❔ |
-
-Portabase and Databasus also back up MongoDB, Redis and other engines; DumpCat sticks to MySQL, MariaDB, PostgreSQL and SQL Server and goes deeper on each (see [What DumpCat supports](#what-dumpcat-supports)).
 
 ## Documentation
 
