@@ -297,6 +297,17 @@ p code, li code, dd code, td code { background: var(--accent-soft); color: var(-
   .db h3 { margin: 14px 14px 2px; } .db-ver, .db-row { margin-inline: 14px; } .db-row:last-child { padding-bottom: 14px; } }
 /* end supported databases */
 
+/* trusted by: logos of teams that run DumpCat, each on a white plate in both themes like the database logos */
+.trusted { padding-block: clamp(36px, 5vw, 52px); text-align: center; }
+.section.trusted h2 { font: 600 0.75rem/1.4 var(--font-mono); font-variation-settings: normal; letter-spacing: 0.1em; margin: 0 0 18px; }
+.trusted-logos { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; padding: 0; margin: 0; list-style: none; }
+.trusted-logos a { display: grid; place-items: center; height: 76px; padding: 0 28px; background: #fff; border: 1px solid var(--line);
+  border-radius: 14px; transition: border-color 0.15s; }
+.trusted-logos a:hover { border-color: var(--accent-ink); }
+.trusted-logos img { display: block; height: 40px; width: auto; }
+.trusted-note { margin: 18px auto 0; max-width: 64ch; color: var(--muted); font-size: 0.9375rem; }
+/* end trusted by */
+
 /* methods table */
 .table-scroll { overflow-x: auto; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
 table { border-collapse: collapse; width: 100%; min-width: 720px; font-size: 0.9375rem; }
