@@ -59,6 +59,19 @@ function signingView(s) {
     ${sg.keys.map((k) => html`<div class="mono small break">${k}${k === signed ? html` <span class="muted">(signed the latest release)</span>` : ''}</div>`)}`;
 }
 
+const hh = (h) => `${String(h).padStart(2, '0')}:00`;
+
+function autoView(s) {
+  const a = s.auto || {};
+  if (!a.enabled) {
+    return html`<span class="badge">off</span> <span class="small muted">Turn on under <a href="#/settings">Settings → Updates</a>.</span>`;
+  }
+  if (a.blocked) return html`<span class="badge warn">blocked</span><div class="small muted">${a.blocked}</div>`;
+  const hours = a.from_hour === a.to_hour ? 'at any hour' : `between ${hh(a.from_hour)} and ${hh(a.to_hour)}`;
+  return html`<span class="badge good">on</span> <span class="small">${hours}${a.timezone && a.timezone !== 'Local' ? ` (${a.timezone})` : ''}</span>
+    ${s.available && a.next ? html`<div class="small muted">${s.latest.version} installs by itself ${new Date(a.next) <= new Date() ? 'now' : fmtDate(a.next)}.</div>` : ''}`;
+}
+
 function cardBody(s) {
   const st = s.state;
   const busyNow = ACTIVE.has(st.phase);
@@ -83,6 +96,7 @@ function cardBody(s) {
       <div>Latest release</div><div>${latest ? latest.version : html`<span class="muted">—</span>`}${s.checked_at ? html` <span class="muted small">checked ${fmtDate(s.checked_at)}</span>` : ''}</div>
       <div>Release server</div><div>${s.server ? html`<span class="mono small break">${s.server}</span> <span class="muted small">(${SOURCES[s.server_source] || s.server_source})</span>` : html`<span class="muted">not configured</span>`}</div>
       <div>Release signature</div><div>${signingView(s)}</div>
+      <div>Automatic updates</div><div>${autoView(s)}</div>
     </div>
     ${busyNow ? progressView(s) : summary}
     ${st.phase === 'failed' ? html`<div class="alert bad" style="margin-top:8px">${icon('alert')}<div><b>${st.kind === 'rollback' ? 'Rollback' : 'Update'} not installed:</b> ${st.error}</div></div>` : ''}

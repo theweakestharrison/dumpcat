@@ -28,7 +28,7 @@ import (
 )
 
 type Event struct {
-	Kind   string            `json:"kind"`   // backup, restore, verify, binlog, stale, binlog_lag, test
+	Kind   string            `json:"kind"`   // backup, restore, verify, binlog, stale, binlog_lag, digest, update, test
 	Status string            `json:"status"` // success, failed, partial, recovered
 	Title  string            `json:"title"`
 	Fields map[string]string `json:"fields"`

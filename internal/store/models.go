@@ -607,6 +607,11 @@ type Settings struct {
 	Require2FAAdmins bool              `json:"require_2fa_admins"`
 	UpdateURL        string            `json:"update_url"`        // release server (overrides DUMPCAT_UPDATE_URL)
 	UpdateAutoCheck  bool              `json:"update_auto_check"` // look for a new version once a day
+	// install new signed versions without anyone clicking, between these hours in the time zone above
+	// (to <= from wraps past midnight, from == to is any hour)
+	UpdateAutoInstall bool `json:"update_auto_install"`
+	UpdateFromHour    int  `json:"update_from_hour"`
+	UpdateToHour      int  `json:"update_to_hour"`
 	// monitoring
 	FreshnessAlerts   bool   `json:"freshness_alerts"`    // alert when a job has no recent successful backup
 	StaleGraceMinutes int    `json:"stale_grace_minutes"` // added to the window expected from a job's schedule
@@ -634,6 +639,8 @@ func DefaultSettings() Settings {
 		DefaultThreads:    4,
 		ToolPaths:         map[string]string{},
 		UpdateAutoCheck:   true,
+		UpdateFromHour:    2,
+		UpdateToHour:      5,
 		FreshnessAlerts:   true,
 		StaleGraceMinutes: 60,
 		BinlogLagMinutes:  30,

@@ -6,6 +6,24 @@ page at dumpcat.cc/changelog/ (see `scripts/build-site.py`). Newest version
 first. Each section: `## <version> (<date>)`, a one-line summary, then `###`
 groups of bullets.
 
+## 1.9.0
+
+DumpCat keeps itself up to date: turn on automatic installs and new signed versions arrive over the air, in the hours
+you choose — the newest fixes and features without rebuilding or downloading anything.
+
+### Updates
+
+- **Install new versions automatically** (**Settings → Updates**, off by default): between the hours you pick (02:00–05:00
+  by default, in the time zone of the Settings page), DumpCat looks for a new version at least once an hour and installs
+  it the way **Install** does — verify the download, wait for running backups and restores, back up its own database,
+  restart, and roll back by itself if the new version does not start. Only releases signed with a trusted key are
+  installed this way (the official packages always carry the project's key); tasks still running at the end of the
+  hours postpone the update to the next day.
+- **System → Updates** shows whether automatic installs are on and when the next version goes in.
+- Updates reach your notification channels: those that send failures hear about an automatic update that could not be
+  installed or was rolled back, those that send successes about every update and rollback. The audit log records
+  automatic installs as *automatic update*.
+
 ## 1.8.0 (2026-10-21)
 
 Microsoft SQL Server is the third database engine: native full and differential backups, restores under new names or

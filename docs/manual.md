@@ -383,7 +383,23 @@ Upload the version folder first and `latest.json` last, so that installations ne
 The release server must use HTTPS.
 
 **Pointing an installation at it:** **Settings → Updates** (or `DUMPCAT_UPDATE_URL`, or the address built in). DumpCat checks once a day
-and shows "x.y.z available" to admins; nothing is installed automatically.
+and shows "x.y.z available" to admins; it installs nothing by itself unless you turn that on (below).
+
+**Installing updates automatically (over the air).** Tick **Settings → Updates → Install new versions automatically** and pick the
+hours (02:00–05:00 by default, in the time zone of the Settings page; the same hour twice means any time). The official packages then
+keep themselves up to date from `https://downloads.dumpcat.cc`, with the newest fixes and features and nothing to rebuild or download.
+Inside those hours DumpCat looks for a new version at least once an hour and installs it exactly like **Install** below (verify, wait for
+running tasks, back up its database, restart, roll back by itself when the new version does not start), with three differences:
+
+- Only **signed** releases are installed automatically: a build without a release key (see *Signed releases* below) installs nothing by
+  itself, and the System page says so. The official packages always carry the project's key.
+- It waits for running tasks until the end of the hours only; when they still run then, it gives up and tries again the next day (each
+  version once a day).
+- Your notification channels hear about it: those that send failures about an automatic update that could not be installed or was
+  rolled back, those that send successes about every update and rollback (also the ones started by hand). The audit log records each
+  automatic install as *automatic update*.
+
+**System → Updates** shows whether automatic installs are on and when the next version will be installed.
 
 **Installing an update:** **System → Updates → Install**, or on the server:
 

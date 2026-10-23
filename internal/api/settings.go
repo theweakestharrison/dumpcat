@@ -228,6 +228,9 @@ func (s *Server) settingsPut(w http.ResponseWriter, r *http.Request) error {
 	if in.DigestWeekday < 0 || in.DigestWeekday > 6 || in.DigestHour < 0 || in.DigestHour > 23 {
 		return badRequest("invalid day or hour for the weekly digest")
 	}
+	if in.UpdateFromHour < 0 || in.UpdateFromHour > 23 || in.UpdateToHour < 0 || in.UpdateToHour > 23 {
+		return badRequest("the hours of automatic updates must be 0-23")
+	}
 	in.InstanceName = strings.TrimSpace(in.InstanceName)
 	if err := checkInstanceName(in.InstanceName); err != nil {
 		return err

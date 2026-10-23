@@ -378,7 +378,23 @@ Upload thư mục phiên bản trước, `latest.json` sau cùng, để máy cà
 Máy chủ phát hành phải dùng HTTPS.
 
 **Khai báo trên máy cài:** **Settings → Updates** (hoặc `DUMPCAT_UPDATE_URL`, hoặc địa chỉ gắn sẵn lúc build). DumpCat kiểm tra mỗi ngày
-một lần và báo "x.y.z available" cho admin; không tự cài gì cả.
+một lần và báo "x.y.z available" cho admin; nó không tự cài gì trừ khi bạn bật tính năng đó (bên dưới).
+
+**Tự động cài bản mới (cập nhật OTA).** Tích **Settings → Updates → Install new versions automatically** và chọn khung giờ (mặc định
+02:00–05:00, theo múi giờ ở trang Settings; chọn cùng một giờ cho cả hai ô nghĩa là giờ nào cũng được). Từ đó các gói chính thức tự cập
+nhật từ `https://downloads.dumpcat.cc`, luôn có bản vá và tính năng mới nhất mà không phải build hay tải gói nào. Trong khung giờ đó,
+DumpCat kiểm tra bản mới ít nhất mỗi giờ một lần và cài y như nút **Install** bên dưới (kiểm tra bản tải về, chờ các tác vụ đang chạy,
+backup database của chính nó, khởi động lại, tự rollback khi bản mới không chạy được), chỉ khác ba điểm:
+
+- Chỉ bản phát hành **có chữ ký** mới được cài tự động: bản build không có khóa phát hành (xem *Ký bản phát hành* bên dưới) không
+  tự cài gì, và trang System ghi rõ điều đó. Các gói chính thức luôn có khóa của dự án.
+- Nó chỉ chờ các tác vụ đang chạy đến hết khung giờ; nếu lúc đó chúng vẫn chạy thì bỏ qua và thử lại vào hôm sau (mỗi phiên bản một
+  lần mỗi ngày).
+- Các kênh thông báo được báo tin: kênh gửi lỗi nhận tin khi một lần cập nhật tự động không cài được hoặc bị rollback, kênh gửi thành
+  công nhận tin về mọi lần cập nhật và rollback (cả những lần bấm tay). Nhật ký thao tác ghi mỗi lần tự cài với người thực hiện
+  *automatic update*.
+
+**System → Updates** cho biết việc tự cài đang bật hay tắt và khi nào bản mới sẽ được cài.
 
 **Cài bản cập nhật:** **System → Updates → Install**, hoặc trên server:
 

@@ -206,6 +206,42 @@ func executablePath() string {
 }
 
 // updateServer returns the release server and where it is configured.
+// updateEvent is the notification about an update or a rollback.
+func updateEvent(r update.Result, baseURL string) notify.Event {
+	ev := notify.Event{Kind: "update", Status: "failed", Time: r.FinishedAt}
+	switch {
+	case r.Kind == "update" && r.Status == "success":
+		ev.Status, ev.Title = "success", "DumpCat updated to "+r.ToVersion
+	case r.Kind == "update" && r.Status == "rolled_back":
+		ev.Title = "DumpCat " + r.ToVersion + " did not start, back on " + r.FromVersion
+	case r.Kind == "update" && r.By == update.AutoBy:
+		ev.Title = "Automatic update to " + r.ToVersion + " failed"
+	case r.Kind == "update":
+		ev.Title = "Update to " + r.ToVersion + " failed"
+	case r.Status == "rolled_back":
+		ev.Status, ev.Title = "success", "DumpCat rolled back to "+r.ToVersion
+	default:
+		ev.Title = "Rollback to " + r.ToVersion + " failed"
+	}
+	ev.Add("From", r.FromVersion)
+	ev.Add("To", r.ToVersion)
+	if r.By != "" {
+		ev.Add("Started by", r.By)
+	}
+	ev.Add("Time", r.FinishedAt.Format("2006-01-02 15:04:05"))
+	if ev.Status == "success" {
+		if r.Message != "" {
+			ev.Add("Details", r.Message)
+		}
+	} else {
+		ev.Error = r.Message
+	}
+	if b := strings.TrimRight(baseURL, "/"); b != "" {
+		ev.URL = b + "/#/system"
+	}
+	return ev
+}
+
 func updateServer(st *store.Store) (string, string) {
 	if u := strings.TrimSpace(st.GetSettings().UpdateURL); u != "" {
 		return u, "settings"
@@ -406,6 +442,17 @@ func serve(cfg *config.Config, stop <-chan struct{}, boot *update.Boot, exe stri
 			default:
 			}
 		}}
+	// automatic updates: the policy is read from the settings at every look
+	upd.Policy = func() update.AutoPolicy {
+		set := st.GetSettings()
+		return update.AutoPolicy{Check: set.UpdateAutoCheck, Install: set.UpdateAutoInstall,
+			FromHour: set.UpdateFromHour, ToHour: set.UpdateToHour, Loc: run.Location()}
+	}
+	upd.Notify = func(r update.Result) {
+		r.Message += " — DumpCat tries again in the next install window"
+		notifier.Send(updateEvent(r, run.BaseURL()))
+	}
+	upd.Audit = func(action, details string) { st.Audit(nil, update.AutoBy, action, "system", details, "") }
 	srv.Updater = upd
 	// lets "dumpcat update" on this machine drive the update through the API
 	srv.ControlToken = auth.RandomToken(32)
@@ -415,7 +462,7 @@ func serve(cfg *config.Config, stop <-chan struct{}, boot *update.Boot, exe stri
 	defer os.Remove(cfg.Path("control.token"))
 	bgCtx, bgCancel := context.WithCancel(context.Background())
 	defer bgCancel()
-	go upd.AutoCheck(bgCtx, func() bool { return st.GetSettings().UpdateAutoCheck })
+	go upd.Auto(bgCtx)
 	go srv.Monitor.Run(bgCtx)
 
 	// while no account exists, creating the first admin requires a one-time token
@@ -487,6 +534,10 @@ func serve(cfg *config.Config, stop <-chan struct{}, boot *update.Boot, exe stri
 				log.Printf("postponed backup of job %d: %v", d.JobID, err)
 			}
 		}
+	}
+	// tell the notification channels how the last update or rollback ended (once)
+	if r := update.TakeResultToAnnounce(cfg.DataDir, time.Now()); r != nil {
+		notifier.Send(updateEvent(*r, run.BaseURL()))
 	}
 	go func() {
 		time.Sleep(2 * time.Minute)

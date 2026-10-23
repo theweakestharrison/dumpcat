@@ -1169,7 +1169,8 @@ route('GET', '/system', () => ({
 }));
 route('POST', '/system/tools/refresh', () => ({ ok: true }));
 const updateView = () => ({ current: VERSION, platform: 'linux/amd64', server: 'https://downloads.dumpcat.cc', server_source: 'build', latest: null, available: false, checked_at: iso(now() - 3 * H),
-  state: { phase: 'idle', started_at: '0001-01-01T00:00:00Z' }, last: null, rollback: { available: true, version: '1.3.0', reason: '' }, signing: { required: true, keys: ['gmAZk8uUPf8Ep4eR+TaUu0cTYWuaznIuMOlesAcB4BE='] } });
+  state: { phase: 'idle', started_at: '0001-01-01T00:00:00Z' }, last: null, rollback: { available: true, version: '1.3.0', reason: '' }, signing: { required: true, keys: ['gmAZk8uUPf8Ep4eR+TaUu0cTYWuaznIuMOlesAcB4BE='] },
+  auto: { enabled: true, from_hour: 2, to_hour: 5, timezone: 'Asia/Ho_Chi_Minh', next: iso(now() + 11 * H) } });
 route('GET', '/update', () => updateView());
 route('POST', '/update/check', () => ({ ...updateView(), checked_at: iso(now()) }));
 route('POST', '/update/install', () => notInDemo('Installing updates'));

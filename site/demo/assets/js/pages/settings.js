@@ -64,7 +64,11 @@ export async function render(ctx) {
     <div class="card"><div class="card-head"><h2>Updates</h2></div><div class="card-body"><div class="form-grid">
       <div class="field full"><label for="update_url">Release server</label><input type="url" id="update_url" name="update_url" value="${s.update_url || ''}" placeholder="https://downloads.dumpcat.cc">
         <div class="help">DumpCat reads <code>latest.json</code> from this address (HTTPS). Leave blank to use <code>DUMPCAT_UPDATE_URL</code> or the address built into this version. Install updates on the <a href="#/system">System</a> page.</div></div>
-      <div class="field full"><label class="check"><input type="checkbox" name="update_auto_check" ${s.update_auto_check ? 'checked' : ''}><span>Check for a new version once a day<span class="help">Only checks and shows a notice to admins — nothing is installed automatically.</span></span></label></div>
+      <div class="field full"><label class="check"><input type="checkbox" name="update_auto_check" ${s.update_auto_check || s.update_auto_install ? 'checked' : ''}><span>Check for a new version once a day<span class="help">Shows a notice to admins when a new version is out.</span></span></label></div>
+      <div class="field full"><label class="check"><input type="checkbox" name="update_auto_install" ${s.update_auto_install ? 'checked' : ''}><span>Install new versions automatically<span class="help">Over the air from the release server, between the hours below (time zone above), and only releases signed with a trusted key. DumpCat waits for running backups and restores, backs up its own database, verifies the download and restarts; if the new version does not start, the previous one and its database come back by themselves. Your notification channels hear about every update.</span></span></label></div>
+      <div class="field" id="update-hours-from"><label for="update_from_hour">Install between</label><select id="update_from_hour" name="update_from_hour">${Array.from({ length: 24 }, (_, h) => html`<option value="${h}" ${s.update_from_hour === h ? 'selected' : ''}>${String(h).padStart(2, '0')}:00</option>`)}</select></div>
+      <div class="field" id="update-hours-to"><label for="update_to_hour">and</label><select id="update_to_hour" name="update_to_hour">${Array.from({ length: 24 }, (_, h) => html`<option value="${h}" ${s.update_to_hour === h ? 'selected' : ''}>${String(h).padStart(2, '0')}:00</option>`)}</select>
+        <div class="help">An update that waits for running tasks gives up at the end and tries again the next day. The same hour twice: any time.</div></div>
     </div></div></div>
     <div class="card"><div class="card-head"><h2>Security</h2></div><div class="card-body"><div class="form-grid">
       <div class="field"><label>Idle session timeout (hours)</label><input type="number" name="session_hours" value="${s.session_hours}" min="1" max="720"></div>
@@ -114,6 +118,16 @@ export async function render(ctx) {
   };
   form.metrics_access.addEventListener('change', showMetrics);
   showMetrics();
+  // installing automatically needs the daily check; the hours only matter then
+  const showUpdates = () => {
+    const auto = form.update_auto_install.checked;
+    if (auto) form.update_auto_check.checked = true;
+    form.update_auto_check.disabled = auto;
+    el.querySelector('#update-hours-from').classList.toggle('hidden', !auto);
+    el.querySelector('#update-hours-to').classList.toggle('hidden', !auto);
+  };
+  form.update_auto_install.addEventListener('change', showUpdates);
+  showUpdates();
   el.querySelector('#mt-new').onclick = async (e) => {
     const btn = e.currentTarget;
     if (s.metrics_token_prefix && !(await confirmBox({ title: 'Replace the metrics token', message: 'Prometheus gets no metrics until it uses the new token.', okText: 'Replace', danger: true }))) return;
@@ -231,6 +245,7 @@ export async function render(ctx) {
         rclone_flags: form.rclone_flags.value.trim(), session_hours: +form.session_hours.value, require_2fa_admins: form.require_2fa_admins.checked, tool_paths: tp,
         allow_indexing: form.allow_indexing.checked,
         update_url: form.update_url.value.trim(), update_auto_check: form.update_auto_check.checked,
+        update_auto_install: form.update_auto_install.checked, update_from_hour: +form.update_from_hour.value, update_to_hour: +form.update_to_hour.value,
         freshness_alerts: form.freshness_alerts.checked, stale_grace_minutes: +form.stale_grace_minutes.value, binlog_lag_minutes: +form.binlog_lag_minutes.value,
         digest_weekday: +form.digest_weekday.value, digest_hour: +form.digest_hour.value, metrics_access: form.metrics_access.value,
       };

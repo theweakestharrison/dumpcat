@@ -29,6 +29,7 @@ type State struct {
 	Total     int64     `json:"total,omitempty"`
 	Waiting   []string  `json:"waiting,omitempty"`
 	Error     string    `json:"error,omitempty"`
+	By        string    `json:"by,omitempty"`
 	StartedAt time.Time `json:"started_at,omitempty"`
 }
 
@@ -51,6 +52,12 @@ type Manager struct {
 	// MaxWait bounds how long an update waits for running tasks.
 	MaxWait time.Duration
 
+	// Policy is what Auto does (from the settings); Notify reports an automatic
+	// update that failed before the restart; Audit records one that starts.
+	Policy func() AutoPolicy
+	Notify func(r Result)
+	Audit  func(action, details string)
+
 	mu        sync.Mutex
 	state     State
 	latest    *Release
@@ -58,6 +65,7 @@ type Manager struct {
 	checkErr  string
 	cancel    context.CancelFunc
 	announced string
+	autoTried string // version@window of the last automatic attempt
 }
 
 var ErrBusy = errors.New("an update is already in progress")
@@ -72,6 +80,9 @@ func (m *Manager) set(s State) {
 	m.mu.Lock()
 	if s.StartedAt.IsZero() {
 		s.StartedAt = m.state.StartedAt
+	}
+	if s.By == "" {
+		s.By = m.state.By
 	}
 	m.state = s
 	m.mu.Unlock()
@@ -110,30 +121,6 @@ func (m *Manager) Check(ctx context.Context, server string) (*Release, error) {
 	return rel, err
 }
 
-// AutoCheck looks for a new version shortly after start and then once a day.
-func (m *Manager) AutoCheck(ctx context.Context, enabled func() bool) {
-	wait := time.Minute
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case <-time.After(wait):
-		}
-		wait = 24 * time.Hour
-		if u, _ := m.Server(); u == "" || !enabled() {
-			continue
-		}
-		m.mu.Lock()
-		busy := m.busy()
-		m.mu.Unlock()
-		if !busy {
-			if _, err := m.Check(ctx, ""); err != nil {
-				m.logf("update check failed: %v", err)
-			}
-		}
-	}
-}
-
 // Rollback information for the UI.
 type RollbackInfo struct {
 	Available bool   `json:"available"`
@@ -156,6 +143,7 @@ type Status struct {
 	Last       *Result      `json:"last"`
 	Rollback   RollbackInfo `json:"rollback"`
 	Signing    SigningInfo  `json:"signing"`
+	Auto       AutoStatus   `json:"auto"`
 }
 
 func (m *Manager) Status() Status {
@@ -174,6 +162,7 @@ func (m *Manager) Status() Status {
 	st.Available = st.Latest != nil && Compare(st.Latest.Version, m.Version) > 0
 	st.Last = LoadResult(m.DataDir)
 	st.Rollback = m.rollbackInfo(st.Last)
+	st.Auto = m.autoStatus(time.Now())
 	return st
 }
 
@@ -205,7 +194,7 @@ func (m *Manager) Cancel() bool {
 	return false
 }
 
-func (m *Manager) begin(kind string) (context.Context, error) {
+func (m *Manager) begin(kind, by string) (context.Context, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	if m.busy() {
@@ -216,7 +205,7 @@ func (m *Manager) begin(kind string) (context.Context, error) {
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	m.cancel = cancel
-	m.state = State{Phase: "checking", Kind: kind, StartedAt: time.Now()}
+	m.state = State{Phase: "checking", Kind: kind, By: by, StartedAt: time.Now()}
 	return ctx, nil
 }
 
@@ -226,26 +215,38 @@ func (m *Manager) fail(kind, target string, err error) {
 	}
 	m.logf("%s failed: %v", kind, err)
 	m.set(State{Phase: "failed", Kind: kind, Target: target, Error: err.Error()})
+	m.mu.Lock()
+	by := m.state.By
+	m.mu.Unlock()
+	if by == AutoBy && m.Notify != nil {
+		m.Notify(Result{Kind: kind, Status: "failed", FromVersion: m.Version, ToVersion: target, Message: err.Error(),
+			By: by, FinishedAt: time.Now()})
+	}
 }
 
 // Install downloads, verifies and installs the latest version in the background.
 // force reinstalls even when the release is not newer.
 func (m *Manager) Install(server string, force bool, by string) error {
+	return m.install(server, force, by, m.MaxWait)
+}
+
+// install is Install that waits at most maxWait for running tasks.
+func (m *Manager) install(server string, force bool, by string, maxWait time.Duration) error {
 	if server == "" {
 		server, _ = m.Server()
 	}
 	if _, err := ManifestURL(server); err != nil {
 		return err
 	}
-	ctx, err := m.begin("update")
+	ctx, err := m.begin("update", by)
 	if err != nil {
 		return err
 	}
-	go m.runInstall(ctx, server, force, by)
+	go m.runInstall(ctx, server, force, by, maxWait)
 	return nil
 }
 
-func (m *Manager) runInstall(ctx context.Context, server string, force bool, by string) {
+func (m *Manager) runInstall(ctx context.Context, server string, force bool, by string, maxWait time.Duration) {
 	const kind = "update"
 	rel, err := m.Check(ctx, server)
 	if err != nil {
@@ -288,7 +289,7 @@ func (m *Manager) runInstall(ctx context.Context, server string, force bool, by 
 		m.fail(kind, target, err)
 		return
 	}
-	if err := m.waitIdle(ctx, kind, target); err != nil {
+	if err := m.waitIdle(ctx, kind, target, maxWait); err != nil {
 		os.Remove(newExe)
 		m.fail(kind, target, err)
 		return
@@ -328,7 +329,7 @@ func (m *Manager) Rollback(by string) error {
 	if !info.Available {
 		return errors.New("rollback is not possible: " + info.Reason)
 	}
-	ctx, err := m.begin("rollback")
+	ctx, err := m.begin("rollback", by)
 	if err != nil {
 		return err
 	}
@@ -340,7 +341,7 @@ func (m *Manager) runRollback(ctx context.Context, info RollbackInfo, by string)
 	const kind = "rollback"
 	target := info.Version
 	m.logf("rollback to %s started by %s", target, by)
-	if err := m.waitIdle(ctx, kind, target); err != nil {
+	if err := m.waitIdle(ctx, kind, target, m.MaxWait); err != nil {
 		m.fail(kind, target, err)
 		return
 	}
@@ -372,8 +373,7 @@ func (m *Manager) runRollback(ctx context.Context, info RollbackInfo, by string)
 }
 
 // waitIdle waits until no backup/restore/verify/copy runs, then stops new ones.
-func (m *Manager) waitIdle(ctx context.Context, kind, target string) error {
-	max := m.MaxWait
+func (m *Manager) waitIdle(ctx context.Context, kind, target string, max time.Duration) error {
 	if max <= 0 {
 		max = 12 * time.Hour
 	}

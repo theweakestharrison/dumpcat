@@ -55,6 +55,7 @@ type Result struct {
 	Snapshot    string    `json:"snapshot,omitempty"`
 	By          string    `json:"by,omitempty"`
 	FinishedAt  time.Time `json:"finished_at"`
+	Notified    bool      `json:"notified,omitempty"` // the notification about it was sent
 }
 
 func exeName() string {
@@ -126,6 +127,20 @@ func LoadResult(dataDir string) *Result {
 		return nil
 	}
 	return &r
+}
+
+// TakeResultToAnnounce returns the result of the last update or rollback when no
+// notification was sent about it yet and it is recent, and marks it as announced.
+func TakeResultToAnnounce(dataDir string, now time.Time) *Result {
+	r := LoadResult(dataDir)
+	if r == nil || r.Notified {
+		return nil
+	}
+	r.Notified = true
+	if SaveResult(dataDir, r) != nil || now.Sub(r.FinishedAt) > 24*time.Hour {
+		return nil
+	}
+	return r
 }
 
 func SaveResult(dataDir string, r *Result) error {
